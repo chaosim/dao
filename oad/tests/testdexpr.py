@@ -32,3 +32,16 @@ class Test_v_var:
     eq_(parse(list(x)), 
         [varcache('a'),varcache('b'),varcache('c')])
 
+class TestDecInc:
+  def test_inc(self):
+    eq_(parse(++i),parse(special.set(i, arith.add(i,1))))
+    
+  def test_dec(self):
+    eq_(parse(--i), parse(special.set(i, arith.sub(i,1))))
+    
+class TestAssign:
+  def test_single_assign(self):
+    eq_(parse(i<<1), parse(special.set(i, 1)))
+  def test_assign_chain(self):
+    eq_(parse(i<<j<<1), parse(special.begin(special.set(j, 1),
+                                            special.set(i, j))))

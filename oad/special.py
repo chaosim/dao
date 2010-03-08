@@ -296,7 +296,11 @@ class WhenLoopForm(RepeatForm):
     tagger.pop_label('when')
     start_condition = [if_(not_p(self.condition), exit_block(label))]
     return block(label, *(start_condition+body+[continue_block(label)]))
-
+  def __eq__(self, other):
+    return self.body==other.body and self.condition==other.condition
+  def __repr__(self):
+    return 'WhenLoopForm(%s,%s)'%(self.body, self.condition)
+  
 class LoopWhenForm(RepeatForm):
   def __init__(self, body, condition, label=None):
     self.body, self.condition, self.label = body, condition, label
@@ -367,7 +371,7 @@ class exit(ParserForm):
            and self.level==other.level and self.label==other.label
   def __repr__(self):
     result = 'exit'
-    if self.label: result += ' '+self.label
+    if self.label: result += '.'+self.label
     elif self.type: result += ' '+self.type
     if self.value: result += ' '+repr(self.value)
     return result
@@ -388,7 +392,7 @@ class next(ParserForm):
            and self.level==other.level and self.label==other.label
   def __repr__(self):
     result = 'next'
-    if self.label: result += ' '+self.label
+    if self.label: result += '.'+self.label
     elif self.type: result += ' '+self.type
     return result
 

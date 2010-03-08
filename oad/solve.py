@@ -56,22 +56,9 @@ class Parser:
       else: return exp
     try: return exp_parse(self)
     except TypeError: return exp
-  def parse_block(self, exp):
-    try: exp_parse_block = exp.___parse_block___
-    except: 
-      if isinstance(exp, list):
-        return [self.parse(e) for e in exp]
-      elif isinstance(exp, tuple):
-        return tuple(self.parse(e) for e in exp)
-      else: return exp
-    try: return exp_parse_block(self)
-    except TypeError: return exp
 
 def parse(exp): 
   return Parser().parse(exp)
-
-def parse_block(exp):
-  return Parser().parse_block(exp) 
 
 class LoopExitNextTagger:
   ''' use tagger to preprocess before solve expression'''

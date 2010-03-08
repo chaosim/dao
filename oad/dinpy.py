@@ -41,9 +41,7 @@ from oad.builtins.term import pytuple, pycall, py_apply, head_list, list_tail
 from oad.builtins.term import items, first, left
 from oad.builtins.term import getvalue, ground_value, is_
 from oad.builtins.arith import ne_p
-from oad.solve import eval, solve, tag_loop_label, parse_block
-
-class DinpySyntaxError(Exception): pass
+from oad.solve import eval, solve, tag_loop_label
 
 class Dao(object): 
   def __init__(self): 
@@ -82,6 +80,8 @@ _my_varcache = {}
 def my_varcache(name, klass=Var):
   return _my_varcache.setdefault(klass, {}).setdefault(name, klass(name))
 
+def _vars(text): return [_my_varcache(x.strip()) for x in text.split(',')]
+
 # used only in dinpy.py internally, do not export me.
 vv = my_single_var('vv', Var)
 __ = my_single_var('__', DummyVar)
@@ -102,81 +102,77 @@ v = single_symbol('v', VarSymbol)
 _ = single_symbol('_', DummyVarSymbol)
 
 ## var.a.b.c
-class VarForm(object):
+class SymbolForm(object):
   def __init__(self, name=None, grammar=None):
     self.__form_name__ = 'var'
     self.__form_grammar__ = None
-    self.__vars__ = []
-  def __getattr__(self, var):
-    self.__vars__.append(VarSymbol(var))
+    self.__symbols__ = []
+  def __getattr__(self, name):
+    self.__symbols__.append(VarSymbol(name))
     return self
-  def __len__(self): return len(self.__vars__)
-  def __iter__(self): return iter(self.__vars__)
-var = lead(VarForm)
+  def __len__(self): return len(self.__symbols__)
+  def __iter__(self): return iter(self.__symbols__)
+var = lead(SymbolForm)
 
 @builtin.function('getvar')
 def getvar(name, klass=Var): 
   return varcache(name, klass)
 
-def _vars(text): return [varcache2(x.strip()) for x in text.split(',')]
-
 # my.a, globl.a
 ## my = element(some(getattr(__._), L('local', __._), y)+eos)
 ## globl = element(some(getattr(__._), L('globl', __._), y)+eos)
 
-##use_item = attr|div(var)|div(str)
-##use = 'use'+some(use_item)+mayional(use_block)|any(use_item)+use_block\
+## use_item = attr|div(var)|div(str)
+## use = 'use'+some(use_item)+mayional(use_block)|any(use_item)+use_block\
 ##          |some(use_item)+div+use_block
 
 # put.a = 1, put.i.j==(1,2)
 put = element('put',
-  # put.a == 1
-    getattr(vv.var)+eq(vv.value)+eos
-      +pycall(special.set, getvar(vv.var), vv.value)
-  # put.i.j==(1,2)
-  | (getattr(__._)+assign(vv.x, getvar(__._)))[1:]%vv.x*vv.vars+eq(vv.value)+eos
-        +pycall(special.set_list, vv.vars, vv.value)
+  # put.i.j<<(1,2)
+  (getattr(__._)+assign(vv.x, getvar(__._)))[1:]%vv.x*vv.vars+lshift(vv.value)+eos
+        +pycall(special.set_list, vv.vars, pycall(parse,vv.value))
   )
 
 _do, _of, _at = words('do, of, at')
 
 def get_eq_operands(binary):
-  if not isinstance(binary.y, VarSymbol):
-    raise DinpySyntaxError
-  if isinstance(binary.x, dexpr.__eq__):
+  if not isinstance(binary.y, VarSymbol): raise DinpySyntaxError
+  if isinstance(binary.x, VarSymbol): return (binary.x, binary.y)
+  if isinstance(binary.x, dexpr.eq): 
     return get_eq_operands(binary.x)+(binary.y,)
-  elif isinstance(binary.x, VarSymbol):
-    return (binary.x, binary.y)
   raise DinpySyntaxError
 
 @builtin.function('getvar')
 def make_let(args, body): 
   bindings = {}
   for b in args:
-    if not isinstance(b, dexpr.__eq__): raise DinpySyntaxError
+    if not isinstance(b, dexpr.eq): raise DinpySyntaxError
     k, v = parse(b.x), parse(b.y)
     if isinstance(k, Var): bindings[k] = v
     else: 
-      if isinstance(k, dexper.__eq__): k =  get_eq_operands(k)
+      if isinstance(k, dexper.eq): k =  get_eq_operands(k)
       elif not isinstance(k, list): raise DinpySyntaxError
       for x in k: 
         x = parse(x) 
         if isinstance(x, Var): bindings[x] = v
         else: raise DinpySyntaxError
+  body = parse(body)
   if isinstance(body, tuple): return special.let(bindings, *body)
   else: return special.let(bindings, body)
   
-#let({var:value}).do[...]
+# let (var==value).do[...]
+# let (v==v==value).do[...]
+# let ([v,v]==value).do[...]
 let = element('let',
   call(vv.bindings)+_do+getitem(vv.body)+eos
     +make_let(vv.bindings, vv.body))
 
 @builtin.function('make_iff')
 def make_iff(test, clause, clauses, els_clause):
-  els_clause = parse_block(els_clause) if not isinstance(els_clause, Var) else None
+  els_clause = parse(els_clause) if not isinstance(els_clause, Var) else None
   test = parse(test[0])
-  clause = parse_block(clause)
-  clauses1 =  [(parse(t), parse_block(c)) for t, c in clauses]
+  clause = parse(clause)
+  clauses1 =  [(parse(t), parse(c)) for t, c in clauses]
   return special.iff([(test, clause)]+clauses1, els_clause)
 
 _then, _elsif, _els = words('then, elsif, els')
@@ -197,16 +193,16 @@ CASE_ELS = CASE_ELS()
 def make_case(test, cases): 
   case_dict = {}
   for case, clause in cases:
-    if isinstance(clause, tuple): clause = list(clause)
-    elif not isinstance(clause, list): clause = [clause]
+    case = parse(case)
+    if isinstance(clause, tuple) or isinstance(clause, list): 
+      clause = [parse(c) for c in clause]
+    else: clause = [parse(clause)]
     if isinstance(case, tuple):
       assert case!=()
-      for x in case:
-        case_dict[x] = clause
-    elif case is CASE_ELS: 
-      els_clause = clause
+      for x in case: case_dict[x] = clause
+    elif case is CASE_ELS: els_clause = clause
     else: case_dict[case] = clause
-  return special.CaseForm(test[0], case_dict, els_clause)
+  return special.CaseForm(parse(test[0]), case_dict, els_clause)
 
 of_fun = attr_call('of')
 
@@ -222,10 +218,14 @@ case = element('case',
   ))
 els = CASE_ELS
 
+@builtin.function('make_case')
+def make_do_loop(klass, body, test):
+  return klass(parse(body), parse(test))
+
 # when(x>1).do[write(1)
 when = element('when',
   call(vv.test)+_do+getitem_to_list(vv.body)+eos+
-  pycall(special.LoopWhenForm, vv.body, first(vv.test)))
+  make_do_loop(special.WhenLoopForm, vv.body, first(vv.test)))
 
 when_fun = attr_call('when')
 until_fun = attr_call('until')
@@ -235,10 +235,10 @@ do = element('do',
   getitem_to_list(vv.body)+(
   # .when(1)
     when_fun(vv.test)+eos
-    +pycall(special.LoopWhenForm, vv.body, first(vv.test))
+    +make_do_loop(special.LoopWhenForm, vv.body, first(vv.test))
   #.until(1)
   | until_fun(vv.test)+eos
-    +pycall(special.LoopUntilForm, vv.body, first(vv.test))
+    +make_do_loop(special.LoopUntilForm, vv.body, first(vv.test))
   ))
 
 # loop[write(1)], loop(1)[write(1)]
@@ -253,15 +253,31 @@ loop = element('loop',
 
 @builtin.function('make_each1')
 def make_each(vars, iterators, body):
-  if len(iterators)==1: iterators = iterators[0]
+  if len(vars)==0: raise DinpySyntaxError
+  for x in vars: 
+    if not isinstance(x, VarSymbol): raise DinpySyntaxError
+  vars = parse(vars)
+  if len(iterators)==1: 
+    iterators = iterators[0]
+    if isinstance(iterators, slice): 
+      if len(vars)!=1: raise DinpySyntaxError
+      start = parse(iterators.start)
+      stop = parse(iterators.stop)
+      step = parse(iterators.step)
+      iterators = range(start, stop, 1 if step is None else step)
+    else: iterators = parse(iterators)
+    iterators1 = iterators
   else:
     iterators1 = []
     for iterator in iterators:
       if isinstance(iterator, slice):
-        iterators1.append(range(iterator.start, iterator.stop, 
-                               1 if iterator.step is None else iterator.step))
-      else: iterators1.append(iterator)
+        start = parse(iterator.start)
+        stop = parse(iterator.stop)
+        step = parse(iterator.step)
+        iterators1.append(range(start, stop, 1 if step is None else step))
+      else: iterators1.append(parse(iterator))
     iterators = zip(*iterators1)
+  body = parse(body)
   return special.EachForm(vars, iterators, body)
 
 # each(i,j)[1:10][1:10]. do[write(i, j)]
@@ -277,14 +293,13 @@ def make_exit(type, level, label, value):
   type = None if isinstance(type, Var) else type
   level = 0 if isinstance(level, Var) else level
   label = None if isinstance(label, Var) else label
-  value = None if isinstance(value, Var) else value
-  return special.exit(value, type, level, label)
+  return special.exit(parse(value), type, level, label)
 
 # exit.loop^2 >> 3,  eixt/a>>3
 exit = element('exit', 
          may((getattr(vv.type)+may(div(vv.level)))|may(div(vv.label)))
              +may(rshift(vv.value))+eos
-             +make_exit(vv.type, vv.level, vv.label, vv.value))
+             +make_exit(vv.type, vv.level, vv.label, ground_value(vv.value)))
 
 @builtin.function('make_next')
 def make_next(type, level, label):
@@ -309,15 +324,27 @@ label = element('label', getattr(vv.name)+mod(vv.body)+eos
 
 @builtin.function('make_block')
 def make_block(name, body):
+  body = tuple(parse(x) for x in body)
   return special.block(name, *body)
 
 block = element('block', getattr(vv.name)+getitem_to_list(vv.body)+eos
                 +make_block(vv.name, vv.body))
 
+@builtin.function('make_pycall')
+def make_pycall(args):
+  args = tuple(parse(x) for x in args)
+  return pycall(args[0], args[1:])
+
 py = element('py', 
        ( getattr(vv.func)+assign(vv.func, getvar(vv.func))+eos
            +pycall(vv.func, vv.args))
-       | +call(vv.args)+eos+pycall(first(vv.args), left(vv.args)))
+       | + call(vv.args)+eos+make_pycall(vv.args))
+
+@builtin.function('make_on_form')
+def make_on_form(form, body):
+  form = parse(form)
+  body = tuple(parse(x) for x in body)
+  return special.OnForm(form, *body)
 
 # with statements in dao
 on = element('on', call(vv.form)+_do+getitem(vv.body)+eos+
@@ -330,6 +357,10 @@ class AtForm:
     return self.clauses==other.clauses
   def __repr__(self): return 'AtForm(%s)'%repr(self.clauses)
     
+@builtin.function('make_AtForm')
+def make_AtForm(args_bodies):
+  return AtForm(parse(args_bodies))
+
 # at(*args)[...](*args)[...][...]
 # at[...][...]
 at = element('at',
@@ -338,100 +369,107 @@ at = element('at',
         (__.args, __.bodies), vv.args_bodies)+eos
         +pycall(AtForm, vv.args_bodies))
 
-from oad.builtins.rule import replace, remove, assert_, asserta, \
+from oad.builtins.rule import replace_def, remove, append_def, insert_def, \
      abolish, retractall, retract
 
 # fun. a(x)== [...]
 @builtin.function('make_fun1')
-def make_fun1(name, args, body): 
+def make_fun1(name, args, body, klass): 
   fun = varcache(name)
-  head = args
+  head = parse(args)
+  body = parse(body)
   if isinstance(body, AtForm): 
     body = body.clauses
     if len(body)>1: raise DinpySyntaxError # should not be (args)[body]...(args)[body]
     if body[0][0] is not None: raise DinpySyntaxError # should not be (args)[body]
-    body = body[0][1][0]
-    if len(body[0][1])==1: 
-      return (special.if_(callp(fun), replace(fun, head, *body), 
-                special.set(fun, function((head, body)))))
-    return special.begin(*[remove(fun, head)]+[assert_(fun, head, x) for x in body[0][1]])
-  else: return replace(fun, head, *body)
+    return replace_def(fun, head, body[0][1])
+  else: return replace_def(fun, head, [body])
   
 # fun. a(x) >= [...]
 @builtin.function('make_fun2')
-def make_fun2(name, args, body): 
+def make_fun2(name, args, body, klass): 
   fun = varcache(name)
   head = args
+  body = parse(body)
   if isinstance(body, AtForm): 
     body = body.clauses
     if len(body)>1: raise DinpySyntaxError
     if body[0][0] is not None: raise DinpySyntaxError
-    if len(body[0][1])==1: return assert_(fun, head, *body[0][1][0])
-    return special.begin(*[assert_(fun, head, x) for x in body[0][1]])
-  else: return assert_(fun, head, *body)
+    return append_def(fun, head,  body[0][1], klass)
+  else: return append_def(fun, head, [body], klass)
   
 # fun. a(x) <= [...]
 @builtin.function('make_fun3')
-def make_fun3(name, args, body): 
+def make_fun3(name, args, body, klass): 
   fun = varcache(name)
   head = args
+  body = parse(body)
   if isinstance(body, AtForm): 
     body = body.clauses
     if len(body)>1: raise DinpySyntaxError
     if body[0][0] is not None: raise DinpySyntaxError
-    if len(body[0][1])==1: return asserta(fun, head, *body[0][1][0])
-    return special.begin(*[asserta(fun, head, x) for x in reversed(body[0][1])])
-  else: return asserta(fun, head, *body)
+    return insert_def(fun, head,  body[0][1], klass)
+  else: return insert_def(fun, head, [body], klass)
     
-#  fun. a== [...]
+#  fun. a== [...], fun. a== at(..)[...][...](...)[...][...]
 @builtin.function('make_fun4')
-def make_fun4(klass, name, rules): 
+def make_fun4(name, rules, klass): 
   fun = varcache(name)
+  rules = parse(rules)
   if isinstance(rules, AtForm): 
     rules1 = []
     for head, bodies in rules.clauses:
-      if head is None: raise DinpySyntaxError
+      if head is None: head = ()
       for body in bodies:
         rules1.append((head, body))
     return assign(fun, klass(rules1))
+  elif isinstance(rules, list):
+    return assign(fun, klass(((), rules)))
   else: raise DinpySyntaxError
   
 #  fun. a>= [...]
 @builtin.function('make_fun5')
-def make_fun5(name, rules): 
+def make_fun5(name, rules, klass): 
   fun = varcache(name)
+  rules = parse(rules)
   if isinstance(rules, AtForm): 
-    rules1 = []
-    for head, bodies in rules.clauses:
-      if head is None: raise DinpySyntaxError
-      for body in bodies:
-        rules1.append((head, body))
-    return special.begin(*[assert_(fun, head, body) for head, body in rules1])
+    clauses = [(head if head is not None else (), bodies) 
+              for head, bodies in rules.clauses]
+    return special.begin(*[append_def(fun, head, bodies, klass) 
+                         for head, bodies in clauses])
+  elif isinstance(rules, list):
+    return append_def(fun, head, [rules], klass) 
   else: raise DinpySyntaxError
   
-#  fun. a>= [...]
+#  fun. a<= [...]
 @builtin.function('make_fun6')
-def make_fun6(name, rules): 
+def make_fun6(name, rules, klass): 
   fun = varcache(name)
+  rules = parse(rules)
   if isinstance(rules, AtForm): 
-    rules1 = []
-    for head, bodies in rules.clauses:
-      if head is None: raise DinpySyntaxError
-      for body in bodies: rules1.append((head, body))
-    return special.begin(*[asserta(fun, head, body) for head, body in reversed(rules1)])
+    clauses = [(head if head is not None else (), bodies) 
+              for head, bodies in rules.clauses]
+    return special.begin(*[insert_def(fun, head, bodies, klass) 
+                         for head, bodies in clauses])
+  elif isinstance(rules, list):
+    return insert_def(fun, head, [rules], klass) 
   else: raise DinpySyntaxError
   
 #  fun[...]
 @builtin.function('make_fun7')
-def make_fun7(name, rules): 
+def make_fun7(clauses, klass): 
+  rules = []
+  for head, bodies in clauses:
+    if head is None: head = ()
+    for body in bodies: rules.append((head, body))
+  return klass(*rules)
+  
+#  - fun.a(x),
+@builtin.function('make_fun8')
+def make_fun8(name, args, klass): # remove
   fun = varcache(name)
-  if isinstance(rules, AtForm): 
-    rules1 = []
-    for head, bodies in rules.clauses:
-      if head is None: raise DinpySyntaxError
-      for body in bodies: rules1.append((head, body))
-    return special.begin(*[asserta(fun, head, body) for head, body in reversed(rules1)])
-  else: raise DinpySyntaxError
+  args = parse(args)
+  return remove(fun, args, klass)
   
 ## fun. a(x)== [...],  fun. a(x) <= at[...][...], 覆盖与a(x)匹配的整个定义
 ## fun. a(x) >= [...],  fun. a(x) <= at[...][...], 对参数组附加定义
@@ -440,37 +478,38 @@ def make_fun7(name, rules):
 ## fun. a>= at(..)[...](..)[...][...]，附加定义
 ## fun. a<= at(..)[...](..)[...][...]，前补定义
 ## fun(..)[...](..)[...][...]
-def fun_macro_grammar(klass):
+def fun_macro_grammar(klass1, klass2):
   return (
   # fun. a(x)== [...],  fun. a(x) <= at[...][...]
     (getattr(vv.name)+call(vv.args)+eq(vv.body)+eos
-      +make_fun1(vv.name,vv.args, vv.body))
+      +make_fun1(vv.name,vv.args, vv.body, klass2))
   # fun. a(x) >= [...],  fun. a(x) <= at[...][...]
   | (getattr(vv.name)+call(vv.args)+ge(vv.body)+eos
-     +make_fun2(vv.name,vv.args, vv.body))
+     +make_fun2(vv.name,vv.args, vv.body, klass2))
   # fun. a(x) <= [...],  fun. a(x) <= at[...][...]
   | (getattr(vv.name)+call(vv.args)+le(vv.body)+eos
-     +make_fun3(vv.name,vv.args, vv.body))
+     +make_fun3(vv.name,vv.args, vv.body, klass2))
   #  fun. a== at(..)[...]
   | (getattr(vv.name)+eq(vv.rules)+eos
-     +make_fun4(klass, vv.name,vv.rules))
+     +make_fun4(vv.name, vv.rules, klass1))
   #  fun. a>= at(..)[...]
-  | (getattr(vv.name)+ge(vv.rules)+eos+make_fun5(vv.name,vv.rules))
+  | (getattr(vv.name)+ge(vv.rules)+eos+make_fun5(vv.name,vv.rules, klass2))
   #  fun. a<= at(..)[...]
-  | (getattr(vv.name)+le(vv.rules)+eos+make_fun6(vv.name,vv.rules))
+  | (getattr(vv.name)+le(vv.rules)+eos+make_fun6(vv.name,vv.rules, klass2))
   #  fun(args) [...](args)[...][...]
-  | (some(call(__.head) + some(
-      getitem_to_list(__.body), __.body, __.bodies), (__.head, __.bodies), vv.rules)
-        +eos+make_fun7(vv.rules))
+  | (some(may(call(__.args)) +assign(__.args, ground_value(__.args))
+          + some(getitem_to_list(__.body), __.body, __.bodies), 
+          (__.args, __.bodies), vv.rules)
+        +eos+make_fun7(vv.rules, klass1))
   #   - fun.a/3,
   | (getattr(vv.name)+neg+div(vv.arity)+eos
      +pycall(abolish, getvar(vv.name), vv.arity))
   #- fun.a(x),
   | (getattr(vv.name)+call(vv.args)+neg+eos
-     +pycall(retractall, getvar(vv.name), vv.args))
+     +make_fun8(vv.name, vv.args, klass2)) #retractall
   #- fun.a(x)[1],
 ##  | (getattr(vv.name)+call(vv.args)+getitem(vv.index)+neg+assign(result, retract(vv.name, vv.args)))
   )
 
-fun = element('fun', fun_macro_grammar(special.FunctionForm))
-macro = element('macro', fun_macro_grammar(special.MacroForm))
+fun = element('fun', fun_macro_grammar(special.FunctionForm, special.UserFunction))
+macro = element('macro', fun_macro_grammar(special.FunctionForm, special.UserMacro))

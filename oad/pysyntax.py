@@ -19,7 +19,8 @@ __all__ = ['element', 'parse', 'lead',
   'lshift', 'rshift', 'add', 'sub', 'mul', 'div', 'floordiv', 'mod',
   'pos', 'neg', 'invert', 'abs', 'pow', 
   'getattr', 'call', 'getitem', 'iterator', 
-  'attr_item', 'attr_call', 'word', 'words', 'getitem_to_list']
+  'attr_item', 'attr_call', 'word', 'words', 'getitem_to_list',
+  'DinpySyntaxError']
 
 from oad.term import deref, unify, DummyVar
 from oad.solve import eval, parse
@@ -28,6 +29,8 @@ from oad.builtins.matcher import matcher
 from oad.builtins.parser import parse as dao_parse
 from oad.builtins.term import to_list
 from oad.builtins.control import and_
+
+class DinpySyntaxError(Exception): pass
 
 def element(name, grammar):
   ''' name = element(grammar)'''
@@ -104,6 +107,7 @@ class FormTraveller(object):
   def __ge__(self, other): 
     self.__operator_data__.append((__ge__, other)); return self 
   def __getattr__(self, name):
+##    print name
     self.__operator_data__.append((__getattr__, name)); return self 
   def __call__(self, *args, **kwargs): 
     self.__operator_data__.append((__call__, args, kwargs)); 

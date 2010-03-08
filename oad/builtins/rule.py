@@ -2,13 +2,15 @@ from oad.term import deref, unify_list_rule_head, conslist, getvalue, match, Var
 ##from oad import error
 from oad import builtin
 from oad.rule import Rule
-from oad.special import FunctionForm
+from oad.special import UserFunction, UserMacro
 
 # rule manipulation
 
 @builtin.macro()
 def abolish(solver, cont, rules, arity):
   rules = getvalue(rules, solver.cont)
+  if not isinstance(rules, UserFunction) and not isinstance(rules, UserMacro):
+    yield cont, rules
   arity = deref(arity, solver.cont)
   old = rules.rules[arity]
   del rules.rules[arity]
@@ -22,12 +24,31 @@ def assert_(solver, cont, rules, head, body):
   yield cont, rules
   del rules.rules[-1]
 
-@builtin.macro('asserta')
-def asserta(solver, cont, rules, head, body):
+@builtin.macro('append_def')
+def append_def(solver, cont, rules, head, bodies, klass=UserFunction):
   rules = getvalue(rules, solver.env)
+  if not isinstance(rules, klass): raise ValueError(rules)
+  for body in bodies:
+    rules.rules[len(head)].append(Rule(head, body))
+  yield cont, rules
+  del rules.rules[-len(bodies):]
+
+@builtin.macro('asserta')
+def asserta(solver, cont, rules, head, body, klass=UserFunction):
+  rules = getvalue(rules, solver.env)
+  if not isinstance(rules, klass): raise ValueError(rules)
   rules.rules[len(head)].insert(0, Rule(head, body))
   yield cont, rules
   del rules.rules[0]
+
+@builtin.macro('asserta')
+def insert_def(solver, cont, rules, head, body, klass=UserFunction):
+  rules = getvalue(rules, solver.env)
+  if not isinstance(rules, klass): raise ValueError(rules)
+  for body in reversed(bodies):
+    rules.rules[len(head)].insert(0, Rule(head, body))
+  yield cont, rules
+  del rules.rules[0:len(bodies)]
 
 # replace the rules which the head can match with.
 @builtin.macro('replace')
@@ -55,7 +76,30 @@ def replace(solver, cont, rules, head, *body):
   if old is not None:
     rules.rules[len(head)] = old
   
-  
+# replace or define the rules which the head can match with.
+@builtin.macro('replace_def')
+def replace_def(solver, cont, rules, head, bodies, klass=UserFunction):
+  rules = getvalue(rules, solver.env)
+  if isinstance(rules, Var):
+    new_rules = [(head, body) for body in bodies]
+    solver.env[rules] = klass((head, body))
+    yield cont, rules
+    del solver.env[rules]
+    return
+  elif not isinstance(rules, klass): raise ValueError
+  if len(head) not in rules.rules: return
+  arity_rules = rules.rules[len(head)]
+  old = arity_rules.copy()
+  index = 0
+  while index<len(arity_rules):
+    rule = arity_rules[index]
+    if match(head, rule.head): del arity_rules[index]
+    else: index += 1
+  for body in bodies: arity_rules.append((head, body))
+  yield cont, rules
+  if old is not None:
+    rules.rules[len(head)] = old
+    
 # retract(+Term)                                                    [ISO]
 #   When  Term  is an  string  or a  term  it is  unified with  the  first
 #   unifying  fact or clause  in the database.   The  fact or clause  is
@@ -83,8 +127,9 @@ def retract(solver, cont, rules, head):
 # All  facts or  clauses in the  database for  which the head  unifies
 #   with Head are removed.
 @builtin.macro('retractall')
-def retractall(solver, cont, rules, head):
+def retractall(solver, cont, rules, head, klass=UserFunction):
   rules = getvalue(rules, solver.env)
+  if not isinstance(rules, klass): raise ValueError
   if len(head) not in rules.rules: return
   arity_rules = rules.rules[len(head)]
   index = 0
@@ -105,8 +150,9 @@ def retractall(solver, cont, rules, head):
 
 # remove all rules which head matched with.
 @builtin.macro('remove')
-def remove(solver, cont, rules, head):
+def remove(solver, cont, rules, head, klass=UserFunction):
   rules = getvalue(rules, solver.env)
+  if not isinstance(rules, klass): raise ValueError
   if len(head) not in rules.rules: return
   arity_rules = rules.rules[len(head)]
   index = 0

@@ -25,8 +25,6 @@ _a = _.a # 哑变量
 a, x, y = v.a, v.x, v.y # 普通变量
 i, j = var.i.j
 
-print i==1
-
 dao[
 # oad program samples:
 
@@ -56,11 +54,14 @@ loop[write(1), write(2), exit], #无限循环
 put.i.j.z==(0,1,2), #i.j.z = (0,1,2)
 ##put[out.i, my.a, globl.b, a, a^3]==(0,1,2),
 
-put.i==0,
+i << 0,
 
 label.a %
 loop[
-  put.i == i+1,
+  -- i,
+  ++ i,
+  ++ i,
+  i << i+10,
   iff (i==1) [next], 
   write(i), 
   iff (i==3) [exit], 
@@ -75,10 +76,10 @@ print dao.code
 print dao.eval()
 
 dao[
-put.i==0,
-do[ put.i==i+1, write(i)].when(i==3),
-put.i==0,
-do[put.i==i+1, write(i)].until(i==3),
+i << 0,
+do[ i << i+1, write(i)].when(i==3),
+i << 0,
+do[ ++i, write(i)].until(i==3),
 '''block comment''',  
 "block comment",
 
@@ -87,7 +88,7 @@ let (a==1,
    [write(v.a,v.b)],
 let (a==b==c==1) 
    [write(v.a,v.b)],
-let ((a,b,c)==range(3)) 
+let ( [a,b,c]==range(3)) 
    [write(v.a,v.b)],
 
 ##fun. a(x)== [write(1)], #覆盖与a(x)匹配的整个定义
@@ -132,8 +133,8 @@ let ((a,b,c)==range(3))
 
 ##loop(10)[char(x)[10]],  
 
-##put.command==open,
-##py.command('readme.txt'),
+##command << open,
+##command('readme.txt'),
 ##py(open, 'readme.txt'), 
 
 ##char(x)[10][10],
