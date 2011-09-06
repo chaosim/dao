@@ -1,0 +1,15 @@
+简单，易用，灵活，强大的解析器，规则求解器
+嵌套式的解析
+  函数状态机，正规表达式 rtn，atn，触发条件，发送消息，连接方法？
+     发布方与订阅方，pipeline(流水线)
+     黑板 消息
+
+sub(x, 1) 成为x-1, 又可以正常地使用运算符了。
+-char：可以定义成optional(char) 漂亮
++char: 可以定义成some(char)
+char[:] char重复任意次（包括0次）
+char[:]/','逗号分隔的列表
+char*5: char重复五次
+char[5]: char重复5次
+char[:5] char小于五次
+char[5:] char至少五次
