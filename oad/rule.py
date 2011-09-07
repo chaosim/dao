@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from oad.eval import solve_exps
-from oad.term import getvalue, unify_rule_head, UnifyFail
+from oad.term import getvalue, unify_list_rule_head, UnifyFail
 
 class Rule(object):
   def __init__(self, head, body):
@@ -14,12 +14,11 @@ class Rule(object):
     else: 
       env.bindings = {}
       evaluator.env = env
-    exps = [getvalue(e, evaluator.trail) for e in exps]
-    for h, p in zip(self.head, exps):
-      unify_rule_head(p, h, evaluator.trail)
-    for x in solve_exps(evaluator, self.body):
-      evaluator.env = callerEnv
-      yield x
+    exps = [getvalue(e) for e in exps]
+    for x in unify_list_rule_head(exps, self.head):
+      for x in solve_exps(evaluator, self.body):
+        evaluator.env = callerEnv
+        yield x
       
   def __eq__(self, other): 
     return self.__class__==other.__class__ and self.head==other.head and self.body==other.body
@@ -31,17 +30,13 @@ class Rule(object):
 
 class RuleList(list):  
   def apply(self, evaluator, env, recursive, *exps):
-    undotrail = evaluator.trail
-    evaluator.trail = evaluator.trail.branch()
     env_bindings = evaluator.env.bindings.copy()
     for i, rule in enumerate(self):
-      try:
-        for x in rule.apply(evaluator, env, recursive, *exps):
-          yield x
-      except UnifyFail: 
-        if i==len(self)-1: raise UnifyFail
+      for x in rule.apply(evaluator, env, recursive, *exps):
+        solved = True
+        yield x
+        if i==len(self)-1: return
         else:
-          evaluator.trail = evaluator.trail.revert_upto(undotrail, discard_choicepoint=True)
           evaluator.env.bindings = env_bindings
 ##      except CutException: return
       

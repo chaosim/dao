@@ -2,13 +2,6 @@ class Error(Exception): pass
 
 class UnifyFail(Error): pass
 
-##def unify_list(list1, list2):
-##  if len(list1)!=list2: return
-##  for x in unify(list1[0], list2[0]):
-##    for y in unify_list(list1[1:], list2[1:]):
-##      yield True
-##    
-##  
 class Subst:
   def __init__(self, bindings={}):
     self.bindings = bindings
@@ -26,43 +19,67 @@ class EnvHolder:
   def __getattr__(self, attr): return getattr(self.evaluator.env, attr)
 env = EnvHolder()
 
-def unify(x, y, trail, occurs_check=False):
-  try: x.unify(y, trail, occurs_check)
+def succeed(): yield
+def fail(): 
+  if 0: yield
+
+def unify_list(list1, list2, occurs_check=False):
+  if len(list1)!=len(list2): return
+  for x in unify(list1[0], list2[0], occurs_check):
+    for y in unify_list(list1[1:], list2[1:], occurs_check):
+      yield 
+def unify(x, y, occurs_check=False):
+  try: return x.unify(y, occurs_check)
   except AttributeError: 
-    try: y.unify(x, trail, occurs_check)
-    except AttributeError:
-      if x!=y: raise UnifyFail
+    try: 
+      return y.unify(x, occurs_check)
+    except AttributeError: 
+      if x==y: return succeed()
+      else: return fail()
       
-def unify_rule_head(x, y, trail):
-  try: x.unify_rule_head(y, trail)
+def unify_list_rule_head(list1, list2):
+  if len(list1)!=len(list2): return
+  elif len(list1)==0: yield
+  elif len(list1)==1: 
+    for x in unify_rule_head(list1[0], list2[0]):
+      yield
+  else:
+    for x in unify_rule_head(list1[0], list2[0]):
+      for y in unify_list_rule_head(list1[1:], list2[1:]):
+        yield 
+def unify_rule_head(x, y):
+  try: return x.unify_rule_head(y)
   except AttributeError: 
-    if isinstance(y, Var): env.bindings[y] = x
+    if isinstance(y, Var): 
+      env.bindings[y] = x
+      return succeed()
     else:
-      if x!=y: raise UnifyFail
+      if x==y: return succeed()
+      else: return fail()
       
-def deref(x, trail):
-  try: return x.deref(trail)
+def deref(x):
+  try: return x.deref()
   except AttributeError: return x
   
-def getvalue(x, trail):
-  try: return x.getvalue(trail)
+def getvalue(x):
+  try: return x.getvalue()
   except AttributeError: return x
 
   
-def copy(x, trail, memo):
-  try: return x.copy(trail, memo)
+def copy(x, memo):
+  try: return x.copy(memo)
   except AttributeError: return x
 
-def copy_rule_head(x, trail):
-  try: return x.copy_rule_head(trail)
+def copy_rule_head(x):
+  try: return x.copy_rule_head()
   except AttributeError: return x
 
 def contain_var(x, y):
   try: return x.contain_var(x, y)
   except: return False
   
-def closure(x, trail):
-  try: return x.closure(trail)
+def closure(x):
+  try: return x.closure()
   except AttributeError: return x 
   
 class Var: 
@@ -74,49 +91,51 @@ class Var:
   def __call__(self, *exps): 
     return Apply(self, *exps)
   def apply(self, evaluator, *exps):
-    return self.getvalue(evaluator.trail).apply(evaluator, *exps)
-  def unify(self, other, trail, occurs_check=False):
-    self = self.deref(trail)
-    other = deref(other, trail)
+    return self.getvalue().apply(evaluator, *exps)
+  def unify(self, other, occurs_check=False):
+    self = self.deref()
+    other = deref(other)
     if isinstance(self, Var):
       if isinstance(other, Var) and other is self: return
-      if occurs_check and contain_var(other, self, trail): raise UnifyFail()
-      self.setvalue(other, trail)
-      return
+      if occurs_check and contain_var(other, self):return
+      self.setvalue(other)
+      yield
     if isinstance(other, Var):
-      if occurs_check and contain_var(self, other, trail): raise UnifyFail()
-      other.setvalue(self, trail)
-      return
-    unify(self, other, trail, occurs_check)
+      if occurs_check and contain_var(self, other): return
+      other.setvalue(self)
+      yield
+    else:
+      for result in unify(self, other, occurs_check):
+        yield
 
-  def unify_rule_head(self, other, trail):
-    self.setvalue(copy_rule_head(other, trail), trail)
-  def copy_rule_head(self, trail):
+  def unify_rule_head(self, other):
+    self.setvalue(copy_rule_head(other))
+    yield
+  def copy_rule_head(self):
     try: return env.bindings[self]
     except KeyError:
       env.bindings[self] = newvar = self.new()
       return newvar
     
-  def deref(self, trail):
+  def deref(self):
     envValue = env[self]
     if isinstance(envValue, Var): self = envValue
     else: return envValue
     next = subst[self]
     if next is None: return self
-    result = deref(next, trail)
-    if result is not next: self.setvalue(result, trail)
+    result = deref(next)
+    if result is not next: self.setvalue(result)
     return result
-  def getvalue(self, trail):
-    result = self.deref(trail)
-    if not isinstance(result, Var): return getvalue(result, trail)
+  def getvalue(self):
+    result = self.deref()
+    if not isinstance(result, Var): return getvalue(result)
     return result
 
-  def setvalue(self, value, trail):
-    trail.add(self)
+  def setvalue(self, value):
     if value is not self: subst[self] = value
     else: del subst[self]
 
-  def copy(self, trail, memo):
+  def copy(self, memo):
     try: return memo[self]
     except KeyError:
       newvar = memo[self] = self.new()
@@ -126,19 +145,19 @@ class Var:
     self.index += 1
     return self.__class__(self.name, self.index)
   
-  def free(self, trail): return isinstance(self.deref(trail), Var)
+  def free(self): return isinstance(self.deref(), Var)
   
   def __repr__(self): return '%s%s'%(self.name, '_%s'%self.index0 if self.index0!=0 else '')
   def __eq__(self, other): return self is other
   def __hash__(self): return hash(id(self))
   
-  def closure(self, trail):
-    value = self.getvalue(trail)
+  def closure(self):
+    value = self.getvalue()
     if value is self: return self
     else: return ClosureVar(self, value)
   
   def solve(self, evaluator):
-    yield self.getvalue(evaluator.trail)
+    yield self.getvalue()
   def __add__(self, other): 
     from oad.builtins.arith import add
     return add(self, other)
@@ -147,15 +166,15 @@ class Var:
     return sub(self, other)
 
 class LocalVar(Var):  
-  def deref(self, trail):
+  def deref(self):
     try: envValue = env.bindings[self]
     except: envValue = env.bindings[self] = Var(self.name, self.index+1)
     if isinstance(envValue, Var): self = envValue
     else: return envValue
     next = subst[self]
     if next is None: return self
-    result = next.deref(trail)
-    if result is not next: self.setvalue(result, trail)
+    result = next.deref()
+    if result is not next: self.setvalue(result)
     return result
 
 class ClosureVar(Var):
@@ -163,40 +182,41 @@ class ClosureVar(Var):
     self.var, self.value = var, value
     self.name = var.name
   
-  def unify(self, other, trail, occurs_check=False):
-    return self.value._unify(other, trail, occurs_check)
+  def unify(self, other, occurs_check=False):
+    return self.value._unify(other, occurs_check)
 
-  def deref(self, trail): return self.value.deref(trail)
-  def getvalue(self, trail): return self.value.getvalue(trail)
-  def setvalue(self, value, trail): self.var.setvalue(value, trail)
+  def deref(self): return self.value.deref()
+  def getvalue(self): return self.value.getvalue()
+  def setvalue(self, value): self.var.setvalue(value)
 
-  def copy(self, trail, memo):
+  def copy(self, memo):
     try: return memo[self]
     except KeyError:
       newvar = memo[self] = self.__class__(self.name)
       return newvar
     
-  def closure(self, trail):
-    value = self.var.getvalue(trail)
+  def closure(self):
+    value = self.var.getvalue()
     if value is self.var: return self.var
     else: return ClosureVar(self.var, value)
     
-  def free(self, trail): return isinstance(self.value, Var)
+  def free(self): return isinstance(self.value, Var)
   
   def __repr__(self): return '(%s:%s)'%(self.var, self.value)
   def __eq__(self, other): return self.var is other
 
 class DummyVar(Var):
   def __init__(self, name='_v'): Var.__init__(self, name)
-  def unify(self, other, trail, occurs_check=False):
-    return self._unify(other, trail, occurs_check)
-  def unify_rule_head(self, other, trail): self.unify(other, trail)
-  def deref(self, trail): return self
-  def getvalue(self, trail):
+  def unify(self, other, occurs_check=False):
+    return self._unify(other, occurs_check)
+  def unify_rule_head(self, other): 
+    return self.unify(other)
+  def deref(self): return self
+  def getvalue(self):
     if subst[self] is None: return self
-    return  subst[self].getvalue(trail)
-  def closure(self, trail): return self
-  def free(self, trail): return True  
+    return  subst[self].getvalue()
+  def closure(self): return self
+  def free(self): return True  
   def __eq__(self, other): return self.__class__ == other.__class__
    
 class Apply:
@@ -206,8 +226,8 @@ class Apply:
   def solve(self, evaluator):
     for x in self.operator.apply(evaluator, *self.operand):
       yield x
-  def closure(self, trail):
-    return Apply(self.operator, *[closure(x, trail) for x in self.operand])
+  def closure(self):
+    return Apply(self.operator, *[closure(x) for x in self.operand])
   def __repr__(self): 
     return '%s(%s)'%(self.operator, 
                 ','.join([repr(e) for e in self.operand]))
@@ -243,42 +263,42 @@ SUCCESS = True
 ##    return UList(self.elements[index])
 ##  def __repr__(self): return "U(%r)" % self.elements
 ##  
-##  def basic_unify(self, other, trail, occurs_check=False):
+##  def basic_unify(self, other, occurs_check=False):
 ##    if self.__class__!=other.__class__ or len(self.elements) != len(other.elements): raise UnifyFail
 ##    for i in range(len(self.elements)):
-##      self.elements[i].unify(other.elements[i], trail, occurs_check)
+##      self.elements[i].unify(other.elements[i], occurs_check)
 ##
-##  def basic_unify_rule_head(self, other, trail):
+##  def basic_unify_rule_head(self, other):
 ##    if self.__class__!=other.__class__ or len(self.elements)!=len(other.elements): raise UnifyFail
 ##    for (arg, arg2) in zip(self.elements, other.elements):
-##      arg.unify_rule_head(arg2, trail)     
+##      arg.unify_rule_head(arg2)     
 ##    
-##  def copy_rule_head(self, trail):
+##  def copy_rule_head(self):
 ##    elements = []
 ##    newinstance = False
 ##    for element in self.elements:
-##      copied = element.copy_rule_head(trail)
+##      copied = element.copy_rule_head()
 ##      if copied is not element: newinstance = True
 ##      elements.append(copied)
 ##    if newinstance: return self.__class__(*elements)
 ##    else: return self
 ##
-##  def getvalue(self, trail):
+##  def getvalue(self):
 ##    elements = []
 ##    newinstance = False
 ##    for element in self.elements:
-##      value = element.getvalue(trail)
+##      value = element.getvalue()
 ##      if value is not element: newinstance = True
 ##      elements.append(value)
 ##    if newinstance: return self.__class__(*elements)
 ##    else: return self
 ##
-##  def copy(self, trail, memo):
-##    newelements = [arg.copy(trail, memo) for arg in self.elements]
+##  def copy(self, memo):
+##    newelements = [arg.copy(, memo) for arg in self.elements]
 ##    return self.__class__(*newelements)
 ##
-##  def makeClosure(self, trail): 
-##    newelements = [arg.makeClosure(trail) for arg in self.elements]
+##  def makeClosure(self): 
+##    newelements = [arg.makeClosure() for arg in self.elements]
 ##    return self.__class__(*newelements)
 ##  
 ##  def __eq__(self, other):
@@ -288,44 +308,44 @@ SUCCESS = True
 ##  def __init__(self, name, elements):
 ##    UList.__init__(*elements)
 ##    self.name = name
-##  def basic_unify(self, other, trail, occurs_check=False):
+##  def basic_unify(self, other, occurs_check=False):
 ##    if self.__class__!=other.__class__ or len(self.elements) != len(other.elements)\
 ##        or self.name!=other.name: 
 ##      raise UnifyFail
 ##    for i in range(len(self.elements)):
-##      self.elements[i].unify(other.elements[i], trail, occurs_check)
+##      self.elements[i].unify(other.elements[i], occurs_check)
 ##
-##  def basic_unify_rule_head(self, other, trail):
+##  def basic_unify_rule_head(self, other):
 ##    if self.__class__!=other.__class__ or len(self.elements)!=len(other.elements)\
 ##        or self.name!=other.name: 
 ##      raise UnifyFail
 ##    for (arg, arg2) in zip(self.elements, other.elements):
-##      arg.unify_rule_head(arg2, trail)         
-##  def copy_rule_head(self, trail):
+##      arg.unify_rule_head(arg2)         
+##  def copy_rule_head(self):
 ##    elements = []
 ##    newinstance = False
 ##    for arg in self.elements:
-##      copied = arg.copy_rule_head(trail)
+##      copied = arg.copy_rule_head()
 ##      if copied is not arg: newinstance = True
 ##      elements.append(copied)
 ##    if newinstance: return self.__class__(self.name, elements)
 ##    else: return self
 ##
-##  def getvalue(self, trail):
+##  def getvalue(self):
 ##    elements = []
 ##    newinstance = False
 ##    for arg in self.elements:
-##      value = arg.getvalue(trail)
+##      value = arg.getvalue()
 ##      if value is not arg: newinstance = True
 ##      elements.append(value)
 ##    if newinstance: return self.__class__(self.name, elements)
 ##    else: return self
 ##
-##  def copy(self, trail, memo):
-##    newelements = [arg.copy(trail, memo) for arg in self.elements]
+##  def copy(self, memo):
+##    newelements = [arg.copy(, memo) for arg in self.elements]
 ##    return self.__class__(self.name, newelements)
-##  def makeClosure(self, trail): 
-##    newelements = [arg.makeClosure(trail) for arg in self.elements]
+##  def makeClosure(self): 
+##    newelements = [arg.makeClosure() for arg in self.elements]
 ##    return self.__class__(self.name, newelements)
 ##  def __eq__(self, other): return UList.__eq__(self, other) and self.name==other.name
 ##   
@@ -334,25 +354,25 @@ class Cons:
   def __init__(self, head, tail):
     self.head, self.tail = head, tail
     
-  def copy_rule_head(self, trail):
-    head = copy_rule_head(self.head, trail)
-    tail = copy_rule_head(self.tail, trail)
+  def copy_rule_head(self):
+    head = copy_rule_head(self.head)
+    tail = copy_rule_head(self.tail)
     if head==self.head and tail==self.tail:
       return self
     return Cons(head, tail)
 
-  def getvalue(self, trail):
-    head = getvalue(self.head, trail)
-    tail = getvalue(self.tail, trail)
+  def getvalue(self):
+    head = getvalue(self.head)
+    tail = getvalue(self.tail)
     if head==self.head and tail==self.tail:
       return self
     return Cons(head, tail)
 
-  def copy(self, trail, memo): 
-    return Cons(copy(head, trail, memo), copy(tail, trail, memo))
-  def closure(self, trail): 
-    head = closure(self.head, trail)
-    tail = closure(self.tail, trail)
+  def copy(self, memo): 
+    return Cons(copy(head, memo), copy(tail, memo))
+  def closure(self): 
+    head = closure(self.head)
+    tail = closure(self.tail)
     if head==self.head and tail==self.tail:
       return self
     return Cons(head, tail)

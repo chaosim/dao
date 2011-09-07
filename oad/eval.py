@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from oad.env import GlobalEnvironment
-from oad.trail import Trail
 
 class CutException: pass
 
@@ -14,8 +13,6 @@ class Evaluator:
     subst.bindings = {}
     env.evaluator = self
     self.env = GlobalEnvironment()
-    if trail is None: trail = Trail()
-    self.trail = trail
 ##    self.stream = None # for parsing
 ##    if builtins is None: from oad.builtin import builtins
 ##    self.builtinlist = [(var(b.name), b) for b in builtins]

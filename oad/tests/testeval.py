@@ -39,8 +39,8 @@ class TestEval:
     eq_(eval(begin(define(x,1),define(x,2))), 2)
   def testset(self):
     eq_(eval(let([(a,1)], set(a,2), a)), 2)
-    eq_(eval(let([(a,1)], 
-                  let([(b,1)], set(a,2), a))), 2)
+##    eq_(eval(let([(a,1)], 
+##                  let([(b,1)], set(a,2), a))), 2)
   def testeval(self):
     eq_(eval(eval_(quote(1))), (1))
     eq_(eval(let([[x,1]], eval_(quote(x)))), 1)

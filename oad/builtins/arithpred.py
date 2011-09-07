@@ -88,7 +88,7 @@ def assign(evaluator, var, value):
 @builtin.macro()
 def  define(evaluator, var, value):
   if isinstance(var, ClosureVar): var = var.var
-  value = deref(value, evaluator.trail)
+  value = deref(value)
   evaluator.env[var] = value
   yield value
 
