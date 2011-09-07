@@ -1,54 +1,33 @@
-class Error(Exception): pass
-
-class UnifyFail(Error): pass
-
-class Subst:
-  def __init__(self, bindings={}):
-    self.bindings = bindings
-  def __getitem__(self, var): 
-    try: return self.bindings[var]
-    except: return None
-  def __setitem__(self, var, value): self.bindings[var] = value
-  def __delitem__(self, var): del self.bindings[var]
-  def __repr__(self): return str(self.bindings)
-subst = Subst()
-
-class EnvHolder:
-  def __getitem__(self, var): return self.evaluator.env[var]
-  def __setitem__(self, var, value): self.evaluator.env[var] = value
-  def __getattr__(self, attr): return getattr(self.evaluator.env, attr)
-env = EnvHolder()
-
 def succeed(): yield
 def fail(): 
   if 0: yield
 
-def unify_list(list1, list2, occurs_check=False):
+def unify_list(list1, list2, env, occurs_check=False):
   if len(list1)!=len(list2): return
-  for x in unify(list1[0], list2[0], occurs_check):
-    for y in unify_list(list1[1:], list2[1:], occurs_check):
+  for x in unify(list1[0], list2[0], env, occurs_check):
+    for y in unify_list(list1[1:], list2[1:], env, occurs_check):
       yield 
-def unify(x, y, occurs_check=False):
-  try: return x.unify(y, occurs_check)
+def unify(x, y, env, occurs_check=False):
+  try: return x.unify(y, env, occurs_check)
   except AttributeError: 
     try: 
-      return y.unify(x, occurs_check)
+      return y.unify(x, env, occurs_check)
     except AttributeError: 
       if x==y: return succeed()
       else: return fail()
       
-def unify_list_rule_head(list1, list2):
+def unify_list_rule_head(list1, list2, env):
   if len(list1)!=len(list2): return
   elif len(list1)==0: yield
   elif len(list1)==1: 
-    for x in unify_rule_head(list1[0], list2[0]):
+    for x in unify_rule_head(list1[0], list2[0], env):
       yield
   else:
-    for x in unify_rule_head(list1[0], list2[0]):
-      for y in unify_list_rule_head(list1[1:], list2[1:]):
+    for x in unify_rule_head(list1[0], list2[0], env):
+      for y in unify_list_rule_head(list1[1:], list2[1:], env):
         yield 
-def unify_rule_head(x, y):
-  try: return x.unify_rule_head(y)
+def unify_rule_head(x, y, env):
+  try: return x.unify_rule_head(y, env)
   except AttributeError: 
     if isinstance(y, Var): 
       env.bindings[y] = x
@@ -57,12 +36,12 @@ def unify_rule_head(x, y):
       if x==y: return succeed()
       else: return fail()
       
-def deref(x):
-  try: return x.deref()
+def deref(x, env):
+  try: return x.deref(env)
   except AttributeError: return x
   
-def getvalue(x):
-  try: return x.getvalue()
+def getvalue(x, env):
+  try: return x.getvalue(env)
   except AttributeError: return x
 
   
@@ -70,31 +49,32 @@ def copy(x, memo):
   try: return x.copy(memo)
   except AttributeError: return x
 
-def copy_rule_head(x):
-  try: return x.copy_rule_head()
+def copy_rule_head(x, env):
+  try: return x.copy_rule_head(env)
   except AttributeError: return x
 
 def contain_var(x, y):
   try: return x.contain_var(x, y)
   except: return False
   
-def closure(x):
-  try: return x.closure()
+def closure(x, env):
+  try: return x.closure(env)
   except AttributeError: return x 
   
 class Var: 
-  created_after_choice_point = None
   def __init__(self, name, index=0): 
     self.name = name
     self.index0 = self.index = index
+    self.binding = None
     
-  def __call__(self, *exps): 
-    return Apply(self, *exps)
+  def __call__(self, *exps): return Apply(self, *exps)
+  
   def apply(self, evaluator, *exps):
-    return self.getvalue().apply(evaluator, *exps)
-  def unify(self, other, occurs_check=False):
-    self = self.deref()
-    other = deref(other)
+    return self.getvalue(evaluator.env).apply(evaluator, *exps)
+  
+  def unify(self, other, env, occurs_check=False):
+    self = self.deref(env)
+    other = deref(other, env)
     if isinstance(self, Var):
       if isinstance(other, Var) and other is self: return
       if occurs_check and contain_var(other, self):return
@@ -105,35 +85,33 @@ class Var:
       other.setvalue(self)
       yield
     else:
-      for result in unify(self, other, occurs_check):
+      for result in unify(self, other, env, occurs_check):
         yield
 
-  def unify_rule_head(self, other):
-    self.setvalue(copy_rule_head(other))
+  def unify_rule_head(self, other, env):
+    self.setvalue(copy_rule_head(other, env))
     yield
-  def copy_rule_head(self):
+  def copy_rule_head(self, env):
     try: return env.bindings[self]
     except KeyError:
       env.bindings[self] = newvar = self.new()
       return newvar
     
-  def deref(self):
+  def deref(self, env):
     envValue = env[self]
-    if isinstance(envValue, Var): self = envValue
-    else: return envValue
-    next = subst[self]
-    if next is None: return self
-    result = deref(next)
+    if not isinstance(envValue, Var): return envValue
+    next = envValue.binding
+    if next is None: return envValue
+    result = deref(next, env)
     if result is not next: self.setvalue(result)
     return result
-  def getvalue(self):
-    result = self.deref()
-    if not isinstance(result, Var): return getvalue(result)
+  def getvalue(self, env):
+    result = self.deref(env)
+    if not isinstance(result, Var): return getvalue(result, env)
     return result
 
   def setvalue(self, value):
-    if value is not self: subst[self] = value
-    else: del subst[self]
+    if value is not self: self.binding = value
 
   def copy(self, memo):
     try: return memo[self]
@@ -145,19 +123,20 @@ class Var:
     self.index += 1
     return self.__class__(self.name, self.index)
   
-  def free(self): return isinstance(self.deref(), Var)
+  def free(self, env): return isinstance(self.deref(env), Var)
   
   def __repr__(self): return '%s%s'%(self.name, '_%s'%self.index0 if self.index0!=0 else '')
   def __eq__(self, other): return self is other
   def __hash__(self): return hash(id(self))
   
-  def closure(self):
-    value = self.getvalue()
+  def closure(self, env):
+    value = self.getvalue(env)
     if value is self: return self
     else: return ClosureVar(self, value)
   
   def solve(self, evaluator):
-    yield self.getvalue()
+    yield self.getvalue(evaluator.env)
+    
   def __add__(self, other): 
     from oad.builtins.arith import add
     return add(self, other)
@@ -166,14 +145,14 @@ class Var:
     return sub(self, other)
 
 class LocalVar(Var):  
-  def deref(self):
+  def deref(self, env):
     try: envValue = env.bindings[self]
     except: envValue = env.bindings[self] = Var(self.name, self.index+1)
     if isinstance(envValue, Var): self = envValue
     else: return envValue
-    next = subst[self]
+    next = self.binding
     if next is None: return self
-    result = next.deref()
+    result = next.deref(env)
     if result is not next: self.setvalue(result)
     return result
 
@@ -181,12 +160,13 @@ class ClosureVar(Var):
   def __init__(self, var, value):
     self.var, self.value = var, value
     self.name = var.name
+    self.binding = None
   
-  def unify(self, other, occurs_check=False):
-    return self.value._unify(other, occurs_check)
+  def unify(self, other, env, occurs_check=False):
+    return self.value._unify(other, env, occurs_check)
 
-  def deref(self): return self.value.deref()
-  def getvalue(self): return self.value.getvalue()
+  def deref(self, env): return self.value.deref(env)
+  def getvalue(self, env): return self.value.getvalue(env)
   def setvalue(self, value): self.var.setvalue(value)
 
   def copy(self, memo):
@@ -195,28 +175,28 @@ class ClosureVar(Var):
       newvar = memo[self] = self.__class__(self.name)
       return newvar
     
-  def closure(self):
-    value = self.var.getvalue()
+  def closure(self, env):
+    value = self.var.getvalue(env)
     if value is self.var: return self.var
     else: return ClosureVar(self.var, value)
     
-  def free(self): return isinstance(self.value, Var)
+  def free(self, env): return isinstance(self.value, Var)
   
   def __repr__(self): return '(%s:%s)'%(self.var, self.value)
   def __eq__(self, other): return self.var is other
 
 class DummyVar(Var):
   def __init__(self, name='_v'): Var.__init__(self, name)
-  def unify(self, other, occurs_check=False):
+  def unify(self, other, env, occurs_check=False):
     return self._unify(other, occurs_check)
-  def unify_rule_head(self, other): 
-    return self.unify(other)
-  def deref(self): return self
-  def getvalue(self):
-    if subst[self] is None: return self
-    return  subst[self].getvalue()
-  def closure(self): return self
-  def free(self): return True  
+  def unify_rule_head(self, other, env): 
+    return self.unify(other, env)
+  def deref(self, env): return self
+  def getvalue(self, env):
+    if self.binding is None: return self
+    return  self.binding.getvalue(env)
+  def closure(self, env): return self
+  def free(self, env): return True  
   def __eq__(self, other): return self.__class__ == other.__class__
    
 class Apply:
@@ -226,8 +206,8 @@ class Apply:
   def solve(self, evaluator):
     for x in self.operator.apply(evaluator, *self.operand):
       yield x
-  def closure(self):
-    return Apply(self.operator, *[closure(x) for x in self.operand])
+  def closure(self, env):
+    return Apply(self.operator, *[closure(x, env) for x in self.operand])
   def __repr__(self): 
     return '%s(%s)'%(self.operator, 
                 ','.join([repr(e) for e in self.operand]))
@@ -243,13 +223,6 @@ class Function: pass
 class Macro: pass
 
 SUCCESS = True
-##class Nil(USinglet):
-##  def __str__(self): return 'NIL'
-##  def __repr__(self): return "Nil()"
-##  def __len__(self): return 0
-##  def __iter__(self): 
-##    if 0: yield  
-##NIL = Nil()
 
 ##class UList:
 ##  def __init__(self, *elements): 
@@ -354,25 +327,25 @@ class Cons:
   def __init__(self, head, tail):
     self.head, self.tail = head, tail
     
-  def copy_rule_head(self):
-    head = copy_rule_head(self.head)
-    tail = copy_rule_head(self.tail)
+  def copy_rule_head(self, env):
+    head = copy_rule_head(self.head, env)
+    tail = copy_rule_head(self.tail, env)
     if head==self.head and tail==self.tail:
       return self
     return Cons(head, tail)
 
-  def getvalue(self):
-    head = getvalue(self.head)
-    tail = getvalue(self.tail)
+  def getvalue(self, env):
+    head = getvalue(self.head, env)
+    tail = getvalue(self.tail, env)
     if head==self.head and tail==self.tail:
       return self
     return Cons(head, tail)
 
   def copy(self, memo): 
     return Cons(copy(head, memo), copy(tail, memo))
-  def closure(self): 
-    head = closure(self.head)
-    tail = closure(self.tail)
+  def closure(self, env): 
+    head = closure(self.head, env)
+    tail = closure(self.tail, env)
     if head==self.head and tail==self.tail:
       return self
     return Cons(head, tail)
@@ -398,10 +371,3 @@ def conslist(*elements):
   result = None
   for term in reversed(elements): result = Cons(term, result)
   return result
-
-##
-##def pairp(x): return isinstance(x, Cons)
-##def car(t): return t.head
-##def cdr(t): return t.tail
-##def cadr(t): return t.tail.head
-##def caddr(t): return t.tail.tail.head

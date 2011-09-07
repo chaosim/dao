@@ -1,4 +1,3 @@
-from oad.error import UnifyFail
 from oad.term import Var#, SUCCESS, UList
 from oad.helper import atomic
 from oad import builtin

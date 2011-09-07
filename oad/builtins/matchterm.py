@@ -1,5 +1,5 @@
 ##from oad.term import atom, Atom, String, Var, Integer, SUCCESS, conslist
-from oad.error import UnifyFail, throw_type_error
+from oad.error import throw_type_error
 from oad import builtin
 
 ##from oad.cont import BodyContinuation, DoneContinuation

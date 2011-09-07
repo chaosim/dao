@@ -1,5 +1,4 @@
 ##from oad.term import SUCCESS, atom, Integer
-from oad.error import UnifyFail
 from oad import builtin
 
 # set and manipulate stream for parsing 

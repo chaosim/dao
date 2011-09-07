@@ -9,9 +9,6 @@ def eval(exp):
 
 class Evaluator:
   def __init__(self, builtins=None, prelude=None, trail=None):
-    from oad.term import subst, env
-    subst.bindings = {}
-    env.evaluator = self
     self.env = GlobalEnvironment()
 ##    self.stream = None # for parsing
 ##    if builtins is None: from oad.builtin import builtins

@@ -5,7 +5,6 @@ from oad.term import SUCCESS, cons
 from oad.eval import eval
 from oad.special import quote, set, begin, if_, lambda_, let, letrec, eval_
 from oad.special import function, macro
-from oad.error import UnifyFail
 
 from oad.builtins.control import and_, cut
 ##from oad.builtins.module import from_

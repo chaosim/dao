@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from oad.eval import solve_exps
-from oad.term import getvalue, unify_list_rule_head, UnifyFail
+from oad.term import getvalue, unify_list_rule_head
 
 class Rule(object):
   def __init__(self, head, body):
@@ -14,8 +14,8 @@ class Rule(object):
     else: 
       env.bindings = {}
       evaluator.env = env
-    exps = [getvalue(e) for e in exps]
-    for x in unify_list_rule_head(exps, self.head):
+    exps = [getvalue(e, evaluator.env) for e in exps]
+    for x in unify_list_rule_head(exps, self.head, evaluator.env):
       for x in solve_exps(evaluator, self.body):
         evaluator.env = callerEnv
         yield x
@@ -31,13 +31,12 @@ class Rule(object):
 class RuleList(list):  
   def apply(self, evaluator, env, recursive, *exps):
     env_bindings = evaluator.env.bindings.copy()
-    for i, rule in enumerate(self):
+    for rule in self:
       for x in rule.apply(evaluator, env, recursive, *exps):
-        solved = True
         yield x
-        if i==len(self)-1: return
-        else:
-          evaluator.env.bindings = env_bindings
+        evaluator.env.bindings = env_bindings
+      else: 
+        evaluator.env.bindings = env_bindings
 ##      except CutException: return
       
   def __repr__(self): 

@@ -1,5 +1,4 @@
-from oad.term import Error, UnifyFail #atom, 
-
+class Error: pass
 class CatchableError(Error):
   def __init__(self, data): self.data = data
 class UncaughtError(Error): pass

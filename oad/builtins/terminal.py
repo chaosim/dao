@@ -5,7 +5,6 @@
  LineStream in lineparser.py is comatible with Stream.'''
 
 ##from oad.term import atom, Atom, String, Symbol, Var, Integer, SUCCESS #, var 
-from oad.error import UnifyFail
 from oad import builtin
 
 @builtin.macro()

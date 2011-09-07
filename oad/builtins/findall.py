@@ -1,4 +1,3 @@
-from oad.error import UnifyFail
 ##from oad.term import atom, SUCCESS, Var, Integer, conslist
 ##from oad.cont import Continuation, BodyContinuation
 ##from oad.cont import ChoiceContinuation, FailureContinuation

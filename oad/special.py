@@ -141,7 +141,7 @@ class UserMacro(Rules,  Macro):
   def apply(self, evaluator, *exps):
     if len(exps) not in self.rules: 
       throw_existence_error("procedure", self.get_prolog_signature())
-    exps = [closure(exp) for exp in exps]
+    exps = [closure(exp, evaluator.env) for exp in exps]
     return self.rules[len(exps)].apply(evaluator, self.env, self.recursive, *exps)
   def __repr__(self): return 'macro(%s)'%repr(self.rules)
   
