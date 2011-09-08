@@ -1,5 +1,5 @@
 from oad import error
-##from oad.term import SUCCESS, car, cdr, cadr
+##from oad.term import True, car, cdr, cadr
 from oad import builtin
 from oad.rule import Rule
 
@@ -8,7 +8,7 @@ from oad.rule import Rule
 @builtin.function()
 def abolish(rules, arity):
   del rules[arity.val]
-  return SUCCESS
+  return True
 
 @builtin.function('assert')
 def assert_(rules, rule):
@@ -22,20 +22,20 @@ def asserta(rules, rule):
 
 @builtin.function2('retract')
 def retract(evaluator, rules, rule):
-  rule = rule.deref(evaluator.trail)
+  rule = rule.deref(evaluator.env)
   head, body = car(rule), cdr(rule)
   if len(head) not in rules.rules: return
   rules = rules.rules[len(head)]
   index = 0
   while index<len(rules):
     rule = rules[index]
-    oldtrail = evaluator.trail
-    evaluator.trail = evaluator.trail.branch()
+    oldtrail = evaluator.env
+    evaluator.env = evaluator.env.branch()
     try:
-      deleted_body = rule.apply(evaluator.trail, head)
-      body.unify(deleted_body, evaluator.trail)
+      deleted_body = rule.apply(evaluator.env, head)
+      body.unify(deleted_body, evaluator.env)
     except error.UnifyFail: 
-      evaluator.trail = evaluator.trail.revert_upto(oldtrail)
+      evaluator.env = evaluator.env.revert_upto(oldtrail)
       index += 1
     else: del rules[index]
   return

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-##from oad.term import Integer, SUCCESS
+##from oad.term import Integer, True
 from oad import builtin
 from oad.builtins.parser import Stream
 
@@ -110,13 +110,13 @@ if __name__=='__main__':
 @builtin.macro('line-parse')
 def parse(evaluator, pred, atom):
   evaluator.stream = LineStream(atom.name) 
-  pred = pred.deref(evaluator.trail)
+  pred = pred.deref(evaluator.env)
   pred.scont(evaluator)
 
 @builtin.function2('line-settext')
 def settext(evaluator, atom): 
   evaluator.stream = LineStream(atom.name, 0)
-  evaluator.value = SUCCESS
+  evaluator.value = True
 
 @builtin.function2()
 def row(evaluator, position=None):

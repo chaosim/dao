@@ -4,8 +4,8 @@ from oad.error import UnifyFail
 from oad.term import Var, DummyVar, conslist as L, Symbol, atom
 from oad.trail import Trail
 from oad.eval import eval
-from oad.builtins.control import SUCCESS, fail, or_, and_, not_, cut
-from oad.term import SUCCESS as SUCCESS, Integer, String
+from oad.builtins.control import True, fail, or_, and_, not_, cut
+from oad.term import True as True, Integer, String
 
 from oad.builtins.arith import add
 from oad.builtins.parser import settext, parse
@@ -44,34 +44,34 @@ class TestParameterize:
   def test_chars(self):
     x, cs, chars = Var('x'), Var('cs'), Var('chars')
     eq_(eval(L(let, [[chars, [function, [[x, cs], (and_, (char, x), (charin, x, cs))]]]],
-                            (parse, (chars, x, 'a'), 'a'))), SUCCESS)
+                            (parse, (chars, x, 'a'), 'a'))), True)
   def test_kleene1(self):
     f, item, kleene = Var('f'), Var('item'), Var('kleene')
     fun = [macro, [[item],  
                          [letrec, [[f, [macro, [[], (and_, item, [f])],
                                               [[], [epsilon]]]]], 
                               f]]]
-    eq_(eval(L(let, [(kleene, fun)], (settext, 'aa'), [(kleene, (char, 'a'))])), SUCCESS)
+    eq_(eval(L(let, [(kleene, fun)], (settext, 'aa'), [(kleene, (char, 'a'))])), True)
   def test_kleene2(self):
     f, pred, kleene = Var('f'), Var('pred'), Var('kleene')
     fun = [macro, [[pred],  
                          [letrec, [[f, [macro, [[x], (and_, (pred, x), [f, x])],
                                               [[x], [epsilon]]]]], 
                               f]]]
-    eq_(eval(L(let, [(kleene, fun)], (settext, 'ab'), [(kleene, char), x])), SUCCESS)
+    eq_(eval(L(let, [(kleene, fun)], (settext, 'ab'), [(kleene, char), x])), True)
     
 class Testterminal:
   def test_char(self):
-    eq_(eval(L(parse, (char, 'a'), 'a')), SUCCESS)
+    eq_(eval(L(parse, (char, 'a'), 'a')), True)
   def test_epsilon1(self):
     eq_(eval(L(parse, (and_, (char, 'a'), [epsilon], (char, 'b')), 'ab')), 
-        SUCCESS)    
+        True)    
   def testepsilon2(self):
     assert_raises(UnifyFail, eval, L(parse, (and_, [epsilon], [eof]), 'a')), 
-    eq_(eval(L(parse, [epsilon], '')), SUCCESS)
+    eq_(eval(L(parse, [epsilon], '')), True)
   def testepsilon3(self):
     rule = (and_, (char, 'a'), [epsilon], (char, 'b'))
-    eq_(eval(L(parse, rule, 'ab')), SUCCESS)
+    eq_(eval(L(parse, rule, 'ab')), True)
     assert_raises(UnifyFail, eval, L(parse, rule, 'a b'))
     assert_raises(UnifyFail, eval, L(parse, rule, 'a'))
     
@@ -82,7 +82,7 @@ class Testterminal:
     eq_(eval(L(begin, (parse, (number, z), '0232'), z)), Integer(154)) #0ctal
     
   def test_literal(self):
-    eq_(eval(L(parse, (literal, 'if'), 'if')), SUCCESS)
+    eq_(eval(L(parse, (literal, 'if'), 'if')), True)
     assert_raises(UnifyFail, eval, L(parse, (literal, 'if'), 'ssf'))
 
   def test_string(self):
@@ -104,14 +104,14 @@ class Testrule:
   def test_two_rule(self):
     eq_(eval(L(letrec, [(f, (function, ((), (char, 'a')),((), (char, 'b'))))], 
                (parse, [f], 'a'), (parse, [f],  'b'))), 
-        SUCCESS)
+        True)
     
   def test_right_recursive1(self):
     function1 = (function, ([], (and_, (char, 'a'), [f])),
                      ([], (char, 'b')))
     eq_(eval(L(letrec, [(f, function1)], 
                (parse, [f], 'b'), (parse, [f],  'ab'), (parse, [f],  'aab'))), 
-        SUCCESS)
+        True)
     assert_raises(UnifyFail, eval, L(letrec, [(f, function1)], (parse, [f], 'a')))
     
   def test_right_recursive2(self):
@@ -120,15 +120,15 @@ class Testrule:
                      ([], (char,x))))]
     eq_(eval(L(letrec, function1, 
                (parse, [p], 'abc'), (parse, [p],  'ab'), (parse, [p],  'a'))), 
-        SUCCESS)
+        True)
     assert_raises(UnifyFail, eval, L(letrec, function1, (parse, [p], '')))
 
   def test_unify_right_recursive(self):
     x, p = Var('x'), Var('p')
     function1 = [(p, (function, ([x], (and_, (char, x), [p, x])),
                           ([x], (char,x))))]
-    eq_(eval(L(letrec, function1, (parse, [p, x], 'aa'))), SUCCESS)
-    eq_(eval(L(letrec, function1, (parse, [p, x], 'a'))), SUCCESS)
+    eq_(eval(L(letrec, function1, (parse, [p, x], 'aa'))), True)
+    eq_(eval(L(letrec, function1, (parse, [p, x], 'a'))), True)
     assert_raises(UnifyFail, eval, 
       L(letrec, function1, (parse, (and_, [p, x], [eof]), 'xy')))
     assert_raises(UnifyFail, eval, L(letrec, function1, (parse, [p, x], '')))
@@ -150,8 +150,8 @@ class TestOr:
     ruleList = [(s, (function, ([x], (or_, (one, x), (two, x))))),
                 (one, (function, (['1'], (char, '1')))),
                 (two, (function, (['2'], (char, '2'))))]
-    eq_(eval(L(letrec, ruleList, (parse, [s, x], '1'))), SUCCESS)
-    eq_(eval(L(letrec, ruleList, (parse, [s, y],  '1'))), SUCCESS)         
+    eq_(eval(L(letrec, ruleList, (parse, [s, x], '1'))), True)
+    eq_(eval(L(letrec, ruleList, (parse, [s, y],  '1'))), True)         
     assert_raises(UnifyFail, eval, L(letrec, ruleList, (parse, [s, x], '3')))
     assert_raises(UnifyFail, eval, L(letrec, ruleList, (parse, [and_, [s, x], [eof]], '12')))
     assert_raises(UnifyFail, eval, L(letrec, ruleList, (parse, [s, x], '')))
@@ -159,8 +159,8 @@ class TestOr:
 class TestOptional:
   def test_optional(self):
     x = Var('x')
-    eq_(eval(L(parse, [optional, [char, x]], '1')), SUCCESS)
-    eq_(eval(L(parse, [optional, [char, x]], '')), SUCCESS)
+    eq_(eval(L(parse, [optional, [char, x]], '1')), True)
+    eq_(eval(L(parse, [optional, [char, x]], '')), True)
 
   def testoptionalRule(self):
     x, s = Var('x'), Var('s')
@@ -179,7 +179,7 @@ class TestOptional:
 class TestParallel:
   def test_parallel(self):
     x = Var('x')
-    eq_(eval(L(parse, [parallel, [letter, x], [char, x]], 'a')), SUCCESS)
+    eq_(eval(L(parse, [parallel, [letter, x], [char, x]], 'a')), True)
     assert_raises(UnifyFail, eval, L(parse, [parallel, [number, x], [char, '3']], '2'))
   def testparallelRule(self):
     x, s, gt, lt = Var('x'), Var('s'), Var('>'), Var('<')
@@ -198,7 +198,7 @@ class TestAnySomeTimesSepList:
     eq_(eval(L(begin, (parse, [any, (char,X), X, Y], '234'), Y)), L('2'))
     eq_(eval(L(begin, (parse, [any, (char,X), X, Y], ''), Y)), L())
   def test_any2(self):
-    eq_(eval(L(parse, (any, (or_, (char, '1'), (char, '2'))), '2')), SUCCESS)
+    eq_(eval(L(parse, (any, (or_, (char, '1'), (char, '2'))), '2')), True)
   def test_anydummy(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(L(begin, (parse, [any, (char,_), _, Y], '222'), Y)), L('2','2','2'))
@@ -212,11 +212,11 @@ class TestAnySomeTimesSepList:
     assert_raises(UnifyFail, eval, L(begin, (parse, [some, (char,X), X, Y], ''), Y))
   def test_some2(self):
     X = Var('X')
-    eq_(eval(L(parse, (and_, (some, (char, X)), (char, '4')), '224')), SUCCESS)
-    eq_(eval(L(parse, (and_, (some, (char, X)), [cut], (char, '4')), '224')), SUCCESS)
+    eq_(eval(L(parse, (and_, (some, (char, X)), (char, '4')), '224')), True)
+    eq_(eval(L(parse, (and_, (some, (char, X)), [cut], (char, '4')), '224')), True)
     assert_raises(UnifyFail, eval, L(parse, (and_, (some, (char, X)), (char, '3'), (char, '5')), '2234'))
   def test_some3(self):
-    eq_(eval(L(parse, (some, (or_, (char, '1'), (char, '2'))), '2')), SUCCESS)
+    eq_(eval(L(parse, (some, (or_, (char, '1'), (char, '2'))), '2')), True)
   def test_somedumy(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(L(begin, (parse, [some, (char,_), _, Y], '222'), Y)), L('2','2','2'))
@@ -300,8 +300,8 @@ class testIndentUndent:
     ruleList = [(s, (function, ([n], (and_, (some, (line, n)), (s, (add, n, 1)))),
                             ([n], (some, (line, n))))),
                 (line, (function, ([n], (and_, (times, space, n), (some, (letter, _)), (any, space),  [char, '\n']))))]
-    eq_(eval(L(letrec, ruleList, (parse, [s, 0],  'a\n b\n c\n'))), SUCCESS)
-    eq_(eval(L(letrec, ruleList, (parse, [s, 0],  'asd\n bdf\n cdfh\n'))), SUCCESS)
+    eq_(eval(L(letrec, ruleList, (parse, [s, 0],  'a\n b\n c\n'))), True)
+    eq_(eval(L(letrec, ruleList, (parse, [s, 0],  'asd\n bdf\n cdfh\n'))), True)
 
 class TestExpression:          
   def testExpressionByRightRecursiveList(self):

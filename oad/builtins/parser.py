@@ -1,4 +1,4 @@
-##from oad.term import SUCCESS, atom, Integer
+##from oad.term import True, atom, Integer
 from oad import builtin
 
 # set and manipulate stream for parsing 
@@ -20,13 +20,13 @@ class Stream:
 @builtin.macro()
 def parse(evaluator, pred, atom):
   evaluator.stream = Stream(atom.name, 0) #text, start position
-  pred = pred.deref(evaluator.trail)
+  pred = pred.deref(evaluator.env)
   pred.scont(evaluator)
 
 @builtin.function2()
 def settext(evaluator, atom): 
   evaluator.stream = Stream(atom.name, 0) #text, start position
-  evaluator.value = SUCCESS
+  evaluator.value = True
   
 # Theses primitive can be used with Stream or compitble class with same interface.
 # LineStream in lineparser.py is an sample.

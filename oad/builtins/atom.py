@@ -1,76 +1,55 @@
 from oad import error
-from oad.term import Var#, atom, SUCCESS, Integer
-##from oad.cont import ChoiceContinuation
+from oad.term import Var
 from oad import builtin
-from oad import helper
 
 # analysing and construction atoms
 
 @builtin.macro()
 def charin(evaluator, in_, whole): 
-  in_ = in_.getvalue(evaluator.trail)
-  whole = whole.getvalue(evaluator.trail)
-  if in_.name not in whole.name: 
-    raise error.UnifyFail()
-  evaluator.value = SUCCESS
+  in_ = deref(in_, evaluator.env)
+  whole = deref(whole, evaluator.env)
+  if isinstance(in_, Var):
+    for x in whole:
+      for _ in unify(in_, x, evaluator.env):
+        yield True
+  elif in_ in whole: 
+    yield True
 
 @builtin.macro()
 def atom_length(evaluator, atom, length):
-  atom = atom.deref(evaluator.trail)
+  atom = deref(atom, evaluator.env)
   if isinstance(atom, Var): error.throw_instantiation_error()
-  atom = helper.unwrap_atom(atom)
-  length = length.deref(evaluator.trail)
-  if not (isinstance(length, Var) or isinstance(length, Integer)):
+  length = deref(length, evaluator.env)
+  if not (isinstance(length, Var) or isinstance(length, int)):
     error.throw_type_error("integer", length)
-  Integer(len(atom)).unify(length, evaluator.trail)
-  evaluator.value = SUCCESS
-
-class AtomConcatContinuation:#(ChoiceContinuation):
-  def __init__(self, atom1, atom2, result, evaluator):
-    ChoiceContinuation.__init__(self, evaluator)
-    self.undotrail = evaluator.trail
-    self.orig_fcont = evaluator.fcont
-    self.atom1, self.atom2 = atom1, atom2
-    self.result = repr(result)
-    self.index = 0
-
-  def activate(self, evaluator):
-    # nondeterministic splitting of result
-    if self.index<len(self.result)+1:
-      self.prepare_more_solutions(evaluator)
-      self.atom1.unify(atom(self.result[:self.index]), evaluator.trail)
-      self.atom2.unify(atom(self.result[self.index:]), evaluator.trail)
-      self.index += 1
-      return evaluator.set(self.cont)
-    raise error.UnifyFail()
+  for _ in unify(len(atom), length, evaluator.env): 
+    yield True
 
 @builtin.macro()
 def atom_concat(evaluator, atom1, atom2, result):
-  a1 = atom1.deref(evaluator.trail)
-  a2 = atom2.deref(evaluator.trail)
-  result = result.deref(evaluator.trail)
-  if isinstance(a1, Var):
-    if isinstance(a2, Var):
-      return evaluator.set(AtomConcatContinuation(a1, a2, result, evaluator))
+  atom1 = deref(atom1, evaluator.env)
+  atom2 = deref(atom2, evaluator.env)
+  result = result.deref(evaluator.env)
+  if isinstance(atom1, Var):
+    index = 0
+    if isinstance(atom2, Var):
+      for index in range(len(result)):
+        for _ in atom1.unify(result[:self.index+1], evaluator.env):
+          for __ in atom2.unify(result[self.index+1:], evaluator.env):
+            yield True
     else:
-      s2 = str(a2)
-      r = str(result)
-      if r.endswith(s2):
-        stop = len(r) - len(s2)
-        assert stop>0
-        a1.unify(atom(r[:stop]), evaluator.trail)
-      else: raise error.UnifyFail()
+      if result.endswith(atom2):
+        for _ in atom1.unify(result[:len(atom2)+1], evaluator.env):
+          yield True
   else:
-    s1 = repr(a1)
-    if isinstance(a2, Var):
-      r = helper.convert_to_str(result)
+    if isinstance(atom2, Var):
       if r.startswith(s1):
-        a2.unify(atom(r[len(s1):]), evaluator.trail)
+        a2.unify(atom(r[len(s1):]), evaluator.env)
       else: raise error.UnifyFail()
     else:
       s2 = str(a2)
-      result.unify(atom(s1 + s2), evaluator.trail)
-  evaluator.value = SUCCESS
+      result.unify(atom(s1 + s2), evaluator.env)
+  evaluator.value = True
 
 class SubAtomContinuation:#(ChoiceContinuation):
   def __init__(self, atom, before, length, after, sub, evaluator):
@@ -122,9 +101,9 @@ class SubAtomUEntitySubContinuation:#(SubAtomContinuation):
     self.prepare_more_solutions(evaluator)
     self.start = b + 1
     try:
-      self.before.unify(Integer(b), evaluator.trail)
-      self.after.unify(Integer(len(self.atom) - len(self.s1) - b), evaluator.trail)
-      self.length.unify(Integer(len(self.s1)), evaluator.trail)
+      self.before.unify(Integer(b), evaluator.env)
+      self.after.unify(Integer(len(self.atom) - len(self.s1) - b), evaluator.env)
+      self.length.unify(Integer(len(self.s1)), evaluator.env)
     except error.UnifyFail: pass
     return evaluator.set(self.cont)
 
@@ -144,10 +123,10 @@ class SubAtomVarAfterContinuation:#(SubAtomContinuation):
           return self.activate(fcont, trail)
         self.prepare_more_solutions(evaluator)
 
-        self.before.unify(Integer(self.b), evaluator.trail)
+        self.before.unify(Integer(self.b), evaluator.env)
         self.after.unify(Integer(
-          len(self.atom) - self.l - self.b), evaluator.trail)
-        self.length.unify(Integer(self.l), evaluator.trail)
+          len(self.atom) - self.l - self.b), evaluator.env)
+        self.length.unify(Integer(self.l), evaluator.env)
         b = self.b
         l = self.l
         assert b >= 0
@@ -174,25 +153,23 @@ class SubAtomElseContinuation:#(SubAtomContinuation):
         self.l += 1
         return self.activate(evaluator)
       self.prepare_more_solutions(evaluator)
-      self.before.unify(Integer(b), evaluator.trail)
-      self.after.unify(Integer(self.a), evaluator.trail)
-      self.length.unify(Integer(self.l), evaluator.trail)
+      self.before.unify(Integer(b), evaluator.env)
+      self.after.unify(Integer(self.a), evaluator.env)
+      self.length.unify(Integer(self.l), evaluator.env)
       l = self.l
       assert l >= 0
-      self.sub.unify(atom(self.atom[b:b + l], cache=False), evaluator.trail)
+      self.sub.unify(atom(self.atom[b:b + l], cache=False), evaluator.env)
       self.l += 1
       return evaluator.set(self.nextcont)
     raise error.UnifyFail()
 
 @builtin.macro()
-def sub_atom(evaluator, atom1, before, length, after, sub):
-  atom1 = atom1.deref(trail)
-  if isinstance(atom1, Var): error.throw_instantiation_error()
-  atom1 = helper.unwrap_atom(atom1)
-  before = before.deref(evaluator.trail)
-  length = length.deref(evaluator.trail)
-  after = after.deref(evaluator.trail)
-  sub = sub.deref(evaluator.trail)
+def sub_atom(evaluator, atom, before, length, after, sub):
+  atom = deref(atom1, evaluator.env)
+  before = deref(before, evaluator.env)
+  length = deref(length, evaluator.env)
+  after = deref(after, evaluator.env)
+  sub = deref(sub, evaluator.env)
   if not isinstance(sub, Var): cls = SubAtomUEntitySubContinuation
   elif isinstance(after, Var): cls = SubAtomVarAfterContinuation
   else: cls = SubAtomElseContinuation

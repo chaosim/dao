@@ -2,6 +2,16 @@ from oad import *
 
 oad(
   # oad program samples:
+  use.a.b.c,
+  use(v.a, v.x.y),  # import name
+  
+  v.a.b.c, #
+  v.a, v.b, v.c, #变量
+  use.a.b/(_.a, _.b),
+  use.a.b.all,
+  use.a/'a*',
+  use.a/'a?b',
+  
   do.
     write(1),
     while_(1).write(2)
@@ -11,6 +21,7 @@ oad(
   loop(10).write(1).write(2),
   loop().write(1), #无限循环
   set(i, 0), #赋值
+  set.i==0,  #赋值
   loop(100)(label.a, 
             inc(i), 
             if_(i==1).next, 
@@ -24,25 +35,19 @@ oad(
   '''block comment''',  
   "block comment",
   
-  let({a:1,
-       b:2},
-      write(a,b)
-      ),
-  do(write(a,b)).where({a:1,b:2}),
+  let/{a:1,
+       b:2}/
+      write(a,b),
   
-  lambda_(x)(write(1)),
-  fun/a(x)(write(1)), #覆盖定义
-  fun/a(x)(write(2)), 
-  fun//a(x)(write(2)),#扩充定义
-  macro/a(x,y)(write(2)),
-  macro//a(x,[y],{a:1})(write(2)), #可选参数，关键字参数
-  write(a,b).where({a:1, b:2}),
-  use(v.a.b.c, v.x.y),  # import name
+  write(a,b).where/{a:1,b:2},
   
-  v.a.b.c, #
-  v.a, v.b, v.c, #变量
-  use.a.b/(v.a, v.b),
-  use.a.b.all,
+  lambda_(x)/ write(1),
+  fun.a(x)(write(1)), #覆盖定义
+  fun.a(x)(write(2)), 
+  fun.a/(x)(write(2)),#扩充定义
+  macro.a/(x,y)(write(2)),
+  macro.a/(x,[y],{a:1})(write(2)), #可选参数，关键字参数
+  
   for_(x).in_(range(10)).write(a),
   
   on(x).at(1).write(1)
@@ -52,7 +57,7 @@ oad(
          2: write(2)
         },
   
-  loop(10).some.char(x)*10,  
+  loop(10)(some.char(x)*10),  
   
   some.char(x)*10,
   any.char(x)*10,

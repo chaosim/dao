@@ -17,7 +17,8 @@ class Evaluator:
 
   def eval(self, exp):
     try: 
-      for x in self.solve(exp): return x
+      for x in self.solve(exp): 
+        return x
     except AttributeError: return x
   def solve(self, exp):
     try: 
@@ -28,8 +29,11 @@ class Evaluator:
       
 def solve_exps(evaluator, exps):
   if exps==(): yield NIL
-  for e in exps[:-1]: 
-    for x in evaluator.solve(e): pass
-  for x in evaluator.solve(exps[-1]):
-    yield x
+  if len(exps)==1:
+    for x in evaluator.solve(exps[0]):
+      yield x
+  else:
+      for x in evaluator.solve(exps[0]):
+        for y in solve_exps(evaluator, exps[1:]):
+          yield y
       

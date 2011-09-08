@@ -46,17 +46,14 @@ class begin(SpecialForm):
     return solve_exps(evaluator, self.exps)
   def __repr__(self):
     return 'begin(%s)'%(';'.join([repr(x) for x in self.exps]))
+  
 class if_(SpecialForm):
   def __init__(self, test, exp1, exp2):
     self.test, self.exp1, self.exp2 = test, exp1, exp2
   def solve(self, evaluator):
     for x in evaluator.solve(self.test):
-      if x: 
-        for y in evaluator.solve(self.exp1):
-          yield y
-      else:
-        for y in evaluator.solve(self.exp2):
-          yield y
+      if x: return evaluator.solve(self.exp1)
+      else: return evaluator.solve(self.exp2)
   def __repr__(self):
     return 'if %s: %s else:%s'%(self.test, self.exp1, self.exp2)
 
@@ -65,9 +62,7 @@ class if_(SpecialForm):
 # the implentations is based on "Lisp In Small Pieces" by Christian Queinnec and Ecole Polytechnique
 
 def let(bindings, *body):
-  vars = [pair[0] for pair in bindings]
-  valueExps = [pair[1] for pair in bindings]
-  return FunctionForm((vars,)+ body)(*valueExps)
+  return FunctionForm((bindings.keys(),)+ body)(*bindings.values())
   
 def lambda_(vars, *body): 
   #[lambda [var ...] ...]
@@ -90,10 +85,8 @@ class FunctionForm(SpecialForm):
 function = FunctionForm
 
 def letrec(bindings, *body):
-   #[letrec [(var, value) ...] ...]
-  vars = [pair[0] for pair in bindings]
-  valueExps = [pair[1] for pair in bindings]
-  return RecursiveFunctionForm((vars,)+ body)(*valueExps)
+   #[letrec {var: value} ...] ...]
+  return RecursiveFunctionForm((bindings.keys(),)+ body)(*bindings.values())
 
 class RecursiveFunctionForm(function): 
   def solve(self, evaluator):

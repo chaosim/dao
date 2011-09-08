@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from oad.term import Var, Function, Macro, Apply#, SUCCESS
+from oad.term import Var, Function, Macro, Apply#, True
 
 builtins = []
 
@@ -47,7 +47,7 @@ class BuiltinFunction2(Builtin, Function):
   def __call__(self, *exps):
     return Apply(self, *exps)
   def apply(self, evaluator, *exps):
-    yield self.function(*[evaluator.eval(e) for e in exps])
+    return self.function(evaluator, *[evaluator.eval(e) for e in exps])
   
 class BuiltinMacro(Builtin, Macro):
   def __call__(self, *exps):

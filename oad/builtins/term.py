@@ -1,6 +1,6 @@
 from oad import helper 
 from oad import error
-from oad.term import Var#, Integer, SUCCESS
+from oad.term import Var#, Integer, True
 from oad import builtin
 ##from oad.cont import Continuation, ChoiceContinuation
 
@@ -8,7 +8,7 @@ from oad import builtin
 
 @builtin.macro()
 def getvalue(evaluator, item):
-  evaluator.value = item.getvalue(evaluator.trail)
+  evaluator.value = item.getvalue(evaluator.env)
   
 class SetvalueContinuation:#(Continuation): 
   def __init__(self, arg, evaluator):
@@ -19,8 +19,8 @@ class SetvalueContinuation:#(Continuation):
     if var in evaluator.env.bindings:
       v = evaluator.env.bindings[var]
       if isinstance(v, Var): var = v
-    var.setvalue(evaluator.value, evaluator.trail)
-    evaluator.value = SUCCESS
+    var.setvalue(evaluator.value, evaluator.env)
+    evaluator.value = True
     evaluator.set(self.cont)
   def _repr(self): return 'assign_cont'
 
@@ -124,5 +124,5 @@ def univ(evaluator):
 
 @builtin.macro()
 def copy_term(evaluator, term, copy):
-  copy.unify(term.copy(evaluator.trail, {}), evaluator.trail)
-  evaluator.value = SUCCESS
+  copy.unify(term.copy(evaluator.env, {}), evaluator.env)
+  evaluator.value = True

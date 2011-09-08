@@ -1,40 +1,42 @@
-def succeed(): yield
-def fail(): 
-  if 0: yield
+# -*- coding: utf-8 -*-
 
 def unify_list(list1, list2, env, occurs_check=False):
   if len(list1)!=len(list2): return
   for x in unify(list1[0], list2[0], env, occurs_check):
     for y in unify_list(list1[1:], list2[1:], env, occurs_check):
-      yield 
+      yield True
 def unify(x, y, env, occurs_check=False):
-  try: return x.unify(y, env, occurs_check)
+  try: 
+    for result in x.unify(y, env, occurs_check):
+      yield True
   except AttributeError: 
     try: 
-      return y.unify(x, env, occurs_check)
+      for result in y.unify(x, env, occurs_check):
+        yield True
     except AttributeError: 
-      if x==y: return succeed()
-      else: return fail()
+      if x==y: yield True
       
 def unify_list_rule_head(list1, list2, env):
   if len(list1)!=len(list2): return
   elif len(list1)==0: yield
   elif len(list1)==1: 
     for x in unify_rule_head(list1[0], list2[0], env):
-      yield
+      yield True
   else:
     for x in unify_rule_head(list1[0], list2[0], env):
       for y in unify_list_rule_head(list1[1:], list2[1:], env):
-        yield 
+        yield True
+        
 def unify_rule_head(x, y, env):
-  try: return x.unify_rule_head(y, env)
+  try: 
+    for result in x.unify_rule_head(y, env):
+      yield True
   except AttributeError: 
     if isinstance(y, Var): 
       env.bindings[y] = x
-      return succeed()
+      yield True
     else:
-      if x==y: return succeed()
-      else: return fail()
+      if x==y: yield True
       
 def deref(x, env):
   try: return x.deref(env)
@@ -79,18 +81,21 @@ class Var:
       if isinstance(other, Var) and other is self: return
       if occurs_check and contain_var(other, self):return
       self.setvalue(other)
-      yield
-    if isinstance(other, Var):
+      yield True
+      self.binding = None
+    elif isinstance(other, Var):
       if occurs_check and contain_var(self, other): return
       other.setvalue(self)
-      yield
+      yield True
+      other.binding = None
     else:
       for result in unify(self, other, env, occurs_check):
-        yield
+        yield True
 
   def unify_rule_head(self, other, env):
     self.setvalue(copy_rule_head(other, env))
     yield
+    self.binding = None
   def copy_rule_head(self, env):
     try: return env.bindings[self]
     except KeyError:
@@ -222,8 +227,6 @@ class Function: pass
 
 class Macro: pass
 
-SUCCESS = True
-
 ##class UList:
 ##  def __init__(self, *elements): 
 ##    self.elements = elements
@@ -327,6 +330,26 @@ class Cons:
   def __init__(self, head, tail):
     self.head, self.tail = head, tail
     
+  def unify(self, other, env, occurs_check=False):
+    if isinstance(other, Var): 
+      for x in other.unify(self, env, occurs_check):
+        yield True
+    else:
+      if self.__class__!=other.__class__: return
+      for x in unify(self.head, other.head, env, occurs_check):
+        for y in unify(self.tail, other.tail, env, occurs_check):
+          yield True
+          
+  def unify_rule_head(self, other, env):
+    if isinstance(other, Var): 
+      env.bindings[other] = self
+      yield True
+    else:
+      if self.__class__!=other.__class__: return
+      for x in unify_rule_head(self.head, other.tail, env):
+        for y in unify_rule_head(self.head, other.tail, env):
+          yield True
+          
   def copy_rule_head(self, env):
     head = copy_rule_head(self.head, env)
     tail = copy_rule_head(self.tail, env)

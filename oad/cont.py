@@ -54,20 +54,20 @@ class ChoiceContinuation(FailureContinuation):
     FailureContinuation.__init__(self, *arguments)
     self.orig_fcont, self.undotrail = None, None    
   def prepare_more_solutions(self, evaluator):
-    self.orig_fcont, self.undotrail = evaluator.fcont, evaluator.trail
+    self.orig_fcont, self.undotrail = evaluator.fcont, evaluator.env
     self.oldStream = evaluator.stream
     evaluator.fcont = self
-    evaluator.trail = evaluator.trail.branch()
+    evaluator.env = evaluator.env.branch()
     self.env_bindings = evaluator.env.bindings.copy()
   def fail(self, evaluator):
     assert self.undotrail is not None
     evaluator.scont = self
     evaluator.fcont = self.orig_fcont
-    evaluator.trail = evaluator.trail.revert_upto(self.undotrail, discard_choicepoint=True)
+    evaluator.env = evaluator.env.revert_upto(self.undotrail, discard_choicepoint=True)
     evaluator.stream = self.oldStream
     evaluator.env.bindings = self.env_bindings
   def cut(self, evaluator):
-    evaluator.trail = self.undotrail.discard(evaluator.trail)
+    evaluator.env = self.undotrail.discard(evaluator.env)
     self.orig_fcont.cut(evaluator)
   def discard(self): pass
 
@@ -101,7 +101,7 @@ class RuleContinuation(Continuation):
     else: 
       self.env.bindings = {}
       evaluator.env = self.env
-    nextcall = self.rule.apply(evaluator.trail, self.pattern)
+    nextcall = self.rule.apply(evaluator.env, self.pattern)
     evaluator.set(RuleDoneContinuation(evaluator, callerEnv))
     return Cons('begin', nextcall).scont(self.evaluator)
   def __repr__(self): 
@@ -169,7 +169,7 @@ class CatchingDelimiter(Continuation):
   def __init__(self, catcher, recover, evaluator):
     Continuation.__init__(self, evaluator)
     self.catcher, self.recover = catcher, recover
-    self.fcont, self.trail = evaluator.fcont, evaluator.trail
+    self.fcont, self.trail = evaluator.fcont, evaluator.env
   def activate(self, evaluator): evaluator.set(self.cont, self.fcont, self.trail)
   def __repr__(self): return "(CatchingDelimiter: %s, %s)"%(self.catcher, self.recover)
 

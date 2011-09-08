@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from oad.eval import solve_exps
+from oad.eval import solve_exps, CutException
 from oad.term import getvalue, unify_list_rule_head
 
 class Rule(object):
@@ -32,12 +32,13 @@ class RuleList(list):
   def apply(self, evaluator, env, recursive, *exps):
     env_bindings = evaluator.env.bindings.copy()
     for rule in self:
-      for x in rule.apply(evaluator, env, recursive, *exps):
-        yield x
-        evaluator.env.bindings = env_bindings
-      else: 
-        evaluator.env.bindings = env_bindings
-##      except CutException: return
+      try:
+        for x in rule.apply(evaluator, env, recursive, *exps):
+          yield x
+          evaluator.env.bindings = env_bindings
+        else: 
+          evaluator.env.bindings = env_bindings
+      except CutException: return
       
   def __repr__(self): 
     return '{%s}'%' '.join([repr(rule) for rule in self])

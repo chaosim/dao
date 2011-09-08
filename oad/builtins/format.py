@@ -1,6 +1,5 @@
 import os
 from oad import builtin
-from oad.term import SUCCESS
 
 # output
 
@@ -8,17 +7,17 @@ from oad.term import SUCCESS
 def write(*args):
   #for arg in args: os.write(1, "%s, "%arg) 
   for arg in args: print arg,
-  return SUCCESS
+  return True
   
 @builtin.function()
 def writeln(*args):
   #for arg in args: os.write(1, "%s, "%arg) 
   for arg in args: print arg,
   print
-  return SUCCESS
+  return True
   
 @builtin.function()
 def nl(): 
   #os.write(1, "\n") 
   print; 
-  return SUCCESS
+  return True

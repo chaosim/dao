@@ -1,7 +1,7 @@
 from nose.tools import eq_, ok_, assert_raises
 from oad.error import UnifyFail
 from oad.builtins.arith import add, sub, eq
-from oad.term import SUCCESS
+from oad.term import True
 
 from oad.term import var, NIL, String, Integer, Atom, Symbol
 from oad.term import conslist as L
@@ -65,9 +65,9 @@ class Test_eval_while_parsing:
     eq_(parse(grammar, '({begin} 1)'), L('begin', 1))
     eq_(parse(grammar, '({begin} {(+ 1 1)})'), L('begin', 2))
   def testchar(self):
-    eq_(parse(grammar, '{(char "a")}a'), SUCCESS) # beautiful, so cool, eureka!
+    eq_(parse(grammar, '{(char "a")}a'), True) # beautiful, so cool, eureka!
   def testlet_char_rule(self):
-    eq_(parse(grammar, '{(let ((f (lambda () (char x)))) (f))}a'), SUCCESS) 
+    eq_(parse(grammar, '{(let ((f (lambda () (char x)))) (f))}a'), True) 
   def testlet_char_rule(self):
     eq_(parse(grammar, '{(let ((f (macro ((x) (char x))))) (f x) x)}a'), Symbol('a')) 
 
