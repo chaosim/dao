@@ -10,25 +10,16 @@ def eval(exp):
 class Evaluator:
   def __init__(self, builtins=None, prelude=None, trail=None):
     self.env = GlobalEnvironment()
-##    self.stream = None # for parsing
-##    if builtins is None: from oad.builtin import builtins
-##    self.builtinlist = [(var(b.name), b) for b in builtins]
-##    self.prelude = prelude
 
   def eval(self, exp):
-    try: 
-      for x in self.solve(exp): 
-        return x
-    except AttributeError: return x
+    for x in self.solve(exp): 
+      return x
   def solve(self, exp):
-    try: 
-      for x in exp.solve(self): 
-        yield x
-    except AttributeError: 
-      yield exp
+    try: return exp.solve(self) 
+    except AttributeError: return (exp,)
       
 def solve_exps(evaluator, exps):
-  if exps==(): yield NIL
+  if exps==(): yield True
   if len(exps)==1:
     for x in evaluator.solve(exps[0]):
       yield x
@@ -36,4 +27,3 @@ def solve_exps(evaluator, exps):
       for x in evaluator.solve(exps[0]):
         for y in solve_exps(evaluator, exps[1:]):
           yield y
-      

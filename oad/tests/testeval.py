@@ -11,7 +11,7 @@ def f(cc):
 from oad.term import cons
 from oad.eval import eval
 from oad.special import quote, set, begin, if_, lambda_, let, letrec, eval_
-from oad.special import function, macro
+from oad.special import function, macro, block, return_from
 
 from oad.builtins.control import and_, cut
 ##from oad.builtins.module import from_
@@ -72,6 +72,21 @@ class TestEval:
     eq_(eval(letrec({odd: lambda_([n], if_(eq(n,0), 0, even(sub(n,1)))),
                     even: lambda_([n], if_(eq(n,0), 1, odd(sub(n, 1))))},
                   odd(3))), 1)
+  def testblock(self):
+    f = Var('f')
+    eq_(eval(block(foo, let({f: lambda_((), return_from(foo,1))}, 
+                            mul(2,block(foo, f()))))), 
+        1)
+  def testblock2(self):
+    eq_(eval(block(a, return_from(a, 2), 3)), 2)
+  def testcatch(self):
+    eq_(eval(catch(1, 2)), 2)
+  def testcatch(self):
+    eq_(eval(catch(1, throw(1, 2), 1)), 2)
+  def xtestunwind_protect(self):
+    eq_(eval(L(block, foo, (unwind_protect, (return_from, foo, 1), (write, 2)))), Integer(1))
+    eq_(eval(L(block, foo, (unwind_protect, (return_from, foo, 1), 
+                            (write, 2), (write, 3)))), Integer(1))
 
 class Testfunction:
   def testembedvar(self):

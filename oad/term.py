@@ -171,7 +171,7 @@ class ClosureVar(Var):
     return self.value._unify(other, env, occurs_check)
 
   def deref(self, env): return self.value.deref(env)
-  def getvalue(self, env): return self.value.getvalue(env)
+  def getvalue(self, env): return getvalue(self.value, env)
   def setvalue(self, value): self.var.setvalue(value)
 
   def copy(self, memo):

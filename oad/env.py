@@ -46,3 +46,18 @@ class ExtendEnvironment(Environment):
   def lookup(self, label, cont, evaluator):
     return self.outer.lookup(label,cont, evaluator)
   def __repr__(self): return "%s"%(self.bindings)+repr(self.outer)
+
+class BlockEnvironment(ExtendEnvironment):
+  def __init__(self, label, outer, cont):
+    self.label, self.outer, self.cont = label, outer, cont
+    self.bindings = {}
+  def __getitem__(self, var): return self.outer[var]
+  def __setitem__(self, var, value):
+    self.outer[var] = value
+  def hasBindings(self): return False
+  def lookup(self, label, cont, evaluator):
+    if label==self.label: return cont.unwind(self.cont, evaluator)
+    return self.outer.lookup(label, evaluator)
+
+class ModuleEnvironment(ExtendEnvironment): pass
+  

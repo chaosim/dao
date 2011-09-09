@@ -3,6 +3,7 @@
 from oad.term import Apply, Function, Macro, closure
 from oad.rule import Rule, RuleList
 from oad.eval import solve_exps
+from oad.env import BlockEnvironment
 
 # special forms: quote, begin, if, eval, let, lambda, function, macro, module
 
@@ -162,27 +163,35 @@ class eval_(SpecialForm):
 ##  Cons('begin', tail).scont(evaluator)
 ##
 
-def on_block(evaluator, scont, tail):
-  #[block label ...]
-  label, body = car(tail), cdr(tail)
-  evaluator.scont = block_cont(label, scont)
-  evaluator.env = BlockEnvironment(label.name, evaluator.env, scont)
-  return begin(body, evaluator)
+class block(SpecialForm):
+  def __init__(self, label, *body):
+    self.label, self.body = label, body
+  def solve(self, evaluator):
+    try:
+      evaluator.env = BlockEnvironment(self.label.name, evaluator.env, 'where is scont?')
+      env = evaluator.env
+      for x in solve_exps(evaluator, self.body):
+        yield x
+    except ReturnFromBlock, e:
+      if e.label==env.label:
+        for x in evaluator.solve(e.form):
+          yield x
+          
+  def __repr__(self):
+    return 'block(%s)'%self.body
 
-##@funcont
-def block_cont(self, value, evaluator):
-  return self.cont.on(value, evaluator)
-
-def on_return_from(evaluator, scont, tail): 
-  #[return-from label form]
-  label, form = car(tail), cadr(tail)
-  evaluator.scont = return_from_cont(label.name, evaluator.env, scont)
-  return form.scont(evaluator)
-
-##@funcont
-def return_from_cont(self, value, evaluator):
-  label, block = self.arguments[:2]
-  return block.lookup(label, self.cont, evaluator)
+class ReturnFromBlock:
+  def __init__(self, label, form):
+    self.label, self.form= label.name, form
+    
+class return_from(SpecialForm):
+  def __init__(self, label, form):
+    self.label, self.form = label, form
+  def solve(self, evaluator):
+    if 0: yield
+    raise ReturnFromBlock(self.label, self.form)
+  def __repr__(self):
+    return 'return_from(%s)'%self.label
 
 def on_unwind_protect(evaluator, scont, tail):
   #[unwind-protect form cleanup]
@@ -212,8 +221,19 @@ def unwind_cont(self, _, evaluator):
   evaluator.value, targetCont = self.arguments[:2]
   return self.cont.unwind(targetCont, evaluator)
 
-def on_catch(evaluator, scont, tail): 
-  #[catch tag ...]
+class catch(SpecialForm):
+  def __init__(self, tag, *body):
+    self.tag, self.body = tag, body
+  def solve(self, evaluator):
+    try:
+      evaluator.env = BlockEnvironment(self.label.name, evaluator.env, 'where is scont?')
+      env = evaluator.env
+      for x in solve_exps(evaluator, self.body):
+        yield x
+    except ReturnFromBlock, e:
+      if e.label==env.label:
+        for x in evaluator.solve(e.form):
+          yield x
   tag, body = car(tail), cdr(tail)
   evaluator.scont = catch_cont(body, evaluator.env, scont)
   return tag.scont(evaluator)   
