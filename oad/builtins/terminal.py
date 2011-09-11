@@ -1,95 +1,95 @@
 # -*- coding: utf-8 -*-
 
 '''terminal used for parsing
- evaluator.stream should have an interface similar to Stream in parser.py.
+ solver.stream should have an interface similar to Stream in parser.py.
  LineStream in lineparser.py is comatible with Stream.'''
 
 ##from oad.term import atom, Atom, String, Symbol, Var, Integer, True #, var 
 from oad import builtin
 
 @builtin.macro()
-def char(evaluator, argument): 
-  argument = argument.deref(evaluator.env)
-  text, pos = evaluator.stream
+def char(solver, argument): 
+  argument = argument.deref(solver.env)
+  text, pos = solver.stream
   if pos==len(text): raise UnifyFail()
-  argument.unify(atom(text[pos]), evaluator.env)
-  evaluator.stream = evaluator.stream.new(pos+1)
-  evaluator.value = True
+  argument.unify(atom(text[pos]), solver.env)
+  solver.stream = solver.stream.new(pos+1)
+  solver.value = True
 
 @builtin.macro()
-def eof(evaluator):
-  if not evaluator.stream.eof(): raise UnifyFail()
-  evaluator.value = True
+def eof(solver):
+  if not solver.stream.eof(): raise UnifyFail()
+  solver.value = True
 
 @builtin.macro()
-def followChars(evaluator, chars):
-  chars = chars.deref(evaluator.env)
+def followChars(solver, chars):
+  chars = chars.deref(solver.env)
   if isinstance(chars, Atom):
-    if evaluator.stream.last() not in chars.name: raise UnifyFail()
-  elif isinstance(chars, Var): chars.unify(char, evaluator.env)
+    if solver.stream.last() not in chars.name: raise UnifyFail()
+  elif isinstance(chars, Var): chars.unify(char, solver.env)
   else: throw_type_error('Var or Atom', chars)
-  evaluator.value = True  
+  solver.value = True  
 
 @builtin.macro()
-def notFollowChars(evaluator, chars):
-  chars = chars.deref(evaluator.env)
+def notFollowChars(solver, chars):
+  chars = chars.deref(solver.env)
   assert isinstance(chars, Atom)
   if isinstance(chars, Atom):
-    if evaluator.stream.last() in chars.name: raise UnifyFail()
-  evaluator.value = True
+    if solver.stream.last() in chars.name: raise UnifyFail()
+  solver.value = True
 
 @builtin.macro()
-def followByChars(evaluator, chars):
-  chars = chars.deref(evaluator.env)
+def followByChars(solver, chars):
+  chars = chars.deref(solver.env)
   assert isinstance(chars, Atom)
-  if not evaluator.stream.eof() and evaluator.stream.next() not in chars.name: 
+  if not solver.stream.eof() and solver.stream.next() not in chars.name: 
     raise UnifyFail()
-  evaluator.value = True  
+  solver.value = True  
 
 @builtin.macro()
-def notFollowByChars(evaluator, chars):
-  chars = chars.deref(evaluator.env)
+def notFollowByChars(solver, chars):
+  chars = chars.deref(solver.env)
   assert isinstance(chars, Atom)
-  if not evaluator.stream.eof() and evaluator.stream.next() in chars.name: 
+  if not solver.stream.eof() and solver.stream.next() in chars.name: 
     raise UnifyFail()
-  evaluator.value = True  
+  solver.value = True  
 
-def followString(evaluator, strArgument):
-  strArgument = strArgument.deref(evaluator.env)
+def followString(solver, strArgument):
+  strArgument = strArgument.deref(solver.env)
   assert isinstance(strArgument, Atom)
-  if not evaluator.stream.parsed().endwith(strArgument.name): raise UnifyFail
-  evaluator.value = True
+  if not solver.stream.parsed().endwith(strArgument.name): raise UnifyFail
+  solver.value = True
 
 @builtin.macro()
-def notFollowString(evaluator, string):
-  string = string.deref(evaluator.env)
-  if evaluator.stream.parsed().endwith(string.name): raise UnifyFail()
-  evaluator.value = True  
+def notFollowString(solver, string):
+  string = string.deref(solver.env)
+  if solver.stream.parsed().endwith(string.name): raise UnifyFail()
+  solver.value = True  
 
-def followByString(evaluator, strArgument):
-  strArgument = strArgument.deref(evaluator.env)
+def followByString(solver, strArgument):
+  strArgument = strArgument.deref(solver.env)
   assert isinstance(strArgument, Atom)
-  if not evaluator.stream.left().startswith(strArgument.name): raise UnifyFail
-  evaluator.value = True
+  if not solver.stream.left().startswith(strArgument.name): raise UnifyFail
+  solver.value = True
 
 @builtin.macro()
-def notFollowByString(evaluator, string):
-  string = string.deref(evaluator.env)
-  if evaluator.stream.left().startswith(string.name): raise UnifyFail()
-  evaluator.value = True  
+def notFollowByString(solver, string):
+  string = string.deref(solver.env)
+  if solver.stream.left().startswith(string.name): raise UnifyFail()
+  solver.value = True  
 
 @builtin.macro()
-def epsilon(evaluator): evaluator.value = True 
+def epsilon(solver): solver.value = True 
 
 def charOnTest(test, name=''):
-  def func(evaluator, arg0):
-    #assert isinstance(arg0, Var) and arg0.free(evaluator.env)
-    text, pos = evaluator.stream
+  def func(solver, arg0):
+    #assert isinstance(arg0, Var) and arg0.free(solver.env)
+    text, pos = solver.stream
     c = text[pos]
     if not test(c): raise UnifyFail()
-    arg0.unify(atom(c), evaluator.env)
-    evaluator.stream = evaluator.stream.new(pos+1)
-    evaluator.value = True
+    arg0.unify(atom(c), solver.env)
+    solver.stream = solver.stream.new(pos+1)
+    solver.value = True
   if name=='': name = test.__name
   return builtin.macro(name)(func)
 
@@ -109,9 +109,9 @@ spaceString = ' \t\r\n'
 space = charIn(spaceString, reprString='spacesChar')
 
 def stringOnTest(test, name='', onceMore=True):
-  def func(evaluator, arg):
-    #assert isinstance(arg, Var) and arg.free(evaluator.env)
-    text, pos = evaluator.stream
+  def func(solver, arg):
+    #assert isinstance(arg, Var) and arg.free(solver.env)
+    text, pos = solver.stream
     string = ''
     while pos<len(text):         
       char = text[pos]
@@ -119,9 +119,9 @@ def stringOnTest(test, name='', onceMore=True):
       string += char
       pos += 1
     if onceMore and string=='': raise UnifyFail()
-    arg.unify(atom(string), evaluator.env)
-    evaluator.stream = evaluator.stream.new(pos)
-    evaluator.value = True
+    arg.unify(atom(string), solver.env)
+    solver.stream = solver.stream.new(pos)
+    solver.value = True
   if name=='': name = test.__name
   return builtin.macro(name)(func)
 def stringBetween(lower, upper, onceMore=True):
@@ -140,9 +140,9 @@ spaces0 = stringIn(spaceString, onceMore=False, reprString='spaces0')
 spaces = stringIn(spaceString, reprString='spaces')
 
 def quotestring(quote, name):
-  def func(evaluator, arg0):
-    #assert isinstance(arg0, Var) and arg0.free(evaluator.env)
-    text, pos = evaluator.stream
+  def func(solver, arg0):
+    #assert isinstance(arg0, Var) and arg0.free(solver.env)
+    text, pos = solver.stream
     if pos>=len(text): raise UnifyFail()
     if text[pos]!=quote: raise UnifyFail()
     pos += 1
@@ -155,17 +155,17 @@ def quotestring(quote, name):
         string = text[pos:p-1]
         break
     else: raise UnifyFail()
-    arg0.unify(String(string), evaluator.env)
-    evaluator.stream = evaluator.stream.new(p)
-    evaluator.value = True
+    arg0.unify(String(string), solver.env)
+    solver.stream = solver.stream.new(p)
+    solver.value = True
   return builtin.macro(name)(func)
 dqstring = quotestring('"', 'doublequotestring')
 sqstring = quotestring("'", 'singlequotestring')
 
 @builtin.macro()
-def number(evaluator, arg0): 
-  #assert isinstance(arg0, Var) and arg0.free(evaluator.env)
-  text, pos = evaluator.stream
+def number(solver, arg0): 
+  #assert isinstance(arg0, Var) and arg0.free(solver.env)
+  text, pos = solver.stream
   length = len(text)
   if pos>=length: raise UnifyFail()
   if not '0'<=text[pos]<='9': raise UnifyFail()
@@ -175,16 +175,16 @@ def number(evaluator, arg0):
     if not '0'<=char<='9': break
     p += 1
   val = eval(text[pos:p])
-  arg0.unify(Integer(val), evaluator.env)
-  evaluator.stream = evaluator.stream.new(p)
-  evaluator.value = True
+  arg0.unify(Integer(val), solver.env)
+  solver.stream = solver.stream.new(p)
+  solver.value = True
 
 @builtin.macro()
-def symbol(evaluator, arg0):
-  #assert isinstance(arg0, Var) and arg0.free(evaluator.env)
-  from oad.eval import _specialforms
+def symbol(solver, arg0):
+  #assert isinstance(arg0, Var) and arg0.free(solver.env)
+  from oad.solve import _specialforms
   SYMBOL_FORBID_CHARS = '\'", \r\n\t[]{}()`'
-  text, pos = evaluator.stream
+  text, pos = solver.stream
   if pos>=len(text): raise UnifyFail()
   char = text[pos]
   if char in SYMBOL_FORBID_CHARS or '0'<=char<='9': raise UnifyFail()
@@ -195,18 +195,18 @@ def symbol(evaluator, arg0):
   sym = text[pos:p]
   if sym in _specialforms: sym = Symbol(sym)
   else: sym = var(sym)
-  arg0.unify(sym, evaluator.env)
-  evaluator.stream = evaluator.stream.new(p)
-  evaluator.value = True
+  arg0.unify(sym, solver.env)
+  solver.stream = solver.stream.new(p)
+  solver.value = True
   
 @builtin.macro()
-def literal(evaluator, arg0):
-  arg0 = arg0.deref(evaluator.env)
+def literal(solver, arg0):
+  arg0 = arg0.deref(solver.env)
   assert isinstance(arg0, Atom)
-  text, pos = evaluator.stream
+  text, pos = solver.stream
   for char in arg0.name:
     if pos>=len(text): raise UnifyFail()
     if char!=text[pos]: raise UnifyFail()
     pos += 1
-  evaluator.stream = evaluator.stream.new(pos)
-  evaluator.value = True
+  solver.stream = solver.stream.new(pos)
+  solver.value = True

@@ -3,7 +3,7 @@ from nose.tools import eq_, assert_raises
 from oad.error import UnifyFail
 from oad.term import Var, DummyVar, conslist as L, Symbol, atom
 from oad.trail import Trail
-from oad.eval import eval
+from oad.solve import eval
 from oad.builtins.control import True, fail, or_, and_, not_, cut
 from oad.term import True as True, Integer, String
 

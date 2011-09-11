@@ -4,43 +4,45 @@ from oad.term import Var, ClosureVar, deref
 # arithmetic
 
 @builtin.function2()
-def between(evaluator, *exps):
+def between(solver, *exps):
   lower, upper, mid = exps
-  lower = deref(lower, evaluator.env)
+  lower = deref(lower, solver.env)
   if isinstance(lower, Var): error.throw_instantiation_error()
-  upper = deref(upper, evaluator.env)
+  upper = deref(upper, solver.env)
   if isinstance(upper, Var): error.throw_instantiation_error()
-  mid = deref(mid, evaluator.env)
+  mid = deref(mid, solver.env)
   if not isinstance(mid, Var):
     if lower<=mid<=upper: yield True
     else: return
   for x in range(lower, upper+1):
-    for y in mid.unify(x, evaluator.env): yield True
+    for y in mid.unify(x, solver.env): yield True
 
 @builtin.function2('====')
-def equal(evaluator, left, right):
-  if deref(left, evaluator.env)==deref(right, evaluator.env): 
+def equal(solver, left, right):
+  if deref(left, solver.env)==deref(right, solver.env): 
     yield True
 
 @builtin.macro('is')
-def is_(evaluator, var, func):
-  func = deref(func, evaluator.env)
-  for x in evaluator.solve(func):
-    for _ in var.unify(x, evaluator.env): 
+def is_(solver, var, func):
+  func = deref(func, solver.env)
+  for x in solver.solve(func):
+    for _ in var.unify(x, solver.env): 
       yield True   
 
 @builtin.macro()
-def  define(evaluator, var, value):
+def define(solver, cont, var, value):
+  value = deref(value, solver.env)
   if isinstance(var, ClosureVar): var = var.var
-  value = deref(value, evaluator.env)
-  evaluator.env[var] = value
-  yield value
+  def mycont(value, solver):
+    solver.env[var] = value
+    yield cont, value
+  yield solver.cont(value, mycont), True
 
 def arithmeticCmpPredicate(function, name):
   @builtin.macro(name)
-  def pred(evaluator, var0, var1):
-    if function(deref(var0, evaluator.env), 
-                     deref(var1, evaluator.env)):
+  def pred(solver, var0, var1):
+    if function(deref(var0, solver.env), 
+                     deref(var1, solver.env)):
       yield True
   return pred
 

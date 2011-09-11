@@ -4,12 +4,12 @@ from oad import builtin
 # meta call predicates
 
 @builtin.macro()
-def call(evaluator, pred):
-  for x in evaluator.solve(deref(pred, evaluator.env)):
+def call(solver, pred):
+  for x in solver.solve(deref(pred, solver.env)):
     yield x
 
 @builtin.macro()
-def once(evaluator, pred):
-  for x in evaluator.solve(deref(pred, evaluator.env)):
+def once(solver, pred):
+  for x in solver.solve(deref(pred, solver.env)):
     yield x
     return

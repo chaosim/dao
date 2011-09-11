@@ -2,7 +2,7 @@ from oad.term import conslist
 from oad.builtins.parser import settext
 from oad.builtins.terminal import eof
 from oad.builtins.control import and_
-from oad.eval import Evaluator
+from oad.solve import Solver
 
 class Grammar:
   def __init__(self, start, rules, result):
@@ -11,15 +11,15 @@ class Grammar:
 def parse(grammar, text):
   global envvarCache
   envvarCache = {}
-  evaluator = Evaluator()
+  solver = Solver()
   exp = conslist('letrec', grammar.rules, (settext, text), 
                  (and_, grammar.start, [eof]), grammar.result)
-  return evaluator.eval(exp)
+  return solver.eval(exp)
 
 def eval(grammar, text): #don't need any more!!!
-  evaluator = Evaluator()
+  solver = Solver()
   exp = conslist('letrec', grammar.rules, (settext, text), 
                  (and_, grammar.start, [eof]), grammar.result)
-  parsedExp = evaluator.eval(exp)
-  return evaluator.eval(parsedExp) #, prelude=False
+  parsedExp = solver.eval(exp)
+  return solver.eval(parsedExp) #, prelude=False
   

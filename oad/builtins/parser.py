@@ -18,49 +18,49 @@ class Stream:
   def eof(self): return self.position==len(self.text)
 
 @builtin.macro()
-def parse(evaluator, pred, atom):
-  evaluator.stream = Stream(atom.name, 0) #text, start position
-  pred = pred.deref(evaluator.env)
-  pred.scont(evaluator)
+def parse(solver, pred, atom):
+  solver.stream = Stream(atom.name, 0) #text, start position
+  pred = pred.deref(solver.env)
+  pred.scont(solver)
 
 @builtin.function2()
-def settext(evaluator, atom): 
-  evaluator.stream = Stream(atom.name, 0) #text, start position
-  evaluator.value = True
+def settext(solver, atom): 
+  solver.stream = Stream(atom.name, 0) #text, start position
+  solver.value = True
   
 # Theses primitive can be used with Stream or compitble class with same interface.
 # LineStream in lineparser.py is an sample.
 
 @builtin.function2()
-def step(evaluator, size=1): # return current char before step
-  text, pos = evaluator.stream
+def step(solver, size=1): # return current char before step
+  text, pos = solver.stream
   if isinstance(size, Integer): size = size.val
-  evaluator.stream = evaluator.stream.new(pos+size)
+  solver.stream = solver.stream.new(pos+size)
   return atom(text[pos])
 
 @builtin.function2()
-def skip(evaluator, size=1): # return char after skip
-  text, pos = evaluator.stream
+def skip(solver, size=1): # return char after skip
+  text, pos = solver.stream
   if isinstance(size, Integer): size = size.val
-  evaluator.stream = evaluator.stream.new(pos+size)
+  solver.stream = solver.stream.new(pos+size)
   return atom(text[pos+size])
 
 @builtin.function2()
-def left(evaluator):
-  return atom(evaluator.stream.left())
+def left(solver):
+  return atom(solver.stream.left())
 
 @builtin.function2()
-def next(evaluator): 
-  text, pos = evaluator.stream
-  return atom(evaluator.stream.next())
+def next(solver): 
+  text, pos = solver.stream
+  return atom(solver.stream.next())
 
 @builtin.function2()
-def position(evaluator): return Integer(evaluator.stream.position)
+def position(solver): return Integer(solver.stream.position)
 
 @builtin.function2()
-def subtext(evaluator, start, end): 
-  return atom(evaluator.stream.text[start.val:end.val])
+def subtext(solver, start, end): 
+  return atom(solver.stream.text[start.val:end.val])
 
 @builtin.function2()
-def goto(evaluator, position): 
-  evaluator.stream = evaluator.stream.new(position.val)
+def goto(solver, position): 
+  solver.stream = solver.stream.new(position.val)

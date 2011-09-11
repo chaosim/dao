@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from oad.solve import value_cont
+
 def unify_list(list1, list2, env, occurs_check=False):
   if len(list1)!=len(list2): return
   for x in unify(list1[0], list2[0], env, occurs_check):
@@ -28,14 +30,13 @@ def unify_list_rule_head(list1, list2, env):
         yield True
         
 def unify_rule_head(x, y, env):
-  try: 
-    for result in x.unify_rule_head(y, env):
-      yield True
-  except AttributeError: 
-    if isinstance(y, Var): 
-      env.bindings[y] = x
-      yield True
-    else:
+  if isinstance(y, Var): 
+    env.bindings[y] = x
+    yield True
+  else:
+    try: 
+      for _ in x.unify_rule_head(y, env): yield True
+    except AttributeError: 
       if x==y: yield True
       
 def deref(x, env):
@@ -71,8 +72,8 @@ class Var:
     
   def __call__(self, *exps): return Apply(self, *exps)
   
-  def apply(self, evaluator, *exps):
-    return self.getvalue(evaluator.env).apply(evaluator, *exps)
+  def apply(self, solver, *exps):
+    return self.getvalue(solver.env).apply(solver, *exps)
   
   def unify(self, other, env, occurs_check=False):
     self = self.deref(env)
@@ -139,8 +140,8 @@ class Var:
     if value is self: return self
     else: return ClosureVar(self, value)
   
-  def solve(self, evaluator):
-    yield self.getvalue(evaluator.env)
+  def cont(self, cont, solver):
+    return value_cont(self.getvalue(solver.env), cont)
     
   def __add__(self, other): 
     from oad.builtins.arith import add
@@ -203,14 +204,28 @@ class DummyVar(Var):
   def closure(self, env): return self
   def free(self, env): return True  
   def __eq__(self, other): return self.__class__ == other.__class__
-   
+
+def list_value_cont(cont): #  用在单参数函数求cont过程中
+  def my_cont(value, solver): yield cont, [value]
+  return  my_cont
+
+def make_arguments(*args):
+  def my_cont(value, solver):
+    pass
+  return my_cont
+
 class Apply:
   def __init__(self, operator, *operand):
     self.operator = operator
     self.operand = operand
-  def solve(self, evaluator):
-    for x in self.operator.apply(evaluator, *self.operand):
-      yield x
+  def cont(self, cont, solver):
+    def evaluate_cont(op, solver):
+      return op.evaluate_cont(self.operand, cont, solver)
+    def my_cont(values, solver): 
+      return ((evaluate_cont, v) 
+              for v in solver.solve(self.operator, evaluate_cont))
+    return my_cont
+
   def closure(self, env):
     return Apply(self.operator, *[closure(x, env) for x in self.operand])
   def __repr__(self): 
@@ -223,9 +238,26 @@ class Apply:
   def __eq__(self, other): 
     return self.operator==other.operator and self.operand==other.operand
   
-class Function: pass
+class Function: 
+  def evaluate_cont(self, exps, cont, solver):
+    def evaluate_arguments(exps, cont):
+        if len(exps)==0: return [(cont, [])]
+        else:
+          def argument_cont(value, solver):
+            def gather_cont(values, solver): yield cont, [value]+values
+            return evaluate_arguments(exps[1:], gather_cont)
+          return ((argument_cont, v) for v in solver.solve(exps[0], argument_cont))
+    def apply_cont(values, solver): 
+      return self.apply(solver, values, cont)
+    return evaluate_arguments(exps, apply_cont)
 
-class Macro: pass
+class Macro: 
+  def evaluate_cont(self, exps, cont, solver):
+    def my_cont(value, solver):
+      exps1 = [(closure(exp, solver.env)) for exp in exps]
+      return self.apply(solver, exps1, cont)
+    yield my_cont, True
+
 
 ##class UList:
 ##  def __init__(self, *elements): 
@@ -341,14 +373,10 @@ class Cons:
           yield True
           
   def unify_rule_head(self, other, env):
-    if isinstance(other, Var): 
-      env.bindings[other] = self
-      yield True
-    else:
-      if self.__class__!=other.__class__: return
-      for x in unify_rule_head(self.head, other.tail, env):
-        for y in unify_rule_head(self.head, other.tail, env):
-          yield True
+    if self.__class__!=other.__class__: return
+    for x in unify_rule_head(self.head, other.tail, env):
+      for y in unify_rule_head(self.head, other.tail, env):
+        yield True
           
   def copy_rule_head(self, env):
     head = copy_rule_head(self.head, env)

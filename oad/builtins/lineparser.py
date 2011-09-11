@@ -108,24 +108,24 @@ if __name__=='__main__':
   eq_(stream.getRowColumen(5), (0, 5))
 
 @builtin.macro('line-parse')
-def parse(evaluator, pred, atom):
-  evaluator.stream = LineStream(atom.name) 
-  pred = pred.deref(evaluator.env)
-  pred.scont(evaluator)
+def parse(solver, pred, atom):
+  solver.stream = LineStream(atom.name) 
+  pred = pred.deref(solver.env)
+  pred.scont(solver)
 
 @builtin.function2('line-settext')
-def settext(evaluator, atom): 
-  evaluator.stream = LineStream(atom.name, 0)
-  evaluator.value = True
+def settext(solver, atom): 
+  solver.stream = LineStream(atom.name, 0)
+  solver.value = True
 
 @builtin.function2()
-def row(evaluator, position=None):
-  if position is None: position = evaluator.stream.position
+def row(solver, position=None):
+  if position is None: position = solver.stream.position
   else: position = position.val
-  return Integer(evaluator.stream.getRowColumn(position)[0])
+  return Integer(solver.stream.getRowColumn(position)[0])
 
 @builtin.function2()
-def column(evaluator, position=None):
-  if position is None: position = evaluator.stream.position
+def column(solver, position=None):
+  if position is None: position = solver.stream.position
   else: position = position.val
-  return Integer(evaluator.stream.getRowColumn(position)[1])
+  return Integer(solver.stream.getRowColumn(position)[1])

@@ -5,7 +5,7 @@ from oad.special import *
 
 from oad.error import CatchableError, UncaughtError
 from oad.term import Var, conslist as L
-from oad.eval import eval
+from oad.solve import eval
 from oad.builtins.arith import eq, sub, mul, add, div
 from oad.builtins.control import succeed, fail, or_, and_, not_, repeat
 from oad.builtins.parser import settext

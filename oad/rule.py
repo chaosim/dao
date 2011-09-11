@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from oad.eval import solve_exps, CutException
+from oad.solve import CutException
 from oad.term import getvalue, unify_list_rule_head
 
 class Rule(object):
@@ -8,17 +8,15 @@ class Rule(object):
     self.head, self.body = head, body
     self.signature = len(self.head)
 
-  def apply(self, evaluator, env, recursive, *exps):
-    callerEnv = evaluator.env
-    if not recursive: evaluator.env = env.extend()
+  def apply(self, solver, env, cont, recursive, values):
+    callerEnv = solver.env
+    if not recursive: solver.env = env.extend()
     else: 
       env.bindings = {}
-      evaluator.env = env
-    exps = [getvalue(e, evaluator.env) for e in exps]
-    for x in unify_list_rule_head(exps, self.head, evaluator.env):
-      for x in solve_exps(evaluator, self.body):
-        evaluator.env = callerEnv
-        yield x
+      solver.env = env
+    values = [getvalue(v, solver.env) for v in values]
+    for _ in unify_list_rule_head(values, self.head, solver.env):
+      for v in solver.solve_exps(self.body, cont): yield cont, v
       
   def __eq__(self, other): 
     return self.__class__==other.__class__ and self.head==other.head and self.body==other.body
@@ -29,15 +27,14 @@ class Rule(object):
     return "%s:- %s." % (head, body)
 
 class RuleList(list):  
-  def apply(self, evaluator, env, recursive, *exps):
-    env_bindings = evaluator.env.bindings.copy()
+  def apply(self, solver, env, cont, recursive, values):
+    env_bindings = solver.env.bindings.copy()
     for rule in self:
       try:
-        for x in rule.apply(evaluator, env, recursive, *exps):
-          yield x
-          evaluator.env.bindings = env_bindings
-        else: 
-          evaluator.env.bindings = env_bindings
+        for c, v in rule.apply(solver, env, cont, recursive, values):
+          yield c, v
+          solver.env.bindings = env_bindings
+        else: solver.env.bindings = env_bindings
       except CutException: return
       
   def __repr__(self): 

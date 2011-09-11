@@ -7,30 +7,30 @@ from oad import builtin
 # analysing and construction terms
 
 @builtin.macro()
-def getvalue(evaluator, item):
-  evaluator.value = item.getvalue(evaluator.env)
+def getvalue(solver, item):
+  solver.value = item.getvalue(solver.env)
   
 class SetvalueContinuation:#(Continuation): 
-  def __init__(self, arg, evaluator):
-    Continuation.__init__(self, evaluator)
+  def __init__(self, arg, solver):
+    Continuation.__init__(self, solver)
     self.arg = arg
-  def activate(self, evaluator):
+  def activate(self, solver):
     var = self.arg.var
-    if var in evaluator.env.bindings:
-      v = evaluator.env.bindings[var]
+    if var in solver.env.bindings:
+      v = solver.env.bindings[var]
       if isinstance(v, Var): var = v
-    var.setvalue(evaluator.value, evaluator.env)
-    evaluator.value = True
-    evaluator.set(self.cont)
+    var.setvalue(solver.value, solver.env)
+    solver.value = True
+    solver.set(self.cont)
   def _repr(self): return 'assign_cont'
 
 @builtin.macro()
-def setvalue(evaluator, var, value):
-  evaluator.set(SetvalueContinuation(var, evaluator))
-  return value.scont(evaluator)
+def setvalue(solver, var, value):
+  solver.set(SetvalueContinuation(var, solver))
+  return value.scont(solver)
 
 @builtin.macro()
-def functor(evaluator):
+def functor(solver):
   assert isinstance(self, term.Term)
   t = self.elements[0].deref(trail)
   functor = self.elements[1].deref(trail)
@@ -54,7 +54,7 @@ def functor(evaluator):
   return scont, fcont, trail
 
 class ArgContinuation:#(ChoiceContinuation):
-  def __init__(evaluator, first, second, third):
+  def __init__(solver, first, second, third):
     ChoiceContinuation.__init__(self, engine, scont)
     self.undotrail = trail
     self.orig_fcont = fcont
@@ -77,7 +77,7 @@ class ArgContinuation:#(ChoiceContinuation):
     raise error.UnifyFail()
 
 @builtin.macro()
-def argument(evaluator):
+def argument(solver):
   assert isinstance(self, term.Term)
   first = self.elements[0].deref(trail)
   second = self.elements[1].deref(trail)
@@ -100,7 +100,7 @@ def argument(evaluator):
   return scont, fcont, trail
       
 @builtin.macro()
-def univ(evaluator):
+def univ(solver):
   assert isinstance(self, term.Term)
   first = self.elements[0].deref(trail)
   second = self.elements[1].deref(trail)
@@ -123,6 +123,6 @@ def univ(evaluator):
   return scont, fcont, trail
 
 @builtin.macro()
-def copy_term(evaluator, term, copy):
-  copy.unify(term.copy(evaluator.env, {}), evaluator.env)
-  evaluator.value = True
+def copy_term(solver, term, copy):
+  copy.unify(term.copy(solver.env, {}), solver.env)
+  solver.value = True
