@@ -109,7 +109,7 @@ spaceString = ' \t\r\n'
 space = charIn(spaceString, reprString='spacesChar')
 
 def stringOnTest(test, name='', onceMore=True):
-  def func(solver, arg):
+  def func(solver, cont, arg):
     #assert isinstance(arg, Var) and arg.free(solver.env)
     text, pos = solver.stream
     string = ''

@@ -8,13 +8,9 @@ from oad.env import BlockEnvironment
 # special forms: quote, begin, if, eval, let, lambda, function, macro, module
 
 class SpecialForm:#(UEntity):
-  # 具体的特殊式各自定义自己的__init__ 与solve
+  # 具体的特殊式各自定义自己的__init__ 与cont
   def __call__(self, *exps):
     return Apply(self, *exps)
-  def apply(self, solver, *exps):
-    for op in self.solve(solver):
-      for x in op.apply(solver, *exps):
-        yield x
 
 class quote(SpecialForm):
   def __init__(self, exp):
@@ -36,12 +32,8 @@ class set(SpecialForm):
       else: env = solver.env
       env[self.var] = value
       yield cont, True
-    def my_cont(value, solver):
-      for value in solver.solve(self.exp, set_cont):
-        yield set_cont, value
-    return my_cont
-  def __repr__(self):
-    return "set(%s %s)"%(self.var, self.exp)
+    return solver.cont(self.exp, set_cont)
+  def __repr__(self): return "set(%s %s)"%(self.var, self.exp)
 
 class begin(SpecialForm):
   def __init__(self, *exps):
@@ -141,7 +133,6 @@ class UserMacro(Rules,  Macro):
   def apply(self, solver, exps, cont):
     if len(exps) not in self.rules: 
       throw_existence_error("procedure", self.get_prolog_signature())
-    exps = [closure(exp, solver.env) for exp in exps]
     return self.rules[len(exps)].apply(solver, self.env, cont, self.recursive, exps)
   def __repr__(self): return 'macro(%s)'%repr(self.rules)
   
@@ -149,7 +140,7 @@ class eval_(SpecialForm):
   def __init__(self, exp):
     self.exp = exp
   def cont(self, cont, solver):
-    def eval_cont(value, solver): yield solver.cont(value, cont), value
+    def eval_cont(value, solver): return solver.cont(value, cont)(value, solver)
     return solver.cont(self.exp, eval_cont)
   def __repr__(self): return 'eval(%s)'%self.exp
 

@@ -19,6 +19,8 @@ from oad.builtins.findall import findall
 from oad.builtins.arithpred import is_    
 
 class TestControl:
+  def setUp(self): cleanup_vars()
+  
   def test_fail(self):
     eq_(eval(let({f: function([[1], fail], [[x], succeed])}, f(x))), True)
 
@@ -51,6 +53,8 @@ class TestControl:
     eq_(eval(ifp(fail, fail)), None)
 
 class xTestException:
+  def setUp(self): cleanup_vars()
+  
   def test_raise(self):
     from oad.builtins.exception import raise_, try_
     assert_raises(UncaughtError, eval, L(raise_, 1))
@@ -58,6 +62,10 @@ class xTestException:
     eq_(eval(L(try_, (raise_, 1), 1, (write, 1))), True)
     
 class TestArithpred:
+  def setUp(self): cleanup_vars()
+  
+  def test_is(self):
+    eq_(eval(is_(x, 1)), True)
   def test_eq_le_ne(self):
     from oad.builtins.arithpred import eq, le, ne
     eq_(eval(le(1, 1)&ne(1, 2)), True)
@@ -69,6 +77,8 @@ class TestArithpred:
     eq_(eval(between(1, 3, x)), True)
 
 class TestTypePredicate:
+  def setUp(self): cleanup_vars()
+  
   def test_ground(self):
     eq_(eval(ground(1)), True)
     eq(eval(ground(Var(''))), None)
@@ -81,6 +91,8 @@ class TestTypePredicate:
     eq_(eval(nonvar(x)), None)
     
 class Testunify:
+  def setUp(self): cleanup_vars()
+  
   def test1(self):
     eq_(eval(unify(x, 1)), True)
   def test2(self):
@@ -89,18 +101,24 @@ class Testunify:
     eq_(eval(notunify(2, L(1))), True)
     
 class TestMetacall:
+  def setUp(self): cleanup_vars()
+  
   def testcall(self):
     eq_(eval(call(unify(x, 1))), True)
   def testonce(self):
     eq_(eval(once(unify(x, 1))), True)
     
 class Testfindall:
+  def setUp(self): cleanup_vars()
+  
   def test_findall(self):
     x, y, z = Var('x'), Var('y'), Var('z')
     eq_(eval(let({f: function(((), 2), ((), 3))}, 
                findall(is_(x, f()), x, y), y)), [2, 3])
     
 class xTestRuleManipulation:
+  def setUp(self): cleanup_vars()
+  
   def test_abolish(self):
     from oad.builtins.rule import abolish
     eq_(eval(L(let, [(f, [function, ([1], 1)])], (abolish, f, 1))), True)
@@ -118,6 +136,8 @@ class xTestRuleManipulation:
                (retract, f, (quote, ([2], 2))), [f, 2]))
     
 class xxxTestformat:
+  def setUp(self): cleanup_vars()
+  
   def test_format(self):
     engine = Engine()
     X = Var()
@@ -146,6 +166,8 @@ class xxxTestformat:
     engine.run(catch(throw(t), X, unify(X, t)), '')
         
 class TestAtomConstruct:
+  def setUp(self): cleanup_vars()
+  
   def test_atom_length(self):
     x = Var('x')
     from oad.builtins.atom import atom_length
@@ -170,6 +192,8 @@ class TestAtomConstruct:
              (L("", "ab"), L("a", "b"), L("ab", "")))
     
 class xTestTermConstruct:
+  def setUp(self): cleanup_vars()
+  
   def test_copy_term(self):
     from oad.builtins.term import copy_term
     x = Var('x')
@@ -197,6 +221,8 @@ class xTestTermConstruct:
     eq_(Y.deref(engine.trail), Integer(3))  
     
 class xTestFormat:
+  def setUp(self): cleanup_vars()
+  
   def test_write(self):
     from oad.builtins.format import write, nl
     x = Var('x')

@@ -63,8 +63,8 @@ def contain_var(x, y):
 def closure(x, env):
   try: return x.closure(env)
   except AttributeError: return x 
-  
-class Var: 
+
+class Var:
   def __init__(self, name, index=0): 
     self.name = name
     self.index0 = self.index = index
@@ -88,11 +88,11 @@ class Var:
       if occurs_check and contain_var(self, other): return
       other.setvalue(self)
       yield True
-      other.binding = None
+      other.set_binding(None)
     else:
       for result in unify(self, other, env, occurs_check):
         yield True
-
+      
   def unify_rule_head(self, other, env):
     self.setvalue(copy_rule_head(other, env))
     yield
@@ -219,12 +219,9 @@ class Apply:
     self.operator = operator
     self.operand = operand
   def cont(self, cont, solver):
-    def evaluate_cont(op, solver):
-      return op.evaluate_cont(self.operand, cont, solver)
-    def my_cont(values, solver): 
-      return ((evaluate_cont, v) 
-              for v in solver.solve(self.operator, evaluate_cont))
-    return my_cont
+    return solver.cont(self.operator, 
+             lambda op, solver: # evaluate_cont
+                op.evaluate_cont(self.operand, cont, solver))
 
   def closure(self, env):
     return Apply(self.operator, *[closure(x, env) for x in self.operand])
@@ -241,22 +238,20 @@ class Apply:
 class Function: 
   def evaluate_cont(self, exps, cont, solver):
     def evaluate_arguments(exps, cont):
-        if len(exps)==0: return [(cont, [])]
+        if len(exps)==0: return cont([], solver)
         else:
-          def argument_cont(value, solver):
-            def gather_cont(values, solver): yield cont, [value]+values
-            return evaluate_arguments(exps[1:], gather_cont)
-          return ((argument_cont, v) for v in solver.solve(exps[0], argument_cont))
-    def apply_cont(values, solver): 
-      return self.apply(solver, values, cont)
-    return evaluate_arguments(exps, apply_cont)
+          return solver.cont(exps[0], 
+            lambda value, solver: # argument continuation
+            evaluate_arguments(exps[1:], 
+                  lambda values, solver: # gather continuation
+                  cont([value]+values, solver)))(True, solver)
+    return evaluate_arguments(exps, 
+      lambda values, solver: self.apply(solver, values, cont))
 
 class Macro: 
   def evaluate_cont(self, exps, cont, solver):
-    def my_cont(value, solver):
-      exps1 = [(closure(exp, solver.env)) for exp in exps]
-      return self.apply(solver, exps1, cont)
-    yield my_cont, True
+    exps1 = [(closure(exp, solver.env)) for exp in exps]
+    return self.apply(solver, exps1, cont)
 
 
 ##class UList:

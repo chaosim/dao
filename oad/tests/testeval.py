@@ -2,12 +2,6 @@
 
 from nose.tools import eq_, ok_, assert_raises
 
-def f(cc):
-  for x in cc:
-    for y in [1,2]:
-      yield y
-      
-  
 from oad.term import cons
 from oad.solve import eval
 from oad.special import quote, set, begin, if_, lambda_, let, letrec, eval_
@@ -22,13 +16,15 @@ from oad.builtins.arithpred import define
 from oad.testutil import *
 
 class TestEval:
+  def setUp(self): cleanup_vars()
+  
   def testInteger(self):
     eq_(eval(1), (1))    
   def testAtom(self):
     eq_(eval("1"), "1")
     eq_(eval(1), 1)
   def testArithmetic(self):
-    eq_(eval(add(1, 1)), 2) 
+    eq_(eval(add(1, 2)), 3) 
     eq_(eval(sub(1, 1)), 0)
     eq_(eval(mul(2, 2)), 4)
     eq_(eval(div(2, 2)), 1)
@@ -92,6 +88,8 @@ class TestEval:
                             (write, 2), (write, 3)))), Integer(1))
 
 class Testfunction:
+  def setUp(self): cleanup_vars()
+  
   def testembedvar(self):
     e, e2, f, g, h = Var('e'), Var('e2'), Var('f'), Var('g'), Var('h')
     eq_(eval(letrec({f: macro([[cons(1, e2)], g(e2)]),
@@ -150,6 +148,8 @@ class Testfunction:
              a(x), x)), None)
     
 class TestMacro:
+  def setUp(self): cleanup_vars()
+  
   def test1(self):
     eq_(eval(macro([[], write(1)])()), True) 
   def test2(self):
