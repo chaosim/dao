@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from oad.solve import value_cont
+from oad.solve import value_cont, mycont
 
 def unify_list(list1, list2, env, occurs_check=False):
   if len(list1)!=len(list2): return
@@ -60,9 +60,12 @@ def contain_var(x, y):
   try: return x.contain_var(x, y)
   except: return False
   
-def closure(x, env):
-  try: return x.closure(env)
-  except AttributeError: return x 
+def closure(exp, env):
+  try: return exp.closure(env)
+  except AttributeError: 
+    if isinstance(exp, list) or isinstance(exp, tuple): 
+      return tuple(closure(e, env) for e in exp) 
+    else: return exp
 
 class Var:
   def __init__(self, name, index=0): 
@@ -171,7 +174,8 @@ class ClosureVar(Var):
   def unify(self, other, env, occurs_check=False):
     return self.value._unify(other, env, occurs_check)
 
-  def deref(self, env): return self.value.deref(env)
+  def deref(self, env): 
+    return deref(self.value, env)
   def getvalue(self, env): return getvalue(self.value, env)
   def setvalue(self, value): self.var.setvalue(value)
 
@@ -214,14 +218,18 @@ def make_arguments(*args):
     pass
   return my_cont
 
+from oad.solve import translate
 class Apply:
   def __init__(self, operator, *operand):
     self.operator = operator
     self.operand = operand
+  def translate(self):
+    return (translate(self.operator),)+tuple(translate(e) for e in self.operand)
   def cont(self, cont, solver):
-    return solver.cont(self.operator, 
-             lambda op, solver: # evaluate_cont
-                op.evaluate_cont(self.operand, cont, solver))
+    @mycont(cont)
+    def evaluate_cont(op, solver): 
+      return op.evaluate_cont(self.operand, cont, solver)
+    return solver.cont(self.operator, evaluate_cont)
 
   def closure(self, env):
     return Apply(self.operator, *[closure(x, env) for x in self.operand])
@@ -240,13 +248,17 @@ class Function:
     def evaluate_arguments(exps, cont):
         if len(exps)==0: return cont([], solver)
         else:
-          return solver.cont(exps[0], 
-            lambda value, solver: # argument continuation
-            evaluate_arguments(exps[1:], 
-                  lambda values, solver: # gather continuation
-                  cont([value]+values, solver)))(True, solver)
-    return evaluate_arguments(exps, 
-      lambda values, solver: self.apply(solver, values, cont))
+          @mycont(cont)
+          def argument_cont(value, solver):
+            @mycont(cont)
+            def gather_cont(values, solver):
+                for c, v in cont([value]+values, solver): yield c, v
+            return evaluate_arguments(exps[1:], gather_cont)
+          return solver.cont(exps[0], argument_cont)(True, solver)
+    @mycont(cont)
+    def apply_cont(values, solver): 
+      return self.apply(solver, values, cont)
+    return evaluate_arguments(exps,apply_cont)
 
 class Macro: 
   def evaluate_cont(self, exps, cont, solver):
@@ -388,7 +400,7 @@ class Cons:
     return Cons(head, tail)
 
   def copy(self, memo): 
-    return Cons(copy(head, memo), copy(tail, memo))
+    return Cons(copy(self.head, memo), copy(self.tail, memo))
   def closure(self, env): 
     head = closure(self.head, env)
     tail = closure(self.tail, env)

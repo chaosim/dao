@@ -32,10 +32,10 @@ def is_(solver, cont, var, func):
 def define(solver, cont, var, value):
   value = deref(value, solver.env)
   if isinstance(var, ClosureVar): var = var.var
-  def mycont(value, solver):
+  def define_cont(value, solver):
     solver.env[var] = value
     yield cont, value
-  yield solver.cont(value, mycont), True
+  yield solver.cont(value, define_cont), True
 
 def arithmeticCmpPredicate(function, name):
   @builtin.macro(name)

@@ -2,27 +2,32 @@
 
 from oad.term import Apply, Function, Macro, closure
 from oad.rule import Rule, RuleList
-from oad.solve import value_cont
+from oad.solve import value_cont, mycont, translate
 from oad.env import BlockEnvironment
 
 # special forms: quote, begin, if, eval, let, lambda, function, macro, module
 
 class SpecialForm:#(UEntity):
-  # 具体的特殊式各自定义自己的__init__ 与cont
-  def __call__(self, *exps):
-    return Apply(self, *exps)
+  # 具体的特殊式各自定义自己的__init__, __repr__与cont
+  def __init__(self, *exps): 
+    self.exps = exps
+  @classmethod
+  def make_special_form(cls, *exps): return cls(*exps)
+  def translate(self): 
+    return (self.__class__,)+tuple(translate(e) for e in self.exps)
+  def __call__(self, *exps): return Apply(self, *exps)
 
 class quote(SpecialForm):
-  def __init__(self, exp):
-    self.exp = exp
+  def __init__(self, exp): self.exp = exp
   def cont(self, cont, solver): return value_cont(self.exp, cont)
-  def __repr__(self):
-    return "'%s"%self.exp
+  def __repr__(self): return "'%s"%self.exp
 
 class set(SpecialForm):
   def __init__(self, var, exp):
+    SpecialForm.__init__(self, var, exp)
     self.var, self.exp = var, exp
   def cont(self, cont, solver):
+    @mycont(cont)
     def set_cont(value, solver):
       env = solver.env
       while env is not None:
@@ -37,7 +42,7 @@ class set(SpecialForm):
 
 class begin(SpecialForm):
   def __init__(self, *exps):
-    self.exps = exps
+    SpecialForm.__init__(self, *exps)
   def cont(self, cont, solver): 
     return solver.exps_cont(self.exps, cont)
   def __repr__(self):
@@ -45,12 +50,14 @@ class begin(SpecialForm):
   
 class if_(SpecialForm):
   def __init__(self, test, exp1, exp2):
+    SpecialForm.__init__(self, test, exp1, exp2)
     self.test, self.exp1, self.exp2 = test, exp1, exp2
   def cont(self, cont, solver):
-    def mycont(value, solver):
+    @mycont(cont)
+    def if_cont(value, solver):
       if value: yield solver.cont(self.exp1, cont), value
       else: yield solver.cont(self.exp2, cont), value
-    return solver.cont(self.test, mycont)
+    return solver.cont(self.test, if_cont)
   def __repr__(self):
     return 'if %s: %s else:%s'%(self.test, self.exp1, self.exp2)
 
@@ -67,6 +74,7 @@ def lambda_(vars, *body):
 
 class FunctionForm(SpecialForm):
   def __init__(self, *rules):
+    SpecialForm.__init__(self, *rules)
     self.arity2rules = {}
     for rule in rules:
       self.arity2rules.setdefault(len(rule[0]), RuleList()).append(Rule(rule[0], rule[1:]))
@@ -86,7 +94,7 @@ def letrec(bindings, *body):
    #[letrec {var: value} ...] ...]
   return RecursiveFunctionForm((bindings.keys(),)+ body)(*bindings.values())
 
-class RecursiveFunctionForm(function): 
+class RecursiveFunctionForm(FunctionForm): 
   def cont(self, cont, solver):
     newEnv = solver.env.extend()
     solver.env = newEnv
@@ -99,8 +107,9 @@ class RecursiveFunctionForm(function):
     result += ')'
     return result
   
-class MacroForm(SpecialForm):
+class MacroForm(FunctionForm):
   def __init__(self, *rules):
+    SpecialForm.__init__(self, *rules)
     self.arity2rules = {}
     for rule in rules:
       self.arity2rules.setdefault(len(rule[0]), RuleList()).append(Rule(rule[0], rule[1:]))
@@ -138,130 +147,122 @@ class UserMacro(Rules,  Macro):
   
 class eval_(SpecialForm):
   def __init__(self, exp):
+    SpecialForm.__init__(self, exp)
     self.exp = exp
   def cont(self, cont, solver):
+    @mycont(cont)
     def eval_cont(value, solver): return solver.cont(value, cont)(value, solver)
     return solver.cont(self.exp, eval_cont)
   def __repr__(self): return 'eval(%s)'%self.exp
 
-####@funcont
-##def module_done_cont(self, value, solver):  
-##  solver.scont = self.cont
-##  solver.value = solver.env
-##  solver.env = solver.env.outer
-##  
-####from oad.env import ModuleEnvironment  
-##def on_module(solver, scont, tail): 
-##  #[module name ...]
-##  solver.env = ModuleEnvironment({}, solver.env)
-##  solver.scont = module_done_cont(solver)
-##  Cons('begin', tail).scont(solver)
-##
+from oad.env import ModuleEnvironment  
+class module(SpecialForm):
+  def __init__(self, *body):
+    SpecialForm.__init__(self, *body)
+    #[module ...]
+    self.body = body
+  def cont(self, cont, solver):
+    old_env = solver.env
+    env = solver.env = ModuleEnvironment({}, old_env)
+    @mycont(cont)
+    def module_done_cont(value, solver): 
+      solver.env = old_env
+      yield cont, env
+    return solver.exps_cont(self.body, module_done_cont)
 
 class block(SpecialForm):
   def __init__(self, label, *body):
-    self.label, self.body = label, body
-  def solve(self, solver):
-    try:
-      solver.env = BlockEnvironment(self.label.name, solver.env, 'where is scont?')
-      env = solver.env
-      for x in solve_exps(solver, self.body):
-        yield x
-    except ReturnFromBlock, e:
-      if e.label==env.label:
-        for x in solver.solve(e.form):
-          yield x
-          
-  def __repr__(self):
-    return 'block(%s)'%self.body
+    SpecialForm.__init__(self, label, *body)
+    self.label, self.body = label.name, body
+  def cont(self, cont, solver):
+    solver.env = BlockEnvironment(self.label, solver.env, cont)
+    return solver.exps_cont(self.body, cont)
+  def __repr__(self): return 'block(%s)'%self.body
 
-class ReturnFromBlock:
-  def __init__(self, label, form):
-    self.label, self.form= label.name, form
-    
 class return_from(SpecialForm):
   def __init__(self, label, form):
-    self.label, self.form = label, form
-  def solve(self, solver):
-    if 0: yield
-    raise ReturnFromBlock(self.label, self.form)
-  def __repr__(self):
-    return 'return_from(%s)'%self.label
+    SpecialForm.__init__(self, label, form)
+    self.label, self.form = label.name, form
+  def cont(self, cont, solver):
+    env = solver.env
+    @mycont(cont)
+    def return_from_cont(value, solver):
+      block_cont =  env.lookup(self.label, cont, solver)
+      yield block_cont, value
+    return solver.cont(self.form, return_from_cont)
+  def __repr__(self): return 'return_from(%s)'%self.label
 
-##def on_unwind_protect(solver, scont, tail):
-##  #[unwind-protect form cleanup]
-##  form, cleanup = car(tail), cdr(tail)
-##  solver.scont = UnwindProtectContinuation(cleanup, solver)
-##  return form.scont(solver)
-##
-##class UnwindProtectContinuation:#(Continuation):
-##  def __init__(self, cleanup, solver):
-##    Continuation.__init__(self, solver)
-##    self.cleanup, self.env = cleanup, solver.env
-##  def activate(self, solver):
-##    solver.env = self.env
-##    solver.set(protect_return_cont(solver.value, self.cont))
-##    return begin(self.cleanup, solver)
-##  def unwind(self, targetCont, solver):
-##    solver.env = self.env
-##    solver.set(unwind_cont(solver.value, targetCont, self.env, self.cont))
-##    return begin(self.cleanup, solver)
-##
-####@funcont
-##def protect_return_cont(self, value, solver):
-##  value = self.args[0]
-##  self.cont.on(value) 
-####@funcont
-##def unwind_cont(self, _, solver): 
-##  solver.value, targetCont = self.arguments[:2]
-##  return self.cont.unwind(targetCont, solver)
-##
-##class catch(SpecialForm):
-##  def __init__(self, tag, *body):
-##    self.tag, self.body = tag, body
-##  def solve(self, solver):
-##    try:
-##      solver.env = BlockEnvironment(self.label.name, solver.env, 'where is scont?')
-##      env = solver.env
-##      for x in solve_exps(solver, self.body):
-##        yield x
-##    except ReturnFromBlock, e:
-##      if e.label==env.label:
-##        for x in solver.solve(e.form):
-##          yield x
-##    tag, body = car(tail), cdr(tail)
-##    solver.scont = catch_cont(body, solver.env, scont)
-##    return tag.scont(solver)   
-##
-####@funcont
-##def catch_cont(self, tag, solver):
-##  body, env = self.arguments[:2]
-##  solver.env, solver.scont = env, LabelContinuation(tag, solver, self.cont)
-##  return begin(body, solver)
-##
-##class LabelContinuation:#(Continuation):
-##  def __init__(self, tag, solver, cont):
-##    Continuation.__init__(self, cont)
-##    self.tag, self.block = tag, solver.env
-##  def activate(self, solver):
-##    return self.cont.on(solver.value, solver)
-##  def lookup(self, tag, cont, solver): 
-##    if tag==self.tag:
-##      form, solver.env = cont.arguments[:2]
-##      form.scont(solver.set(throwing_cont(self)))
-##    else: self.cont.lookup(tag, cont, solver)
-##  
-####@funcont
-##def throwing_cont(self, value, solver): 
-##  return self.cont.unwind(self.cont, solver)
-##
-##def on_throw(solver, scont, tail): 
-##  #[throw tag form]
-##  tag, form = car(tail), cadr(tail)
-##  solver.scont = throw_cont(form, solver.env, scont)
-##  return tag.scont(solver)  
-##
-####@funcont
-##def throw_cont(self, tag, solver):
-##  return self.lookup(tag, self, solver)
-##
+def lookup(cont, tag, stop_cont, solver):
+  try: return cont.lookup(cont, tag, stop_cont, solver)
+  except AttributeError: 
+    return lookup(cont.cont, tag, stop_cont, solver)
+  
+def unwind(cont, tag, stop_cont, solver):
+  try: return cont.unwind(cont, tag, stop_cont, solver)
+  except AttributeError: 
+    if cont is stop_cont: return cont
+    else: return unwind(cont.cont, tag, stop_cont, solver)
+
+def have_lookup(fun):
+  def lookup(cont, tag, stop_cont, solver): 
+    if tag==cont.tag:
+      @mycont(cont)
+      def throwing_cont(value, solver): 
+        yield unwind(cont, tag, cont, solver), value
+      solver.env = cont.env
+      return solver.cont(stop_cont.form, throwing_cont)
+    else: return lookup(cont, tag, stop_cont, solver)
+  fun.lookup = lookup
+  return fun
+
+class catch(SpecialForm):
+  def __init__(self, tag, *body):
+    SpecialForm.__init__(self, tag, *body)
+    self.tag, self.body = tag, body
+  def cont(self, cont, solver):
+    env = solver.env
+    @mycont(cont)
+    def catch_cont(tag, solver):
+      solver.env = env
+      @have_lookup
+      @mycont(cont)
+      def label_cont(value, solver): yield cont, value
+      label_cont.tag, label_cont.env = tag, env
+      yield solver.exps_cont(self.body, label_cont), True
+    catch_cont.env = solver.env  
+    return solver.cont(self.tag, catch_cont)
+  def __repr__(self): return 'block(%s)'%self.body
+  
+class throw(SpecialForm):
+  def __init__(self, tag, form):
+    SpecialForm.__init__(self, tag, form)
+    self.tag, self.form = tag, form
+  def cont(self, cont, solver):
+    @mycont(cont)
+    def throw_cont(tag, solver): 
+      yield lookup(throw_cont, tag, throw_cont, solver), True
+    throw_cont.form, throw_cont.env = self.form, solver.env
+    return solver.cont(self.tag, throw_cont)
+
+class unwind_protect(SpecialForm):
+  #[unwind-protect form cleanup]
+  def __init__(self, form, *cleanup):
+    SpecialForm.__init__(self, form, *cleanup)
+    self.form, self.cleanup = form, cleanup
+  def cont(self, cont, solver):
+    env = solver.env
+    cont0 = cont
+    @mycont(cont0)
+    def unwind_protect_cont(value, solver):
+      solver.env = env
+      @mycont(cont0)
+      def protect_return_cont(_, solver): yield cont, value
+      yield solver.exps_cont(self.cleanup, protect_return_cont), True
+      def unwind1(cont, tag, stop_cont, solver):
+        solver.env = env
+        @mycont(cont0)
+        def unwind_cont(_, solver):
+          yield unwind(cont0, tag, stop_cont, solver), value
+        return solver.exps_cont(self.cleanup, unwind_cont)
+      unwind_protect_cont.unwind = unwind1
+    return solver.cont(self.form, unwind_protect_cont)

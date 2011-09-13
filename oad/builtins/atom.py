@@ -1,88 +1,51 @@
 from oad import error
-from oad.term import Var
+from oad.term import Var, deref, unify
 from oad import builtin
 
 # analysing and construction atoms
 
 @builtin.macro()
-def charin(solver, in_, whole): 
+def charin(solver, cont, in_, whole): 
   in_ = deref(in_, solver.env)
   whole = deref(whole, solver.env)
   if isinstance(in_, Var):
     for x in whole:
       for _ in unify(in_, x, solver.env):
-        yield True
+        yield cont, True
   elif in_ in whole: 
-    yield True
+    yield cont, True
 
 @builtin.macro()
-def atom_length(solver, atom, length):
+def atom_length(solver, cont, atom, length):
   atom = deref(atom, solver.env)
   if isinstance(atom, Var): error.throw_instantiation_error()
   length = deref(length, solver.env)
   if not (isinstance(length, Var) or isinstance(length, int)):
     error.throw_type_error("integer", length)
   for _ in unify(len(atom), length, solver.env): 
-    yield True
+    yield cont, True
 
 @builtin.macro()
-def atom_concat(solver, atom1, atom2, result):
+def atom_concat(solver, cont, atom1, atom2, result):
   atom1 = deref(atom1, solver.env)
   atom2 = deref(atom2, solver.env)
-  result = result.deref(solver.env)
+  result = deref(result, solver.env)
   if isinstance(atom1, Var):
     index = 0
     if isinstance(atom2, Var):
-      for index in range(len(result)):
-        for _ in atom1.unify(result[:self.index+1], solver.env):
-          for __ in atom2.unify(result[self.index+1:], solver.env):
-            yield True
+      for index in range(1, len(result)):
+        for _ in atom1.unify(result[:index], solver.env):
+          for __ in atom2.unify(result[index:], solver.env):
+            yield cont, True
     else:
       if result.endswith(atom2):
-        for _ in atom1.unify(result[:len(atom2)+1], solver.env):
-          yield True
+        for _ in atom1.unify(result[:len(atom2)], solver.env): yield cont, True
   else:
     if isinstance(atom2, Var):
-      if r.startswith(s1):
-        a2.unify(atom(r[len(s1):]), solver.env)
-      else: raise error.UnifyFail()
+      if result.startswith(atom1):
+        for _ in atom2.unify(result[len(atom1):], solver.env): yield cont, True
     else:
-      s2 = str(a2)
-      result.unify(atom(s1 + s2), solver.env)
-  solver.value = True
-
-class SubAtomContinuation:#(ChoiceContinuation):
-  def __init__(self, atom, before, length, after, sub, solver):
-    ChoiceContinuation.__init__(self, solver)
-    self.undotrail = trail
-    self.orig_fcont = solver.fcont
-    self.atom = atom
-    self.before = before
-    self.length = length
-    self.after = after
-    self.sub = sub
-    self.setup()
-
-  def setup(self):
-    if isinstance(self.length, Var):
-      self.startlength = 0
-      self.stoplength = len(self.atom) + 1
-    else:
-      self.startlength = helper.unwrap_int(self.length)
-      self.stoplength = self.startlength + 1
-      if self.startlength < 0:
-        self.startlength = 0
-        self.stoplength = len(self.atom) + 1
-    if isinstance(self.before, Var):
-      self.startbefore = 0
-      self.stopbefore = len(self.atom) + 1
-    else:
-      self.startbefore = helper.unwrap_int(self.before)
-      if self.startbefore < 0:
-        self.startbefore = 0
-        self.stopbefore = len(self.atom) + 1
-      else:
-        self.stopbefore = self.startbefore + 1
+      for _ in unify(result, atom1+atom2, solver.env): yield cont, True
 
 class SubAtomUEntitySubContinuation:#(SubAtomContinuation):
   def __init__(self, atom, before, length, after, sub, solver):
@@ -164,14 +127,74 @@ class SubAtomElseContinuation:#(SubAtomContinuation):
     raise error.UnifyFail()
 
 @builtin.macro()
-def sub_atom(solver, atom, before, length, after, sub):
-  atom = deref(atom1, solver.env)
+def sub_atom(solver, cont, atom, before, length, after, sub):
+  atom = deref(atom, solver.env)
   before = deref(before, solver.env)
   length = deref(length, solver.env)
   after = deref(after, solver.env)
   sub = deref(sub, solver.env)
-  if not isinstance(sub, Var): cls = SubAtomUEntitySubContinuation
-  elif isinstance(after, Var): cls = SubAtomVarAfterContinuation
-  else: cls = SubAtomElseContinuation
-  solver.set(cls(atom1, before, length, after, sub, solver))
+  if not isinstance(before, Var):
+    if before<0 or before>=len(atom): return
+  if not isinstance(length, Var):  
+    if length<=0 or length>len(atom): return
+  if not isinstance(after, Var):
+    if after<0 or after>len(atom): return
+  def sub_atom_cont(value, solver):
+    if not isinstance(sub, Var):
+      if sub=='': return
+      if isinstance(before, Var): startbefore, stopbefore = 0, len(atom)+1
+      else: startbefore, stopbefore = before, before+1
+      for _ in unify(length, len(sub), solver.env):
+        start  = startbefore
+        while start<stopbefore:
+          start = atom.find(sub, start)
+          if start<0: return
+          for _ in unify(before, start, solver.env):
+            for _ in unify(after, start+len(sub), solver.env):
+              yield cont, True
+          start += 1
+    else:
+      if not isinstance(before, Var) \
+         and not isinstance(length, Var)\
+         and not isinstance(after, Var):
+        if start+length!=after: return
+        for _ in sub.unify(atom[before:after], solver.env):
+          yield cont, atom[before:after]
+      elif not isinstance(before, Var) and  not isinstance(length, Var):
+        if before+length>len(atom): return
+        for _ in sub.unify(atom[before:after], solver.env):
+          for _ in after.unify(before+length, solver.env):
+            yield cont, atom[before:before+length]
+      elif not isinstance(length, Var) and  not isinstance(after, Var):
+        if after-length<0: return
+        for _ in sub.unify(atom[after-length:after], solver.env):
+          for _ in length.unify(length, solver.env):
+            yield cont, atom[after-length:after:after]
+      elif not isinstance(before, Var):
+        for leng in range(1, len(atom)-before+1):
+          for _ in sub.unify(atom[before:before+leng], solver.env):
+            for _ in length.unify(leng, solver.env):
+              for _ in after.unify(before+leng, solver.env):
+                yield cont, atom[before:before+leng]
+      elif not isinstance(after, Var):
+        for leng in range(1, after):
+          for _ in sub.unify(atom[after-leng+1:after], solver.env):
+            for _ in length.unify(leng, solver.env):
+              for _ in before.unify(after-leng+1, solver.env):
+                yield cont, atom[before:after]
+      elif not isinstance(length, Var):
+        for start in range(len(atom)-length):
+          for _ in sub.unify(atom[start:start+length], solver.env):
+            for _ in before.unify(start, solver.env):
+              for _ in after.unify(start+length, solver.env):
+                yield cont, atom[start:start+length]
+      else:
+        for start in range(len(atom)):
+          for leng in range(1, len(atom)-start+1):
+            for _ in sub.unify(atom[start:start+leng], solver.env):
+              for _ in before.unify(start, solver.env):
+                for _ in length.unify(leng, solver.env):
+                  for _ in after.unify(start+leng, solver.env):
+                    yield cont, atom[start:start+leng]
+  yield sub_atom_cont, True
 

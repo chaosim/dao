@@ -52,15 +52,6 @@ class TestControl:
     eq_(eval(ifp(fail, succeed)), None)
     eq_(eval(ifp(fail, fail)), None)
 
-class xTestException:
-  def setUp(self): cleanup_vars()
-  
-  def test_raise(self):
-    from oad.builtins.exception import raise_, try_
-    assert_raises(UncaughtError, eval, L(raise_, 1))
-    assert_raises(UncaughtError, eval, L(try_, (raise_, 1), 2, (write, 1)))
-    eq_(eval(L(try_, (raise_, 1), 1, (write, 1))), True)
-    
 class TestArithpred:
   def setUp(self): cleanup_vars()
   
@@ -116,116 +107,59 @@ class Testfindall:
     eq_(eval(let({f: function(((), 2), ((), 3))}, 
                findall(is_(x, f()), x, y), y)), [2, 3])
     
-class xTestRuleManipulation:
+class TestRuleManipulation:
   def setUp(self): cleanup_vars()
   
   def test_abolish(self):
     from oad.builtins.rule import abolish
-    eq_(eval(L(let, [(f, [function, ([1], 1)])], (abolish, f, 1))), True)
+    eq_(eval(let({f:function([[1], 1])}, abolish(f, 1))), True)
   def test_assert(self):
     from oad.builtins.rule import assert_
-    eq_(eval(L(let, [(f, [function, ([1], 1)])], 
-               (assert_, f, (quote, ([2], 2))), [f, 2])), Integer(2))
+    eq_(eval(let({f:function(([1], 1))}, 
+               assert_(f, [2], 2), f(2))), 2)
   def test_asserta(self):
     from oad.builtins.rule import asserta
-    eq_(eval(L(let, [(f, [function, ([1], 1)])], 
-               (asserta, f, (quote, ([2], 2))), [f, 2])), Integer(2))
+    eq_(eval(let({f:function(([1], 1))}, 
+               asserta(f, [2], 2), f(2))), 2)
   def test_retract(self):
     from oad.builtins.rule import retract
-    assert_raises(UnifyFail, eval, L(let, [(f, [function, ([1], 1), ([2], 2)])], 
-               (retract, f, (quote, ([2], 2))), [f, 2]))
+    eq_(eval(let({f:function(([1], 1), ([2], 2))}, 
+               retract(f, [2], 3), f(2))), 3)
     
-class xxxTestformat:
-  def setUp(self): cleanup_vars()
-  
-  def test_format(self):
-    engine = Engine()
-    X = Var()
-    f = userTerm("f")
-    g = userTerm('g')
-    engine.run(write(X), '')
-  def test_findall(self):
-    engine = Engine()
-    f = userTerm("f")
-    X = Var()
-    Y = Var()
-    engine.add_rule(f(1))
-    engine.add_rule(f(2))
-    engine.run(findall(f(X),X, Y), '')
-    eq_(Y.deref(engine.trail), term0(1, 2))    
-  def test_exception(self):
-    engine = Engine()
-    engine.run(catch(throw(1), 1, true), '')
-    engine = Engine()
-    assert_raises(error.UncaughtError, engine.run, catch(throw(1), 1, throw(1)), '')
-  def test_catch(self):
-    engine = Engine()
-    X = Var()
-    t = term0("abc", "def", "abcdef")
-    t.name = 'f'
-    engine.run(catch(throw(t), X, unify(X, t)), '')
         
+from oad.builtins.atom import atom_length, atom_concat, charin, sub_atom
 class TestAtomConstruct:
   def setUp(self): cleanup_vars()
-  
   def test_atom_length(self):
-    x = Var('x')
-    from oad.builtins.atom import atom_length
     eq_(eval(atom_length("abc", x)), True)
+  def test_atom_length2(self):
     eq_(eval(begin(atom_length("abc", x), x)), 3)
+  def test_charin(self):
+    eq_(eval(begin(charin(x, "abc"), x)), 'a')
   def test_atom_concat(self):
-    from oad.builtins.atom import atom_concat
-    x, y = Var('x'), Var('y')
     eq_(eval(atom_concat("abc", "def", "abcdef")), True)
     eq_(eval(begin(atom_concat("abc", "def", x), x)), "abcdef")
     eq_(eval(begin(atom_concat(y, "def", "abcdef"), y)), "abc")
   def test_atom_concat2(self):
-    from oad.builtins.atom import atom_concat
-    x, y = Var('x'), Var('y')
-    eq_(eval(begin(atom_concat(x, y, "abcdef"), y)), "abcdef")
-    
+    eq_(eval(begin(atom_concat(x, y, "abcdef"), y)), "bcdef")    
+  def test_sub_atom(self):
+    eq_(eval(begin(findall(sub_atom('ab', 0, y, 2, "ab"), y, z), z)), 
+             [2])
+  def test_sub_atom2(self):
+    eq_(eval(begin(findall(sub_atom('ab', x, y, z, k), k, z), z)), 
+             ['a', 'ab', 'b'])
   def test_findall_atom_concat(self):
-    from oad.builtins.atom import atom_concat
-    from oad.builtins.findall import findall    
-    x, y, z = Var('x'), Var('y'), Var('z')
     eq_(eval(begin(findall(atom_concat(x, y, "ab"), L(x, y), z), z)), 
-             (L("", "ab"), L("a", "b"), L("ab", "")))
+             [L("a", "b")])
+  def test_findall_atom_concat2(self):
+    eq_(eval(begin(findall(atom_concat(x, y, "abc"), L(x, y), z), z)), 
+             [L("a", "bc"), L("ab", "c")])
     
-class xTestTermConstruct:
+
+from oad.builtins.term import copy_term
+class TestTermConstruct:
   def setUp(self): cleanup_vars()
   
   def test_copy_term(self):
-    from oad.builtins.term import copy_term
-    x = Var('x')
-    eq_(eval(L(begin, (copy_term, UList("abc", 1), x), x)), UList("abc", 1))
-  def xtest_univ(self):
-    engine = Engine()
-    X = Var()
-    Y = Var()
-    Z = Var()
-    t = term0("abc", "def", "abcdef")
-    ul = helper.wrap_list([atom(t.name)]+list(t.elements))
-    engine.run(univ(t, X), '')
-    eq_(X.deref(engine.trail), ul)  
-    engine.run(univ(Y, ul), '')
-    eq_(Y.deref(engine.trail), t)  
-  def xtest_functor(self):
-    engine = Engine()
-    X = Var()
-    Y = Var()
-    Z = Var()
-    t = Term('', ["abc", "def", "abcdef"])
-    t.name = 'f'
-    engine.run(functor(t, X, Y), '')
-    eq_(X.deref(engine.trail), atom('f'))  
-    eq_(Y.deref(engine.trail), Integer(3))  
+    eq_(eval(begin(copy_term(L("abc", 1), x), x)), L("abc", 1))
     
-class xTestFormat:
-  def setUp(self): cleanup_vars()
-  
-  def test_write(self):
-    from oad.builtins.format import write, nl
-    x = Var('x')
-    eq_(eval(L(begin, (write, 1, 2), [nl])), True)
-    
-

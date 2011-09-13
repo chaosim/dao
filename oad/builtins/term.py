@@ -1,33 +1,27 @@
 from oad import helper 
 from oad import error
-from oad.term import Var#, Integer, True
+from oad.term import Var, unify
+import oad.term as term
 from oad import builtin
-##from oad.cont import Continuation, ChoiceContinuation
 
 # analysing and construction terms
 
 @builtin.macro()
-def getvalue(solver, item):
-  solver.value = item.getvalue(solver.env)
+def getvalue(solver, cont, item):
+  yield cont, getvalue(item, solver.env)
   
-class SetvalueContinuation:#(Continuation): 
-  def __init__(self, arg, solver):
-    Continuation.__init__(self, solver)
-    self.arg = arg
-  def activate(self, solver):
-    var = self.arg.var
+@builtin.macro()
+def setvalue(solver, var, value):
+  var = deref(var, solver.env)
+  value = deref(value, solver.env)
+  def setvalue_cont(value, solver):
+    var = var.var
     if var in solver.env.bindings:
       v = solver.env.bindings[var]
       if isinstance(v, Var): var = v
-    var.setvalue(solver.value, solver.env)
-    solver.value = True
-    solver.set(self.cont)
-  def _repr(self): return 'assign_cont'
-
-@builtin.macro()
-def setvalue(solver, var, value):
-  solver.set(SetvalueContinuation(var, solver))
-  return value.scont(solver)
+    var.setvalue(value, solver.env)
+    yield cont, True
+  yield solver.cont(value, set_cont), True
 
 @builtin.macro()
 def functor(solver):
@@ -123,6 +117,7 @@ def univ(solver):
   return scont, fcont, trail
 
 @builtin.macro()
-def copy_term(solver, term, copy):
-  copy.unify(term.copy(solver.env, {}), solver.env)
-  solver.value = True
+def copy_term(solver, cont, item, copy):
+  for _ in unify(copy, term.copy(item, {}), solver.env):
+    yield cont, True
+    

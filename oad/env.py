@@ -48,6 +48,12 @@ class ExtendEnvironment(Environment):
     return self.outer.lookup(label,cont, solver)
   def __repr__(self): return "%s"%(self.bindings)+repr(self.outer)
 
+def unwind(cont, tag, stop_cont, solver):
+  try: return cont.unwind(cont, tag, stop_cont, solver)
+  except AttributeError: 
+    if cont is stop_cont: return cont
+    else: return unwind(cont.cont, tag, stop_cont, solver)
+
 class BlockEnvironment(ExtendEnvironment):
   def __init__(self, label, outer, cont):
     self.label, self.outer, self.cont = label, outer, cont
@@ -57,7 +63,8 @@ class BlockEnvironment(ExtendEnvironment):
     self.outer[var] = value
   def hasBindings(self): return False
   def lookup(self, label, cont, solver):
-    if label==self.label: return cont.unwind(self.cont, solver)
+    if label==self.label: 
+      return unwind(cont, label, self.cont, solver)
     return self.outer.lookup(label, solver)
 
 class ModuleEnvironment(ExtendEnvironment): pass

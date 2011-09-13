@@ -5,13 +5,15 @@ from nose.tools import eq_, ok_, assert_raises
 from oad.term import cons
 from oad.solve import eval
 from oad.special import quote, set, begin, if_, lambda_, let, letrec, eval_
-from oad.special import function, macro, block, return_from
+from oad.special import function, macro, block, return_from, catch, throw
+from oad.special import unwind_protect, module
 
 from oad.builtins.control import and_, cut
-##from oad.builtins.module import from_
+from oad.builtins.module import from_
 from oad.builtins.format import write
 from oad.builtins.arith import eq, sub, mul, add, div
 from oad.builtins.arithpred import define
+from oad.builtins.callcc import callcc
 
 from oad.testutil import *
 
@@ -52,12 +54,12 @@ class TestEval:
     
   def testLambda(self):
     eq_(eval(lambda_([x], 1)(2)), 1)
-##    eq_(eval(lambda_([x], x)(2)), 2)
-##    eq_(eval(lambda_((x, y), add(x, y))(1, 3)), 4)
+    eq_(eval(lambda_([x], x)(2)), 2)
+    eq_(eval(lambda_((x, y), add(x, y))(1, 3)), 4)
   def testlet(self):
     eq_(eval(let({x:1}, x)), (1))
-##    eq_(eval(let({x:1}, let({x:2}, x))), 2)
-##    eq_(eval(let({x:1, y:2}, add(x, y))), 3)
+    eq_(eval(let({x:1}, let({x:2}, x))), 2)
+    eq_(eval(let({x:1, y:2}, add(x, y))), 3)
   def testletdouble(self):
     f = Var('f')
     eq_(eval(let({f: lambda_([x], add(x, x))}, f(1))), 2)
@@ -78,14 +80,21 @@ class TestEval:
         1)
   def testblock2(self):
     eq_(eval(block(a, return_from(a, 2), 3)), 2)
-  def testcatch(self):
+  def testcatch1(self):
     eq_(eval(catch(1, 2)), 2)
-  def testcatch(self):
-    eq_(eval(catch(1, throw(1, 2), 1)), 2)
-  def xtestunwind_protect(self):
-    eq_(eval(L(block, foo, (unwind_protect, (return_from, foo, 1), (write, 2)))), Integer(1))
-    eq_(eval(L(block, foo, (unwind_protect, (return_from, foo, 1), 
-                            (write, 2), (write, 3)))), Integer(1))
+  def testcatch2(self):
+    eq_(eval(catch(1, throw(1, 2), 3)), 2)
+  def test_unwind_protect(self):
+    eq_(eval(block(foo, unwind_protect(return_from(foo, 1), write(2)))), 1)
+  def test_unwind_protect2(self):
+    eq_(eval(block(foo, unwind_protect(return_from(foo, 1), 
+                            write(2), write(3)))), 1)
+  def testcallcc(self):
+    from oad.solve import done
+    eq_(eval(callcc(lambda_([k], k(2)))), 2)
+    #eq_(eval(callcc(callcc)), done)
+    #assert 0, '((call/cc call/cc) (call/cc call/cc)) infinite loop.'
+    #eq_(eval('((call/cc call/cc) (call/cc call/cc))'), Integer(2))
 
 class Testfunction:
   def setUp(self): cleanup_vars()
@@ -166,5 +175,25 @@ class TestMacro:
                   x: 1},
              f(x+x))), True) 
   def test4(self):
-    eq_(eval(macro([[x], x])(write(1))), write(1)) 
+    eq_(eval(macro([[x], x])(write(1))), (write, 1)) 
     
+class TestModule:
+  def test1(self):
+    a = Var('a')
+    m1 = eval(module(define(a,1)))
+    ok_(a in m1.bindings)    
+    
+  def test2(self):
+    a, m = Var('a'), Var('m')
+    eq_(eval(let({m:module(define(a,1))}, from_(m,a))), 1)
+    
+  def test3(self):
+    a, m1, m2 = Var('a'), Var('m1'), Var('m2')
+    eq_(eval(let({m1:module(define(a,1),define(m2, module(define(a,2))))}, 
+               from_(from_(m1,m2),a))), 2) 
+
+  def test4(self):
+    a, m1, m2 = Var('a'), Var('m1'), Var('m2')
+    eq_(eval(let({m1:module(define(a,1), let({a:2}, define(a,3)))}, 
+               from_(m1,a))), 1) 
+

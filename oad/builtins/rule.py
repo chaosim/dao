@@ -1,5 +1,5 @@
+from oad.term import deref, unify_list_rule_head, conslist, getvalue
 from oad import error
-##from oad.term import True, car, cdr, cadr
 from oad import builtin
 from oad.rule import Rule
 
@@ -7,35 +7,39 @@ from oad.rule import Rule
 
 @builtin.function()
 def abolish(rules, arity):
-  del rules[arity.val]
+  del rules.rules[arity]
   return True
 
-@builtin.function('assert')
-def assert_(rules, rule):
-  rules.rules[len(car(rule))].append(Rule(car(rule), cdr(rule)))
-  return rules
+@builtin.macro('assert')
+def assert_(solver, cont, rules, head, *body):
+  rules = deref(rules, solver.env)
+##  head = deref(head, solver.env)
+##  body = deref(body, solver.env)
+  rules.rules[len(head)].append(Rule(head, body))
+  yield cont, rules
 
-@builtin.function('asserta')
-def asserta(rules, rule):
-  rules.rules[len(car(rule))].insert(0, Rule(car(rule), cdr(rule)))
-  return rules
+@builtin.macro('asserta')
+def asserta(solver, cont, rules, head, *body):
+  rules = deref(rules, solver.env)
+##  head = deref(head, solver.env)
+##  body = deref(body, solver.env)
+  rules.rules[len(head)].insert(0, Rule(head, body))
+  yield cont, rules
 
-@builtin.function2('retract')
-def retract(solver, rules, rule):
-  rule = rule.deref(solver.env)
-  head, body = car(rule), cdr(rule)
+@builtin.macro('retract')
+def retract(solver, cont, rules, head, *body):
+  rules = deref(rules, solver.env)
+##  head = deref(head, solver.env)
+##  body = deref(body, solver.env)
   if len(head) not in rules.rules: return
   rules = rules.rules[len(head)]
   index = 0
   while index<len(rules):
     rule = rules[index]
-    oldtrail = solver.env
-    solver.env = solver.env.branch()
-    try:
-      deleted_body = rule.apply(solver.env, head)
-      body.unify(deleted_body, solver.env)
-    except error.UnifyFail: 
-      solver.env = solver.env.revert_upto(oldtrail)
+    unified = False
+    for _ in unify_list_rule_head(head, rule.head, solver.env):
+      rule.body = tuple(getvalue(conslist(*body), solver.env))
       index += 1
-    else: del rules[index]
-  return
+      unified = True
+    if not unified: del rules[index]
+  yield cont, rules

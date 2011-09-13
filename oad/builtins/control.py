@@ -48,15 +48,11 @@ def or_(solver, cont, call1, call2):
     if_clause = deref(call1.operand[0], solver.env)
     then_clause = deref(call1.operand[1], solver.env)
     call1 = if_clause&cut&then_clause
-##  def or_cont(value, solver):
-##    yield solver.cont(call1, cont), True
-##    yield solver.cont(call2, cont), True
-##  or_cont.cut = True
-##  yield or_cont, True
-  try: 
-    for _ in solver.solve(call1, cont): yield cont, True
-  except CutException: return
-  for _ in solver.solve(call2, cont): yield cont, True
+  def or_cont(value, solver):
+    yield solver.cont(call1, cont), True
+    yield solver.cont(call2, cont), True
+  or_cont.cut = True
+  yield or_cont, True
 
 @builtin.macro('->')  
 def ifp(solver, cont, if_clause, then_clause):

@@ -4,17 +4,46 @@ from oad.env import GlobalEnvironment
 
 class CutException: pass
 
+def mycont(cont):
+  def make_mycont(fun):
+    fun.cont = cont
+    return fun
+  return make_mycont
+ 
+@mycont(None)
 def done(value, solver): yield done, value
 
-def value_cont(exp, cont): return lambda value, solver: cont(exp, solver)
+class DaoUncaughtThrow(Exception):
+  def __init__(self, tag): self.tag = tag
   
-def eval(exp): return Solver().eval(exp)
+def done_unwind(cont, tag, stop_cont, solver):
+  if cont is stop_cont: return cont
+  raise DaoUncaughtThrow(tag)
+done.unwind = done_unwind
 
+def value_cont(exp, cont):
+ @mycont(cont)
+ def value_cont(value, solver): 
+   return cont(exp, solver)
+ return value_cont
+  
 def cut(cont_gen): 
   try: return cont_gen.cut
   except: return False
-  
+
+def translate(exp):
+  try: return exp.translate()
+  except: 
+    if isinstance(exp, list) or isinstance(exp, tuple):
+      return tuple(translate(e) for e in exp)
+    else: return exp
+
+def eval(exp):
+  sexp = translate(exp)
+  return Solver().eval(sexp)
+
 class Solver:
+  # exp, exps: sexpression and sexpression list
   def __init__(self, env=None, stop=done):
     if env is None: env = GlobalEnvironment()
     self.env = env
@@ -24,9 +53,8 @@ class Solver:
     for x in self.solve(exp): return x
     
   def solve(self, exp, stop=done):
-    solver = Solver(self.env, stop)
-    cont = solver.cont(exp, stop)
-    for _, result in solver.run_cont(cont, None):
+    cont = self.cont(exp, stop)
+    for _, result in self.run_cont(cont, stop):
       yield result
       
   def solve_exps(self, exps, stop=done):
@@ -38,7 +66,8 @@ class Solver:
       for _ in self.solve(exps[0], self.exps_cont(exps[1:], stop)): 
         for x in self.solve_exps(exps[1:], stop):
           yield x
-  def run_cont(self, cont, value):
+  def run_cont(self, cont, stop, value=None):
+    self = Solver(self.env, stop)
     stop = self.stop 
     root = cont_gen = cont(value, self)
     cut_gen = {}
@@ -71,12 +100,25 @@ class Solver:
         
   def cont(self, exp, cont):    
     try: return exp.cont(cont, self)
-    except: return value_cont(exp, cont)
-    
+    except: 
+      if isinstance(exp, list) or isinstance(exp, tuple):
+        return self.list_cont(exp, cont)
+      else: return value_cont(exp, cont)
+  def list_cont(self, exp, cont):
+    if len(exp)==0: return value_cont(exp)
+    try: 
+      form = exp[0].make_special_form(*exp[1:])
+      return self.cont(form, cont)
+    except: pass
+    @mycont(cont)
+    def evaluate_list_tail_cont(operator, solver): 
+      return operator.evaluate_cont(exp[1:], cont, solver)
+    return self.cont(exp[0], evaluate_list_tail_cont)
   def exps_cont(self, exps, cont):
       if len(exps)==0: return value_cont(True, cont)
       elif len(exps)==1: return self.cont(exps[0], cont)
       else:
-        def mycont(value, solver):
+        @mycont(cont)
+        def exps_cont(value, solver):
           yield self.exps_cont(exps[1:], cont), value
-        return self.cont(exps[0], mycont)
+        return self.cont(exps[0], exps_cont)

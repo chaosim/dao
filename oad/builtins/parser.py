@@ -1,4 +1,3 @@
-##from oad.term import True, atom, Integer
 from oad import builtin
 
 # set and manipulate stream for parsing 
