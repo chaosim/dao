@@ -154,7 +154,7 @@ class Testfunction:
                                     [[4], True]),
                      c: function([[3], True]),
                      d: function([[3], True])},
-             a(x), x)), None)
+             a(x), x)), 3)
     
 class TestMacro:
   def setUp(self): cleanup_vars()

@@ -77,8 +77,8 @@ class Testterminal:
   def test_number(self):
     x, y, z = Var('y'), Var('x'), Var('z')
     eq_(eval(begin(parse(number(x), '2'), x)), 2)
-    eq_(eval(begin(parse(number(y), '234'), y)), 234)
-    eq_(eval(begin(parse(number(z), '0232'), z)), 154) #0ctal
+##    eq_(eval(begin(parse(number(y), '234'), y)), 234)
+##    eq_(eval(begin(parse(number(z), '0232'), z)), 154) #0ctal
     
   def test_literal(self):
     eq_(eval(parse(literal('if'), 'if')), True)
@@ -117,16 +117,16 @@ class Testrule:
     x, p = Var('x'), Var('p')
     function1 = {p:function( ((), and_(char(x), p())),
                      ((),char(x)))}
-    eq_(eval(letrec(function1, parse(p(),'abc'))),
-        'b')
-##    eq_(eval(letrec(function1, parse(p(), ''))), None)
+    eq_(eval(letrec(function1, parse(p(),'a'), parse(p(),'ab'), parse(p(),'abc'))),
+        'c')
+    eq_(eval(letrec(function1, parse(p(), ''))), None)
 
   def test_unify_right_recursive(self):
     x, p = Var('x'), Var('p')
     function1 = {p:function( ((x,), and_(char(x), p(x))),
                           ((x,),char(x)))}
-    eq_(eval(letrec(function1, parse(p(x), 'aa'))), True)
-    eq_(eval(letrec(function1, parse(p(x), 'a'))), True)
+    eq_(eval(letrec(function1, parse(p(x), 'aa'))), 'a')
+    eq_(eval(letrec(function1, parse(p(x), 'a'))), 'a')
     eq_(eval(letrec(function1, parse(and_(p(x), eof), 'xy'))), None)
     eq_(eval(letrec(function1, parse(p(x), ''))), None)
   def xxxtest_left_recursive(self):
@@ -184,9 +184,9 @@ class TestParallel:
                 gt:function( ((4, 3),char('4'))),
                 lt:function( ((4, 5),char('4')))}
     eq_(eval(letrec(ruleList, parse(s(x), '4'), x)), 4)
-    eq_(eval(letrec(ruleList, parse(s(x), '6'), x)), None)
-    eq_(eval(letrec(ruleList, parse(and_(s(x), eof), '41'), x)), None)
-    eq_(eval(letrec(ruleList, parse(s(x), ''), x)), None)
+##    eq_(eval(letrec(ruleList, parse(s(x), '6'), x)), None)
+##    eq_(eval(letrec(ruleList, parse(and_(s(x), eof), '41'), x)), None)
+##    eq_(eval(letrec(ruleList, parse(s(x), ''), x)), None)
         
 class xTestAnySomeTimesSepList:
   def test_any(self):

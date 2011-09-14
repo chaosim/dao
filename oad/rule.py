@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from oad.solve import CutException
+from oad.solve import CutException, mycont
 from oad.term import getvalue, unify_list_rule_head
 
 class Rule(object):
@@ -9,14 +9,19 @@ class Rule(object):
     self.signature = len(self.head)
 
   def apply(self, solver, env, cont, recursive, values):
-    callerEnv = solver.env
+    caller_env = solver.env
     if not recursive: solver.env = env.extend()
     else: 
       env.bindings = {}
       solver.env = env
     values = [getvalue(v, solver.env) for v in values]
-    for _ in unify_list_rule_head(values, self.head, solver.env):
-      yield solver.exps_cont(self.body, cont), True
+    for binding_set in unify_list_rule_head(values, self.head, solver.env):
+      @mycont(cont)
+      def rule_done_cont(value, solver):
+        for v in binding_set: caller_env.bindings[v] = v.getvalue(solver.env)
+        solver.env = caller_env
+        yield cont, value
+      yield solver.exps_cont(self.body, rule_done_cont), True
       
   def __eq__(self, other): 
     return self.__class__==other.__class__ and self.head==other.head and self.body==other.body

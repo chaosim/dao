@@ -60,7 +60,7 @@ class Solver:
     for x in self.solve(exp): return x
     
   def solve(self, exp, stop=done):
-    clean_binding(exp)
+##    clean_binding(exp)
     cont = self.cont(exp, stop)
     for _, result in self.run_cont(cont, stop):
       yield result
@@ -87,12 +87,17 @@ class Solver:
         except CutException:
           while not cut_gen[cont_gen] and cont_gen is not root:
             cont_gen.close()
+            del cut_gen[cont_gen]
+            cg = cont_gen
             cont_gen = parent[cont_gen]
+            del parent[cg]
           if cont_gen is root:  
             cont_gen.close()
             return
           cont_gen.close()
+          cg = cont_gen
           cont_gen = parent[cont_gen]
+          del parent[cg]
         if c is stop: yield c, v
         else:
           cg = c(v, self)
@@ -103,8 +108,9 @@ class Solver:
         if cont_gen is root: 
           return
         else: 
-##          del parent[cont_gen]
+          cg = cont_gen
           cont_gen = parent[cont_gen]
+          del parent[cg]
         
   def cont(self, exp, cont):    
     try: return exp.cont(cont, self)

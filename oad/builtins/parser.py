@@ -1,4 +1,5 @@
 from oad import builtin
+from oad.solve import mycont
 
 # set and manipulate stream for parsing 
 
@@ -7,7 +8,10 @@ from oad import builtin
 @builtin.macro()
 def parse(solver, cont, pred, text):
   solver.stream = text, 0 #text, start position
-  yield solver.cont(pred, cont), solver.stream
+  @mycont(cont)
+  def parser_cont(value, solver):
+    yield cont, value 
+  yield solver.cont(pred, parser_cont), solver.stream
 
 @builtin.function2()
 def settext(solver, cont, text): 
