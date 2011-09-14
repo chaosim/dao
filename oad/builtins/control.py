@@ -17,7 +17,8 @@ fail = fail()
 @builtin.macro()
 def repeat(solver, cont):
   def repeat_cont(value, solver):
-    while 1: yield cont, True
+    while 1: 
+      yield cont, True
   repeat_cont.cut = True
   yield repeat_cont, True
 
@@ -39,7 +40,11 @@ def and_(solver, cont, *calls):
     call2 = deref(calls[1], solver.env)
     def and_cont(value, solver): yield solver.cont(call2, cont), value
     yield solver.cont(call1, and_cont), True
-
+  else: 
+    call1 = deref(calls[:-1], solver.env)
+    call2 = deref(calls[-1], solver.env)
+    def and_cont(value, solver): yield solver.cont(call2, cont), value
+    yield solver.cont((and_,)+call1, and_cont), True
 @builtin.macro('or_')
 def or_(solver, cont, call1, call2):
   call1 = deref(call1, solver.env)
@@ -49,8 +54,11 @@ def or_(solver, cont, call1, call2):
     then_clause = deref(call1.operand[1], solver.env)
     call1 = if_clause&cut&then_clause
   def or_cont(value, solver):
+    stream = solver.stream
     yield solver.cont(call1, cont), True
+    solver.stream = stream
     yield solver.cont(call2, cont), True
+    solver.stream = stream
   or_cont.cut = True
   yield or_cont, True
 

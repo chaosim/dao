@@ -2,7 +2,7 @@
 
 from oad.term import Apply, Function, Macro, closure
 from oad.rule import Rule, RuleList
-from oad.solve import value_cont, mycont, translate
+from oad.solve import value_cont, mycont, to_sexpression
 from oad.env import BlockEnvironment
 
 # special forms: quote, begin, if, eval, let, lambda, function, macro, module
@@ -13,8 +13,8 @@ class SpecialForm:#(UEntity):
     self.exps = exps
   @classmethod
   def make_special_form(cls, *exps): return cls(*exps)
-  def translate(self): 
-    return (self.__class__,)+tuple(translate(e) for e in self.exps)
+  def to_sexpression(self): 
+    return (self.__class__,)+tuple(to_sexpression(e) for e in self.exps)
   def __call__(self, *exps): return Apply(self, *exps)
 
 class quote(SpecialForm):

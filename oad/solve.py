@@ -31,15 +31,21 @@ def cut(cont_gen):
   try: return cont_gen.cut
   except: return False
 
-def translate(exp):
-  try: return exp.translate()
-  except: 
+def to_sexpression(exp):
+  try: return exp.to_sexpression()
+  except AttributeError: 
     if isinstance(exp, list) or isinstance(exp, tuple):
-      return tuple(translate(e) for e in exp)
+      return tuple(to_sexpression(e) for e in exp)
     else: return exp
-
+def clean_binding(exp):
+  try: return exp.clean_binding()
+  except AttributeError:
+    if isinstance(exp, list) or isinstance(exp, tuple):
+      return tuple(clean_binding(e) for e in exp)
+    else: return exp
+    
 def eval(exp):
-  sexp = translate(exp)
+  sexp = to_sexpression(exp)
   return Solver().eval(sexp)
 
 class Solver:
@@ -48,11 +54,13 @@ class Solver:
     if env is None: env = GlobalEnvironment()
     self.env = env
     self.stop = stop
+    self.stream = None
 
   def eval(self, exp):
     for x in self.solve(exp): return x
     
   def solve(self, exp, stop=done):
+    clean_binding(exp)
     cont = self.cont(exp, stop)
     for _, result in self.run_cont(cont, stop):
       yield result

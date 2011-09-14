@@ -1,65 +1,40 @@
-##from oad.term import atom, Atom, String, Var, Integer, True, conslist
+from oad.term import deref
 from oad.error import throw_type_error
 from oad import builtin
-
-##from oad.cont import BodyContinuation, DoneContinuation
-##from oad.cont import Continuation, FailureContinuation
+from oad.solve import mycont
 
 # parser predicate
 # optional, any, some, times, seplist, ...
 
-class OptionalContinuation:#(FailureContinuation):
-  def __init__(self, solver):
-    FailureContinuation.__init__(self, solver)
-    self.undotrail = solver.env
-    self.oldStream = solver.stream
-    self.orig_fcont = solver.fcont
-
-  def activate(self, solver): raise NotImplementedError("unreachable")
-
-  def cut(self, solver): 
-    self.orig_fcont.cut(solver)
-
-  def fail(self, solver):
-    solver.env = solver.env.revert_upto(self.undotrail, discard_choicepoint=True)
-    solver.stream = self.oldStream
-    solver.set(self.cont, self.orig_fcont)
-    solver.value = True
-  def __repr__(self): return "OptionalContinuation"
+@builtin.macro()
+def optional(solver, cont, item):
+  item = deref(item, solver.env)
+  stream = solver.stream
+  yield solver.cont(item, cont), True
+  solver.stream = stream
+  yield cont, True
 
 @builtin.macro()
-def optional(solver, item):
-  item = item.deref(solver.env)
-  solver.set(BodyContinuation(item, solver), 
-                OptionalContinuation(solver),
-                solver.env.branch())
-  solver.value = True
-
-class ParallelContinuation:#(Continuation):
-  def __init__(self, leftCalls, solver):
-    Continuation.__init__(self, solver)
-    self.right = -1
-    self.leftStream = solver.stream
-    self.leftCalls = leftCalls
-  def activate(self, solver):
-    if self.right==-1: self.right = solver.stream.position
-    elif self.right!=solver.stream.position: raise UnifyFail
-    if not self.leftCalls: 
-      solver.value = True
-      return solver.set(self.cont)
-    solver.stream = self.leftStream
-    call0 = self.leftCalls[0].deref(solver.env)
-    self.leftCalls = self.leftCalls[1:]
-    solver.set(self)
-    return call0.scont(solver)
-  def __repr__(self): return "<ParallelContinuation %s>" % (self.leftCalls, )
-
-@builtin.macro()
-def parallel(solver, *calls):
-  call1 = calls[0].deref(solver.env)
-  if len(calls)==1: return call1.scont(solver)
-  solver.set(ParallelContinuation(calls[1:], solver))
-  call1.scont(solver)
+def parallel(solver, cont, *calls):
+  call0 = deref(calls[0], solver.env)
+  if len(calls)==1: 
+    yield solver.cont(call0, cont), True
+    return
+  stream = solver.stream
+  @mycont(cont)
+  def pallel_cont(value, solver):
+    if pallel_cont.right==-1: pallel_cont.right = solver.stream[1]
+    elif pallel_cont.right!=solver.stream[1]: return
+    if len(pallel_cont.calls)==0: 
+      yield cont, True
+      return
+    solver.stream = stream
+    call0 = pallel_cont.calls[0]
+    pallel_cont.calls =pallel_cont.calls[1:]
+    yield solver.cont(call0, pallel_cont), True
+  pallel_cont.right = -1
+  pallel_cont.calls = calls[1:]
+  yield solver.cont(call0, pallel_cont), True
 
 class RepeatMatchContinuation:#(Continuation):
   def __init__(self, item, template, solver, repeatDone):

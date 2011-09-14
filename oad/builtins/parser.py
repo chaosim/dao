@@ -2,64 +2,53 @@ from oad import builtin
 
 # set and manipulate stream for parsing 
 
-class Stream:
-  def __init__(self, text, position=0):
-    self.text, self.position = text, position
-    
-  def __iter__(self): return iter((self.text, self.position))
-  def new(self, position): return Stream(self.text, position)
-  def step(self, size=1): 
-    return self.text[self.position], self.new(self.position+size)
-  def next(self): return self.text[self.position]
-  def last(self): return self.text[self.position-1]
-  def parsed(self): return self.text[:self.position]
-  def left(self): return self.text[self.position:]
-  def eof(self): return self.position==len(self.text)
+# Solver.stream: tuple(text, position)
 
 @builtin.macro()
-def parse(solver, pred, atom):
-  solver.stream = Stream(atom.name, 0) #text, start position
-  pred = pred.deref(solver.env)
-  pred.scont(solver)
+def parse(solver, cont, pred, text):
+  solver.stream = text, 0 #text, start position
+  yield solver.cont(pred, cont), solver.stream
 
 @builtin.function2()
-def settext(solver, atom): 
-  solver.stream = Stream(atom.name, 0) #text, start position
-  solver.value = True
+def settext(solver, cont, text): 
+  solver.stream = text, 0  #text, start position
+  yield cont, solver.stream
   
-# Theses primitive can be used with Stream or compitble class with same interface.
+# Theses primitive can be used with Stream or compatible class with same interface.
 # LineStream in lineparser.py is an sample.
 
 @builtin.function2()
-def step(solver, size=1): # return current char before step
+def step(solver, cont, size=1): # return current char before step
   text, pos = solver.stream
-  if isinstance(size, Integer): size = size.val
-  solver.stream = solver.stream.new(pos+size)
-  return atom(text[pos])
+  solver.stream = text, pos+size
+  yield cont, text[pos]
 
 @builtin.function2()
-def skip(solver, size=1): # return char after skip
+def skip(solver, cont, size=1): # return char after skip
   text, pos = solver.stream
-  if isinstance(size, Integer): size = size.val
-  solver.stream = solver.stream.new(pos+size)
-  return atom(text[pos+size])
+  solver.stream = text, pos+size
+  if pos+size<len(text): yield cont, text[pos+size]
+  else: yield cont, ''
 
 @builtin.function2()
-def left(solver):
-  return atom(solver.stream.left())
-
-@builtin.function2()
-def next(solver): 
+def left(solver, cont):
   text, pos = solver.stream
-  return atom(solver.stream.next())
+  yield cont, text[pos:]
 
 @builtin.function2()
-def position(solver): return Integer(solver.stream.position)
+def next(solver, cont): 
+  text, pos = solver.stream
+  yield cont, text[pos]
 
 @builtin.function2()
-def subtext(solver, start, end): 
-  return atom(solver.stream.text[start.val:end.val])
+def position(solver, cont): 
+  yield cont, solver.stream[1]
 
 @builtin.function2()
-def goto(solver, position): 
-  solver.stream = solver.stream.new(position.val)
+def subtext(solver, cont, start, end): 
+  yield cont, solver.stream[0][start:end]
+
+@builtin.function2()
+def goto(solver, cont, position): 
+  solver.stream = solver.stream[0], position
+  yield cont, solver.stream[0][position:]

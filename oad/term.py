@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from oad.solve import value_cont, mycont
+from oad.solve import value_cont, mycont, clean_binding
 
 def unify_list(list1, list2, env, occurs_check=False):
   if len(list1)!=len(list2): return
@@ -29,15 +29,15 @@ def unify_list_rule_head(list1, list2, env):
       for y in unify_list_rule_head(list1[1:], list2[1:], env):
         yield True
         
-def unify_rule_head(x, y, env):
-  if isinstance(y, Var): 
-    env.bindings[y] = x
+def unify_rule_head(value, head, env):
+  if isinstance(head, Var): 
+    env.bindings[head] = value
     yield True
   else:
     try: 
-      for _ in x.unify_rule_head(y, env): yield True
+      for _ in value.unify_rule_head(head, env): yield True
     except AttributeError: 
-      if x==y: yield True
+      if value==head: yield True
       
 def deref(x, env):
   try: return x.deref(env)
@@ -96,15 +96,15 @@ class Var:
       for result in unify(self, other, env, occurs_check):
         yield True
       
-  def unify_rule_head(self, other, env):
-    self.setvalue(copy_rule_head(other, env))
+  def unify_rule_head(self, head, env):
+    self.setvalue(copy_rule_head(head, env))
     yield
     self.binding = None
   def copy_rule_head(self, env):
     try: return env.bindings[self]
     except KeyError:
-      env.bindings[self] = newvar = self.new()
-      return newvar
+      env.bindings[self] = self.new()
+      return env.bindings[self]
     
   def deref(self, env):
     envValue = env[self]
@@ -131,6 +131,8 @@ class Var:
   def new(self): 
     self.index += 1
     return self.__class__(self.name, self.index)
+  
+  def clean_binding(self): self.binding = None
   
   def free(self, env): return isinstance(self.deref(env), Var)
   
@@ -172,7 +174,7 @@ class ClosureVar(Var):
     self.binding = None
   
   def unify(self, other, env, occurs_check=False):
-    return self.value._unify(other, env, occurs_check)
+    return unify(self.value, other, env, occurs_check)
 
   def deref(self, env): 
     return deref(self.value, env)
@@ -218,13 +220,13 @@ def make_arguments(*args):
     pass
   return my_cont
 
-from oad.solve import translate
+from oad.solve import to_sexpression
 class Apply:
   def __init__(self, operator, *operand):
     self.operator = operator
     self.operand = operand
-  def translate(self):
-    return (translate(self.operator),)+tuple(translate(e) for e in self.operand)
+  def to_sexpression(self):
+    return (to_sexpression(self.operator),)+tuple(to_sexpression(e) for e in self.operand)
   def cont(self, cont, solver):
     @mycont(cont)
     def evaluate_cont(op, solver): 
@@ -407,6 +409,11 @@ class Cons:
     if head==self.head and tail==self.tail:
       return self
     return Cons(head, tail)
+  
+  def clean_binding(self): 
+    clean_binding(self.head)
+    clean_binding(self.tail)
+
   def __eq__(self, other): 
     return self.__class__==other.__class__ and self.head==other.head and self.tail==other.tail
      

@@ -39,9 +39,11 @@ class TestControl:
     eq_(eval(not_(succeed)), None)
     
   def test_repeat(self):
-    eq_(eval(L(and_, (settext, '123'), [repeat], (char, x), (unify, x, '3'))), True)
+    eq_(eval(and_(settext('123'), repeat, char(x), unify(x, '3'))), True)
+  def test_repeat2(self):
+    return
     # the code below loops for ever.
-    #eq_(eval(L(and_, (settext, '123'), [repeat], (char, x), (unify, x, '4'))), True) 
+    eq_(eval(and_(settext('123'), repeat, char(x), unify(x, '4'))), True) 
     
   def test_if(self):
     from oad.builtins.control import ifp

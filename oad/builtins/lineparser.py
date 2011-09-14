@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
 
-##from oad.term import Integer, True
 from oad import builtin
-from oad.builtins.parser import Stream
 
 # builtins used for parsing aware of line, 
 # can be helpful for error report, parsing debugging, etc.
 
 #characters in separator should not occur in other places, 
 # except as a whole symbol to stand for a line change.
-class LineStream(Stream):
+class LineStream:
   def __init__(self, text, position=0, column=0, row=0, seperator='\n'):
     Stream.__init__(self, text, position)
     self.row, self.column = column, row
