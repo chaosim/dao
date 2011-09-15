@@ -19,7 +19,7 @@ def repeat(solver, cont):
   def repeat_cont(value, solver):
     while 1: 
       yield cont, True
-  repeat_cont.cut = True
+##  repeat_cont.cut = True
   yield repeat_cont, True
 
 repeat = repeat()
@@ -59,7 +59,7 @@ def or_(solver, cont, call1, call2):
     solver.stream = stream
     yield solver.cont(call2, cont), True
     solver.stream = stream
-  or_cont.cut = True
+##  or_cont.cut = True
   yield or_cont, True
 
 @builtin.macro('->')  

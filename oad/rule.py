@@ -15,10 +15,13 @@ class Rule(object):
       env.bindings = {}
       solver.env = env
     values = [getvalue(v, solver.env) for v in values]
-    for binding_set in unify_list_rule_head(values, self.head, solver.env):
+    for binding_set in unify_list_rule_head(values, self.head, solver.env, caller_env):
       @mycont(cont)
       def rule_done_cont(value, solver):
-        for v in binding_set: caller_env.bindings[v] = v.getvalue(solver.env)
+        self.body
+        for v in binding_set:
+          v_value = v.getvalue(caller_env)
+          caller_env.bindings[v] = getvalue(v_value, solver.env)
         solver.env = caller_env
         yield cont, value
       yield solver.exps_cont(self.body, rule_done_cont), True
@@ -27,7 +30,7 @@ class Rule(object):
     return self.__class__==other.__class__ and self.head==other.head and self.body==other.body
   def __ne__(self, other): return not self==other
   def __repr__(self):
-    head = '(%s)'%' '.join(['%s'%a for a in self.head])
+    head = '(%s)'%' '.join(['%s'%repr(a) for a in self.head])
     body = '; '.join(['%s'%' '.join(repr(stmt)) for stmt in self.body])
     return "%s:- %s." % (head, body)
 

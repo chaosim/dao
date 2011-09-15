@@ -1,4 +1,4 @@
-from oad.term import deref
+from oad.term import deref, getvalue, unify
 from oad.error import throw_type_error
 from oad import builtin
 from oad.solve import mycont
@@ -36,120 +36,120 @@ def parallel(solver, cont, *calls):
   pallel_cont.calls = calls[1:]
   yield solver.cont(call0, pallel_cont), True
 
-class RepeatMatchContinuation:#(Continuation):
-  def __init__(self, item, template, solver, repeatDone):
-    Continuation.__init__(self, solver)
-    self.item, self.template = item, template
-    repeatDone.streams = [solver.stream]
-    repeatDone.undoTrails = [solver.env]
-    repeatDone.result = []
-    self.repeatDone = repeatDone
-
-  def activate(self, solver):
-    repeatDone = self.repeatDone
-    if self.template is not None: repeatDone.result.append(self.template.getvalue(solver.env))
-    repeatDone.streams.append(self.solver.stream)
-    repeatDone.undoTrails.append(solver.env)
-    solver.set(BodyContinuation(self.item, solver, self), 
-                  repeatDone, solver.env.branch())
-
-class RepeatDoneContinuation:#(FailureContinuation):
-  def __init__(self, resultVar, timesVar, solver):
-    FailureContinuation.__init__(self, solver)
-    self.orig_fcont = solver.fcont
-    self.timesVar, self.resultVar = timesVar, resultVar 
-    self.index = None    
-  def activate(self, solver): raise NotImplementedError("unreachable")
-  def fail(self, solver):
-    if self.index is None: self.index = len(self.streams)-1
-    solver.stream = self.streams[self.index]
-    solver.env = solver.env.revert_upto(self.undoTrails[self.index])
-    if self.resultVar is not None:
-      self.resultVar.unify(conslist(*self.result[:self.index]), solver.env)
-    if self.timesVar is not None: self.timesVar.unify(Integer(self.index), solver.env)
-    self.index -= 1
-    if self.index>=0: solver.set(self.cont, self)
-    else: solver.set(self.cont, self.orig_fcont) 
-    solver.value = True
-  def cut(self, solver):
-    self.undoTrails[0].discard(solver.env)
-    self.orig_fcont.cut(solver)
-  def __repr__(self, trail=None): 
-    return 'RepeatDone(%s:%s)'%(self.result, self.index)
+def make_repeat_cont(item, cont, matched_times=0, matched_list=None, template=None, result=None):
+  if template is None:
+    @mycont(cont)
+    def repeat_cont(value, solver):
+      stream = solver.stream
+      yield solver.cont(item, make_repeat_cont(item, cont)), True
+      solver.stream = stream
+      yield cont, True
+    return repeat_cont
+  else: 
+    @mycont(cont)
+    def repeat_cont(value, solver):
+      stream = solver.stream
+      if matched_times>0: matched_list.append(getvalue(template, solver.env))
+      yield solver.cont(item, make_repeat_cont(item, cont, 
+                matched_times+1, matched_list, template, result)), True
+      for _ in unify(result, matched_list, solver.env): 
+        solver.stream = stream
+        yield cont, True
+    return repeat_cont
+  
+@builtin.macro()
+def any(solver, cont, item, template=None, result=None):   
+  item = deref(item, solver.env)
+  stream = solver.stream
+  template = deref(template, solver.env)
+  result = deref(result, solver.env)
+  yield make_repeat_cont(item, cont, 0, [], template, result), []
 
 @builtin.macro()
-def any(solver, item, template=None, result=None):   
-  item = item.deref(solver.env)
+def some(solver, cont, item, template=None, result=None):   
+  item = deref(item, solver.env)
+  stream = solver.stream
   if template is not None: 
-    template = template.deref(solver.env)
-    result = result.deref(solver.env)
-  repeatDone = RepeatDoneContinuation(result, None, solver)
-  matchCont = RepeatMatchContinuation(item, template, solver, repeatDone)
-  solver.set(BodyContinuation(item, solver, matchCont), 
-                repeatDone, solver.env.branch())
+    template = deref(template, solver.env)
+    result = deref(result, solver.env)
+    yield solver.cont(item, make_repeat_cont(item, cont, 1, [], template, result)), []
+  else: yield solver.cont(item, make_repeat_cont(item, cont)), True
 
-@builtin.macro()
-def some(solver, item, template=None, result=None):   
-  item = item.deref(solver.env)
-  if template is not None: 
-    template = template.deref(solver.env)
-    result = result.deref(solver.env)
-  repeatDone = RepeatDoneContinuation(result, None, solver)
-  matchCont = RepeatMatchContinuation(item, template, solver, repeatDone)
-  solver.set(BodyContinuation(item, solver, matchCont), 
-                solver.fcont, solver.env.branch())
-
-class TimesContinuation:#(Continuation):
-  def __init__(self, item, expectTimes, template, result, solver):
-    Continuation.__init__(self, solver)
-    self.item, self.expectTimes = item, expectTimes
-    self.template, self.result = template, result
-    self.matchedTimes, self.matchedResult = 0, []
-
-  def activate(self, solver):
-    if self.matchedTimes>0 and self.template is not None:
-      self.matchedResult.append(self.template.getvalue(solver.env))
-    if self.matchedTimes==self.expectTimes:
-      if self.result is not None: self.result.unify(conslist(*self.matchedResult), solver.env)
-      return solver.set(self.cont)
-    self.matchedTimes += 1
-    solver.set(BodyContinuation(self.item, self.solver, self))    
-  def __repr__(self): return 'TimesCont(%s:%s)'%(self.item, self.expectTimes)
+def make_times_cont(item, expectTimes, cont, matched_times, matched_list=None, template=None, result=None):
+  if isinstance(expectTimes, int):
+    if result is None:
+      @mycont(cont)
+      def times_cont(value, solver):
+        for _ in unify(expectTimes, matched_times+1, solver.env): # matched: matched times
+          yield cont, True
+          return
+        yield solver.cont(item, make_times_cont(item, expectTimes, cont, matched_times+1)), True
+      return times_cont
+    else: 
+      @mycont(cont)
+      def times_cont(value, solver):
+        if matched_times>0:
+          matched_list.append(getvalue(template, solver.env))
+        for _ in unify(expectTimes, matched_times, solver.env):
+          for _ in unify(result, matched_list, solver.env):
+            yield cont, True
+            return
+        yield solver.cont(item, make_times_cont(item, expectTimes, cont, 
+                matched_times+1, matched_list, template, result)), True
+  else:
+    if result is None:
+      @mycont(cont)
+      def times_cont(value, solver):
+        stream = solver.stream
+        yield solver.cont(item, make_times_cont(item, expectTimes, cont, matched_times+1)), True
+        for _ in unify(expectTimes, matched_times+1, solver.env): # matched: matched times
+          solver.stream = stream
+          yield cont, True      
+    else: 
+      @mycont(cont)
+      def times_cont(value, solver):
+        stream = solver.stream
+        if matched_times>0:
+          matched_list.append(getvalue(template, solver.env))
+        yield solver.cont(item, make_times_cont(item, expectTimes, cont, 
+              matched_times+1, matched_list, template, result)), True
+        for _ in unify(expectTimes, matched_times+1, solver.env): # matched: matched times
+          for _ in unify(result, matched_list, solver.env): 
+            solver.stream = stream
+            yield cont, True
+  return times_cont
     
 @builtin.macro()
-def times(solver, item, expectTimes, template=None, result=None):   
-  item = item.deref(solver.env)
-  expectTimes = expectTimes.getvalue(solver.env)
-  if template is not None: 
-    template = template.deref(solver.env)
-    result = result.deref(solver.env)
-  if expectTimes==Integer(0): 
-    if result is not None: result.unify(conslist(), solver.env)
-    return
-  if isinstance(expectTimes, Integer):
-    assert expectTimes.val>=0
-    scont = TimesContinuation(item, expectTimes.val, template, result, solver)
-    solver.set(scont)
-  else:# isinstance(expectTimes, Var):
-    repeatDone = RepeatDoneContinuation(result, expectTimes, solver)
-    matchCont = RepeatMatchContinuation(item, template, solver, repeatDone)
-    solver.set(BodyContinuation(item, solver, matchCont), repeatDone)
+def times(solver, cont, item, expectTimes, template=None, result=None):   
+  item = deref(item, solver.env)
+  expectTimes = getvalue(expectTimes, solver.env)
+  template = deref(template, solver.env)
+  result = deref(result, solver.env)
+  if isinstance(expectTimes, int) and expectTimes<0: raise Error
+  yield make_times_cont(item, expectTimes, cont, 0, [], template, result), True
 
 from oad.builtins.control import and_
 @builtin.macro()
-def seplist(solver, item, separator, template=None, result=None):
-  item = item.deref(solver.env)
-  separator = separator.deref(solver.env)
-  if template is not None: 
-    template = template.deref(solver.env)
-    result = result.deref(solver.env)
-  repeatDone = RepeatDoneContinuation(result, None, solver)
-  matchCont = RepeatMatchContinuation(conslist(and_, separator,item), 
-                                      template, solver, repeatDone)
-  solver.set(BodyContinuation(item, solver, matchCont), repeatDone)
-
+def seplist(solver, cont, item, separator=' ', template=None, result=None, expect_times=None):
+  result = deref(result, solver.env)
+  if expect_times==0: 
+    if result is not None:
+      for _ in unify(result, [], solver.env): yield cont, True
+    else: yield cont, True
+  item = deref(item, solver.env)
+  if separator==' ': separator = (any, (char, ' '))
+  else: separator = deref(separator, solver.env)
+  template = deref(template, solver.env)
+  repeat_item = (and_, separator, item)
+  if expect_times is None:
+    repeat_cont = make_repeat_cont(repeat_item, cont, 1, [], template, result)
+    yield solver.cont(item, repeat_cont), True
+  else:  
+    times_cont = make_times_cont(repeat_item, expect_times, cont, 1, [], template, result)   
+    yield solver.cont(item, times_cont), True
+    
 @builtin.macro()
-def xxxfollow(solver):
+def follow(solver, cont, item):
   arg0 = self.elements[0].deref(solver.env)
   oldStreamPosition = solver.streamer.position
   solver.streamer.position = oldStreamPosition

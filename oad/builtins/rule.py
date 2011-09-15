@@ -37,7 +37,9 @@ def retract(solver, cont, rules, head, *body):
   while index<len(rules):
     rule = rules[index]
     unified = False
-    for _ in unify_list_rule_head(head, rule.head, solver.env):
+    caller_env = solver.env.extend()
+    callee_env = caller_env.extend()
+    for _ in unify_list_rule_head(head, rule.head, callee_env, caller_env):
       rule.body = tuple(getvalue(conslist(*body), solver.env))
       index += 1
       unified = True

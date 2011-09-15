@@ -20,27 +20,35 @@ def unify(x, y, env, occurs_check=False):
     except AttributeError: 
       if x==y: yield True
       
-def unify_list_rule_head(values, args, env):
+def unify_list_rule_head(values, args, callee_env, caller_env):
   if len(values)==0: yield set()
   elif len(values)==1: 
-    for x in unify_rule_head(values[0], args[0], env): yield x
+    for x in unify_rule_head(values[0], args[0], callee_env, caller_env): yield x
   else:
     var_set = set()
     for value, arg in zip(values, args):
-      try: var_set |= unify_rule_head(value, arg, env).next()
+      try: var_set |= unify_rule_head(value, arg, callee_env, caller_env).next()
       except StopIteration: return
     yield var_set
 
-def unify_rule_head(value, head, env):
+def unify_rule_head(value, head, callee_env, caller_env):
   if isinstance(head, Var): 
-    env.bindings[head] = value
-    if isinstance(value, Var): yield set([value])
-    else: yield set()
+    if isinstance(value, Var):
+      value.setvalue(head.copy_rule_head(callee_env), caller_env)
+      yield set([value])
+    else:
+      callee_env.bindings[head] = value
+      yield set()
   else:
     try: 
-      for var_set in value.unify_rule_head(head, env): yield var_set
+      for var_set in value.unify_rule_head(head, callee_env, caller_env): yield var_set
     except AttributeError: 
-      if value==head: yield set()
+      if isinstance(value, list) and isinstance(head, value) \
+         or isinstance(value, tuple) and isinstance(head, tuple):
+        if len(value)!=len(head): return
+        for var_set in unify_list_rule_head(value, head, callee_env, caller_env): 
+          yield var_set
+      elif value==head: yield set()
       
 def deref(x, env):
   try: return x.deref(env)
@@ -54,9 +62,14 @@ def copy(x, memo):
   try: return x.copy(memo)
   except AttributeError: return x
 
-def copy_rule_head(x, env):
-  try: return x.copy_rule_head(env)
-  except AttributeError: return x
+def copy_rule_head(arg_exp, env):
+  try: return arg_exp.copy_rule_head(env)
+  except AttributeError: 
+    if isinstance(arg_exp, list): 
+      return [copy_rule_head(e, env) for e in arg_exp]
+    elif isinstance(arg_exp, tuple):
+      return tuple(copy_rule_head(e, env) for e in arg_exp)
+    else: return arg_exp
 
 def contain_var(x, y):
   try: return x.contain_var(x, y)
@@ -70,9 +83,10 @@ def closure(exp, env):
     else: return exp
 
 class Var:
+  class_index = 1
   def __init__(self, name, index=0): 
     self.name = name
-    self.index0 = self.index = index
+    self.index = index
     
   def __call__(self, *exps): return Apply(self, *exps)
   
@@ -97,8 +111,8 @@ class Var:
       for result in unify(self, other, env, occurs_check):
         yield True
       
-  def unify_rule_head(self, head, env):
-    self.setvalue(copy_rule_head(head, env), env)
+  def unify_rule_head(self, head, callee_env, caller_env):
+    self.setvalue(copy_rule_head(head, callee_env), caller_env)
     yield set([self])
     self.binding = None
   def copy_rule_head(self, env):
@@ -133,14 +147,14 @@ class Var:
       return newvar
     
   def new(self): 
-    self.index += 1
-    return self.__class__(self.name, self.index)
+    self.class_index += 1
+    return self.__class__(self.name, self.class_index)
   
   def clean_binding(self): self.binding = None
   
   def free(self, env): return isinstance(self.deref(env), Var)
   
-  def __repr__(self): return '%s%s'%(self.name, '_%s'%self.index0 if self.index0!=0 else '')
+  def __repr__(self): return '%s%s'%(self.name, '_%s'%self.index if self.index!=0 else '')
   def __eq__(self, other): return self is other
   def __hash__(self): return hash(id(self))
   
@@ -203,28 +217,21 @@ class ClosureVar(Var):
 
 class DummyVar(Var):
   def __init__(self, name='_v'): Var.__init__(self, name)
-  def unify(self, other, env, occurs_check=False):
-    return self._unify(other, occurs_check)
-  def unify_rule_head(self, other, env): 
-    return self.unify(other, env)
+##  def unify(self, other, env, occurs_check=False):
+##    return self._unify(other, occurs_check)
+  def unify_rule_head(self, other, callee_env, caller_env): 
+    return self.unify(other, callee_env)
   def deref(self, env): return self
   def getvalue(self, env):
-    if self.binding is None: return self
-    return  self.binding.getvalue(env)
+    binding = env.bindings.get(self, self)
+    if binding is self: return binding
+    else: return getvalue(binding, env)
   def closure(self, env): return self
   def free(self, env): return True  
   def __eq__(self, other): return self.__class__ == other.__class__
 
-def list_value_cont(cont): #  用在单参数函数求cont过程中
-  def my_cont(value, solver): yield cont, [value]
-  return  my_cont
-
-def make_arguments(*args):
-  def my_cont(value, solver):
-    pass
-  return my_cont
-
 from oad.solve import to_sexpression
+
 class Apply:
   def __init__(self, operator, *operand):
     self.operator = operator

@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+# env: environment
+# cont: continution
+
 from oad.env import GlobalEnvironment
 
 class CutException: pass
@@ -105,8 +108,7 @@ class Solver:
           parent[cg] = cont_gen
           cont_gen = cg
       except StopIteration:
-        if cont_gen is root: 
-          return
+        if cont_gen is root: return
         else: 
           cg = cont_gen
           cont_gen = parent[cont_gen]

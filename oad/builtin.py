@@ -19,7 +19,6 @@ class BuiltinFunction(Builtin, Function):
   def apply(self, solver, values, cont):
     yield cont, self.function(*values)
     
-
 class BuiltinFunction2(Builtin, Function):
   def __call__(self, *exps):
     return Apply(self, *exps)
