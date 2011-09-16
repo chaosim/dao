@@ -85,26 +85,12 @@ class Solver:
     cut_gen[cont_gen] = cut(cont)
     parent = {}
     while 1:
-      try:
-        try: c, v  = cont_gen.next()
-        except CutException:
-          while not cut_gen[cont_gen] and cont_gen is not root:
-            cont_gen.close()
-            del cut_gen[cont_gen]
-            cg = cont_gen
-            cont_gen = parent[cont_gen]
-            del parent[cg]
-          if cont_gen is root:  
-            cont_gen.close()
-            return
-          cont_gen.close()
-          cg = cont_gen
-          cont_gen = parent[cont_gen]
-          del parent[cg]
+      try: 
+        c, v  = cont_gen.next()
         if c is stop: yield c, v
         else:
           cg = c(v, self)
-          cut_gen[cg] =cut(c)
+          cut_gen[cg] = cut(c)
           parent[cg] = cont_gen
           cont_gen = cg
       except StopIteration:
@@ -113,6 +99,20 @@ class Solver:
           cg = cont_gen
           cont_gen = parent[cont_gen]
           del parent[cg]
+      except CutException: # go after StopIteration!
+        while not cut_gen[cont_gen] and cont_gen is not root:
+          cont_gen.close()
+          del cut_gen[cont_gen]
+          cg = cont_gen
+          cont_gen = parent[cont_gen]
+          del parent[cg]
+        if cont_gen is root:  
+          cont_gen.close()
+          return
+        cont_gen.close()
+        cg = cont_gen
+        cont_gen = parent[cont_gen]
+        del parent[cg]
         
   def cont(self, exp, cont):    
     try: return exp.cont(cont, self)

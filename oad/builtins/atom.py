@@ -1,13 +1,13 @@
 from oad import error
-from oad.term import Var, deref, unify
+from oad.term import Var, deref, unify, getvalue
 from oad import builtin
 
 # analysing and construction atoms
 
 @builtin.macro()
 def charin(solver, cont, in_, whole): 
-  in_ = deref(in_, solver.env)
-  whole = deref(whole, solver.env)
+  in_ = getvalue(in_, solver.env)
+  whole = getvalue(whole, solver.env)
   if isinstance(in_, Var):
     for x in whole:
       for _ in unify(in_, x, solver.env):

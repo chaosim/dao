@@ -109,7 +109,7 @@ class Testfindall:
     eq_(eval(let({f: function(((), 2), ((), 3))}, 
                findall(is_(x, f()), x, y), y)), [2, 3])
     
-class TestRuleManipulation:
+class TestRule:
   def setUp(self): cleanup_vars()
   
   def test_abolish(self):

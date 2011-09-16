@@ -12,25 +12,19 @@ def abolish(rules, arity):
 
 @builtin.macro('assert')
 def assert_(solver, cont, rules, head, *body):
-  rules = deref(rules, solver.env)
-##  head = deref(head, solver.env)
-##  body = deref(body, solver.env)
+  rules = getvalue(rules, solver.env)
   rules.rules[len(head)].append(Rule(head, body))
   yield cont, rules
 
 @builtin.macro('asserta')
 def asserta(solver, cont, rules, head, *body):
-  rules = deref(rules, solver.env)
-##  head = deref(head, solver.env)
-##  body = deref(body, solver.env)
+  rules = getvalue(rules, solver.env)
   rules.rules[len(head)].insert(0, Rule(head, body))
   yield cont, rules
 
 @builtin.macro('retract')
 def retract(solver, cont, rules, head, *body):
-  rules = deref(rules, solver.env)
-##  head = deref(head, solver.env)
-##  body = deref(body, solver.env)
+  rules = getvalue(rules, solver.env)
   if len(head) not in rules.rules: return
   rules = rules.rules[len(head)]
   index = 0

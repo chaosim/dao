@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from oad.solve import CutException, mycont
-from oad.term import getvalue, unify_list_rule_head
+from oad.term import getvalue, unify_list_rule_head, unify
 
 class Rule(object):
   def __init__(self, head, body):
@@ -10,6 +10,7 @@ class Rule(object):
 
   def apply(self, solver, env, cont, recursive, values):
     caller_env = solver.env
+##    caller_env_bindings = solver.env.bindings.copy()
     if not recursive: solver.env = env.extend()
     else: 
       env.bindings = {}
@@ -19,13 +20,16 @@ class Rule(object):
       @mycont(cont)
       def rule_done_cont(value, solver):
         self.body
+        old_bindings = {}
         for v in binding_set:
-          v_value = v.getvalue(caller_env)
+          old_bindings[v] = v_value = v.getvalue(caller_env)
           caller_env.bindings[v] = getvalue(v_value, solver.env)
         solver.env = caller_env
         yield cont, value
+        for v in binding_set: caller_env.bindings[v] = old_bindings[v]
       yield solver.exps_cont(self.body, rule_done_cont), True
-      
+      solver.env = caller_env
+##      solver.env.bindings = caller_env_bindings
   def __eq__(self, other): 
     return self.__class__==other.__class__ and self.head==other.head and self.body==other.body
   def __ne__(self, other): return not self==other
@@ -37,14 +41,11 @@ class Rule(object):
 class RuleList(list):  
   def apply(self, solver, env, cont, recursive, values):
     def rules_cont(values, solver):
-      env_bindings = solver.env.bindings.copy()
       stream = solver.stream
       for rule in self:
         for c, v in rule.apply(solver, env, cont, recursive, values):
           yield c, v
           solver.stream = stream
-          solver.env.bindings = env_bindings
-        else: solver.env.bindings = env_bindings
     rules_cont.cut = True
     yield rules_cont, values
   def __repr__(self): 

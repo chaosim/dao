@@ -107,11 +107,11 @@ class Testfunction:
                 f(e), e)), cons(1, 1))
   def test1(self):
     eq_(eval(function([[1], 1],[[2],2])(x)), 1) 
-    eq_(eval(function([[1], 1],[[x],x])(2)), (2)) 
-    eq_(eval(function([[1], 1])(1)), (1)) 
-    eq_(eval(function([[1], 1],[[2],2])(2)), (2)) 
+    eq_(eval(function([[1], 1],[[x],x])(2)), 2) 
+    eq_(eval(function([[1], 1])(1)), 1) 
+    eq_(eval(function([[1], 1],[[2],2])(2)), 2) 
   def testletrecfunction(self):
-    eq_(eval(letrec({f: function([[1], 1],[[x],f(x-1)])}, f(1))), 1)  #可以有一个UObject就可以使用运算符
+    eq_(eval(letrec({f: function([[1], 1],[[x],f(x-1)])}, f(1))), 1)
     eq_(eval(letrec({f: function([[1], 1],[[x],f(x-1)])}, f(2))), 1) 
   def testdouble(self):
     eq_(eval(function([[x], add(x, x)])(2)), 4) 

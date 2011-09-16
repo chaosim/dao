@@ -37,11 +37,11 @@ def parallel(solver, cont, *calls):
   yield solver.cont(call0, pallel_cont), True
 
 def make_repeat_cont(item, cont, matched_times=0, matched_list=None, template=None, result=None):
-  if template is None:
+  if result is None:
     @mycont(cont)
     def repeat_cont(value, solver):
       stream = solver.stream
-      yield solver.cont(item, make_repeat_cont(item, cont)), True
+      yield solver.cont(item, make_repeat_cont(item, cont)), True # repeat_cont is faster 
       solver.stream = stream
       yield cont, True
     return repeat_cont
@@ -69,7 +69,7 @@ def any(solver, cont, item, template=None, result=None):
 def some(solver, cont, item, template=None, result=None):   
   item = deref(item, solver.env)
   stream = solver.stream
-  if template is not None: 
+  if result is not None: 
     template = deref(template, solver.env)
     result = deref(result, solver.env)
     yield solver.cont(item, make_repeat_cont(item, cont, 1, [], template, result)), []
@@ -80,7 +80,7 @@ def make_times_cont(item, expectTimes, cont, matched_times, matched_list=None, t
     if result is None:
       @mycont(cont)
       def times_cont(value, solver):
-        for _ in unify(expectTimes, matched_times+1, solver.env): # matched: matched times
+        for _ in unify(expectTimes, matched_times, solver.env): # matched: matched times
           yield cont, True
           return
         yield solver.cont(item, make_times_cont(item, expectTimes, cont, matched_times+1)), True
@@ -88,8 +88,7 @@ def make_times_cont(item, expectTimes, cont, matched_times, matched_list=None, t
     else: 
       @mycont(cont)
       def times_cont(value, solver):
-        if matched_times>0:
-          matched_list.append(getvalue(template, solver.env))
+        if matched_times>0: matched_list.append(getvalue(template, solver.env))
         for _ in unify(expectTimes, matched_times, solver.env):
           for _ in unify(result, matched_list, solver.env):
             yield cont, True
@@ -102,18 +101,17 @@ def make_times_cont(item, expectTimes, cont, matched_times, matched_list=None, t
       def times_cont(value, solver):
         stream = solver.stream
         yield solver.cont(item, make_times_cont(item, expectTimes, cont, matched_times+1)), True
-        for _ in unify(expectTimes, matched_times+1, solver.env): # matched: matched times
+        for _ in unify(expectTimes, matched_times, solver.env): # matched: matched times
           solver.stream = stream
           yield cont, True      
     else: 
       @mycont(cont)
       def times_cont(value, solver):
         stream = solver.stream
-        if matched_times>0:
-          matched_list.append(getvalue(template, solver.env))
+        if matched_times>0: matched_list.append(getvalue(template, solver.env))
         yield solver.cont(item, make_times_cont(item, expectTimes, cont, 
               matched_times+1, matched_list, template, result)), True
-        for _ in unify(expectTimes, matched_times+1, solver.env): # matched: matched times
+        for _ in unify(expectTimes, matched_times, solver.env): # matched: matched times
           for _ in unify(result, matched_list, solver.env): 
             solver.stream = stream
             yield cont, True
@@ -125,7 +123,13 @@ def times(solver, cont, item, expectTimes, template=None, result=None):
   expectTimes = getvalue(expectTimes, solver.env)
   template = deref(template, solver.env)
   result = deref(result, solver.env)
-  if isinstance(expectTimes, int) and expectTimes<0: raise Error
+  if isinstance(expectTimes, int):
+    if expectTimes<0: raise Error
+    elif expectTimes==0: 
+      if result is not None:
+        for _ in unify(result, [], solver.env): yield cont, True
+      else: yield cont, True
+      return
   yield make_times_cont(item, expectTimes, cont, 0, [], template, result), True
 
 from oad.builtins.control import and_

@@ -1,0 +1,5 @@
+todo: left recursive
+todo: rule signature, for better efficieny in calling function.
+todo: first set for matcher 
+todo: meta syntax in python.
+todo: quasiquote and backquote
