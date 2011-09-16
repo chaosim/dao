@@ -11,6 +11,64 @@ class AmibiguityPathError(Exception):
   def __init__(self, item):
     self.item = item
 
+class SyntaxBase: 
+  def __init__(self, fsm, state):
+    self.fsm = fsm
+    self.state = state # set([self.fsm.start_state])
+  def __getattr__(self, attr):
+    if attr not in self.state.attrs: return
+    
+class ParserState(SyntaxBase):
+  def __init__(self, fsm, states):
+    self.fsm = fsm
+    self.states = states
+    for state in self.states:
+      if item in self.fsm.dict[state]:
+        if isinstance(item, Init):
+          method = iteme.make_method()
+          result = method(self)
+          state1 = self.fsm.dict[state][item]
+          states[state1] = result
+    self.states = null_closure(states)
+  def getattr(self, attr):
+    states = {}
+    for state in self.states:
+      if item in self.fsm.dict[state]:
+        if isinstance(item, Binary):
+          if item.attr== 'getattr':
+            method = iteme.make_method()
+            result = method(self)
+            state1 = self.fsm.dict[state][item]
+            states[state1] = result
+    return ParserState(fsm, null_closure(states))        
+##  def __lt__(self, other): pass 
+##  def __le__(self, other): pass 
+##  def __eq__(self, other): pass 
+##  def __ne__(self, other): pass 
+##  def __gt__(self, other): pass 
+##  def __ge__(self, other): pass 
+##  def __getattr__(self, name): pass 
+##  def __call__(self, *args): pass 
+##  def __getitem__(self, key): pass 
+##  def __iter__(self): pass 
+##  def __add__(self, other): pass 
+##  def __sub__(self, other): pass 
+##  def __mul__(self, other): pass 
+##  def __floordiv__(self, other): pass 
+##  def __mod__(self, other): pass 
+##  def __pow__(self, other): pass 
+##  def __lshift__(self, other): pass 
+##  def __rshift__(self, other): pass 
+##  def __and__(self, other): pass 
+##  def __xor__(self, other): pass 
+##  def __or__(self, other): pass 
+##  def __div__(self, other): pass 
+##  def __truediv__(self, other): pass 
+##  def __neg__(self): pass 
+##  def __pos__(self): pass
+##  def __abs__(self): pass 
+##  def __invert__(self): pass 
+
 class FSM:
   '''finite state machine, have no multiple edges'''
   class State:
@@ -35,20 +93,8 @@ class FSM:
     self.rev_dict = {}
     self.start_state = self.new_state()
   def add_edge(self, state, edge, state1=None):
-    if state1 is None:
-      try: return self.dict[state][edge]
-      except: 
-        state1 = self.new_state()
-        self.dict[state][edge] = state1
-        self.rev_dict[state1] = {}
-        self.rev_dict[state1].setdefault(edge, set()).add(state)
-    else:
-      try: 
-        state11 = self.dict[state][edge]
-        if state11!= state1: raise AmibiguityPathError(self)
-      except KeyError:
-        self.dict[state][edge] = state1
-        self.rev_dict.setdefault(state1, {}).setdefault(edge, set()).add(state)
+    if state1 is None: state1 = self.new_state()
+    self.dict[state].setdefault(edge, set()).add(state1)
     return state1
   def new_state(self):
     self.state_no += 1
@@ -150,8 +196,10 @@ class Or(Element):
     
   def toFSM(self, fsm, state0, state1=None):
     if state0 is None: state0 = fsm.start_state
-    for item in self.items:
-      state1 = item.toFSM(fsm, state0, state1)
+    state = self.items[0].toFSM(fsm, state0, state1)
+    if len(self.items)==1: return state
+    for item in self.items[1:]:
+      state = item.toFSM(fsm, state0, state1)
     try: state1.class_name = self.class_name
     except: pass
     return state1
@@ -172,6 +220,9 @@ class Attribute(CallableElement):
     result = self.__class__(self.attr)
     result.functions = self.functions[:]
     return result
+  def __div__(self, other):
+    self.result_class = other
+    return self
 
 class Binary(Attribute):
   def make_method(self, state2class, state1):
@@ -203,6 +254,10 @@ class Fun(CallableElement):
   def __init__(self, name):
     self.name = name
     self.functions = ()
+  def copy(self): 
+    result = self.__class__(self.name)
+    result.functions = self.functions[:]
+    return result
   def make_method(self, state2class, state1):
     def attr_method(self1, *args):
       result = self1.__data__
@@ -276,7 +331,7 @@ positive = unary('__pos__') # -x, negative
 invert = unary('__invert__') # ~x	Bitwise not
 abs = unary('__abs__') # abs()
 pow = binary('__pow___') # **	Exponentiation
-getattr = binary('getattr') # object.attr
+getattr = binary('getattr') #   def attr
 getitem = binary('__getitem__') # object[index]
 call = binary('__call__') # fun(*args)
 
@@ -320,7 +375,10 @@ globl = lead(getattr['GlobalVar'])
 def check_form(result, forms): pass
 block = getitem(check_form)
 calls = any(getattr)|any(getattr+call)+getattr+(getattr('end')|call)
-stmts = block# |calls
+calls = some(getattr)+getattr('end')
+calls = getattr+any(getattr+getattr)+getattr+(call|dotword('end'))
+calls = getattr+(call|dotword('end'))
+stmts = block|calls
 
 def check_let_bindings(result, bindings): pass
 let = lead(call(check_let_bindings)+dotword('do')+stmts)
