@@ -38,13 +38,13 @@ oad.ver090[
   loop(10).write(1).write(2),
   loop.write(1), #无限循环
   loop[write(1), write(2)], #无限循环
-  set(i, 0), #赋值 废弃，下面的更好
-  set.i==0,  #赋值
-  set.my.i==0,  # 最内层局部变量赋值
-  set.out.i==0, # 外层变量赋值
-  set.i^2==0, # 外层变量赋值
-  set.i.j.z==(0,1,2), #i.j.z = (0,1,2)
-  set[out.i, a, a^3]==(0,1,2),
+  put(i, 0), #赋值 废弃，下面的更好
+  put.i==0,  #赋值
+  put.my.i==0,  # 最内层局部变量赋值
+  put.out.i==0, # 外层变量赋值
+  put.i^2==0, # 外层变量赋值
+  put.i.j.z==(0,1,2), #i.j.z = (0,1,2)
+  put[out.i, a, a^3]==(0,1,2),
   loop(100) [label.a, 
             inc(i), 
             if_(i==1).next, 
@@ -61,9 +61,9 @@ oad.ver090[
   '''block comment''',  
   "block comment",
   
-  let/{a:1,
-       b:2}/
-      write(a,b),
+  let ({a: 1,
+        b: 2}). 
+     do.write(a,b),
   
   write(a,b).where/{a:1,b:2},
   
@@ -71,32 +71,36 @@ oad.ver090[
   fun.a(x)== write(1), #覆盖与a(x)的整个定义
   fun.a==
     at(x)  [write(1)], #覆盖a的整个定义
-  fun.a(x) [write(2)], 
-  fun.a(x) [write(2)],#扩充定义
-  macro.a(x,y)==write(2),
-  macro.a==
+  fun.a(x) >= [write(2)], 
+  fun.a(x) >= [write(2)],#扩充定义
+  macro.a(x,y) == write(2),
+  macro.a ==
     at(x,y).  write(2),
-  macro.a(x,[y],{a:1})(write(2)), #可选参数，关键字参数
-  fun.a-(x), #删除函数a中与(x)一致的定义
-  fun.a==[], # 删除函数a的整个定义
-  fun.a-rule.r1, #从函数a中删除规则r1
-  fun.a-rules.rules1, #从函数a中删除规则集rules1
+  macro.a(x,[y],{a:1}) >= (write(2)), #可选参数，关键字参数
+  fun.a (x) == [], #删除函数a中与(x)一致的定义
+  fun.a == [], # 删除函数a的整个定义
+  fun.a - rule.name1, #从函数a中删除名为name的规则
+  fun.a - rules.name, #从函数a中删除名为name的规则集
   rule.r1 == at(1) [write(1)],
+  rules.r1 == at(1) [write(1)],
   
-  each(i) [1:10:2]
-  [
-    write(i)
-    ],
-  each(i) [1:10] [write(i)],
-  each (i,j)  [at[1:10],at[1:10]]
-    [write(i)],
+  each.i[1:10].
+    do [write(i)],
+  each.i[1:10].j[1:10].
+    do [write(i, j)],
+    
+  each(i,j).at((i,j) for (i,j) in zip(range(5), range(5))).
+    do [write(i,j)],
   
-  on(x)[at(1).write(1),
-        at(2).write(2)],
+  case(x).of[1].write(1)
+        .of[2].write(2),
   
-  on(x)/{1: write(1),
+  case(x)/{1: write(1),
          2: write(2)
         },
+  
+  on (f==open('readme.txt')).
+    do [f.write('hello')],
   
   loop(10)[some.char(x)*10],  
   
@@ -119,29 +123,32 @@ oad.ver090[
   char[5:],      # char至少五次
   
     fun. evalRule(Result)== sexpression(Expr2)+eof+is_(Result, eval_.getvalue(lExpr2)),
+  
   fun. sexpression== 
-    [(Result)> char('{')+sexpression(Expr2)+char('}')+setvalue(Result, eval_.getvalue(Expr2)),
-    (Expr)> atomExpression(Expr),
-    (Expr)> bracketExpression(Expr),
-    (Expr)> puncExpression(Expr)],
-  fun. atomExpression(X)== 
-    [number(X) | dqstring(X) |symbol(X)],
-  fun. bracketExpression (ExprList) 
+    at.Result  [char('{')+sexpression(Expr2)+char('}')+setvalue(Result, eval_.getvalue(Expr2))]
+    .at.Expr   [atomExpression(Expr)]
+               [bracketExpression(Expr)]
+               [puncExpression(Expr)],
+    
+  fun. sexpression== {
+    Result:  char('{')+sexpression(Expr2)+char('}')+setvalue(Result, eval_.getvalue(Expr2)),
+    Expr:   [atomExpression(Expr),
+             bracketExpression(Expr),
+             puncExpression(Expr)]},
+    
+  fun. atomExpression(X)==   [number(X) | dqstring(X) |symbol(X)],
+  fun. bracketExpression (ExprList)== 
     [char('(')+spaces0(_)+sexpressionList(ExprList)+spaces0(_)+char(')'),
-     char('[')+spaces0(_)+sexpressionList(ExprList)+spaces0(_)+char(']')],
-  fun. puncExpression 
-    [at['quote', Expr]> 
-        char("'")/sexpression(Expr),
-     at['quasiquote', Expr]>  
-        char("`")+sexpression(Expr),
-     at['unquote-splicing', Expr]>  
-        literal(",@")+sexpression(Expr),
-     at['unquote', Expr]/  
-        char(",")+(sexpression, Expr)],
+    char('[')+spaces0(_)+sexpressionList(ExprList)+spaces0(_)+char(']')],
+  fun. puncExpression ==
+      at('quote', Expr)  [char("'")/sexpression(Expr)]
+      .at('quote', Expr)  [('quasiquote', Expr)==  char("`")+sexpression(Expr)]
+      .at('unquote-splicing', Expr)  [literal(",@")+sexpression(Expr)]
+      .at('unquote', Expr)  [char(",")+(sexpression, Expr)],
   fun. sexpressionList==
-    [at[Expr, ExprList]/  sexpression(Expr)+condSpace+sexpressionList(ExprList),
-     at.NIL/ epsilon],
-  fun. sexpression1(Expr)> spaces0(_)+sexpressionList(Expr)+spaces0(_),
-  fun. condSpace()>  ifp(notFollowChars('([])')+notFollowByChars('([])')+not_(eof)).spaces(_)
+    at(Expr,ExprList)   [sexpression(Expr)+condSpace+sexpressionList(ExprList)]
+    .at.NIL   [epsilon],
+  fun. sexpression1(Expr)>= spaces0(_)+sexpressionList(Expr)+spaces0(_),
+  fun. condSpace()>=  ifp(notFollowChars('([])')+notFollowByChars('([])')+not_(eof)).spaces(_)
           .spaces0(_)]
 ]

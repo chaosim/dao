@@ -1,5 +1,9 @@
-todo: left recursive
+﻿todo: left recursive
 todo: rule signature, for better efficieny in calling function.
 todo: first set for matcher 
-todo: meta syntax in python.
+todo: meta syntax in python. 
+todo: more special forms, builtins.
+  todo: each(for/each), if-elsif-else, case/of, until, where, when, loop, do, for/start /end/step
 todo: quasiquote and backquote
+todo: natural language programming
+todo: 汉语编程, 缀词，冗余词
