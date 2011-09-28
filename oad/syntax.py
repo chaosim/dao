@@ -69,7 +69,7 @@ class Attribute(Element):
     def method(syntax_object_self, *args, **kw):
       data = syntax_object_self.__data__
       for fun in attr_self.functions: 
-        data = fun.run(data, *args, **kw)
+        data = run(fun, data, *args, **kw)
       try: 
         result_class = attr_self.__result_class__
         if result_class is None: return data
@@ -133,32 +133,33 @@ f(arguments...)	Function call
 `expressions...`	String conversion
 '''
 
-__lt__ = binary('__lt__') # <
-__le__ = binary('__le__') # <=
-__eq__ = binary('__eq__') # ==  
-__ne__ = binary('__ne__') # !=, <>
-__gt__ = binary('__gt__') # >
-__ge__ = binary('__ge__') # >=
-__or__ = binary('__or__')  # |
-__xor__ = binary('__xor__') # ^
-__and__ = binary('__and__') # &
-__lshift__ = binary('__lshift__') # <<
-__rshift__ = binary('__rshift__') # >>
-__add__ = binary('__add__') # +
-__sub__ = binary('__sub__') # -
-__mul__ = binary('__mul__') # *
-__div__ = binary('__div__') # /
-__floordiv__ = binary('__floordiv__') # //
-__mod__ = binary('__mod__') # %
-__neg__ = unary('__neg__') # +x, Positive
-__pos__ = unary('__pos__') # -x, negative 
-__invert__ = unary('__invert__') # ~x	Bitwise not
-__abs__ = unary('__abs__') # abs()
-__pow__ = binary('__pow___') # **	Exponentiation
-__getattr__ = binary('getattr') #   def attr
-__getitem__ = binary('__getitem__') # object[index]
-__call__ = binary('__call__') # fun(*args)
-__iter__ = unary('__iter__')
+lt = binary('__lt__') # <
+le = binary('__le__') # <=
+eq = binary('__eq__') # ==  
+ne = binary('__ne__') # !=, <>
+gt = binary('__gt__') # >
+ge = binary('__ge__') # >=
+bitor = binary('__or__')  # |
+bitxor = binary('__xor__') # ^
+bitand = binary('__and__') # &
+lshift = binary('__lshift__') # <<
+rshift = binary('__rshift__') # >>
+add = binary('__add__') # +
+sub = binary('__sub__') # -
+mul = binary('__mul__') # *
+div = binary('__div__') # /
+floordiv = binary('__floordiv__') # //
+mod = binary('__mod__') # %
+neg = unary('__neg__') # +x, Positive
+pos = unary('__pos__') # -x, negative 
+invert = unary('__invert__') # ~x	Bitwise not
+abs = unary('__abs__') # abs()
+pow = binary('__pow___') # **	Exponentiation
+getattr = binary('getattr') #   def attr
+getitem = binary('__getitem__') # object[index]
+call = binary('__call__') # fun(*args)
+iterable = unary('__iter__')
+unbox = unary('__unbox__')
 
 class SyntaxKlass:
   class_schemes = []
@@ -186,9 +187,9 @@ class SyntaxKlass:
           if isinstance(item, DotWord): dotwords[item.name] = item.make_method()
           elif isinstance(item, Attribute): attrs[item.name] = item.make_method()
           elif isinstance(item, Fun): attrs[item.name] = item.make_method()
-##        if '__init_syntax_instance__' not in attrs:
-##          def f(*args): return
-##          attrs['__init_syntax_instance__'] = f
+        if '__init_syntax_instance__' not in attrs:
+          def f(*args): return
+          attrs['__init_syntax_instance__'] = f
       klass = SyntaxMetaClass(self.name, self.bases, attrs)
       klass.dotwords = dotwords
       klass.__result_class__ = self.__result_class__
@@ -212,12 +213,17 @@ __syntax__data__ = {} # global data which is used while parsing
 def run(item, data, *args, **kw):
   try:
     return item.run(data, *args, **kw)
-  except:
+  except AttributeError:
     if isinstance(item, list):
       return [run(i, data, *args, **kw) for i in item]
     elif isinstance(item, tuple):
       return tuple(run(i, data, *args, **kw) for i in item)
     else: return item
+    
+def run_sequence(items, data, *args, **kw):
+  for item in items:
+    result = run(item, data, *args, **kw)
+  return result
 
 class OperatorFunction(Object):
   def __init__(self, *args): 
@@ -234,8 +240,6 @@ error = ErrorFunction()
 
 # have.a, hava.a.b.c, get.a, append.a, add.a, args/1, args
 
-see = lead(OperatorFunction)
-
 test = lead(OperatorFunction)
 
 class ArgFunction(OperatorFunction):
@@ -251,9 +255,7 @@ args = ArgsFunction()
 class DataFunction(OperatorFunction):
   def run(self, data, *args, **kw):
     return data 
-data  = syntax_klass('data')
-data[__getattr__(arg)]
-data = lead(data)
+data  = DataFunction()
 
 class make(OperatorFunction):
   def __init__(self, klass, *args):
@@ -262,26 +264,52 @@ class make(OperatorFunction):
     klass_args = [run(arg, data, *args, **kw) for arg in self.args]
     return self.klass(*klass_args)
 
-class GetFunction(OperatorFunction):
-  def __init__(self, var):
-    self.var = var
+class SeeFunction(OperatorFunction):
+  def __init__(self):
+    self.vars = []
+  def getattr(self, var):
+    self.vars.append(var)
+    return self
   def run(self, data, *args, **kw):
-    return __syntax__data__[self.key]  
-get  = syntax_klass('get')
-get[__getattr__(make(GetFunction, arg))]
-get = lead(get)
+    for v in self.vars:
+      if v not in __syntax__data__: return False
+    return True
+see = lead(SeeFunction)
 
-class AssignFunction(OperatorFunction):
+class GetFunction(OperatorFunction):
+  def __init__(self):
+    self.vars = []
+  def getattr(self, var):
+    self.vars.append(var)
+    return self
   def run(self, data, *args, **kw):
-    __syntax__data__[self.var] = result = run(self.value, data, *args, **kw)
-    return result
-have,have_value  = syntax_klasses('have, have_value')
-have[__getattr__([arg]),
-     __getitem__([args])]>>have_value
-have_value[__eq__(make(AssignFunction, data, arg))]
-have = lead(have)
+    if len(self.vars)==1: return __syntax__data__[self.vars[0]]
+    return [__syntax__data__[v] for v in self.vars]
+get = lead(GetFunction)
+
+class HaveFunction(OperatorFunction):
+  def __init__(self):
+    self.vars = []
+  def getattr(self, var):
+    self.vars.append(var)
+    return self
+  def __eq__(self, other):
+    self.value = other
+    return self
+  def run(self, data, *args, **kw):
+    value = run(self.value, data, *args, **kw)
+    if len(self.vars)==1:
+      __syntax__data__[self.vars[0]] = value
+      return
+    elif len(self.vars)!=len(value): raise PyMetaSyntaxError
+    for var, v in zip(self.vars, value): 
+      __syntax__data__[var] = v
+    return True
+have = lead(HaveFunction)
 
 class AppendFunction(OperatorFunction):
+  def __init__(self, var, value):
+    self.var, self.value = var, value
   def run(self, data, *args, **kw):
     value = run(self.value, data, *args, **kw)
     old_list = [] if self.var not in __syntax__data__ else __syntax__data__[self.var]
@@ -289,54 +317,102 @@ class AppendFunction(OperatorFunction):
     return result
   
 append, append_value  = syntax_klasses('append, append_value')
-append[__getattr__([arg])]>>append_value
-append_value[__lshift__(make(AppendFunction, data, arg))]
+append[getattr(arg)]>>append_value
+append_value[lshift(make(AppendFunction, data, arg))]
 append = lead(append)
 
 class Iterator(OperatorFunction):
-  def __call__(self, *args): 
-    self.args = args
+  def __call__(self, sequence): 
+    self.sequence = sequence
     return self
   def run(self, data, *args, **kw):
-    return iter(run(self.args[0], data, *args, **kw) )
+    return iter(run(self.sequence, data, *args, **kw) )
 iterator = lead(Iterator)
 
 class ApplyFunction(OperatorFunction):
   def run(self, data, *args, **kw):
-    args = [run(arg, data, *args, **kw)]
-    return self.args[0](*self.args[1])
+    mm = self.args[1]
+    apply_args = [run(x, data, *args, **kw) for x in mm]
+    return self.args[0](*apply_args)
 apply, apply_value  = syntax_klasses('apply, apply_value')
-apply[__getitem__(arg)]>>apply_value
-apply_value[__call__(make(ApplyFunction, data, args))]
+apply[getitem(arg)]>>apply_value
+apply_value[call(make(ApplyFunction, data, args))]
 apply = lead(apply)
-
-##class IifFunction(OperatorFunction):
-##  def run(self, data, *args, **kw):
-##    value = run(self.value, data, *args, **kw)
-##    old_list = [] if self.var not in __syntax__data__ else __syntax__data__[self.var]
-##    __syntax__data__[self.var] = result = old_list+[value]
-##    return result
-
-##(iif, _then, then_clause, _elsif, elsif_clause, 
-##  _els, els_clause, iif_form) = syntax_klasses(
-##  'iif, _then, then_clause, _elsif, elsif_clause, '
-##  '_els, els_clause, iif_form')
-##then, elsif, els = dotwords('then, elsif, els')
-##iif[__call__]>>iif_then
-##iif_then[then]>>then_clause
-##then_clause[__getitem__]>>iif_form
-##iif_form[
-##  elsif>>elsif_test,
-##  els>>els_clause,
-##  unbox(unbox_iif)]
-##elsif_test[call]>>elsif_then
-##elsif_clause [__getitem__>>iif_form]
-##els_clause[__getitem__>>iif_form]
-##iff = lead(iff)
 
 args_len = apply[len](args)
 
 import operator
 def args_len_eq(n):
-  return apply(operator.eq, args_len, n)
+  return apply[operator.eq](args_len, n)
+
+class IifFunction(OperatorFunction):
+  def __init__(self):
+    self.test_clauses = []
+    self.els_clause = None
+    self.state = 'test'
+  def __call__(self, *args):
+    if self.state=='test':
+      if len(args)!=1: raise PyMetaSyntaxError
+      self.test_clauses.append(args[0])
+      self.state = 'then'
+      return self
+    else: raise PyMetaSyntaxError
+  def getattr(self, attr):
+    if self.state=='then' and attr=='then': 
+      self.state = 'clause'
+      return self
+    elif self.state=='after_clause':
+      if attr=='elsif': 
+        self.state = 'test'
+        return self
+      elif attr=='els': 
+        self.state = 'els_clause'
+        return self
+    raise PyMetaSyntaxError
+  def __getitem__(self, args):
+    if self.state=='clause': 
+      self.test_clauses[-1] =  [self.test_clauses[-1], args]
+      self.state = 'after_clause'
+      return self
+    elif self.state=='els_clause': 
+      self.els_clause = args
+      self.state = 'end'
+      return self
+    raise PyMetaSyntaxError
+  def run(self, data, *args, **kw):
+    if self.test_clauses is None: raise PyMetaSyntaxError
+    elif self.state!='end' and self.state!='after_clause':
+      raise PyMetaSyntaxError
+    for test, clause in self.test_clauses:
+      if run(test, data, *args, **kw):
+        return run_sequence(clause, data, *args, **kw)
+    else:
+      if self.els_clause is not None:
+        return run_sequence(self.els_clause, data, *args, **kw)
+iif = lead(IifFunction)
+
+##(iif, iif_then, then_clause, 
+##  elsif_test, elsif_after_test, elsif_clause, 
+##  els_clause, iif_form) = syntax_klasses(
+##  'iif, iif_then, then_clause, '
+##  'elsif_test, elsif_after_test, elsif_clause, '
+##  'els_clause, iif_form')
+##then, elsif, els = dotwords('then, elsif, els')
+##iif[call]>>iif_then
+##iif_then[then]>>then_clause
+##then_clause[getitem]>>iif_form
+##iif_form[
+##  elsif>>elsif_test,
+##  els>>els_clause,
+##  unbox(unbox_iif)]
+##elsif_test[call]>>elsif_test
+##elsif_after_test[then]>>elsif_clause
+##elsif_clause[getitem>>iif_form]
+##els_clause[getitem>>iif_form]
+##iff = lead(iif)
+
+##iif = (call(have.test==args)+then+getitem(have.test_clauses==[(get.test, args)])
+##+opt(any(elsif+call(have.test==args)
+##         +then+getitem(append.test_clauses<<(get.test,args)))    
+##     +opt(els+getitem(make[Iff](get.test_clauses, args)))))
 

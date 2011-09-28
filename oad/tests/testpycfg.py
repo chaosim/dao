@@ -4,16 +4,9 @@ from nose.tools import eq_, ok_, assert_raises
 
 from oad.term import Var
 from oad.pycfg import *
+from oad.syntax import have
 
-class TestFSM:
-  def test1(self):
-    fsm = FSM()
-    state0 = fsm.start_state
-    state1 = fsm.add_edge(state0, 0)
-    state2 = fsm.add_edge(state0, 1)
-    assert_raises(AmibiguityPathError, fsm.add_edge, state0, 1, state1)
-
-e0, e1, e2 = Element(), Element(), Element()
+e0, e1, e2 = getattr(have.a==1), ActElement(getattr, ()), ActElement(getattr, ())
 
 class TestElement:
   def test_some(self):
@@ -23,9 +16,7 @@ class TestElement:
   def test_any(self):
     fsm = FSM()
     state0 = fsm.start_state
-    state1 = fsm.add_edge(state0, 0)
-    state0 = Any(e0).toFSM(fsm, state0, state0)
-    assert_raises(AmibiguityPathError, Any(e0).toFSM, fsm, state0, state1)
+    state1 = Any(e0).toFSM(fsm, state0)
   def test_sequence(self):
     fsm = FSM()
     state0 = fsm.start_state
@@ -37,9 +28,33 @@ class TestElement:
   def test_classname(self):
     fsm = FSM()
     state0 = fsm.start_state
-    state1 = Some(e0|e1|e2)['Some_e0_e1_e2'].toFSM(fsm, state0)
+    state1 = Some(e0|e1|e2).Some_e0_e1_e2.toFSM(fsm, state0)
     eq_(state1.class_name, 'Some_e0_e1_e2')
-    
+
+class Test_null_closure:
+  def test1(self):
+    fsm = FSM()
+    s0 = fsm.start_state
+    s1 = nullword.toFSM(fsm, s0)
+    s2 = nullword.toFSM(fsm, s0)
+    s3 = nullword.toFSM(fsm, s0)
+    s4 = nullword.toFSM(fsm, s1)
+    s5 = nullword.toFSM(fsm, s4)
+    eq_(fsm.null_closure(set([s0])), set([s0, s1, s2, s3, s4, s5]))
+    eq_(fsm.null_closure(set([s0, s5])), set([s0, s1, s2, s3, s4, s5]))
+    eq_(fsm.null_closure(set([s0, s3, s5])), set([s0, s1, s2, s3, s4, s5]))
+
+class Test_make_class:
+  def test_getattr(self):
+    fsm = e0.makeFSM()
+    fsm.make_class(set([fsm.start_state]))
+  def test_getattr2(self):
+    x = lead(e0)
+    x.a
+  def test_getattr3(self):
+    x = lead(e0+e1)
+    x.a.b
+
 class Test_cfg_make_class:
   def test_getattr(self):
     fsm = FSM()

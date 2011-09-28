@@ -29,13 +29,13 @@ def varcache(name):
     _var_cache[name] = Var(name)
     return _var_cache[name]
 
-getvar = ApplyOperatorFunction(varcache)
+getvar = ApplyFunction(varcache)
 
 def name2obj(name):
   try: return builtins_dict[name]
   except: return varcache(name)
 
-getobj = ApplyOperatorFunction(name2obj)
+getobj = ApplyFunction(name2obj)
   
 ##use_item = attr|div(var)|div(str)
 ##use = 'use'+some(use_item)+optional(use_block)|any(use_item)+use_block\
@@ -43,15 +43,15 @@ getobj = ApplyOperatorFunction(name2obj)
 
 ## v.a, my.a, globl.a
 SingleVar, LocalVar, GlobalVar  = syntax_klasses( 'SingleVar, LocalVar, GlobalVar')
-SingleVar[__getattr__(getvar(arg))]
-##LocalVar[__getattr__(getvar(arg))]
-##GlobalVar[__getattr__(getvar(arg))]
+SingleVar[getattr(getvar(arg))]
+##LocalVar[getattr(getvar(arg))]
+##GlobalVar[getattr(getvar(arg))]
 
 ## var.a.b.c
 VarList, VarListAttr = syntax_klasses('VarList, VarListAttr')
-VarList[__getattr__(have.var_list==[getvar(arg)])]>>VarListAttr
-VarListAttr[__getattr__(append.var_list<<getvar(arg))>>toself,
-            __iter__(iterator(get.var_list))]
+VarList[getattr(have.var_list==[getvar(arg)])]>>VarListAttr
+VarListAttr[getattr(append.var_list<<getvar(arg))>>toself,
+            iterable(iterator(get.var_list))]
 
 v = lead(SingleVar)
 ##my = lead(LocalVar)
@@ -65,9 +65,9 @@ until_fun = fun('until')
 # do.write(1).eof, do[ write(1)], do.write(1).until(1), do.write(1).when(1)
 Do, DoAttr, DoBlock, DoForm = syntax_klasses('Do, DoAttr, DoBlock, DoForm')
 
-Do[__getattr__(have.caller==getobj(arg))>>DoAttr, 
-   __getitem__(have.body==args)>>DoBlock]
-DoAttr[__getattr__(
+Do[getattr(have.caller==getobj(arg))>>DoAttr, 
+   getitem(have.body==args)>>DoBlock]
+DoAttr[getattr(
          iff(test.caller==None).then[have.caller==arg]
              .els[append.body<<getobj(get.caller), have.caller==arg])>>toself, 
        call(append.body<<daoapply(get.caller, args), 
@@ -87,9 +87,9 @@ do = lead(Do)
 ##  'Loop, LoopTimes, LoopTimesBlock, LoopBlock'
 ##  ', LoopAttr, LoopCall, LoopTimesAttr, LoopTimesCall')
 ##Loop[call(check_arguments_length/1==1)>>LoopTimes, 
-##          __getitem__>>LoopBlock, 
+##          getitem>>LoopBlock, 
 ##          getattr>>LoopAttr]
-##LoopTimes[__getitem__>>LoopTimesBlock, 
+##LoopTimes[getitem>>LoopTimesBlock, 
 ##          getattr(copy.times, assign.forms([]), assign.caller(obj_attr))
 ##                 >>LoopTimesAttr]
 ##LoopAttr[
@@ -116,7 +116,7 @@ do = lead(Do)
 ##             my(assign.scope('local')), 
 ##             out(assign.scope('out')), 
 ##             bitxor(check_argument_is_int, assign.scope(('out', argument))), 
-##             __getitem__>>MultipleAssign]
+##             getitem>>MultipleAssign]
 ##SingleAssign[eq]
 ##MultipleAssign[eq]
 ##
@@ -135,8 +135,66 @@ do = lead(Do)
 ##Let[call(check_bindings)>>LetBindings]
 ##LetBindings[do_word>>LetDo,
 ##            getattr>>LetAttr]
-##LetDo[__getitem__]
-##LetAttr[__getattr__, call]>>LetAttr
+##LetDo[getitem]
+##LetAttr[getattr, call]>>LetAttr
 ##let = Let()
 ##  
 ##    
+##use_item = attr|div(var)|div(str)
+##use = 'use'+some(use_item)+optional(use_block)|any(use_item)+use_block\
+##          |some(use_item)+div+use_block
+
+def append_var(result, attr): return result+(varcache(attr),)
+v = lead(getattr['v_Var'](lambda attr, result: varcache(attr)))
+
+def vars_iter(result):
+  for v in result: yield v
+var = lead(init(lambda x:())
+           |some(getattr(append_var))['var_Vars']
+           +iter(vars_iter))
+
+my = lead(getattr['LocalVar'])
+out = lead(getattr['OuterVar'])
+globl = lead(getattr['GlobalVar'])
+
+def check_form(result, forms): pass
+block = getitem(check_form)
+calls = any(getattr)|any(getattr+call)+getattr+(getattr('end')|call)
+calls = some(getattr)+getattr('end')
+calls = getattr+any(getattr+getattr)+getattr+(call|dotword('end'))
+calls = getattr+(call|dotword('end'))
+stmts = block|calls
+
+def check_let_bindings(result, bindings): pass
+let = lead(call(check_let_bindings)+dotword('do')+stmts)
+
+##put = lead(getattr|getitem + eq(check_form))
+##
+##body = some(getattr|getattr+call) | block 
+##do_condition = when_fun | until_fun | when_fun + until_fun
+##
+##do = lead(body+do_condition)
+##
+##on = lead(call+getattr('do')+stmts)
+##case = lead(call+some(getattr('of')+call+some(stmts))|div(dict))
+##iff = lead(call+stmts+any(attr('elsif')+stmts)+optional(getattr('els')+stmts))
+##loop = lead(call(int)+stmts)
+##
+##fun = lead(getattr+(eq+rule_dict|(getattr('at')+rule_list)))
+##
+##decl = use|var|v|my|out|globl
+##stmt = do|put|let|fun|macro|on|case|iff|loop|rule|rules|put
+##form = decl|stmt
+
+fun = Fun
+when_fun = fun('when')
+until_fun = fun('until')
+
+class DotWord(Unary):
+  def __init__(self, word):
+    self.word = word
+    self.functions = ()
+
+dotword = DotWord
+
+of_word = dotword('of')
