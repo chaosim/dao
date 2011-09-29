@@ -4,7 +4,7 @@ from oad.solve import eval
 from oad.builtins.parser import parse as dao_parse
 
 def lead_function(klass, function):
-  return lambda self, *args, **kw: function(klass(self.__syntax_grammar__), *args, **kw)
+  return lambda self, *args, **kw: function(klass(), *args, **kw)
 
 def lead_class(klass):
   attrs = {}
@@ -15,7 +15,21 @@ def lead_class(klass):
     else: attrs[a] = value
   return type('Lead'+klass.__name__, klass.__bases__, attrs)
 
-def element(grammar): return lead_class(FormTraveller)(grammar)
+def lead(klass): return lead_class(klass)()
+
+def lead_element_function(klass, function):
+  return lambda self, *args, **kw: function(klass(self.__syntax_grammar__), *args, **kw)
+
+def lead_element_class(klass):
+  attrs = {}
+  for a, value in klass.__dict__.items():
+    if not a.startswith('__init__') and isinstance(value, type(lead_class)): #type(lead): function type
+##      attrs[a] = lambda self, *args, **kw: value(klass(), *args, **kw) # why error?
+      attrs[a] = lead_element_function(klass, value)
+    else: attrs[a] = value
+  return type('Lead'+klass.__name__, klass.__bases__, attrs)
+
+def element(grammar): return lead_element_class(FormTraveller)(grammar)
 
 def parse(form):
   try: return form.__parse_syntax__()
@@ -50,8 +64,6 @@ class FormTraveller(object):
     return self 
   def __getitem__(self, key): 
     self.__syntax_data__.append((__getitem__, key)); return self 
-  def __iter__(self): 
-    self.__syntax_data__.append((__iter__, other)); return self 
   def __add__(self, other): 
     self.__syntax_data__.append((__add__, other)); return self 
   def __sub__(self, other): 
@@ -79,6 +91,8 @@ class FormTraveller(object):
     return self 
   def __or__(self, other): 
     self.__syntax_data__.append((__or__, other)); return self 
+  def __iter__(self): 
+    self.__syntax_data__.append(__iter__); return self 
   def __neg__(self): 
     self.__syntax_data__.append(__neg__); return self 
   def __pos__(self): 
@@ -89,6 +103,7 @@ class FormTraveller(object):
     self.__syntax_data__.append(__invert__); return self 
   def __parse_syntax__(self):
     return eval(dao_parse(self.__syntax_grammar__, self.__syntax_data__))
+  def __nonzero__(self): return False
   def __repr__(self): return self.__class__.__name__
   def __str__(self): return self.__class__.__name__
 
@@ -144,14 +159,14 @@ f(arguments...)	Function call
 lt = binary(__lt__) # <
 le = binary(__le__) # <=
 eq = binary(__eq__) # ==  
-neq = binary(__ne__) # !=, <>
+ne = binary(__ne__) # !=, <>
 gt = binary(__gt__) # >
 ge = binary(__ge__) # >=
 bitor = binary(__or__)  # |
-bitxor = binary(__xor__) # ^
+xor = binary(__xor__) # ^
 bitand = binary(__and__) # &
-bitlshift = binary(__lshift__) # <<
-bitrshift = binary(__rshift__) # >>
+lshift = binary(__lshift__) # <<
+rshift = binary(__rshift__) # >>
 add = binary(__add__) # +
 sub = binary(__sub__) # -
 mul = binary(__mul__) # *
@@ -165,7 +180,7 @@ abs = unary(__abs__) # abs()
 pow = binary(__pow__) # **	Exponentiation
 getattr = binary(__getattr__) #  attribute access
 getitem = binary(__getitem__) # object[index]
-iter = unary(__iter__)
+iterator = unary(__iter__)
 
 @builtin.macro()
 def call(solver, cont, args, kwargs): 

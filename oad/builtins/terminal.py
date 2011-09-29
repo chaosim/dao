@@ -11,7 +11,8 @@ from oad import builtin
 def char(solver, cont, argument): 
   argument = deref(argument, solver.env)
   text, pos = solver.stream
-  if pos==len(text): return
+  if pos==len(text): 
+    return
   for _ in unify(argument, text[pos], solver.env):
     solver.stream = text, pos+1
     yield cont,  text[pos]

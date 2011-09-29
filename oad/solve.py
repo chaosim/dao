@@ -63,7 +63,6 @@ class Solver:
     for x in self.solve(exp): return x
     
   def solve(self, exp, stop=done):
-##    clean_binding(exp)
     cont = self.cont(exp, stop)
     for _, result in self.run_cont(cont, stop):
       yield result

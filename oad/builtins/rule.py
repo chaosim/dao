@@ -33,7 +33,7 @@ def retract(solver, cont, rules, head, *body):
     unified = False
     caller_env = solver.env.extend()
     callee_env = caller_env.extend()
-    for _ in unify_list_rule_head(head, rule.head, callee_env, caller_env):
+    for _ in unify_list_rule_head(head, rule.head, callee_env, caller_env, set()):
       rule.body = tuple(getvalue(conslist(*body), solver.env))
       index += 1
       unified = True

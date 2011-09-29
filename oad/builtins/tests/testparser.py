@@ -285,11 +285,11 @@ class TestKleeneByfunction:
                   ((Cons(c, x),), char(c),kleene(x)),
                   ((nil,), nullword))}
     eq_(eval(letrec(ruleList, parse(kleene(x), 'a'), x)), L('a'))
-##    eq_(eval(letrec(ruleList, parse(kleene(x), 'aa'), x)), L('a', 'a'))
-##    eq_(eval(letrec(ruleList, parse(kleene(x), 'aaa'), x)), L('a', 'a', 'a'))
-##    eq_(eval(letrec(ruleList, parse(kleene(x), 'bbb'), x)), L('b', 'b', 'b'))
-##    eq_(eval(letrec(ruleList, parse(kleene(x), 'abc'), x)), L('a', 'b', 'c'))
-##    eq_(eval(letrec(ruleList, parse(kleene(x), ''), x)), nil)
+    eq_(eval(letrec(ruleList, parse(kleene(x), 'aa'), x)), L('a', 'a'))
+    eq_(eval(letrec(ruleList, parse(kleene(x), 'aaa'), x)), L('a', 'a', 'a'))
+    eq_(eval(letrec(ruleList, parse(kleene(x), 'bbb'), x)), L('b', 'b', 'b'))
+    eq_(eval(letrec(ruleList, parse(kleene(x), 'abc'), x)), L('a', 'b', 'c'))
+    eq_(eval(letrec(ruleList, parse(kleene(x), ''), x)), nil)
 
   def testKleene4(self):
     x, _, c, s, kleene = Var('x'), DummyVar('_'), Var('c'), Var('s'), Var('kleene')
@@ -298,11 +298,11 @@ class TestKleeneByfunction:
                   ((_, Cons(c, x)), char(c)&kleene(_, x)),
                   ((_, nil), nullword))}
     eq_(eval(letrec(ruleList, parse(s(x), 'a'), x)), L('a'))
-##    eq_(eval(letrec(ruleList, parse(s(x), 'aa'), x)), L('a', 'a'))
-##    eq_(eval(letrec(ruleList, parse(s(x), 'aaa'), x)), L('a', 'a', 'a'))
-##    eq_(eval(letrec(ruleList, parse(s(x), 'bbb'), x)), L('b', 'b', 'b'))
-##    eq_(eval(letrec(ruleList, parse(s(x), 'abc'), x)), L('a', 'b', 'c'))
-##    eq_(eval(letrec(ruleList, parse(s(x), ''), x)), nil)
+    eq_(eval(letrec(ruleList, parse(s(x), 'aa'), x)), L('a', 'a'))
+    eq_(eval(letrec(ruleList, parse(s(x), 'aaa'), x)), L('a', 'a', 'a'))
+    eq_(eval(letrec(ruleList, parse(s(x), 'bbb'), x)), L('b', 'b', 'b'))
+    eq_(eval(letrec(ruleList, parse(s(x), 'abc'), x)), L('a', 'b', 'c'))
+    eq_(eval(letrec(ruleList, parse(s(x), ''), x)), nil)
 
 
 class testIndentUndent:
@@ -324,8 +324,8 @@ class TestExpression:
                      ((1, 2), char('1')),
                      ((e, 1), E(e, 2)))}
 ##    eq_(eval(letrec(ruleList, parse(E(e, 1),  '1/1/1'), e)), (1, '/', (1, '/', 1)))
-    eq_(eval(letrec(ruleList, parse(E(e, 1),  '1/1'), e)), (1, '/', 1))
-##    eq_(eval(letrec(ruleList, parse(E(e, 1),  '1'), e)), 1)
+##    eq_(eval(letrec(ruleList, parse(E(e, 1),  '1/1'), e)), (1, '/', 1))
+    eq_(eval(letrec(ruleList, parse(E(e, 1),  '1'), e)), 1)
 ##    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eof), '1+1/1'), e)), None)
 ##    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eof), '2'), e)), None)
 ##    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eof), '1/'), e)), None)

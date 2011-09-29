@@ -16,6 +16,11 @@ class SpecialForm:#(UEntity):
   def to_sexpression(self): 
     return (self.__class__,)+tuple(to_sexpression(e) for e in self.exps)
   def __call__(self, *exps): return Apply(self, *exps)
+  def __add__(self, other): 
+    return begin(self, other)
+  def __or__(self, other): 
+    from oad.builtins.control import or_
+    return or_(self, other)
 
 class quote(SpecialForm):
   def __init__(self, exp): self.exp = exp
@@ -39,6 +44,7 @@ class set(SpecialForm):
       yield cont, True
     return solver.cont(self.exp, set_cont)
   def __repr__(self): return "set(%s %s)"%(self.var, self.exp)
+assign = set
 
 class begin(SpecialForm):
   def __init__(self, *exps):

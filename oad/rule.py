@@ -10,13 +10,14 @@ class Rule(object):
 
   def apply(self, solver, env, cont, recursive, values):
     caller_env = solver.env
-##    caller_env_bindings = solver.env.bindings.copy()
-    if not recursive: solver.env = env.extend()
+    if not recursive: 
+      solver.env = env.extend()
     else: 
       env.bindings = {}
       solver.env = env
     values = [getvalue(v, solver.env) for v in values]
-    for binding_set in unify_list_rule_head(values, self.head, solver.env, caller_env):
+    for binding_set in unify_list_rule_head(values, self.head, 
+                                            solver.env, caller_env, set()):
       @mycont(cont)
       def rule_done_cont(value, solver):
         self.body
@@ -26,10 +27,11 @@ class Rule(object):
           caller_env.bindings[v] = getvalue(v_value, solver.env)
         solver.env = caller_env
         yield cont, value
-        for v in binding_set: caller_env.bindings[v] = old_bindings[v]
+        for v in binding_set: 
+          caller_env.bindings[v] = old_bindings[v]
+        solver.env = caller_env
       yield solver.exps_cont(self.body, rule_done_cont), True
       solver.env = caller_env
-##      solver.env.bindings = caller_env_bindings
   def __eq__(self, other): 
     return self.__class__==other.__class__ and self.head==other.head and self.body==other.body
   def __ne__(self, other): return not self==other

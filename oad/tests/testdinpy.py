@@ -28,6 +28,13 @@ class Test_v_var:
     x = var.a.b.c
     eq_(list(x), [varcache('a'),varcache('b'),varcache('c')])
 
+class TestAssignVariable:
+  def test_assign1(self):
+    eq_(parse(put.i==100), assign(i, 100))
+  def test_assign2(self):
+    put1 = put[i, my.j]==(100, 200)
+    eq_(put1, MultipleAssign([('any_scope', i), ('local',j)], (100, 200)))
+    
 class Test_do:
   def test_do_attr(self):
     do1 = do.write
@@ -58,14 +65,6 @@ class TestLoop:
     loop1 =  loop[write(1)]
     eq_(loop1.forms, [write(1)])    
 
-class TestAssignVariable:
-  def test_assign1(self):
-    put1 = put.i==100
-    eq_(put1, SingleAssign('any_scope', i, 100))
-  def test_assign2(self):
-    put1 = put[i, my.j]==(100, 200)
-    eq_(put1, MultipleAssign([('any_scope', i), ('local',j)], (100, 200)))
-    
 class TestLetForm:
   def test_let(self):
     let1 = let({a:1}).do[write(1)]
