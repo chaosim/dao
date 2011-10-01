@@ -19,8 +19,6 @@ from oad.builtins.findall import findall
 from oad.builtins.arithpred import is_    
 
 class TestControl:
-  def setUp(self): cleanup_vars()
-  
   def test_fail(self):
     eq_(eval(let({f: function([[1], fail], [[x], succeed])}, f(x))), True)
 
@@ -55,8 +53,6 @@ class TestControl:
     eq_(eval(ifp(fail, fail)), None)
 
 class TestArithpred:
-  def setUp(self): cleanup_vars()
-  
   def test_is(self):
     eq_(eval(is_(x, 1)), True)
   def test_eq_le_ne(self):
@@ -70,8 +66,6 @@ class TestArithpred:
     eq_(eval(between(1, 3, x)), True)
 
 class TestTypePredicate:
-  def setUp(self): cleanup_vars()
-  
   def test_ground(self):
     eq_(eval(ground(1)), True)
     eq(eval(ground(Var(''))), None)
@@ -84,8 +78,6 @@ class TestTypePredicate:
     eq_(eval(nonvar(x)), None)
     
 class Testunify:
-  def setUp(self): cleanup_vars()
-  
   def test1(self):
     eq_(eval(unify(x, 1)), True)
   def test2(self):
@@ -94,24 +86,18 @@ class Testunify:
     eq_(eval(notunify(2, L(1))), True)
     
 class TestMetacall:
-  def setUp(self): cleanup_vars()
-  
   def testcall(self):
     eq_(eval(call(unify(x, 1))), True)
   def testonce(self):
     eq_(eval(once(unify(x, 1))), True)
     
 class Testfindall:
-  def setUp(self): cleanup_vars()
-  
   def test_findall(self):
     x, y, z = Var('x'), Var('y'), Var('z')
     eq_(eval(let({f: function(((), 2), ((), 3))}, 
                findall(is_(x, f()), x, y), y)), [2, 3])
     
 class TestRule:
-  def setUp(self): cleanup_vars()
-  
   def test_abolish(self):
     from oad.builtins.rule import abolish
     eq_(eval(let({f:function([[1], 1])}, abolish(f, 1))), True)
@@ -131,7 +117,6 @@ class TestRule:
         
 from oad.builtins.atom import atom_length, atom_concat, charin, sub_atom
 class TestAtomConstruct:
-  def setUp(self): cleanup_vars()
   def test_atom_length(self):
     eq_(eval(atom_length("abc", x)), True)
   def test_atom_length2(self):
@@ -160,8 +145,6 @@ class TestAtomConstruct:
 
 from oad.builtins.term import copy_term
 class TestTermConstruct:
-  def setUp(self): cleanup_vars()
-  
   def test_copy_term(self):
     eq_(eval(begin(copy_term(L("abc", 1), x), x)), L("abc", 1))
     

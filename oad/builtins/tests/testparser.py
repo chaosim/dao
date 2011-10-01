@@ -262,8 +262,8 @@ class TestKleeneByfunction:
                   ((nil,), nullword))}
     eq_(eval(letrec(ruleList, parse(s(x), 'aa'), x)), L('a', 'a'))
     eq_(eval(letrec(ruleList, parse(s(x), ''), x)), nil)
-    eq_(eval(letrec(ruleList, (parse(and_(s(x), eof), '6'), x))), None)
-    eq_(eval(letrec(ruleList, (parse(and_(s(x), eof), '41'), x))), None)
+    eq_(eval(letrec(ruleList, parse(and_(s(x), eof), '6'), x)), None)
+    eq_(eval(letrec(ruleList, parse(and_(s(x), eof), '41'), x)), None)
 
   def testKleene2(self):
     x, c, s, kleene = Var('x'), Var('c'), Var('s'), Var('kleene')
@@ -275,9 +275,9 @@ class TestKleeneByfunction:
     eq_(eval(letrec(ruleList, parse(s(x), 'aaa'), x)), L('a', 'a', 'a'))
     eq_(eval(letrec(ruleList, parse(s(x), 'bbb'), x)), L('b', 'b', 'b'))
     eq_(eval(letrec(ruleList, parse(s(x), ''), x)), nil)
-    eq_(eval(letrec(ruleList, (parse(and_(s(x), eof), 'aab'), x))), None)
-    eq_(eval(letrec(ruleList, (parse(and_(s(x), eof), 'abc'), x))), None)
-    eq_(eval(letrec(ruleList, (parse(and_(s(x), eof), '41'), x))), None)
+    eq_(eval(letrec(ruleList, parse(and_(s(x), eof), 'aab'), x)), None)
+    eq_(eval(letrec(ruleList, parse(and_(s(x), eof), 'abc'), x)), None)
+    eq_(eval(letrec(ruleList, parse(and_(s(x), eof), '41'), x)), None)
 
   def testKleene3(self):
     x, c, kleene = Var('x'), Var('c'), Var('kleene')

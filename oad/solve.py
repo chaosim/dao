@@ -25,10 +25,10 @@ def done_unwind(cont, tag, stop_cont, solver):
 done.unwind = done_unwind
 
 def value_cont(exp, cont):
- @mycont(cont)
- def value_cont(value, solver): 
-   return cont(exp, solver)
- return value_cont
+  @mycont(cont)
+  def value_cont(value, solver): 
+    return cont(exp, solver)
+  return value_cont
   
 def cut(cont_gen): 
   try: return cont_gen.cut
@@ -36,11 +36,13 @@ def cut(cont_gen):
 
 def to_sexpression(exp):
   try: return exp.to_sexpression()
+  except TypeError: return exp 
   except AttributeError: 
     if isinstance(exp, list) or isinstance(exp, tuple):
       return tuple(to_sexpression(e) for e in exp)
     else: return exp
-def clean_binding(exp):
+    
+def xxxclean_binding(exp):
   try: return exp.clean_binding()
   except AttributeError:
     if isinstance(exp, list) or isinstance(exp, tuple):
@@ -48,8 +50,8 @@ def clean_binding(exp):
     else: return exp
     
 def eval(exp):
-  sexp = to_sexpression(exp)
-  return Solver().eval(sexp)
+##  exp = to_sexpression(exp)
+  return Solver().eval(exp)
 
 class Solver:
   # exp, exps: sexpression and sexpression list
@@ -114,11 +116,12 @@ class Solver:
         del parent[cg]
         
   def cont(self, exp, cont):    
-    try: return exp.cont(cont, self)
-    except: 
-      if isinstance(exp, list) or isinstance(exp, tuple):
-        return self.list_cont(exp, cont)
-      else: return value_cont(exp, cont)
+    try: to_cont = exp.cont
+    except: return value_cont(exp, cont)
+    return to_cont(cont, self)
+##      if isinstance(exp, list) or isinstance(exp, tuple):
+##        return self.list_cont(exp, cont)
+##      else: return value_cont(exp, cont)
   def list_cont(self, exp, cont):
     if len(exp)==0: return value_cont(exp)
     try: 

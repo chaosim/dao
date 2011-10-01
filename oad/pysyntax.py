@@ -32,15 +32,27 @@ def lead_element_class(klass):
 def element(grammar): return lead_element_class(FormTraveller)(grammar)
 
 def parse(form):
-  try: return form.__parse_syntax__()
-  except: return form
+  try: 
+    form_parse = form.__parse_syntax__
+  except: 
+    if isinstance(form, list):
+      return [parse(x) for x in form]
+    elif isinstance(form, tuple):
+      return tuple(parse(x) for x in form)
+    else: return form
+  return form_parse()
 
 (__lt__, __le__, __eq__, __ne__, __gt__, __ge__, 
 __getattr__, __call__, __getitem__, __iter__, 
 __add__, __sub__, __mul__, __floordiv__, __div__, __truediv__, 
 __mod__, __pow__, __lshift__, __rshift__, __and__, __xor__, __or__, 
 __neg__, __pos__, __abs__, __invert__) = range(27)
-
+names = (
+'__lt__, __le__, __eq__, __ne__, __gt__, __ge__, '
+'__getattr__, __call__, __getitem__, __iter__, '
+'__add__, __sub__, __mul__, __floordiv__, __div__, __truediv__, '
+'__mod__, __pow__, __lshift__, __rshift__, __and__, __xor__, __or__, '
+'__neg__, __pos__, __abs__, __invert__'.split(', '))
 class FormTraveller(object):
   def __init__(self, grammar=None):
     self.__syntax_grammar__ = grammar
@@ -108,19 +120,23 @@ class FormTraveller(object):
   def __str__(self): return self.__class__.__name__
 
 def binary(attr):
-  @builtin.macro()
-  def func(solver, cont, argument): 
+  @builtin.macro(names[attr])
+  def func(solver, cont, argument=None): 
     argument = deref(argument, solver.env)
     syntax_result, pos = solver.stream
     if pos==len(syntax_result): return
     if syntax_result[pos][0]!=attr: return
-    for _ in unify(argument, syntax_result[pos][1], solver.env):
+    if argument is not None:
+      for _ in unify(argument, syntax_result[pos][1], solver.env):
+        solver.stream = syntax_result, pos+1
+        yield cont,  True
+    else: 
       solver.stream = syntax_result, pos+1
-      yield cont,  True
+      yield cont, True
   return func
 
 def unary(attr):
-  @builtin.macro()
+  @builtin.macro(names[attr])
   def func(solver, cont): 
     syntax_result, pos = solver.stream
     if pos==len(syntax_result): return
@@ -182,18 +198,25 @@ getattr = binary(__getattr__) #  attribute access
 getitem = binary(__getitem__) # object[index]
 iterator = unary(__iter__)
 
-@builtin.macro()
-def call(solver, cont, args, kwargs): 
+@builtin.macro('__call__')
+def call(solver, cont, args=None, kwargs=None): 
   args = deref(args, solver.env)
   kwargs = deref(kwargs, solver.env)
   syntax_result, pos = solver.stream
   if pos==len(syntax_result): return
   if syntax_result[pos][0]!=__call__: return
-  for _ in unify(args, syntax_result[pos][1], solver.env):
-    for _ in unify(kwargs, syntax_result[pos][2], solver.env):
-      solver.stream = syntax_result, pos+1
-      yield cont,  True
-
+  if args is not None:
+    for _ in unify(args, syntax_result[pos][1], solver.env):
+      if kwargs is not None:
+        for _ in unify(kwargs, syntax_result[pos][2], solver.env):
+          solver.stream = syntax_result, pos+1
+          yield cont,  True
+      else: 
+        solver.stream = syntax_result, pos+1
+        yield cont, True
+  else: 
+    solver.stream = syntax_result, pos+1
+    yield cont, True
 def word(word): return getattr(word)
 
 def block(name): return lambda arg: getattr(name)+getitem(arg)

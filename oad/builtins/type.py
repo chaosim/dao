@@ -45,3 +45,35 @@ def is_ground(term):
 @builtin.macro('ground')
 def ground(solver, cont, term):
   if is_ground(getvalue(term, solver.env)): yield cont, True
+  
+@builtin.function('conslist')
+def conslist(*arguments): return conslist(arguments)
+
+@builtin.function('cons?')
+def is_cons(x): return isinstance(x, Cons)
+
+@builtin.function('pylist')
+def pylist(*arguments): return list(arguments)
+
+@builtin.function('is_pylist?')
+def is_pylist(x): return isinstance(x, list)
+
+@builtin.function('is_pytuple?')
+def pytuple(*arguments): 
+  return tuple(arguments)
+
+@builtin.function('is_pytuple?')
+def is_pytuple(x):  return isinstance(x, tuple)
+
+@builtin.function('make_apply?')
+def make_apply(fun, *args):  
+  return fun(*args)
+
+@builtin.function('head_list')
+def head_list(head, tail): 
+  return (head,)+tuple(tail)
+
+@builtin.function('index')
+def index(sequence, index): 
+  return sequence[index]
+

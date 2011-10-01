@@ -10,8 +10,7 @@ class Rule(object):
 
   def apply(self, solver, env, cont, recursive, values):
     caller_env = solver.env
-    if not recursive: 
-      solver.env = env.extend()
+    if not recursive: solver.env = env.extend()
     else: 
       env.bindings = {}
       solver.env = env

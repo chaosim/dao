@@ -6,6 +6,7 @@ from oad import *
 from oad.builtins.format import write
 from oad.term import Var
 from oad.dinpy import *
+from oad import special
 
 a, b, c = var.a.b.c
 i, j = v.i, v.j
@@ -30,11 +31,29 @@ class Test_v_var:
 
 class TestAssignVariable:
   def test_assign1(self):
-    eq_(parse(put.i==100), assign(i, 100))
+    eq_(parse(put.i==100), special.set(i, 100))
   def test_assign2(self):
     put1 = put[i, my.j]==(100, 200)
     eq_(put1, MultipleAssign([('any_scope', i), ('local',j)], (100, 200)))
     
+class TestLet:
+  def test_let1(self):
+    eq_(parse(let({i:1}).do[1,2]), special.let({i:1}, 1, 2))
+  def test_let2(self):
+    let1 = let({a:1}).do[write(1)]
+    eq_(parse(let1), special.let({a:1}, write(1)))
+
+class TestIff:
+  def test_iff1(self):
+    if_ = special.if_
+    eq_(parse(iff(1).then[2]), special.iff(((1, 2),)))
+  def test_iff2(self):
+    if_ = special.if_
+    eq_(parse(iff(1).then[2]
+              .elsif(3).then[4].
+              els[5]), 
+        special.iff(((1, 2),(3, 4)), 5))
+
 class Test_do:
   def test_do_attr(self):
     do1 = do.write
@@ -64,8 +83,3 @@ class TestLoop:
   def test_Loop_forever1(self):
     loop1 =  loop[write(1)]
     eq_(loop1.forms, [write(1)])    
-
-class TestLetForm:
-  def test_let(self):
-    let1 = let({a:1}).do[write(1)]
-    eq_(let1, LetForm({a:1}, [write(1)]))

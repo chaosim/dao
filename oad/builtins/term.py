@@ -1,6 +1,6 @@
 from oad import helper 
 from oad import error
-from oad.term import Var, unify
+from oad.term import Var, unify, deref
 import oad.term as term
 from oad import builtin
 
@@ -8,7 +8,13 @@ from oad import builtin
 
 @builtin.macro()
 def getvalue(solver, cont, item):
-  yield cont, getvalue(item, solver.env)
+  yield cont, term.getvalue(item, solver.env)
+  
+@builtin.macro()
+def ground_value(solver, cont, item, default=None):
+  v = term.getvalue(item, solver.env)
+  if isinstance(v, Var): v = default #deref(default, solver.env)
+  yield cont, v
   
 @builtin.macro()
 def setvalue(solver, var, value):

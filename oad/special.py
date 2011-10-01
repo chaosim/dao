@@ -9,12 +9,12 @@ from oad.env import BlockEnvironment
 
 class SpecialForm:#(UEntity):
   # 具体的特殊式各自定义自己的__init__, __repr__与cont
-  def __init__(self, *exps): 
-    self.exps = exps
-  @classmethod
-  def make_special_form(cls, *exps): return cls(*exps)
-  def to_sexpression(self): 
-    return (self.__class__,)+tuple(to_sexpression(e) for e in self.exps)
+##  def __init__(self, *exps): 
+##    self.exps = exps
+##  @classmethod
+##  def make_special_form(cls, *exps): return cls(*exps)
+##  def to_sexpression(self): 
+##    return (self.__class__,)+tuple(to_sexpression(e) for e in self.exps)
   def __call__(self, *exps): return Apply(self, *exps)
   def __add__(self, other): 
     return begin(self, other)
@@ -29,7 +29,7 @@ class quote(SpecialForm):
 
 class set(SpecialForm):
   def __init__(self, var, exp):
-    SpecialForm.__init__(self, var, exp)
+##    SpecialForm.__init__(self, var, exp)
     self.var, self.exp = var, exp
   def cont(self, cont, solver):
     @mycont(cont)
@@ -43,29 +43,78 @@ class set(SpecialForm):
       env[self.var] = value
       yield cont, True
     return solver.cont(self.exp, set_cont)
+  def __eq__(self, other): return self.var==other.var and self.exp==other.exp
   def __repr__(self): return "set(%s %s)"%(self.var, self.exp)
 assign = set
 
 class begin(SpecialForm):
   def __init__(self, *exps):
-    SpecialForm.__init__(self, *exps)
+##    SpecialForm.__init__(self, *exps)
+    self.exps = exps
   def cont(self, cont, solver): 
     return solver.exps_cont(self.exps, cont)
   def __repr__(self):
     return 'begin(%s)'%(';'.join([repr(x) for x in self.exps]))
   
+def make_if_cont(then, els, cont):
+  @mycont(cont)
+  def if_cont(value, solver):
+    if value: yield solver.cont(then, cont), value
+    elif els is not None: yield solver.cont(els, cont), value
+    else: yield cont, value
+  return if_cont
+
 class if_(SpecialForm):
-  def __init__(self, test, exp1, exp2):
-    SpecialForm.__init__(self, test, exp1, exp2)
+  def __init__(self, test, exp1, exp2=None):
+##    SpecialForm.__init__(self, test, exp1, exp2)
     self.test, self.exp1, self.exp2 = test, exp1, exp2
   def cont(self, cont, solver):
-    @mycont(cont)
-    def if_cont(value, solver):
-      if value: yield solver.cont(self.exp1, cont), value
-      else: yield solver.cont(self.exp2, cont), value
+    if_cont = make_if_cont(self.exp1, self.exp2, cont)
     return solver.cont(self.test, if_cont)
   def __repr__(self):
     return 'if %s: %s else:%s'%(self.test, self.exp1, self.exp2)
+
+def make_iff_cont(then, clauses, els, cont):
+  @mycont(cont)
+  def iff_cont(value, solver):
+    if value: yield solver.cont(then, cont), value
+    else:
+      if len(clauses)==1: ifcont = if_cont(clauses[0][1], els)
+      else: ifcont = make_iff_cont(clauses[0][1], clauses[1:], els)
+      yield solver.cont(clauses[0][0], ifcont), value
+  return iff_cont
+  
+class iff(SpecialForm):
+  def __init__(self, clauses, els=None):
+##    SpecialForm.__init__(self, clauses, els)
+    self.clauses, self.els = clauses, els
+  def cont(self, cont, solver):
+    if len(self.clauses)==1: 
+      ifcont = make_if_cont(self.clauses[0][1], self.els, cont)
+    else:  
+      ifcont = make_if_elif_els_cont(self.clauses[0][1], self.clauses[1:], self.els)
+    return solver.cont(self.clauses[0][0], ifcont)
+  def __eq__(self, other):
+    return self.clauses==other.clauses and self.els==other.els
+  def __repr__(self):
+    result = 'if %s then %s; '%self.clauses[0]
+    result += ''.join('elif %s then %s; '%clause for clause in self.clauses[1:])
+    result += 'els %s'%self.els
+    return result
+
+class loop(SpecialForm):
+  def __init__(self, *exps):
+##    SpecialForm.__init__(self, exps)
+    self.exps = exps
+  def cont(self, cont, solver):
+    @mycont(cont)
+    def loop_cont(value, solver):
+      yield solver.exps_cont(self.exps, loop_cont), value
+    return solver.exps_cont(self.exps, loop_cont)
+  def __eq__(self, other):
+    return self.exps==other.exps
+  def __repr__(self):
+    return 'loop{%s}'%self.exps
 
 # UserFunction and UserMacro both are Rules, 
 # which distinct by the strict and lazy evaluation of the arguments.
@@ -80,13 +129,15 @@ def lambda_(vars, *body):
 
 class FunctionForm(SpecialForm):
   def __init__(self, *rules):
-    SpecialForm.__init__(self, *rules)
+##    SpecialForm.__init__(self, *rules)
     self.arity2rules = {}
     for rule in rules:
       self.arity2rules.setdefault(len(rule[0]), RuleList()).append(Rule(rule[0], rule[1:]))
   def cont(self, cont, solver):
     func = UserFunction(self.arity2rules, solver.env, recursive=False)
     return value_cont(func, cont)
+  def __eq__(self, other):
+    return self.arity2rules==other.arity2rules
   def __repr__(self):
     result = 'func('
     for rules in self.arity2rules.values():
@@ -115,7 +166,7 @@ class RecursiveFunctionForm(FunctionForm):
   
 class MacroForm(FunctionForm):
   def __init__(self, *rules):
-    SpecialForm.__init__(self, *rules)
+##    SpecialForm.__init__(self, *rules)
     self.arity2rules = {}
     for rule in rules:
       self.arity2rules.setdefault(len(rule[0]), RuleList()).append(Rule(rule[0], rule[1:]))
@@ -153,7 +204,7 @@ class UserMacro(Rules,  Macro):
   
 class eval_(SpecialForm):
   def __init__(self, exp):
-    SpecialForm.__init__(self, exp)
+##    SpecialForm.__init__(self, exp)
     self.exp = exp
   def cont(self, cont, solver):
     @mycont(cont)
@@ -164,7 +215,7 @@ class eval_(SpecialForm):
 from oad.env import ModuleEnvironment  
 class module(SpecialForm):
   def __init__(self, *body):
-    SpecialForm.__init__(self, *body)
+##    SpecialForm.__init__(self, *body)
     #[module ...]
     self.body = body
   def cont(self, cont, solver):
@@ -178,7 +229,7 @@ class module(SpecialForm):
 
 class block(SpecialForm):
   def __init__(self, label, *body):
-    SpecialForm.__init__(self, label, *body)
+##    SpecialForm.__init__(self, label, *body)
     self.label, self.body = label.name, body
   def cont(self, cont, solver):
     solver.env = BlockEnvironment(self.label, solver.env, cont)
@@ -187,7 +238,7 @@ class block(SpecialForm):
 
 class return_from(SpecialForm):
   def __init__(self, label, form):
-    SpecialForm.__init__(self, label, form)
+##    SpecialForm.__init__(self, label, form)
     self.label, self.form = label.name, form
   def cont(self, cont, solver):
     env = solver.env
@@ -223,7 +274,7 @@ def have_lookup(fun):
 
 class catch(SpecialForm):
   def __init__(self, tag, *body):
-    SpecialForm.__init__(self, tag, *body)
+##    SpecialForm.__init__(self, tag, *body)
     self.tag, self.body = tag, body
   def cont(self, cont, solver):
     env = solver.env
@@ -241,7 +292,7 @@ class catch(SpecialForm):
   
 class throw(SpecialForm):
   def __init__(self, tag, form):
-    SpecialForm.__init__(self, tag, form)
+##    SpecialForm.__init__(self, tag, form)
     self.tag, self.form = tag, form
   def cont(self, cont, solver):
     @mycont(cont)
@@ -253,7 +304,7 @@ class throw(SpecialForm):
 class unwind_protect(SpecialForm):
   #[unwind-protect form cleanup]
   def __init__(self, form, *cleanup):
-    SpecialForm.__init__(self, form, *cleanup)
+##    SpecialForm.__init__(self, form, *cleanup)
     self.form, self.cleanup = form, cleanup
   def cont(self, cont, solver):
     env = solver.env

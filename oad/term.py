@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from oad.solve import value_cont, mycont, clean_binding
+from oad.solve import value_cont, mycont#, clean_binding
 
 def unify_list(list1, list2, env, occurs_check=False):
   if len(list1)!=len(list2): return
@@ -258,8 +258,8 @@ class Apply:
   def __init__(self, operator, *operand):
     self.operator = operator
     self.operand = operand
-  def to_sexpression(self):
-    return (to_sexpression(self.operator),)+tuple(to_sexpression(e) for e in self.operand)
+##  def to_sexpression(self):
+##    return (to_sexpression(self.operator),)+tuple(to_sexpression(e) for e in self.operand)
   def cont(self, cont, solver):
     @mycont(cont)
     def evaluate_cont(op, solver): 
@@ -282,7 +282,7 @@ class Apply:
     return or_(self, other)
   
   def __eq__(self, other): 
-    return self.operator==other.operator and self.operand==other.operand
+    return self.__class__==other.__class__ and self.operator==other.operator and self.operand==other.operand
   
 class Function: 
   def evaluate_cont(self, exps, cont, solver):

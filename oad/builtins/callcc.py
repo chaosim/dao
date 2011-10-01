@@ -11,3 +11,4 @@ class ContinuationFunction(Builtin, Function):
 @builtin.macro()
 def callcc(solver, cont, fun):
    yield solver.cont(Apply(fun, ContinuationFunction(cont)), cont), fun
+

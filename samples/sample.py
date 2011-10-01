@@ -33,12 +33,12 @@ oad.ver090[
     write(1).
     when(1).write(2)
     ,
-  loop(10).write(1),
+  loop(10) [write(1)],
   loop(10) [write(1), write(2)],
-  loop(10).write(1).write(2),
-  loop.write(1), #无限循环
+  loop(10) [write(1), write(2)],
+##  loop.write(1), #无限循环
   loop[write(1), write(2)], #无限循环
-  put(i, 0), #赋值 废弃，下面的更好
+##  put(i, 0), #赋值 废弃，下面的更好
   put.i==0,  #赋值
   put.my.i==0,  # 最内层局部变量赋值
   put.out.i==0, # 外层变量赋值
@@ -92,15 +92,16 @@ oad.ver090[
   each(i,j).at((i,j) for (i,j) in zip(range(5), range(5))).
     do [write(i,j)],
   
-  case(x).of[1].write(1)
-        .of[2].write(2),
+  case(x).of(1)[write(1)]
+        .of(2)[write(2)],
   
   case(x)/{1: write(1),
          2: write(2)
         },
   
-  on (f==open('readme.txt')).
-    do [f.write('hello')],
+  on({f1: open('readme.txt'),
+      f2: open('out.txt', 'w')}).
+    do [f1.write('hello')],
   
   loop(10)[some.char(x)*10],  
   
@@ -122,11 +123,11 @@ oad.ver090[
   char[:5],     # char不大于五次
   char[5:],      # char至少五次
   
-    fun. evalRule(Result)== sexpression(Expr2)+eof+is_(Result, eval_.getvalue(lExpr2)),
+  fun. evalRule(Result)== sexpression(Expr2)+eof+is_(Result, eval_.getvalue(lExpr2)),
   
   fun. sexpression== 
-    at.Result  [char('{')+sexpression(Expr2)+char('}')+setvalue(Result, eval_.getvalue(Expr2))]
-    .at.Expr   [atomExpression(Expr)]
+    at(Result)  [char('{')+sexpression(Expr2)+char('}')+setvalue(Result, eval_.getvalue(Expr2))]
+    (Expr)     [atomExpression(Expr)]
                [bracketExpression(Expr)]
                [puncExpression(Expr)],
     

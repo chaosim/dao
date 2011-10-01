@@ -141,10 +141,10 @@ def seplist(solver, cont, item, separator=' ', template=None, result=None, expec
       for _ in unify(result, [], solver.env): yield cont, True
     else: yield cont, True
   item = deref(item, solver.env)
-  if separator==' ': separator = (any, (char, ' '))
+  if separator==' ': separator = any(char(' '))
   else: separator = deref(separator, solver.env)
   template = deref(template, solver.env)
-  repeat_item = (and_, separator, item)
+  repeat_item = and_(separator, item)
   if expect_times is None:
     repeat_cont = make_repeat_cont(repeat_item, cont, 1, [], template, result)
     yield solver.cont(item, repeat_cont), True
