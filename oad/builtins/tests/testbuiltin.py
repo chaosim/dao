@@ -100,7 +100,7 @@ class Testfindall:
 class TestRule:
   def test_abolish(self):
     from oad.builtins.rule import abolish
-    eq_(eval(let({f:function([[1], 1])}, abolish(f, 1))), True)
+    eq_(eval(let({f:function([[1], 1])}, abolish(f, 1))), {})
   def test_assert(self):
     from oad.builtins.rule import assert_
     eq_(eval(let({f:function(([1], 1))}, 

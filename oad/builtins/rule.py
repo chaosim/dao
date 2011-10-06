@@ -8,7 +8,7 @@ from oad.rule import Rule
 @builtin.function()
 def abolish(rules, arity):
   del rules.rules[arity]
-  return True
+  return rules.rules
 
 @builtin.macro('assert')
 def assert_(solver, cont, rules, head, body):
@@ -80,7 +80,6 @@ def retractall(solver, cont, rules, head):
     if not unified: index += 1
   yield cont, rules
 
-# All  facts or  clauses in the  database for  which the head  unifies
 # remove all rules which head matched with.
 @builtin.macro('remove')
 def remove(solver, cont, rules, head):

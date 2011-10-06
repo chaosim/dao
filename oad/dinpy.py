@@ -60,21 +60,6 @@ var = lead(VarForm)
 def getvar(name, klass=Var): 
   return varcache(name, klass)
 
-##builtins_dict = {
-##  'write': format.write}
-##
-def name2obj(name):
-  try: return builtins_dict[name]
-  except: return varcache(name)
-
-##class HaveForm(object):
-##  def __getattr__(self, var):
-##    self.var = varcache2(var)
-##    return self
-##  def __eq__(self, value):
-##    return special.set(self.var, value)
-##have = lead(HaveForm)
-##
 def _vars(text): return [varcache2(x.strip()) for x in text.split(',')]
 
 a, b, x, x1, y, z, z1 = _vars('a, b, x, x1, y, z, z1')
@@ -96,13 +81,11 @@ put = element((
     getattr(vv.var)+eq(vv.value)+eof
       +assign(result, make_apply(special.set, getvar(vv.var), vv.value)))
   # put.i.j==(1,2)
-  | some(getattr(__._)+assign(x1, getvar(__._)), x1, x) 
-        + eq(y) + eof+assign(result, make_apply(special.set_list, x, y))
-  )
-  +result)
+  | some(getattr(__._)+assign(x1, getvar(__._)), x1, vv.vars)+eq(vv.value)+eof
+        +assign(result, make_apply(special.set_list, vv.vars, vv.value))
+  )+result)
 
 _do, _of, _at = words('do, of, at')
-
 
 @builtin.function('getvar')
 def make_let(args, body): 
@@ -116,8 +99,9 @@ def make_let(args, body):
 let = element(call(x)+_do+getitem(y)+eof+make_let(x, y))
 
 @builtin.function('make_iff')
-def make_iff(clauses, els_clause): 
-  return special.iff(clauses, els_clause)
+def make_iff(test, clause, clauses, els_clause):
+  els_clause = els_clause if not isinstance(els_clause, Var) else None
+  return special.iff([(test[0],clause)]+clauses, els_clause)
 
 _then, _elsif, _els = words('then, elsif, els')
 _test, _test2, _body =  dummies('_test, _test2, _body')
@@ -127,8 +111,7 @@ iff = element(call(vv.test)+_then+getitem(vv.clause)
               +any(_elsif+call(_test)+_then+getitem(_body)+is_(_test2, first(_test)), 
                    (_test2, _body), vv.clauses)
               +opt(_els+getitem(vv.els_clause))+eof
-              +make_iff(head_list(pytuple(first(vv.test), vv.clause), vv.clauses), 
-                        ground_value(vv.els_clause)))
+              +make_iff(vv.test, vv.clause, vv.clauses, vv.els_clause))
 
 class CASE_ELS: pass
 CASE_ELS = CASE_ELS()
