@@ -1,35 +1,35 @@
-from oad import builtin
-from oad.term import deref, unify
+# -*- coding: utf-8 -*-
+
+''' 
+some tools that help you define operator grammars to parse python expression.
+see dinpy.py for a real sample.
+
+>>> from oad.term import Var
+>>> from oad.builtins.terminal import eof
+>>> from oad.builtins.type import pytuple, first
+>>> bindings, body = Var('bindings'), Var('body')
+>>> do = word('do')
+>>> let = element(call(bindings)+do+getitem(body)+eof+pytuple(first(bindings), body))
+>>> parse(let({'x':1}).do[1,2])
+({'x': 1}, (1, 2))
+'''
+
+__all__ = ['element', 'parse', 'lead',  
+  'lt', 'le', 'eq', 'ne', 'gt', 'ge', 'bitor', 'xor', 'bitand', 
+  'lshift', 'rshift', 'add', 'sub', 'mul', 'div', 'floordiv', 'mod',
+  'pos', 'neg', 'invert', 'abs', 'pow', 
+  'getattr', 'call', 'getitem', 'iterator', 
+  'word', 'words', 'getitem_to_list', 'attr_item', 'attr_call']
+
+from oad.term import deref, unify, DummyVar
 from oad.solve import eval
+from oad import special, builtin
 from oad.builtins.parser import parse as dao_parse
+from oad.builtins.type import to_list
 
-def lead_function(klass, function):
-  return lambda self, *args, **kw: function(klass(), *args, **kw)
-
-def lead_class(klass):
-  attrs = {}
-  for a, value in klass.__dict__.items():
-    if not a.startswith('__init__') and isinstance(value, type(lead_class)): #type(lead): function type
-##      attrs[a] = lambda self, *args, **kw: value(klass(), *args, **kw) # why error?
-      attrs[a] = lead_function(klass, value)
-    else: attrs[a] = value
-  return type('Lead'+klass.__name__, klass.__bases__, attrs)
-
-def lead(klass): return lead_class(klass)()
-
-def lead_element_function(klass, function):
-  return lambda self, *args, **kw: function(klass(self.__syntax_grammar__), *args, **kw)
-
-def lead_element_class(klass):
-  attrs = {}
-  for a, value in klass.__dict__.items():
-    if not a.startswith('__init__') and isinstance(value, type(lead_class)): #type(lead): function type
-##      attrs[a] = lambda self, *args, **kw: value(klass(), *args, **kw) # why error?
-      attrs[a] = lead_element_function(klass, value)
-    else: attrs[a] = value
-  return type('Lead'+klass.__name__, klass.__bases__, attrs)
-
-def element(grammar): return lead_element_class(FormTraveller)(grammar)
+def element(grammar):
+  ''' name = element(grammar)'''
+  return _lead_element_class(FormTraveller)(parse(grammar))
 
 def parse(form):
   try: 
@@ -41,6 +41,46 @@ def parse(form):
       return tuple(parse(x) for x in form)
     else: return form
   return form_parse()
+
+def lead(klass): 
+  '''
+# use case:
+# var.a.b.c
+class VarForm(object):
+  def __init__(self):
+    self.__vars__ = []
+  def __getattr__(self, var):
+    self.__vars__.append(Var(var))
+    return self
+  def __len__(self): return len(self.__vars__)
+  def __iter__(self): return iter(self.__vars__)
+var = lead(VarForm)
+'''
+  return lead_class(klass)()
+
+def lead_class(klass):
+  attrs = {}
+  for a, value in klass.__dict__.items():
+    if not a.startswith('__init__') and isinstance(value, type(lead_class)): #type(lead): function type
+##      attrs[a] = lambda self, *args, **kw: value(klass(), *args, **kw) # why error?
+      attrs[a] = _lead_function(klass, value)
+    else: attrs[a] = value
+  return type('Lead'+klass.__name__, klass.__bases__, attrs)
+
+def _lead_function(klass, function):
+  return lambda self, *args, **kw: function(klass(), *args, **kw)
+
+def _lead_element_function(klass, function):
+  return lambda self, *args, **kw: function(klass(self.__syntax_grammar__), *args, **kw)
+
+def _lead_element_class(klass):
+  attrs = {}
+  for a, value in klass.__dict__.items():
+    if not a.startswith('__init__') and isinstance(value, type(lead_class)): #type(lead): function type
+##      attrs[a] = lambda self, *args, **kw: value(klass(), *args, **kw) # why error?
+      attrs[a] = _lead_element_function(klass, value)
+    else: attrs[a] = value
+  return type('Lead'+klass.__name__, klass.__bases__, attrs)
 
 (__lt__, __le__, __eq__, __ne__, __gt__, __ge__, 
 __getattr__, __call__, __getitem__, __iter__, 
@@ -58,51 +98,54 @@ class FormTraveller(object):
     self.__syntax_grammar__ = grammar
     self.__syntax_data__ = []
   def __lt__(self, other): 
-    self.__syntax_data__.append((__lt__, other)); return self
+    self.__syntax_data__.append((__lt__, parse(other))); return self
   def __le__(self, other): 
-    self.__syntax_data__.append((__le__, other)); return self 
+    self.__syntax_data__.append((__le__, parse(other))); return self 
   def __eq__(self, other): 
-    self.__syntax_data__.append((__eq__, other)); return self 
+    self.__syntax_data__.append((__eq__, parse(other))); return self 
   def __ne__(self, other): 
-    self.__syntax_data__.append((__ne__, other)); return self 
+    self.__syntax_data__.append((__ne__, parse(other))); return self 
   def __gt__(self, other): 
-    self.__syntax_data__.append((__gt__, other)); return self 
+    self.__syntax_data__.append((__gt__, parse(other))); return self 
   def __ge__(self, other): 
-    self.__syntax_data__.append((__ge__, other)); return self 
+    self.__syntax_data__.append((__ge__, parse(other))); return self 
   def __getattr__(self, name):
     self.__syntax_data__.append((__getattr__, name)); return self 
   def __call__(self, *args, **kw): 
-    self.__syntax_data__.append((__call__, args, kw)); 
+    kw1 = {}
+    for k,v in kw.items(): kw1[parse(k)] = parse(v)
+    self.__syntax_data__.append((__call__, parse(args), kw1)); 
     return self 
   def __getitem__(self, key): 
-    self.__syntax_data__.append((__getitem__, key)); return self 
+    self.__syntax_data__.append((__getitem__, parse(key))); return self 
   def __add__(self, other): 
-    self.__syntax_data__.append((__add__, other)); return self 
+    self.__syntax_data__.append((__add__, parse(other))); return self 
   def __sub__(self, other): 
-    self.__syntax_data__.append((__sub__, other)); return self 
+    self.__syntax_data__.append((__sub__, parse(other))); return self 
   def __mul__(self, other): 
-    self.__syntax_data__.append((__mul__, other)); return self 
+    self.__syntax_data__.append((__mul__, parse(other))); return self 
   def __floordiv__(self, other): 
-    self.__syntax_data__.append((__floordiv__, other)); return self 
+    self.__syntax_data__.append((__floordiv__, parse(other))); return self 
   def __div__(self, other): 
-    self.__syntax_data__.append((__div__, other)); return self 
+    self.__syntax_data__.append((__div__, parse(other))); 
+    return self 
   def __truediv__(self, other): 
-    self.__syntax_data__.append((__lt__, other)); return self 
+    self.__syntax_data__.append((__lt__, parse(other))); return self 
   def __mod__(self, other): 
-    self.__syntax_data__.append((__mod__, other)); return self 
+    self.__syntax_data__.append((__mod__, parse(other))); return self 
   def __pow__(self, other): 
-    self.__syntax_data__.append((__pow__, other)); return self 
+    self.__syntax_data__.append((__pow__, parse(other))); return self 
   def __lshift__(self, other): 
-    self.__syntax_data__.append((__rshift__, other)); return self 
+    self.__syntax_data__.append((__rshift__, parse(other))); return self 
   def __rshift__(self, other): 
-    self.__syntax_data__.append((__and__, other)); return self 
+    self.__syntax_data__.append((__and__, parse(other))); return self 
   def __and__(self, other): 
-    self.__syntax_data__.append((__and__, other)); return self 
+    self.__syntax_data__.append((__and__, parse(other))); return self 
   def __xor__(self, other): 
-    self.__syntax_data__.append((__xor__, other)); 
+    self.__syntax_data__.append((__xor__, parse(other))); 
     return self 
   def __or__(self, other): 
-    self.__syntax_data__.append((__or__, other)); return self 
+    self.__syntax_data__.append((__or__, parse(other))); return self 
   def __iter__(self): 
     self.__syntax_data__.append(__iter__); return self 
   def __neg__(self): 
@@ -125,7 +168,9 @@ def binary(attr):
     argument = deref(argument, solver.env)
     syntax_result, pos = solver.stream
     if pos==len(syntax_result): return
-    if syntax_result[pos][0]!=attr: return
+    try: 
+      if syntax_result[pos][0]!=attr: return
+    except: return
     if argument is not None:
       for _ in unify(argument, syntax_result[pos][1], solver.env):
         solver.stream = syntax_result, pos+1
@@ -134,6 +179,28 @@ def binary(attr):
       solver.stream = syntax_result, pos+1
       yield cont, True
   return func
+
+@builtin.macro('__call__')
+def call(solver, cont, args=None, kwargs=None): 
+  args = deref(args, solver.env)
+  kwargs = deref(kwargs, solver.env)
+  syntax_result, pos = solver.stream
+  if pos==len(syntax_result): return
+  try: 
+    if syntax_result[pos][0]!=__call__: return
+  except: return
+  if args is not None:
+    for _ in unify(args, syntax_result[pos][1], solver.env):
+      if kwargs is not None:
+        for _ in unify(kwargs, syntax_result[pos][2], solver.env):
+          solver.stream = syntax_result, pos+1
+          yield cont,  True
+      else: 
+        solver.stream = syntax_result, pos+1
+        yield cont, True
+  else: 
+    solver.stream = syntax_result, pos+1
+    yield cont, True
 
 def unary(attr):
   @builtin.macro(names[attr])
@@ -189,37 +256,28 @@ mul = binary(__mul__) # *
 div = binary(__div__) # /
 floordiv = binary(__floordiv__) # //
 mod = binary(__mod__) # %
-negation = unary(__neg__) # +x, Positive
-positive = unary(__pos__) # -x, negative 
-invert = unary(__invert__) # ~x	Bitwise not
-abs = unary(__abs__) # abs()
+pos = unary(__pos__)() # +x, negative 
+neg = unary(__neg__)() # -x, Positive
+invert = unary(__invert__)() # ~x	Bitwise not
+abs = unary(__abs__)() # abs()
 pow = binary(__pow__) # **	Exponentiation
 getattr = binary(__getattr__) #  attribute access
 getitem = binary(__getitem__) # object[index]
 iterator = unary(__iter__)
 
-@builtin.macro('__call__')
-def call(solver, cont, args=None, kwargs=None): 
-  args = deref(args, solver.env)
-  kwargs = deref(kwargs, solver.env)
-  syntax_result, pos = solver.stream
-  if pos==len(syntax_result): return
-  if syntax_result[pos][0]!=__call__: return
-  if args is not None:
-    for _ in unify(args, syntax_result[pos][1], solver.env):
-      if kwargs is not None:
-        for _ in unify(kwargs, syntax_result[pos][2], solver.env):
-          solver.stream = syntax_result, pos+1
-          yield cont,  True
-      else: 
-        solver.stream = syntax_result, pos+1
-        yield cont, True
-  else: 
-    solver.stream = syntax_result, pos+1
-    yield cont, True
 def word(word): return getattr(word)
+def words(text): return [getattr(w.strip()) for w in text.split(',')] 
 
-def block(name): return lambda arg: getattr(name)+getitem(arg)
+def attr_item(name): return lambda arg: getattr(name)+getitem(arg)
 
-def funcall(name): return lambda args, kw: getattr(name)&call(args, kw)
- 
+def attr_call(name): return lambda *args: getattr(name)&call(*args)
+
+def getitem_to_list(argument=None):
+  if argument is not None:
+    _x = DummyVar('_x')
+    return getitem(_x)+special.set(argument, to_list(_x))
+  else: return getitem()
+
+if __name__ == "__main__":
+  import doctest
+  doctest.testmod()

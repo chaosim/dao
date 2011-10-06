@@ -104,15 +104,15 @@ class TestRule:
   def test_assert(self):
     from oad.builtins.rule import assert_
     eq_(eval(let({f:function(([1], 1))}, 
-               assert_(f, [2], 2), f(2))), 2)
+               assert_(f, [2], [2]), f(2))), 2)
   def test_asserta(self):
     from oad.builtins.rule import asserta
     eq_(eval(let({f:function(([1], 1))}, 
-               asserta(f, [2], 2), f(2))), 2)
-  def test_retract(self):
-    from oad.builtins.rule import retract
+               asserta(f, [2], [2]), f(2))), 2)
+  def test_replace(self):
+    from oad.builtins.rule import replace
     eq_(eval(let({f:function(([1], 1), ([2], 2))}, 
-               retract(f, [2], 3), f(2))), 3)
+               replace(f, [2], [3]), f(2))), 3)
     
         
 from oad.builtins.atom import atom_length, atom_concat, charin, sub_atom

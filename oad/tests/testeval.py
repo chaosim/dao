@@ -4,14 +4,15 @@ from nose.tools import eq_, ok_, assert_raises
 
 from oad.term import cons
 from oad.solve import eval
-from oad.special import quote, set, begin, if_, lambda_, let, letrec, eval_
+from oad.special import quote, set, begin, if_, iff, lambda_, let, letrec, eval_
 from oad.special import function, macro, block, return_from, catch, throw
-from oad.special import unwind_protect, module, loop
+from oad.special import unwind_protect, module, loop, CaseForm
+from oad.special import LoopTimesForm, LoopUntilForm, LoopWhenForm, EachForm
 
 from oad.builtins.control import and_, cut
 from oad.builtins.module import from_
 from oad.builtins.format import write
-from oad.builtins.arith import eq, sub, mul, add, div
+from oad.builtins.arith import gt, eq, sub, mul, add, div
 from oad.builtins.arithpred import define
 from oad.builtins.callcc import callcc
 
@@ -19,7 +20,7 @@ from oad.testutil import *
 
 class TestSimple:
   def testInteger(self):
-    eq_(eval(1), (1))    
+    eq_(eval(1), 1)    
   def testAtom(self):
     eq_(eval("1"), "1")
     eq_(eval(1), 1)
@@ -31,7 +32,7 @@ class TestSimple:
   def testquote(self):
     eq_(eval(quote(x)), x)
   def testset(self):
-    eq_(eval(set(a,2)), True)
+    eq_(eval(set(a,2)), 2)
   def testdefine(self):
     eq_(eval(begin(define(x,1),define(x,2))), 2)
     
@@ -43,16 +44,36 @@ class TestControl:
   def testif_add_sub(self):
     eq_(eval(if_(0, add, sub)(1, 1)), 0)
     eq_(eval(if_(1, add, sub)(1, 1)), 2)
+  def testiff(self):
+    eq_(eval(iff(((0, write(1)), (1,write(2))))), True)
+  def testiff2(self):
+    eq_(eval(iff(((0, write(1)), (0,write(2))), write(3))), True)
+  def testCaseForm(self):
+    eq_(eval(CaseForm(2, {0: [write(0)], 1:[write(1)], 2:[write(2)]}, [write(3)])), True)
+  def testeval(self):
+    eq_(eval(eval_(quote(1))), (1))
+    eq_(eval(let({x:1}, eval_(quote(x)))), 1)
+    eq_(eval(eval_(quote(add(1, 1)))), (2))
+
+class TestLoop:
   def testloop(self):
     eq_(eval(let({i:3}, 
                  block(a, 
                        loop(set(i, sub(i, 1)), 
                             if_(eq(i, 0), return_from(a, 1)))), i)), 0)
     # eq_(eval(loop(0)), 0) infinite loop
-  def testeval(self):
-    eq_(eval(eval_(quote(1))), (1))
-    eq_(eval(let({x:1}, eval_(quote(x)))), 1)
-    eq_(eval(eval_(quote(add(1, 1)))), (2))
+  def testLoopTimes(self):
+    eq_(eval(let({i:3}, LoopTimesForm(3, (set(i, sub(i, 1)), write(i))))), None)
+  def testLoopWhen(self):
+    eq_(eval(let({i:3}, LoopWhenForm((set(i, sub(i, 1)), write(i)), 
+                                     gt(i,0)))), None)
+  def testLoopUntil(self):
+    eq_(eval(let({i:3}, LoopUntilForm((set(i, sub(i, 1)), write(i)), 
+                                     eq(i,0)))), None)
+  def testEachForm(self):
+    eq_(eval(EachForm(i, range(3), [write(i)])), None)
+  def testEachForm2(self):
+    eq_(eval(EachForm((i, j), zip(range(3), range(3)), [write(i, j)])), None)
     
 class TestFunction:
   def test_let_set(self):
@@ -163,24 +184,24 @@ class TestMacro:
 class TestCallccBlockCatch:
   def testblock(self):
     f = Var('f')
-    eq_(eval(block(foo, let({f: lambda_((), return_from(foo,1))}, 
-                            mul(2,block(foo, f()))))), 
+    eq_(eval(block('foo', let({f: lambda_((), return_from('foo',1))}, 
+                            mul(2,block('foo', f()))))), 
         1)
   def testblock2(self):
-    eq_(eval(block(a, return_from(a, 2), 3)), 2)
+    eq_(eval(block('a', return_from('a', 2), 3)), 2)
   def testcatch1(self):
     eq_(eval(catch(1, 2)), 2)
   def testcatch2(self):
     eq_(eval(catch(1, throw(1, 2), 3)), 2)
   def test_unwind_protect(self):
-    eq_(eval(block(foo, unwind_protect(return_from(foo, 1), write(2)))), 1)
+    eq_(eval(block('foo', unwind_protect(return_from('foo', 1), write(2)))), 1)
   def test_unwind_protect2(self):
-    eq_(eval(block(foo, unwind_protect(return_from(foo, 1), 
+    eq_(eval(block('foo', unwind_protect(return_from('foo', 1), 
                             write(2), write(3)))), 1)
   def testcallcc(self):
     from oad.solve import done
     eq_(eval(callcc(lambda_([k], k(2)))), 2)
-    #eq_(eval(callcc(callcc)), done)
+##    eq_(eval(callcc(callcc)), done)
     #assert 0, '((call/cc call/cc) (call/cc call/cc)) infinite loop.'
     #eq_(eval('((call/cc call/cc) (call/cc call/cc))'), Integer(2))
 

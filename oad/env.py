@@ -65,7 +65,7 @@ class BlockEnvironment(ExtendEnvironment):
   def lookup(self, label, cont, solver):
     if label==self.label: 
       return unwind(cont, label, self.cont, solver)
-    return self.outer.lookup(label, solver)
+    return self.outer.lookup(label, cont, solver)
 
 class ModuleEnvironment(ExtendEnvironment): pass
   

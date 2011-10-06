@@ -34,6 +34,46 @@ def cut(cont_gen):
   try: return cont_gen.cut
   except: return False
 
+class Parser:
+  surfix = '$'
+  def __init__(self): 
+    self.new_label_id = 1
+    self.exit_labels = {}
+    self.next_labels = {}
+  def make_label(self, label):
+    if label is None: 
+      exit_label = 'exit_label'+str(self.new_label_id)
+      self.new_label_id += 1
+      next_label = 'next_label'+str(self.new_label_id)
+      self.new_label_id += 1
+    else: 
+      exit_label = 'exit_'+label+self.surfix
+      next_label = 'next_'+label+self.surfix
+    return exit_label, next_label
+  def push_label(self, control, exit_label, next_label):
+    self.exit_labels.setdefault(control,[]).append(exit_label)
+    self.next_labels.setdefault(control,[]).append(next_label)
+    self.exit_labels.setdefault(None,[]).append(exit_label)
+    self.next_labels.setdefault(None,[]).append(next_label)
+  def pop_label(self, control):
+    self.exit_labels[control].pop()
+    self.next_labels[control].pop()
+    self.exit_labels[None].pop()
+    self.next_labels[None].pop()
+
+  def parse(self, exp):
+    try: parse_method = exp.parse
+    except: 
+      if isinstance(exp, list):
+        return [self.parse(e) for e in exp]
+      elif isinstance(exp, tuple):
+        return tuple(self.parse(e) for e in exp)
+      else: return exp
+    try: return parse_method(self)
+    except: return exp
+  
+def parse(exp): return Parser().parse(exp)
+
 def to_sexpression(exp):
   try: return exp.to_sexpression()
   except TypeError: return exp 
@@ -51,6 +91,7 @@ def xxxclean_binding(exp):
     
 def eval(exp):
 ##  exp = to_sexpression(exp)
+  exp = parse(exp)
   return Solver().eval(exp)
 
 class Solver:
@@ -118,10 +159,9 @@ class Solver:
   def cont(self, exp, cont):    
     try: to_cont = exp.cont
     except: return value_cont(exp, cont)
-    return to_cont(cont, self)
-##      if isinstance(exp, list) or isinstance(exp, tuple):
-##        return self.list_cont(exp, cont)
-##      else: return value_cont(exp, cont)
+    try: return to_cont(cont, self)
+    except: return value_cont(exp, cont)
+
   def list_cont(self, exp, cont):
     if len(exp)==0: return value_cont(exp)
     try: 

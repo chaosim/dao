@@ -19,7 +19,9 @@ def char(solver, cont, argument):
 
 @builtin.macro()
 def eof(solver, cont):
-  if solver.stream[1]>=len(solver.stream[0]): yield cont,  True
+##  print 'eof', solver.stream
+  if solver.stream[1]>=len(solver.stream[0]): 
+    yield cont,  True
   
 eof = eof()
 

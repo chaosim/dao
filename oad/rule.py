@@ -8,6 +8,8 @@ class Rule(object):
     self.head, self.body = head, body
     self.signature = len(self.head)
 
+  def parse(self, parser):
+    return Rule(self.head, parser.parse(self.body))
   def apply(self, solver, env, cont, recursive, values):
     caller_env = solver.env
     if not recursive: solver.env = env.extend()
@@ -40,6 +42,8 @@ class Rule(object):
     return "%s:- %s." % (head, body)
 
 class RuleList(list):  
+  def parse(self, parser):
+    return RuleList([parser.parse(rule) for rule in self])
   def apply(self, solver, env, cont, recursive, values):
     def rules_cont(values, solver):
       stream = solver.stream

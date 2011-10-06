@@ -13,22 +13,13 @@ def unify_list(list1, list2, env, occurs_check=False):
       yield True
   
 def unify(x, y, env, occurs_check=False):
-  try: return x.unify(y, env, occurs_check)
+  try: x_unify = x.unify
   except AttributeError: 
-    try: return y.unify(x, env, occurs_check)
+    try: y_unify = y.unify 
     except AttributeError: return (True,) if x==y else ()
-      
-##def unify_list_rule_head(values, args, callee_env, caller_env):
-##  if len(values)==0: yield set()
-##  elif len(values)==1: 
-##    for x in unify_rule_head(values[0], args[0], callee_env, caller_env): yield x
-##  else:
-##    var_set = set()
-##    for value, arg in zip(values, args):
-##      try: var_set |= unify_rule_head(value, arg, callee_env, caller_env).next()
-##      except StopIteration: return
-##    yield var_set
-##
+    return y_unify(x, env, occurs_check)
+  return x_unify(y, env, occurs_check)    
+
 def unify_list_rule_head(values, args, callee_env, caller_env, varset):
   if len(values)==0: yield varset
   elif len(values)==1: 
@@ -61,45 +52,67 @@ def unify_rule_head(value, head, callee_env, caller_env, varset):
       elif value==head: yield varset
       
 def deref(x, env):
-  try: return x.deref(env)
+  try: x_deref = x.deref
   except AttributeError: 
     if isinstance(x, list): return [deref(e, env) for e in x]
     elif isinstance(x, tuple): return tuple(deref(e, env) for e in x)
     else: return x
+  return x_deref(env)
   
 def getvalue(x, env):
-  try: return x.getvalue(env)
+  try: x_getvalue = x.getvalue
   except AttributeError: 
     if isinstance(x, list): return [getvalue(e, env) for e in x]
     elif isinstance(x, tuple): return tuple(getvalue(e, env) for e in x)
     else: return x
-  
+  return x_getvalue(env)
+
 def copy(x, memo):
-  try: return x.copy(memo)
+  try: x_copy = x.copy
   except AttributeError: 
     if isinstance(x, list): return [getvalue(e, memo) for e in x]
     elif isinstance(x, tuple): return tuple(getvalue(e, memo) for e in x)
     else: return x
+  return x_copy(memo)
 
 def copy_rule_head(arg_exp, env):
-  try: return arg_exp.copy_rule_head(env)
+  try: arg_exp_copy_rule_head = arg_exp.copy_rule_head
   except AttributeError: 
     if isinstance(arg_exp, list): 
       return [copy_rule_head(e, env) for e in arg_exp]
     elif isinstance(arg_exp, tuple):
       return tuple(copy_rule_head(e, env) for e in arg_exp)
     else: return arg_exp
+  return arg_exp_copy_rule_head(env)
+
+def match_list(list1, list2):
+  if len(list1)!=len(list2): return False
+  for x, y in zip(list1, list2):
+    if not match(x, y): return False
+  return True
+
+# match(var, nonvar): True,
+# match(nonvar, var): False
+def match(x, y):
+  try: x_match = x.match(y)
+  except AttributeError: 
+    if (isinstance(x, list) or isinstance(x, tuple)) or\
+       isinstance(y, list) and isinstance(y, tuple):
+      return match_list(x, y)
+    else: return x==y
+  return x_match(y)
 
 def contain_var(x, y):
   try: return x.contain_var(x, y)
   except: return False
   
 def closure(exp, env):
-  try: return exp.closure(env)
+  try: exp_closure = exp.closure
   except AttributeError: 
     if isinstance(exp, list) or isinstance(exp, tuple): 
       return tuple(closure(e, env) for e in exp) 
     else: return exp
+  return exp_closure(env)
 
 var_index = 1
 class Var:
@@ -112,11 +125,15 @@ class Var:
   def apply(self, solver, *exps):
     return self.getvalue(solver.env).apply(solver, *exps)
   
+  def match(self, other): return True
+        
   def unify(self, other, env, occurs_check=False):
     self = self.deref(env)
     other = deref(other, env)
     if isinstance(self, Var):
-      if isinstance(other, Var) and other is self: return
+      if isinstance(other, Var) and other is self: 
+        yield True
+        return
       if occurs_check and contain_var(other, self):return
       self.setvalue(other, env)
       yield True
@@ -265,6 +282,10 @@ class Apply:
     def evaluate_cont(op, solver): 
       return op.evaluate_cont(self.operand, cont, solver)
     return solver.cont(self.operator, evaluate_cont)
+  def parse(self, parser):
+    self.operator = parser.parse(self.operator)
+    self.operand = parser.parse(self.operand)
+    return self
 
   def closure(self, env):
     return Apply(self.operator, *[closure(x, env) for x in self.operand])
@@ -319,7 +340,11 @@ class Cons:
       for x in unify(self.head, other.head, env, occurs_check):
         for y in unify(self.tail, other.tail, env, occurs_check):
           yield True
-          
+
+  def match(self, other):
+    if self.__class__!=other.__class__: return False
+    return match(self.head, other.head) and match(self.tail, other.tail)
+
   def unify_rule_head(self, other, callee_env, caller_env, varset):
     if self.__class__!=other.__class__: return
     for varset1 in unify_rule_head(self.head, other.head, callee_env, caller_env, varset):

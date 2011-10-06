@@ -1,5 +1,5 @@
 from oad import helper, error, builtin 
-from oad.term import Var, ClosureVar, deref
+from oad.term import Var, ClosureVar, deref, getvalue
 
 # arithmetic
 
@@ -40,8 +40,8 @@ def define(solver, cont, var, value):
 def arithmeticCmpPredicate(function, name):
   @builtin.macro(name)
   def pred(solver, cont, var0, var1):
-    if function(deref(var0, solver.env), 
-                deref(var1, solver.env)):
+    if function(getvalue(var0, solver.env), 
+                getvalue(var1, solver.env)):
       yield cont, True
   return pred
 

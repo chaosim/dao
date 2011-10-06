@@ -71,9 +71,44 @@ def make_apply(fun, *args):
 
 @builtin.function('head_list')
 def head_list(head, tail): 
-  return (head,)+tuple(tail)
+  if isinstance(tail, list): return [head]+tail
+  else: return (head,)+tuple(tail)
+
+@builtin.function('list_tail')
+def list_tail(head, tail):
+  if isinstance(head, list): return head+[tail]
+  else: return head+(tail,)
 
 @builtin.function('index')
 def index(sequence, index): 
   return sequence[index]
 
+@builtin.function('first')
+def first(sequence): 
+  return sequence[0]
+
+@builtin.function('second')
+def second(sequence): 
+  return sequence[1]
+
+
+@builtin.function('iter_next')
+def iter_next(iterator): 
+  return iterator.next()
+
+@builtin.function('make_iter')
+def make_iter(iterator): 
+  try: 
+    iterator.next
+    return iterator
+  except: return iter(iterator)
+  
+@builtin.function('to_list')
+def to_list(item): 
+  if isinstance(item, list) or isinstance(item, tuple): 
+    return item
+  return [item]
+
+@builtin.function('items')
+def items(dict):
+  return dict.items()
