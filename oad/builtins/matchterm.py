@@ -379,7 +379,7 @@ def nongreedy_times_result_cont(item, expectTimes, cont,
           yield cont, True
           return
       else: yield solver.cont(item, 
-              greedy_times_result_cont(item, expectTimes, cont, 
+              nongreedy_times_result_cont(item, expectTimes, cont, 
               matched_times+1, matched_list, template, result)), True
   else:
     @mycont(cont)

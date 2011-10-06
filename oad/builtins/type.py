@@ -32,8 +32,13 @@ def isnumber(solver, cont, arg):
      or isinstance(deref(arg, solver.env), float): 
     yield cont, True
 
+@builtin.macro('iscons')
 def iscons(solver, cont, arg):
   if isinstance(deref(arg, solver.env), Cons): yield cont, True
+
+@builtin.function('cons?')
+def is_cons(x): return isinstance(x, Cons)
+
 
 def is_ground(term):
   if isinstance(term, Var): return False
@@ -48,9 +53,6 @@ def ground(solver, cont, term):
   
 @builtin.function('conslist')
 def conslist(*arguments): return conslist(arguments)
-
-@builtin.function('cons?')
-def is_cons(x): return isinstance(x, Cons)
 
 @builtin.function('pylist')
 def pylist(*arguments): return list(arguments)

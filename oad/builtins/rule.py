@@ -5,41 +5,52 @@ from oad.rule import Rule
 
 # rule manipulation
 
-@builtin.function()
-def abolish(rules, arity):
+@builtin.macro()
+def abolish(solver, cont, rules, arity):
+  rules = getvalue(rules, solver.cont)
+  arity = deref(arity, solver.cont)
+  old = rules.rules[arity]
   del rules.rules[arity]
-  return rules.rules
+  yield cont, rules.rules
+  rules[arity] = old
 
 @builtin.macro('assert')
 def assert_(solver, cont, rules, head, body):
   rules = getvalue(rules, solver.env)
   rules.rules[len(head)].append(Rule(head, body))
   yield cont, rules
+  del rules.rules[-1]
 
 @builtin.macro('asserta')
 def asserta(solver, cont, rules, head, body):
   rules = getvalue(rules, solver.env)
   rules.rules[len(head)].insert(0, Rule(head, body))
   yield cont, rules
+  del rules.rules[0]
 
 # replace the rules which the head can match with.
 @builtin.macro('replace')
 def replace(solver, cont, rules, head, body):
   rules = getvalue(rules, solver.env)
   if len(head) not in rules.rules: return
-  rules = rules.rules[len(head)]
+  arity_rules = rules.rules[len(head)]
+  old = None
   index = 0
   replaced = False
-  while index<len(rules):
-    rule = rules[index]
+  while index<len(arity_rules):
+    rule = arity_rules[index]
     if match(head, rule.head):
       if not replaced:
+        old = arity_rules.copy()
         rule.body = tuple(getvalue(conslist(*body), solver.env))
         index += 1
         replaced = True
-      else: del rules[index]
+      else: del arity_rules[index]
     else: index += 1
   yield cont, rules
+  if old is not None:
+    rules.rules[len(head)] = old
+  
   
 # retract(+Term)                                                    [ISO]
 #   When  Term  is an  atom  or a  term  it is  unified with  the  first
@@ -49,15 +60,19 @@ def replace(solver, cont, rules, head, body):
 def retract(solver, cont, rules, head):
   rules = getvalue(rules, solver.env)
   if len(head) not in rules.rules: return
-  rules = rules.rules[len(head)]
+  arity_rules = rules.rules[len(head)]
   index = 0
-  while index<len(rules):
-    rule = rules[index]
+  old  = None
+  while index<len(arity_rules):
+    rule = arity_rules[index]
     caller_env = solver.env.extend()
     callee_env = caller_env.extend()
     for _ in unify_list_rule_head(head, rule.head, callee_env, caller_env, set()):
-      del rules[index]
+      if old is None:
+        old = arity_rules.copy()
+      del arity_rules[index]
       yield cont, True
+      rules.rules[len(head)] = old
       return
   yield cont, True
   
@@ -67,29 +82,36 @@ def retract(solver, cont, rules, head):
 def retractall(solver, cont, rules, head):
   rules = getvalue(rules, solver.env)
   if len(head) not in rules.rules: return
-  rules = rules.rules[len(head)]
+  arity_rules = rules.rules[len(head)]
   index = 0
-  while index<len(rules):
+  old  = None
+  while index<len(arity_rules):
     unified = False
     caller_env = solver.env.extend()
     callee_env = caller_env.extend()
-    for _ in unify_list_rule_head(head, rules[index].head, 
+    for _ in unify_list_rule_head(head, arity_rules[index].head, 
                                   callee_env, caller_env, set()):
-      unified = True
-      del rules[index]
+      if not unifyied:
+        unified = True
+        old = arity_rules.copy()
+      del arity_rules[index]
     if not unified: index += 1
   yield cont, rules
+  if old is not None: rules.rules[len(head)] = old
 
 # remove all rules which head matched with.
 @builtin.macro('remove')
 def remove(solver, cont, rules, head):
   rules = getvalue(rules, solver.env)
   if len(head) not in rules.rules: return
-  rules = rules.rules[len(head)]
+  arity_rules = rules.rules[len(head)]
   index = 0
-  while index<len(rules):
-    if match(head, rules[index].head):
-      del rules[index]
+  old  = None
+  while index<len(arity_rules):
+    if match(head, arity_rules[index].head):
+      if old is None: old = arity_rules.copy()
+      del arity_rules[index]
     else: index += 1
   yield cont, rules
+  if old is not None: rules.rules[len(head)] = old
 

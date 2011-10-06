@@ -33,9 +33,16 @@ def assign_var(var, value, env):
   while env is not None:
     if env.hasBindings() and var not in env.bindings:
       env = env.outer
-    else: break
-  else: env = env0
+    else: 
+      in_env = True
+      break
+  else: 
+    in_env = False
+    env = env0
+  if in_env: old = env[var]
+  else: old = None
   env[var] = value
+  return env, in_env, old
   
 class set(SpecialForm):
   def __init__(self, var, exp):
@@ -46,8 +53,10 @@ class set(SpecialForm):
   def cont(self, cont, solver):
     @mycont(cont)
     def set_cont(value, solver):
-      assign_var(self.var, value, solver.env)
+      env, in_env, old = assign_var(self.var, value, solver.env)
       yield cont, value
+      if in_env: env[self.var] = old
+      else: del env[self.var]
     return solver.cont(self.exp, set_cont)
   def __eq__(self, other): return self.var==other.var and self.exp==other.exp
   def __repr__(self): return "set(%s %s)"%(self.var, self.exp)
@@ -63,9 +72,12 @@ class set_list(SpecialForm):
     @mycont(cont)
     def set_cont(values, solver):
       if len(values)!=len(self.vars): raise ValueError(values)
-      for var, v in zip(self.vars, values):
-        assign_var(var, v, solver.env)
+      modifies = [assign_var(var, v, solver.env) for var, v in zip(self.vars, values)]
       yield cont, True
+      for env, in_env, old in modifies:
+        if in_env: env[self.var] = old
+        else: del env[self.var]
+
     return solver.cont(self.exp, set_cont)
   def __eq__(self, other): return self.vars==other.vars and self.exp==other.exp
   def __repr__(self): return "set(%s %s)"%(self.vars, self.exp)

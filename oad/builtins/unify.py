@@ -13,8 +13,10 @@ def unify_with_occurs_check(solver, cont, v0, v1):
 
 @builtin.macro('=/=')
 def notunify(solver, cont, var0, var1):
-  for _ in term.unify(var0, var1, solver.env): return
+  for _ in term.unify(var0, var1, solver.env): 
+    return
   else: yield cont, True
+  
   
   
   

@@ -21,7 +21,7 @@ class Rule(object):
                                             solver.env, caller_env, set()):
       @mycont(cont)
       def rule_done_cont(value, solver):
-        self.body
+##        self.body
         old_bindings = {}
         for v in binding_set:
           old_bindings[v] = v_value = v.getvalue(caller_env)
@@ -33,6 +33,7 @@ class Rule(object):
         solver.env = caller_env
       yield solver.exps_cont(self.body, rule_done_cont), True
       solver.env = caller_env
+  def copy(self): return Rule(self.head, self.body)
   def __eq__(self, other): 
     return self.__class__==other.__class__ and self.head==other.head and self.body==other.body
   def __ne__(self, other): return not self==other
@@ -51,5 +52,7 @@ class RuleList(list):
           yield c, v
     rules_cont.cut = True
     yield rules_cont, values
+  def copy(self):
+    return RuleList([r.copy() for r in self])
   def __repr__(self): 
     return '{%s}'%' '.join([repr(rule) for rule in self])

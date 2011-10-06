@@ -137,13 +137,15 @@ class Var:
       if occurs_check and contain_var(other, self):return
       self.setvalue(other, env)
       yield True
-      try: del env.bindings[self]
+##      del env.bindings[self]
+      try: del env.bindings[self] # for DummyVar
       except: pass
     elif isinstance(other, Var):
       if occurs_check and contain_var(self, other): return
       other.setvalue(self, env)
       yield True
-      try: del env.bindings[self]
+##      del env.bindings[other]
+      try: del env.bindings[other] # for DummyVar
       except: pass
     else:
       for result in unify(self, other, env, occurs_check):
@@ -260,9 +262,6 @@ class DummyVar(Var):
   def unify_rule_head(self, other, callee_env, caller_env, varset): 
     for x in self.unify(other, callee_env):
       yield varset | set([self])
-##  def unify(self, other, env, occurs_check=False):
-##    self.setvalue(other, env)
-##    yield True
   def deref(self, env): return self
   def getvalue(self, env):
     binding = env[self]
@@ -278,8 +277,7 @@ class Apply:
   def __init__(self, operator, *operand):
     self.operator = operator
     self.operand = operand
-##  def to_sexpression(self):
-##    return (to_sexpression(self.operator),)+tuple(to_sexpression(e) for e in self.operand)
+
   def cont(self, cont, solver):
     @mycont(cont)
     def evaluate_cont(op, solver): 
