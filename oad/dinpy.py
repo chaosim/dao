@@ -4,12 +4,14 @@
 
 '''dao grammar embeded in python list display by operator grammar'''
 
-__all__ = ['var', 'v', 'put', 'iff', 'let', 'case', 'els', 
-  'do', 'loop', 'each', 'when', 
-  'fun', 'macro', 'at', 'parse']
+__all__ = ['_', 'v', 'var', 'vars', 'dummies', 'put', 
+  'iff', 'let', 'case', 'els', 'block', 
+  'label', 'do', 'loop', 'each', 'when', 'exit', 'next',
+  'fun', 'macro', 'at', 'parse',
+  'py', 'some', 'any', 'may']
 
 from oad.pysyntax import *
-from oad.term import Var, DummyVar, Apply, conslist as L
+from oad.term import Var, DummyVar, Apply, conslist as L, vars, dummies
 from oad import builtin
 from oad import special
 from oad.special import set as assign
@@ -19,7 +21,7 @@ from oad.builtins.type import pytuple, make_apply, head_list, list_tail#, to_lis
 from oad.builtins.type import items, first #, index
 from oad.builtins.term import getvalue, ground_value
 from oad.builtins.arithpred import is_, ne as pred_ne
-from oad.testutil import dummies
+from oad.term import dummies
 
 class DinpySyntaxError(Exception): pass
 
@@ -62,10 +64,48 @@ def getvar(name, klass=Var):
 
 def _vars(text): return [varcache2(x.strip()) for x in text.split(',')]
 
-a, b, x, x1, y, z, z1 = _vars('a, b, x, x1, y, z, z1')
-test, body, result = _vars('test, body, result')
+class MayForm:
+  def __div__(self, element):
+    return opt(element)
+may = MayForm()
 
-_a, _b, _x, _x1, _y, _z, _y1 = dummies('_a, _b, _x, _x1, _y, _z, _y1')
+def some_any(matcher):
+  class Form:
+    def __div__(self, item):
+      try:
+        self.template
+        return matcher(self.element, self.template, item)
+      except:
+        try: 
+          self.element
+          self.template = item
+        except: self.element = item
+      return self
+    def __add__(self, other):
+      try: 
+        self.template
+        raise DinpySyntaxError
+      except:
+        try: return matcher(self.element)+other
+        except: raise DinpySyntaxError
+    def __or__(self, other):
+      try: 
+        self.template
+        raise DinpySyntaxError
+      except:
+        try: return matcher(self.element)|other
+        except: raise DinpySyntaxError
+    def __parse_syntax__(self):
+      try: 
+        self.template
+        raise DinpySyntaxError
+      except:
+        try: return matcher(self.element)
+        except: raise DinpySyntaxError
+  return Form
+
+Some = lead(some_any(some))
+Any = lead(some_any(any))
 
 # my.a, globl.a
 ## my = element(some(getattr(__._), L('local', __._), y)+eof)
@@ -76,14 +116,14 @@ _a, _b, _x, _x1, _y, _z, _y1 = dummies('_a, _b, _x, _x1, _y, _z, _y1')
 ##          |some(use_item)+div+use_block
 
 # put.a = 1, put.i.j==(1,2)
-put = element((
-  (# put.a == 1
+put = element(
+  # put.a == 1
     getattr(vv.var)+eq(vv.value)+eof
-      +assign(result, make_apply(special.set, getvar(vv.var), vv.value)))
+      +make_apply(special.set, getvar(vv.var), vv.value)
   # put.i.j==(1,2)
-  | some(getattr(__._)+assign(x1, getvar(__._)), x1, vv.vars)+eq(vv.value)+eof
-        +assign(result, make_apply(special.set_list, vv.vars, vv.value))
-  )+result)
+  | Some/(getattr(__._)+assign(vv.x, getvar(__._)))/vv.x/vv.vars+eq(vv.value)+eof
+        +make_apply(special.set_list, vv.vars, vv.value)
+  )
 
 _do, _of, _at = words('do, of, at')
 
@@ -96,7 +136,8 @@ def make_let(args, body):
   else: return special.let(args[0], body)
   
 #let({var:value}).do[...]
-let = element(call(x)+_do+getitem(y)+eof+make_let(x, y))
+let = element(call(vv.bindings)+_do+getitem(vv.body)+eof
+              +make_let(vv.bindings, vv.body))
 
 @builtin.function('make_iff')
 def make_iff(test, clause, clauses, els_clause):
@@ -134,42 +175,42 @@ def make_case(test, cases):
 of_fun = attr_call('of')
 
 # case(x).of(1)[write(1)].of(2,3)[write(4)].els[write(5)]
-case = element(( call(vv.test)+
-  (
+case = element( call(vv.test)+(
   #.of(1)[write(1)].of(2,3)[write(4)].els[write(5)]
-    (some(of_fun(_y)+getitem(_z),(_y,_z), vv.clauses)+_els+getitem_to_list(vv.els)
-    +assign(result, make_case(vv.test, list_tail(vv.clauses, pytuple(CASE_ELS, vv.els)))))
+    (some(of_fun(__.values)+getitem(__.clause),(__.values,__.clause), vv.clauses)
+     +_els+getitem_to_list(vv.els)+eof
+    +make_case(vv.test, list_tail(vv.clauses, pytuple(CASE_ELS, vv.els))))
   #/{1:[write(1)],2:[write(4)],3:[write(4)], els:[write(5)]}
-  | div(vv.clauses)+assign(result, make_case(vv.test, items(vv.clauses))))
-  +eof)+result)
+  | div(vv.clauses)+eof+make_case(vv.test, items(vv.clauses))
+  ))
 els = CASE_ELS
 
 # when(x>1).do[write(1)
-when = element(call(vv.test)+_do+getitem_to_list(body)+eof+
-  make_apply(special.LoopWhenForm, body, first(vv.test)))
+when = element(call(vv.test)+_do+getitem_to_list(vv.body)+eof+
+  make_apply(special.LoopWhenForm, vv.body, first(vv.test)))
 
 when_fun = attr_call('when')
 until_fun = attr_call('until')
 
 # do.write(1).until(1), do.write(1).when(1)
-do = element(getitem_to_list(body)+(
+do = element(getitem_to_list(vv.body)+(
   # .when(1)
-    when_fun(test)+eof
-    +assign(result, make_apply(special.LoopWhenForm, body, first(test)))
+    when_fun(vv.test)+eof
+    +make_apply(special.LoopWhenForm, vv.body, first(vv.test))
   #.until(1)
-  | until_fun(test)+eof
-    +assign(result, make_apply(special.LoopUntilForm, body, first(test)))
-  )+result)
+  | until_fun(vv.test)+eof
+    +make_apply(special.LoopUntilForm, vv.body, first(vv.test))
+  ))
 
 # loop[write(1)], loop(1)[write(1)]
-loop = element((
+loop = element(
   # loop[write(1)]
-    getitem_to_list(body)+eof
-    +assign(result, make_apply(special.LoopForm, body))
+    getitem_to_list(vv.body)+eof
+    +make_apply(special.LoopForm, vv.body)
   # loop(1)[write(1)]
-  | call(vv.times)+getitem_to_list(body)+eof
-    +assign(result, make_apply(special.LoopTimesForm, first(vv.times), body)) 
-  )+result)
+  | call(vv.times)+getitem_to_list(vv.body)+eof
+    +make_apply(special.LoopTimesForm, first(vv.times), vv.body)
+  )
 
 @builtin.function('make_each1')
 def make_each(vars, iterators, body):
@@ -187,9 +228,17 @@ def make_each(vars, iterators, body):
 # each(i,j)[1:10][1:10]. do[write(i, j)]
 # each(i,j)[zip(range(5), range(5))]. do [write(i,j)],
 # each(i,j)[range(5)][range(5)]. do [write(i,j)],
-each = element(call(vv.vars)+some(getitem(_x), _x, vv.iterators)
-               +_do+getitem_to_list(body)+eof
-    +make_each(vv.vars, vv.iterators, body))
+each = element(call(vv.vars)+some(getitem(__.iterator), __.iterator, vv.iterators)
+               +_do+getitem_to_list(vv.body)+eof
+    +make_each(vv.vars, vv.iterators, vv.body))
+
+exit = element(may/getattr(vv.type)+opt(div(vv.label))+opt(rshift(vv.value))+eof)
+next = element(opt(getattr(vv.type))+opt(div(vv.label))+eof)
+label = element(getattr(vv.type)+div(vv.body)+eof)
+
+block = element(getattr(vv.name)+getitem(vv.block)+eof)
+
+py = element(div(vv.func)+call(vv.args)+eof)
 
 ##on = element(call(x)+do_word+body+eof) # with statements in dao
 
@@ -326,17 +375,21 @@ def fun_macro_grammar(klass):
   #  fun. a<= at(..)[...]
   | (getattr(vv.name)+le(vv.rules)+eof+make_fun6(vv.name,vv.rules))
   #  fun(args) [...](args)[...][...]
-  | (some(call(_x) + some(getitem_to_list(_y), _y, _y1), (_x, _y1), z)+eof
-             +make_fun7(z))
+  | (some(call(__.head) + some(
+      getitem_to_list(__.body), __.body, __.bodies), (__.head, __.bodies), vv.rules)
+        +eof+make_fun7(vv.rules))
   #   - fun.a/3,
   | (getattr(vv.name)+neg+div(vv.arity)+eof
-     +assign(result, make_apply(abolish, getvar(vv.name), vv.arity)))
+     +make_apply(abolish, getvar(vv.name), vv.arity))
   #- fun.a(x),
   | (getattr(vv.name)+call(vv.args)+neg+eof
-     +assign(result, make_apply(retractall, getvar(vv.name), vv.args)))
+     +make_apply(retractall, getvar(vv.name), vv.args))
   #- fun.a(x)[1],
 ##  | (getattr(vv.name)+call(vv.args)+getitem(vv.index)+neg+assign(result, retract(vv.name, vv.args)))
   )
 
 fun = element(fun_macro_grammar(special.FunctionForm))
 macro = element(fun_macro_grammar(special.MacroForm))
+
+def lshift_apply(function):
+  return element(some(lshift(vv.arg))+not_(follow_by(lshift(_))), make_apply(function, vv.arg))

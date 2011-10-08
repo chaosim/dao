@@ -6,8 +6,9 @@
 
 from oad.term import deref, unify, Var
 from oad import builtin
+from oad.builtins.matchterm import matcher
 
-@builtin.macro()
+@matcher()
 def char(solver, cont, argument): 
   argument = deref(argument, solver.env)
   text, pos = solver.stream
@@ -17,7 +18,7 @@ def char(solver, cont, argument):
     solver.stream = text, pos+1
     yield cont,  text[pos]
 
-@builtin.macro()
+@matcher()
 def eof(solver, cont):
 ##  print 'eof', solver.stream
   if solver.stream[1]>=len(solver.stream[0]): 
@@ -25,7 +26,7 @@ def eof(solver, cont):
   
 eof = eof()
 
-@builtin.macro()
+@matcher()
 def followChars(solver, cont, chars):
   chars = deref(chars, solver.env)
   if isinstance(chars, str):
@@ -35,14 +36,14 @@ def followChars(solver, cont, chars):
     for _ in unify(chars, char, solver.env): yield cont,  True
   else: throw_type_error('Var or Atom', chars)
 
-@builtin.macro()
+@matcher()
 def notFollowChars(solver, cont, chars):
   chars = deref(chars, solver.env)
   assert isinstance(chars, str)
   if solver.stream[0][solver.stream[1]] in chars.name: return
   yield cont,  True
 
-@builtin.macro()
+@matcher()
 def followByChars(solver, cont, chars):
   chars = chars.deref(solver.env)
   assert isinstance(chars, Atom)
@@ -50,7 +51,7 @@ def followByChars(solver, cont, chars):
     return
   yield cont,  True
 
-@builtin.macro()
+@matcher()
 def notFollowByChars(solver, cont, chars):
   chars = chars.deref(solver.env)
   assert isinstance(chars, Atom)
@@ -64,7 +65,7 @@ def followString(solver, cont, strArgument):
   if not solver.stream.parsed().endwith(strArgument.name): raise UnifyFail
   solver.value = True
 
-@builtin.macro()
+@matcher()
 def notFollowString(solver, cont, string):
   string = string.deref(solver.env)
   if solver.stream.parsed().endwith(string.name): return
@@ -76,16 +77,11 @@ def followByString(solver, cont, strArgument):
   if not solver.stream.left().startswith(strArgument.name): raise UnifyFail
   solver.value = True
 
-@builtin.macro()
+@matcher()
 def notFollowByString(solver, cont, string):
   string = string.deref(solver.env)
   if solver.stream.left().startswith(string.name): return
   solver.value = True  
-
-@builtin.macro()
-def nullword(solver, cont): 
-  yield cont,  True
-null = nullword = nullword()
 
 def charOnTest(test, name=''):
   def func(solver, cont, arg0):
@@ -97,7 +93,7 @@ def charOnTest(test, name=''):
       solver.stream = text, pos+1
       yield cont,  True
   if name=='': name = test.__name
-  return builtin.macro(name)(func)
+  return matcher(name)(func)
 
 def charBetween(lower, upper): return charOnTest(lambda char: lower<=char<=upper, "charbetween <%s-%s>"%(lower, upper))  
 def charIn(string, reprString=''): return charOnTest(lambda char: char in string, reprString or 'charin '+string)      
@@ -129,7 +125,7 @@ def stringOnTest(test, name='', onceMore=True):
       solver.stream = text, pos
       yield cont,  True
   if name=='': name = test.__name
-  return builtin.macro(name)(func)
+  return matcher(name)(func)
 def stringBetween(lower, upper, onceMore=True):
   if not onceMore: name = "s<%s-%s>"%(lower, upper)
   else: name = "s<%s-%s>+"%(lower, upper)
@@ -164,11 +160,11 @@ def quotestring(quote, name):
     for _ in unify(arg0, string, solver.env): 
       solver.stream = text, p
       yield cont,  True
-  return builtin.macro(name)(func)
+  return matcher(name)(func)
 dqstring = quotestring('"', 'doublequotestring')
 sqstring = quotestring("'", 'singlequotestring')
 
-@builtin.macro()
+@matcher()
 def number(solver, cont,  arg0): 
   text, pos = solver.stream
   length = len(text)
@@ -184,7 +180,7 @@ def number(solver, cont,  arg0):
     solver.stream = text, p
     yield cont,  True
 
-@builtin.macro()
+@matcher()
 def symbol(solver, cont,  arg0):
   from oad.solve import _specialforms
   SYMBOL_FORBID_CHARS = '\'", \r\n\t[]{}()`'
@@ -203,7 +199,7 @@ def symbol(solver, cont,  arg0):
     solver.stream = text, pos
     yield cont,  True
   
-@builtin.macro()
+@matcher()
 def literal(solver, cont,  arg0):
   arg0 = deref(arg0, solver.env)
   assert isinstance(arg0, str)

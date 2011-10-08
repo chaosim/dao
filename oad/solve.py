@@ -92,15 +92,17 @@ def xxxclean_binding(exp):
 def eval(exp):
 ##  exp = to_sexpression(exp)
   exp = parse(exp)
-  return Solver().eval(exp)
+  return Solver(None, None, None).eval(exp)
 
 class Solver:
   # exp, exps: sexpression and sexpression list
-  def __init__(self, env=None, stop=done):
+  def __init__(self, env, stream, stop):
     if env is None: env = GlobalEnvironment()
     self.env = env
     self.stop = stop
-    self.stream = None
+    self.stream = stream
+  def copy(self): 
+    return Solver(self.env, self.stream, self.stop)
 
   def eval(self, exp):
     for x in self.solve(exp): return x
@@ -120,7 +122,8 @@ class Solver:
         for x in self.solve_exps(exps[1:], stop):
           yield x
   def run_cont(self, cont, stop, value=None):
-    self = Solver(self.env, stop)
+    self1 = self
+    self = Solver(self.env, self.stream, stop)
     stop = self.stop 
     root = cont_gen = cont(value, self)
     cut_gen = {}
@@ -129,7 +132,9 @@ class Solver:
     while 1:
       try: 
         c, v  = cont_gen.next()
-        if c is stop: yield c, v
+        if c is stop: 
+          self1.env, self1.stream = self.env, self.stream
+          yield c, v
         else:
           cg = c(v, self)
           cut_gen[cg] = cut(c)

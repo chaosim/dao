@@ -76,5 +76,8 @@ def ifp(solver, cont, if_clause, then_clause):
 @builtin.macro('not')  
 def not_(solver, cont, call):
   call = deref(call, solver.env)
-  for x in solver.solve(call, cont): return
+  env, stream  = solver.env, solver.stream
+  for x in solver.solve(call, cont):
+    solver.env, solver.stream = env, stream
+    return
   yield cont, True

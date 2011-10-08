@@ -33,13 +33,13 @@ class BuiltinMacro(Builtin, Macro):
   
 def builtin(klass):
   def builtin(name=None):
-      def makeBuiltin(func):
-        if name is None: name1 = func.__name__
-        else: name1 = name
-        b = klass(func, name1)
-        builtins.append(b)
-        return b
-      return makeBuiltin
+    def makeBuiltin(func):
+      if name is None: name1 = func.__name__
+      else: name1 = name
+      b = klass(func, name1)
+      builtins.append(b)
+      return b
+    return makeBuiltin
   return builtin
 
 function = builtin(BuiltinFunction)

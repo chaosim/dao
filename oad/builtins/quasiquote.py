@@ -9,7 +9,7 @@ from oad.term import Apply
 ##  if isinstance(item, list):
 ##    if item[0]==backquote:
 ##      if len(item)!=2: raise Exception
-##      if quote_level==0: 
+##      if quote_level==0:
 ##        return solver.solve(item[1], cont)
 ##      else: 
 ##        return quasiquote(item[1], quote_level-1)

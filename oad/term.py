@@ -212,6 +212,9 @@ class Var:
     from oad.builtins.arith import sub
     return sub(self, other)
 
+def vars(names): return [Var(x.strip()) for x in names.split(',')]
+def dummies(names): return [DummyVar(x.strip()) for x in names.split(',')]
+
 class LocalVar(Var):   # 好像不再必要了。  
   def deref(self, env):
     try: envValue = env.bindings[self]

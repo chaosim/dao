@@ -8,9 +8,9 @@ from oad.special import function, let, letrec, macro, begin, eval_
 from oad.builtins.arith import add
 from oad.builtins.parser import settext, parse
 from oad.builtins.parser import step, left, next, position, subtext, goto, skip
-from oad.builtins.terminal import char, nullword, number, eof, literal, letter 
+from oad.builtins.terminal import char, number, eof, literal, letter 
 from oad.builtins.terminal import dqstring, sqstring, spaces, uLetterdigitString
-from oad.builtins.matchterm import optional, parallel, any, some, times, seplist
+from oad.builtins.matchterm import nullword, optional, parallel, any, some, times, seplist
 from oad.builtins.atom import charin
 from oad.testutil import *
 
@@ -158,11 +158,12 @@ class TestOptional:
     x = Var('x')
     eq_(eval(parse(optional(char(x)), '1')), '1')
     eq_(eval(parse(optional(char(x)), '')), True)
+    eq_(eval(parse(optional(char(x))+char('1'), '1')), None)
 
   def testoptionalRule(self):
     x, s = Var('x'), Var('s')
     ruleList ={s: function( ((x,), and_(optional(char('a')),char(x))))}
-    eq_(eval(let(ruleList, parse(s(x), 'a'), x)), 'a')
+    eq_(eval(let(ruleList, parse(s(x), 'a'), x)), None)
     eq_(eval(let(ruleList, parse(s(x),  'aa'), x)), 'a')         
     eq_(eval(let(ruleList, parse(s(x),  'b'), x)), 'b')
     
