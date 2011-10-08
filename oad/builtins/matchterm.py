@@ -105,11 +105,9 @@ null = nullword = nullword()
 @matcher()
 def optional(solver, cont, item, mode=nongreedy):
   item = deref(item, solver.env)
-  stream = solver.stream
   for x in solver.solve(item, cont):
     yield cont, x
     if greedy: return
-  solver.stream = stream
   yield cont, True
 
 @matcher()
@@ -138,21 +136,17 @@ def greedy_repeat_cont(item, cont):
   @mycont(cont)
   def repeat_cont(value, solver):
     matched = False
-    stream = solver.stream
     for x in solver.solve(item, repeat_cont):
       matched = True
       yield repeat_cont, x 
     if matched: return
-    solver.stream = stream
     yield cont, value
   return repeat_cont
 
 def nongreedy_repeat_cont(item, cont):
   @mycont(cont)
   def repeat_cont(value, solver):
-    stream = solver.stream
     yield solver.cont(item, repeat_cont), True 
-    solver.stream = stream
     yield cont, True
   return repeat_cont
 
@@ -167,7 +161,6 @@ def greedy_repeat_result_cont(item, cont, matched_times, matched_list, template,
   @mycont(cont)
   def repeat_cont(value, solver):
     matched = False
-    stream = solver.stream
     if matched_times>0: matched_list.append(getvalue(template, solver.env))
     next_cont = greedy_repeat_result_cont(item, cont, matched_times+1, matched_list, template, result)
     for x in solver.solve(item, next_cont):
@@ -175,21 +168,18 @@ def greedy_repeat_result_cont(item, cont, matched_times, matched_list, template,
       yield next_cont, True
     if matched: return
     for _ in unify(result, matched_list, solver.env): 
-      solver.stream = stream
       yield cont, True
   return repeat_cont
 
 def nongreedy_repeat_result_cont(item, cont, matched_times, matched_list, template, result):
   @mycont(cont)
   def repeat_cont(value, solver):
-    stream = solver.stream
     if matched_times>0: 
       matched_list1 = matched_list+[getvalue(template, solver.env)]
     else: matched_list1 = matched_list
     next_cont = nongreedy_repeat_result_cont(item, cont, matched_times+1, matched_list1, template, result)
     yield solver.cont(item, next_cont), True
     for _ in unify(result, matched_list1, solver.env): 
-      solver.stream = stream
       yield cont, True
   return repeat_cont
 
@@ -309,14 +299,12 @@ def greedy_times_cont(item, cont):
     @mycont(cont)
     def times_cont(value, solver):
       matched = False
-      stream = solver.stream
       next_cont = nongreedy_times_cont(item, expectTimes, cont, matched_times+1)
       for x in solver.solve(item, next_cont):
         matched = True
         yield next_cont, x 
       if matched: return
       for _ in unify(expectTimes, matched_times, solver.env): 
-        solver.stream = stream
         yield cont, True
   return times_cont
 
@@ -330,10 +318,8 @@ def nongreedy_times_cont(item, expectTimes, cont, matched_times):
   else:
     @mycont(cont)
     def times_cont(value, solver):
-      stream = solver.stream
       yield solver.cont(item, nongreedy_times_cont(item, expectTimes, cont, matched_times+1)), True
       for _ in unify(expectTimes, matched_times, solver.env): 
-        solver.stream = stream
         yield cont, True
   return times_cont
 
@@ -348,7 +334,6 @@ def lazy_times_cont(item, expectTimes, cont, matched_times):
     @mycont(cont)
     def times_cont(value, solver):
       for _ in unify(expectTimes, matched_times, solver.env): 
-        solver.stream = stream
         yield cont, True
       next_cont = lazy_times_cont(item, expectTimes, cont, matched_times+1)
       for x in solver.solve(item, next_cont):
@@ -371,7 +356,6 @@ def greedy_times_result_cont(item, expectTimes, cont, matched_times,
     @mycont(cont)
     def times_cont(value, solver):
       matched = False
-      stream = solver.stream
       if matched_times>0: matched_list.append(getvalue(template, solver.env))
       next_cont = greedy_times_result_cont(item, expectTimes, cont, 
                     matched_times+1, matched_list, template, result)
@@ -381,7 +365,6 @@ def greedy_times_result_cont(item, expectTimes, cont, matched_times,
       if matched: return
       for _ in unify(expectTimes, matched_times, solver.env):
         for _ in unify(result, matched_list, solver.env): 
-          solver.stream = stream
           yield cont, True
   return times_cont
 
@@ -401,7 +384,6 @@ def nongreedy_times_result_cont(item, expectTimes, cont,
   else:
     @mycont(cont)
     def times_cont(value, solver):
-      stream = solver.stream
       if matched_times>0: 
         matched_list1 = matched_list+[getvalue(template, solver.env)]
       else: matched_list1 = matched_list
@@ -410,7 +392,6 @@ def nongreedy_times_result_cont(item, expectTimes, cont,
       yield solver.cont(item, next_cont), True
       for _ in unify(expectTimes, matched_times, solver.env):
         for _ in unify(result, matched_list1, solver.env): 
-          solver.stream = stream
           yield cont, True
   return times_cont
 
@@ -548,10 +529,8 @@ def nongreedy_times_less_cont(item, expectTimes, cont, matched_times):
     if expectTimes==matched_times: yield cont, True
     else:
       next_cont = nongreedy_times_less_cont(item, expectTimes, cont, matched_times+1)
-      stream = solver.stream
       for x in solver.solve(item, next_cont):
         yield next_cont, x
-      solver.stream = stream
       yield cont, True
   return times_cont
 
@@ -578,13 +557,11 @@ def greedy_times_less_result_cont(item, expectTimes, cont, matched_times,
       matched = False
       next_cont = greedy_times_less_result_cont(item, expectTimes, cont, 
                         matched_times+1, matched_list, template, result)
-      stream = solver.stream
       for x in solver.solve(item, next_cont):
         matched = True
         yield next_cont, x
       if not matched:
         for _ in unify(result, matched_list, solver.env):
-          solver.stream = stream
           yield cont, True
   return times_cont
 
@@ -600,11 +577,9 @@ def nongreedy_times_less_result_cont(item, expectTimes, cont,
     else: 
       next_cont = nongreedy_times_less_result_cont(item, expectTimes, cont, 
                         matched_times+1, matched_list1, template, result)
-      stream = solver.stream
       for x in solver.solve(item, next_cont):
         yield next_cont, x
       for _ in unify(result, matched_list1, solver.env):
-        solver.stream = stream
         yield cont, True
   return times_cont
 
@@ -735,14 +710,12 @@ def seplist(item, separator, template=None, result=None,
         def seplist_bultin(solver, cont):  
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
-          stream = solver.stream
           for _ in solver.solve(item1, cont):
             yield greedy_repeat_result_cont(
             separator1+item1, cont, 1, [], 
             deref(template, solver.env), deref(result, solver.env)), []
             return
           for _ in unify(result, [], solver.env):
-            solver.stream = stream
             yield cont, True
       elif mode==nongreedy:
         @matcher('seplist')
@@ -890,26 +863,22 @@ def seplist_times_less(item, separator, expect_times, template=None, result=None
       temp_result = None
     if mode==greedy:
       matched = False
-      stream = solver.stream
       for v in solver.solve(item, cont):
         matched = True
         next_cont = make_times_less_cont(solver, cont, item1, separator1, 
                       expect_times1-1, 1, [], template1, result1, mode)
         yield next_cont, v
       if not matched:
-        solver.stream = stream
         if result1 is None:
           yield cont, True
         else:
           for _ in unify(result1, []): 
             yield cont, True
     elif mode==nongreedy:
-      stream = solver.stream
       for v in solver.solve(item, cont):
         next_cont = make_times_less_cont(solver, cont, item1, separator1, 
                       expect_times1-1, 1, [], template1, result1, mode)
         yield next_cont, v
-      solver.stream = stream
       if result1 is None:
         yield cont, True
       else:
@@ -955,6 +924,6 @@ def follow(solver, cont, item):
   stream = solver.stream
   @mycont(cont)
   def follow_cont(value, solver):
-    stream = solver.stream
+    solver.stream = stream
     yield cont, value
   yield solver.cont(item, follow_cont), True

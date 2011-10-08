@@ -46,11 +46,9 @@ class RuleList(list):
     return RuleList([parser.parse(rule) for rule in self])
   def apply(self, solver, env, cont, recursive, values):
     def rules_cont(values, solver):
-      stream = solver.stream
       for rule in self:
         for c, v in rule.apply(solver, env, cont, recursive, values):
           yield c, v
-          solver.stream = stream
     rules_cont.cut = True
     yield rules_cont, values
   def __repr__(self): 

@@ -133,8 +133,10 @@ class Solver:
       try: 
         c, v  = cont_gen.next()
         if c is stop: 
+          env, stream = self1.env, self1.stream
           self1.env, self1.stream = self.env, self.stream
           yield c, v
+          self1.env, self1.stream = env, stream
         else:
           cg = c(v, self)
           cut_gen[cg] = cut(c)

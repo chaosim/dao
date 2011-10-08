@@ -178,6 +178,7 @@ def binary(attr):
     else: 
       solver.stream = syntax_result, pos+1
       yield cont, True
+    solver.stream = syntax_result, pos
   return func
 
 @builtin.macro('__call__')
@@ -201,6 +202,7 @@ def call(solver, cont, args=None, kwargs=None):
   else: 
     solver.stream = syntax_result, pos+1
     yield cont, True
+  solver.stream = syntax_result, pos
 
 def unary(attr):
   @builtin.macro(names[attr])
@@ -210,6 +212,7 @@ def unary(attr):
     if syntax_result[pos]!=attr: return
     solver.stream = syntax_result, pos+1
     yield cont,  True
+    solver.stream = syntax_result, pos
   return func
 
 '''

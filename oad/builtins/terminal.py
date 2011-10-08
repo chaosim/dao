@@ -17,10 +17,10 @@ def char(solver, cont, argument):
   for _ in unify(argument, text[pos], solver.env):
     solver.stream = text, pos+1
     yield cont,  text[pos]
+    solver.stream = text, pos
 
 @matcher()
 def eof(solver, cont):
-##  print 'eof', solver.stream
   if solver.stream[1]>=len(solver.stream[0]): 
     yield cont,  True
   
@@ -92,6 +92,7 @@ def charOnTest(test, name=''):
     for _ in unify(arg0, c, solver.env):
       solver.stream = text, pos+1
       yield cont,  True
+      solver.stream = text, pos
   if name=='': name = test.__name
   return matcher(name)(func)
 
@@ -115,15 +116,17 @@ def stringOnTest(test, name='', onceMore=True):
     #assert isinstance(arg, Var) and arg.free(solver.env)
     text, pos = solver.stream
     string = ''
-    while pos<len(text):         
-      char = text[pos]
+    i = 0
+    while pos+i<len(text):         
+      char = text[pos+i]
       if not test(char): break
       string += char
-      pos += 1
+      i += 1
     if onceMore and string=='': return
     for _ in unify(arg, string, solver.env):
-      solver.stream = text, pos
+      solver.stream = text, pos+i
       yield cont,  True
+      solver.stream = text, pos
   if name=='': name = test.__name
   return matcher(name)(func)
 def stringBetween(lower, upper, onceMore=True):
@@ -147,19 +150,19 @@ def quotestring(quote, name):
     text, pos = solver.stream
     if pos>=len(text): return
     if text[pos]!=quote: return
-    pos += 1
-    p = pos
+    p = pos+1
     while p<len(text): 
       char = text[p]
       p += 1
       if char=='\\': p += 1
       elif char==quote: 
-        string = text[pos:p-1]
+        string = text[pos+1:p-1]
         break
     else: return
     for _ in unify(arg0, string, solver.env): 
       solver.stream = text, p
       yield cont,  True
+      solver.stream = text, pos
   return matcher(name)(func)
 dqstring = quotestring('"', 'doublequotestring')
 sqstring = quotestring("'", 'singlequotestring')
@@ -179,6 +182,7 @@ def number(solver, cont,  arg0):
   for _ in unify(arg0, val, solver.env):
     solver.stream = text, p
     yield cont,  True
+    solver.stream = text, pos
 
 @matcher()
 def symbol(solver, cont,  arg0):
@@ -196,17 +200,20 @@ def symbol(solver, cont,  arg0):
   if sym in _specialforms: sym = Symbol(sym)
   else: sym = var(sym)
   for _ in unify(arg0, sym, solver.env):
-    solver.stream = text, pos
+    solver.stream = text, p
     yield cont,  True
+    solver.stream = text, pos
   
 @matcher()
 def literal(solver, cont,  arg0):
   arg0 = deref(arg0, solver.env)
   assert isinstance(arg0, str)
   text, pos = solver.stream
+  p = pos
   for char in arg0:
-    if pos>=len(text): return
-    if char!=text[pos]: return
-    pos += 1
-  solver.stream = text, pos
+    if p>=len(text): return
+    if char!=text[p]: return
+    p += 1
+  solver.stream = text, p
   yield cont,  True
+  solver.stream = text, pos

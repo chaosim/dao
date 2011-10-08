@@ -54,11 +54,8 @@ def or_(solver, cont, call1, call2):
     then_clause = deref(call1.operand[1], solver.env)
     call1 = if_clause&cut&then_clause
   def or_cont(value, solver):
-    stream = solver.stream
     yield solver.cont(call1, cont), True
-    solver.stream = stream
     yield solver.cont(call2, cont), True
-    solver.stream = stream
 ##  or_cont.cut = True
   yield or_cont, True
 
@@ -76,8 +73,6 @@ def ifp(solver, cont, if_clause, then_clause):
 @builtin.macro('not')  
 def not_(solver, cont, call):
   call = deref(call, solver.env)
-  env, stream  = solver.env, solver.stream
   for x in solver.solve(call, cont):
-    solver.env, solver.stream = env, stream
     return
   yield cont, True
