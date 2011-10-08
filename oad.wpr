@@ -11,4 +11,4 @@ proj.directory-list = [{'dirloc': loc('.'),
                         'recursive': True,
                         'watch_for_changes': True}]
 proj.file-type = 'shared'
-testing.test-framework = {loc('oad/pysyntax.py'): ':internal doctest'}
+testing.test-framework = {None: 'nose'}

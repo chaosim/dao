@@ -10,7 +10,9 @@ from oad.builtins.parser import settext, parse
 from oad.builtins.parser import step, left, next, position, subtext, goto, skip
 from oad.builtins.terminal import char, number, eof, literal, letter 
 from oad.builtins.terminal import dqstring, sqstring, spaces, uLetterdigitString
-from oad.builtins.matchterm import nullword, optional, parallel, any, some, times, seplist
+from oad.builtins.matchterm import nullword, optional, parallel
+from oad.builtins.matchterm import any, some, times, times_more, times_less, seplist
+from oad.builtins.matchterm import lazy, times_between
 from oad.builtins.atom import charin
 from oad.testutil import *
 
@@ -198,7 +200,7 @@ class TestAnySomeTimesSepList:
     eq_(eval(begin(parse(any(char(X), X, Y), ''), Y)), [])
   def test_any2(self):
     eq_(eval(parse(any(or_(char('1'), char('2'))), '2')), True)
-  def test_anydummy(self):
+  def test_dummy_any(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(begin(parse(any(char(_), _, Y), '222'), Y)), ['2','2','2'])
     eq_(eval(begin(parse(any(char(_), _, Y), '234'), Y)), ['2', '3', '4'])
@@ -216,7 +218,7 @@ class TestAnySomeTimesSepList:
     eq_(eval(parse(and_(some(char(X)), char('3'), char('5')), '2234')), None)
   def test_some3(self):
     eq_(eval(parse(some(or_(char('1'),char('2'))), '2')), True)
-  def test_somedumy(self):
+  def test_dumy_some(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(begin(parse(some(char(_), _, Y), '222'), Y)), ['2','2','2'])
     eq_(eval(begin(parse(some(char(_), _, Y), '234'), Y)),['2', '3', '4'])
@@ -226,16 +228,37 @@ class TestAnySomeTimesSepList:
     X, Y = Var('X'), Var('Y')
     eq_(eval(begin(parse(times(char(X), 3, X, Y), '222'), Y)), ['2','2','2'])
     eq_(eval(parse(times(char(X), 3, X, Y), '2234')), None)
-  def test_timesdummy(self):
+  def test_dummy_times(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(begin(parse(times(char(_), 3, _, Y), '234'), Y)), ['2','3','4'])
-  def testtimes_a2(self): 
+  def test_dummy_times_more(self):
+    _, Y = DummyVar('_'), Var('Y')
+    eq_(eval(begin(parse(times_more(char(_), 3, _, Y), '234'), Y)), ['2','3','4'])
+    eq_(eval(begin(parse(times_more(char(_), 3, _, Y), '2345'), Y)), ['2','3','4', '5'])
+    eq_(eval(begin(parse(times_more(char(_), 3, _, Y), '23'), Y)), None)
+  def test_dummy_times_less(self):
+    _, Y = DummyVar('_'), Var('Y')
+    eq_(eval(begin(parse(times_less(char(_), 3, _, Y)+char('4'), '234'), Y)), ['2','3'])
+    eq_(eval(begin(parse(times_less(char(_), 3, _, Y), '234'), Y)), ['2','3','4'])
+    eq_(eval(begin(parse(times_less(char(_), 3, _, Y), '23'), Y)), ['2','3'])
+    eq_(eval(begin(parse(times_less(char(_), 3, _, Y)+eof, '2345'), Y)), None)
+  def test_dummy_times_less_lazy(self):
+    _, Y = DummyVar('_'), Var('Y')
+    eq_(eval(begin(parse(times_less(char(_), 3, _, Y, lazy)+char('4'), '234'), Y)), ['2','3'])
+  def test_dummy_times_between(self):
+    _, Y = DummyVar('_'), Var('Y')
+    eq_(eval(begin(parse(times_between(char(_), 2, 3, _, Y), '234'), Y)), ['2','3', '4'])
+    eq_(eval(begin(parse(times_between(char(_), 2, 3, _, Y), '23'), Y)), ['2','3'])
+    eq_(eval(begin(parse(times_between(char(_), 2, 3, _, Y), '2345'), Y)), ['2','3', '4'])
+    eq_(eval(begin(parse(times_between(char(_), 2, 3, _, Y), '2'), Y)), None)
+    eq_(eval(begin(parse(times_between(char(_), 2, 3, _, Y)+eof, '2345'), Y)), None)
+  def test_times_a2(self): 
     X, Y, S = Var('X'), Var('Y'), Var('S')
     function1 = function(((Y,), times(char('a'), 2, 'a', Y)))
     eq_(eval(begin(parse(function1(X),'aa'), X)), ['a', 'a'])
     eq_(eval(begin(parse(function1(X), 'a'), X)), None)
     eq_(eval(begin(parse(and_(function1(X), eof), 'aaa'), X)), None)
-  def testtimes_an(self): 
+  def test_times_an(self): 
     X, Y, S, n = Var('X'), Var('Y'), Var('S'), Var('n')
     function1 = function( ((Y,), times(char('a'), n, 'a', Y)))
     eq_(eval(begin(parse(function1(X), 'a'), X)), ['a'])
@@ -247,8 +270,8 @@ class TestAnySomeTimesSepList:
     eq_(eval(begin(parse(seplist(char(X), char(','), X, Y), '2,2,2'), Y)), ['2','2','2'])
     eq_(eval(begin(parse(seplist(char(X), char(','), X, Y), '2,3,4'), Y)), ['2'])
     eq_(eval(begin(parse(seplist(char(X), char(','), X, Y), '2'), Y)), ['2'])
-    #eq_(eval(begin(parse(seplist, char(X), char(','), X, Y), ''), Y))
-  def test_seplistdummy(self):
+    eq_(eval(begin(parse(seplist(char(X), char(','), X, Y), ''), Y)), [])
+  def test_dummy_seplist(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(begin(parse(seplist(char(_), char(','), _, Y), '2,2,2'), Y)), ['2','2','2'])
     eq_(eval(begin(parse(seplist(char(_), char(','), _, Y), '2,3,4'), Y)), ['2', '3', '4'])
