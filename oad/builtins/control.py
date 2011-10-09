@@ -45,6 +45,7 @@ def and_(solver, cont, *calls):
     call2 = deref(calls[-1], solver.env)
     def and_cont(value, solver): yield solver.cont(call2, cont), value
     yield solver.cont(and_(*call1), and_cont), True
+    
 @builtin.macro('or_')
 def or_(solver, cont, call1, call2):
   call1 = deref(call1, solver.env)

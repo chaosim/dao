@@ -1,6 +1,6 @@
 from oad.term import conslist
 from oad.builtins.parser import settext
-from oad.builtins.terminal import eof
+from oad.builtins.terminal import eos
 from oad.builtins.control import and_
 from oad.solve import Solver
 
@@ -13,13 +13,13 @@ def parse(grammar, text):
   envvarCache = {}
   solver = Solver()
   exp = conslist('letrec', grammar.rules, (settext, text), 
-                 (and_, grammar.start, [eof]), grammar.result)
+                 (and_, grammar.start, [eos]), grammar.result)
   return solver.eval(exp)
 
 def eval(grammar, text): #don't need any more!!!
   solver = Solver()
   exp = conslist('letrec', grammar.rules, (settext, text), 
-                 (and_, grammar.start, [eof]), grammar.result)
+                 (and_, grammar.start, [eos]), grammar.result)
   parsedExp = solver.eval(exp)
   return solver.eval(parsedExp) #, prelude=False
   

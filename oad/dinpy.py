@@ -16,7 +16,7 @@ from oad import builtin
 from oad import special
 from oad.special import set as assign
 from oad.builtins.matchterm import some, any, optional as opt
-from oad.builtins.terminal import eof
+from oad.builtins.terminal import eos
 from oad.builtins.type import pytuple, make_apply, head_list, list_tail#, to_list
 from oad.builtins.type import items, first #, index
 from oad.builtins.term import getvalue, ground_value
@@ -95,7 +95,7 @@ def some_any(matcher):
       except:
         try: return matcher(self.element)|other
         except: raise DinpySyntaxError
-    def __parse_syntax__(self):
+    def ___parse___(self):
       try: 
         self.template
         raise DinpySyntaxError
@@ -108,8 +108,8 @@ Some = lead(some_any(some))
 Any = lead(some_any(any))
 
 # my.a, globl.a
-## my = element(some(getattr(__._), L('local', __._), y)+eof)
-## globl = element(some(getattr(__._), L('globl', __._), y)+eof)
+## my = element(some(getattr(__._), L('local', __._), y)+eos)
+## globl = element(some(getattr(__._), L('globl', __._), y)+eos)
 
 ##use_item = attr|div(var)|div(str)
 ##use = 'use'+some(use_item)+optional(use_block)|any(use_item)+use_block\
@@ -118,10 +118,10 @@ Any = lead(some_any(any))
 # put.a = 1, put.i.j==(1,2)
 put = element(
   # put.a == 1
-    getattr(vv.var)+eq(vv.value)+eof
+    getattr(vv.var)+eq(vv.value)+eos
       +make_apply(special.set, getvar(vv.var), vv.value)
   # put.i.j==(1,2)
-  | Some/(getattr(__._)+assign(vv.x, getvar(__._)))/vv.x/vv.vars+eq(vv.value)+eof
+  | Some/(getattr(__._)+assign(vv.x, getvar(__._)))/vv.x/vv.vars+eq(vv.value)+eos
         +make_apply(special.set_list, vv.vars, vv.value)
   )
 
@@ -136,7 +136,7 @@ def make_let(args, body):
   else: return special.let(args[0], body)
   
 #let({var:value}).do[...]
-let = element(call(vv.bindings)+_do+getitem(vv.body)+eof
+let = element(call(vv.bindings)+_do+getitem(vv.body)+eos
               +make_let(vv.bindings, vv.body))
 
 @builtin.function('make_iff')
@@ -151,7 +151,7 @@ _test, _test2, _body =  dummies('_test, _test2, _body')
 iff = element(call(vv.test)+_then+getitem(vv.clause)
               +any(_elsif+call(_test)+_then+getitem(_body)+is_(_test2, first(_test)), 
                    (_test2, _body), vv.clauses)
-              +opt(_els+getitem(vv.els_clause))+eof
+              +opt(_els+getitem(vv.els_clause))+eos
               +make_iff(vv.test, vv.clause, vv.clauses, vv.els_clause))
 
 class CASE_ELS: pass
@@ -178,15 +178,15 @@ of_fun = attr_call('of')
 case = element( call(vv.test)+(
   #.of(1)[write(1)].of(2,3)[write(4)].els[write(5)]
     (some(of_fun(__.values)+getitem(__.clause),(__.values,__.clause), vv.clauses)
-     +_els+getitem_to_list(vv.els)+eof
+     +_els+getitem_to_list(vv.els)+eos
     +make_case(vv.test, list_tail(vv.clauses, pytuple(CASE_ELS, vv.els))))
   #/{1:[write(1)],2:[write(4)],3:[write(4)], els:[write(5)]}
-  | div(vv.clauses)+eof+make_case(vv.test, items(vv.clauses))
+  | div(vv.clauses)+eos+make_case(vv.test, items(vv.clauses))
   ))
 els = CASE_ELS
 
 # when(x>1).do[write(1)
-when = element(call(vv.test)+_do+getitem_to_list(vv.body)+eof+
+when = element(call(vv.test)+_do+getitem_to_list(vv.body)+eos+
   make_apply(special.LoopWhenForm, vv.body, first(vv.test)))
 
 when_fun = attr_call('when')
@@ -195,20 +195,20 @@ until_fun = attr_call('until')
 # do.write(1).until(1), do.write(1).when(1)
 do = element(getitem_to_list(vv.body)+(
   # .when(1)
-    when_fun(vv.test)+eof
+    when_fun(vv.test)+eos
     +make_apply(special.LoopWhenForm, vv.body, first(vv.test))
   #.until(1)
-  | until_fun(vv.test)+eof
+  | until_fun(vv.test)+eos
     +make_apply(special.LoopUntilForm, vv.body, first(vv.test))
   ))
 
 # loop[write(1)], loop(1)[write(1)]
 loop = element(
   # loop[write(1)]
-    getitem_to_list(vv.body)+eof
+    getitem_to_list(vv.body)+eos
     +make_apply(special.LoopForm, vv.body)
   # loop(1)[write(1)]
-  | call(vv.times)+getitem_to_list(vv.body)+eof
+  | call(vv.times)+getitem_to_list(vv.body)+eos
     +make_apply(special.LoopTimesForm, first(vv.times), vv.body)
   )
 
@@ -229,18 +229,18 @@ def make_each(vars, iterators, body):
 # each(i,j)[zip(range(5), range(5))]. do [write(i,j)],
 # each(i,j)[range(5)][range(5)]. do [write(i,j)],
 each = element(call(vv.vars)+some(getitem(__.iterator), __.iterator, vv.iterators)
-               +_do+getitem_to_list(vv.body)+eof
+               +_do+getitem_to_list(vv.body)+eos
     +make_each(vv.vars, vv.iterators, vv.body))
 
-exit = element(may/getattr(vv.type)+opt(div(vv.label))+opt(rshift(vv.value))+eof)
-next = element(opt(getattr(vv.type))+opt(div(vv.label))+eof)
-label = element(getattr(vv.type)+div(vv.body)+eof)
+exit = element(may/getattr(vv.type)+opt(div(vv.label))+opt(rshift(vv.value))+eos)
+next = element(opt(getattr(vv.type))+opt(div(vv.label))+eos)
+label = element(getattr(vv.type)+div(vv.body)+eos)
 
-block = element(getattr(vv.name)+getitem(vv.block)+eof)
+block = element(getattr(vv.name)+getitem(vv.block)+eos)
 
-py = element(div(vv.func)+call(vv.args)+eof)
+py = element(div(vv.func)+call(vv.args)+eos)
 
-##on = element(call(x)+do_word+body+eof) # with statements in dao
+##on = element(call(x)+do_word+body+eos) # with statements in dao
 
 class AtForm:
   def __init__(self, clauses):
@@ -254,7 +254,7 @@ class AtForm:
 at = element(
   some(opt(call(__.args))+assign(__.args, ground_value(__.args))
        +some(getitem_to_list(__.body), __.body, __.bodies), 
-        (__.args, __.bodies), vv.args_bodies)+eof
+        (__.args, __.bodies), vv.args_bodies)+eos
         +make_apply(AtForm, vv.args_bodies))
 
 from oad.builtins.rule import replace, remove, assert_, asserta, \
@@ -359,30 +359,30 @@ def make_fun7(name, rules):
 def fun_macro_grammar(klass):
   return (
   # fun. a(x)== [...],  fun. a(x) <= at[...][...]
-    (getattr(vv.name)+call(vv.args)+eq(vv.body)+eof
+    (getattr(vv.name)+call(vv.args)+eq(vv.body)+eos
       +make_fun1(vv.name,vv.args, vv.body))
   # fun. a(x) >= [...],  fun. a(x) <= at[...][...]
-  | (getattr(vv.name)+call(vv.args)+ge(vv.body)+eof
+  | (getattr(vv.name)+call(vv.args)+ge(vv.body)+eos
      +make_fun2(vv.name,vv.args, vv.body))
   # fun. a(x) <= [...],  fun. a(x) <= at[...][...]
-  | (getattr(vv.name)+call(vv.args)+le(vv.body)+eof
+  | (getattr(vv.name)+call(vv.args)+le(vv.body)+eos
      +make_fun3(vv.name,vv.args, vv.body))
   #  fun. a== at(..)[...]
-  | (getattr(vv.name)+eq(vv.rules)+eof
+  | (getattr(vv.name)+eq(vv.rules)+eos
      +make_fun4(klass, vv.name,vv.rules))
   #  fun. a>= at(..)[...]
-  | (getattr(vv.name)+ge(vv.rules)+eof+make_fun5(vv.name,vv.rules))
+  | (getattr(vv.name)+ge(vv.rules)+eos+make_fun5(vv.name,vv.rules))
   #  fun. a<= at(..)[...]
-  | (getattr(vv.name)+le(vv.rules)+eof+make_fun6(vv.name,vv.rules))
+  | (getattr(vv.name)+le(vv.rules)+eos+make_fun6(vv.name,vv.rules))
   #  fun(args) [...](args)[...][...]
   | (some(call(__.head) + some(
       getitem_to_list(__.body), __.body, __.bodies), (__.head, __.bodies), vv.rules)
-        +eof+make_fun7(vv.rules))
+        +eos+make_fun7(vv.rules))
   #   - fun.a/3,
-  | (getattr(vv.name)+neg+div(vv.arity)+eof
+  | (getattr(vv.name)+neg+div(vv.arity)+eos
      +make_apply(abolish, getvar(vv.name), vv.arity))
   #- fun.a(x),
-  | (getattr(vv.name)+call(vv.args)+neg+eof
+  | (getattr(vv.name)+call(vv.args)+neg+eos
      +make_apply(retractall, getvar(vv.name), vv.args))
   #- fun.a(x)[1],
 ##  | (getattr(vv.name)+call(vv.args)+getitem(vv.index)+neg+assign(result, retract(vv.name, vv.args)))

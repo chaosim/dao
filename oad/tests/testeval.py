@@ -104,7 +104,11 @@ class TestFunction:
     eq_(eval(let({f: function([[x], x+x])}, f(f(1)))), 4) 
     
 class Test_letrec:
-  def testembedvar(self):
+  def testembedvar1(self):
+    e, e2, f, g, h = Var('e'), Var('e2'), Var('f'), Var('g'), Var('h')
+    eq_(eval(letrec({f: function([[1], 1])},
+                f(e), e)), 1)
+  def testembedvar2(self):
     e, e2, f, g, h = Var('e'), Var('e2'), Var('f'), Var('g'), Var('h')
     eq_(eval(letrec({f: macro([[cons(1, e2)], g(e2)]),
                      g: function([[e], h(e)]),

@@ -1,6 +1,22 @@
 # -*- coding: utf-8 -*-
 
-from oad.solve import value_cont, mycont#, clean_binding
+from oad.solve import value_cont, mycont
+
+def apply_generators(generators): # one shot generators, such as unify, set/restore
+  length = len(generators)
+  if length==0: 
+    yield True
+    return
+  i = 0
+  while i <length:
+    try:
+      generators[i].next()
+      if i==length-1: yield True
+      else: i += 1
+    except StopIteration:
+      if i==0: return
+      i -= 1
+    except GeneratorExit: pass
 
 def unify_list(list1, list2, env, occurs_check=False):
   if len(list1)!=len(list2): return
@@ -8,9 +24,9 @@ def unify_list(list1, list2, env, occurs_check=False):
   if len(list1)==1: 
     for _ in unify_list(list1[0], list2[0], env, occurs_check):
       yield True
-  for _ in unify_list(list1[0], list2[0], env, occurs_check):
-    for _ in unify_list(list1[1:], list2[1:], env, occurs_check):
-      yield True
+  for _ in apply_generators(tuple(unify(x, y, env, occurs_check) 
+                            for x, y in zip(list1, list2))):
+    yield True
   
 def unify(x, y, env, occurs_check=False):
   try: x_unify = x.unify
@@ -20,36 +36,42 @@ def unify(x, y, env, occurs_check=False):
     return y_unify(x, env, occurs_check)
   return x_unify(y, env, occurs_check)    
 
-def unify_list_rule_head(values, args, callee_env, caller_env, varset):
-  if len(values)==0: yield varset
+def unify_list_rule_head(values, args, env, subst):
+  if len(values)==0: yield True
   elif len(values)==1: 
-    for varset1 in unify_rule_head(values[0], args[0], callee_env, caller_env, varset): 
-      yield varset1
+    for _ in unify_rule_head(values[0], args[0], env, subst): 
+      yield True
   else:
-    for var_set1 in unify_rule_head(values[0], args[0], callee_env, caller_env, varset):
-      for var_set2 in unify_rule_head(values[1:], args[1:], callee_env, caller_env, var_set1):
-        yield var_set2
+    for _ in apply_generators(tuple(unify_rule_head(x, y, env, subst) 
+                              for x, y in zip(values, args))):
+      yield True
 
-def unify_rule_head(value, head, callee_env, caller_env, varset):
+def unify_rule_head(value, head, env, subst):
   if isinstance(head, Var): 
     if isinstance(value, Var):
-      caller_env.bindings[value] = head.copy_rule_head(callee_env)
-      yield varset | set([value])
-      del caller_env.bindings[value]
+      subst[value] = head.copy_rule_head(env)
+      yield True
     else:
-      callee_env.bindings[head] = value
-      yield varset
+      try: 
+        old = env.bindings[head]
+        env.bindings[head] = value
+        yield True
+        env.bindings[head] = old
+      except:
+        env.bindings[head] = value
+        yield True
+        del env.bindings[head]
   else:
     try: 
-      for var_set1 in value.unify_rule_head(head, callee_env, caller_env, varset): 
-        yield var_set1
+      for _ in value.unify_rule_head(head, env, subst): 
+        yield True
     except AttributeError: 
       if (isinstance(head, list) or isinstance(head, tuple)) \
           and (isinstance(value, list) or isinstance(value, tuple)):
         if len(value)!=len(head): return
-        for var_set in unify_list_rule_head(value, head, callee_env, caller_env, varset): 
-          yield var_set
-      elif value==head: yield varset
+        for _ in unify_list_rule_head(value, head, env, subst): 
+          yield True
+      elif value==head: yield True
       
 def deref(x, env):
   try: x_deref = x.deref
@@ -137,24 +159,21 @@ class Var:
       if occurs_check and contain_var(other, self):return
       self.setvalue(other, env)
       yield True
-##      del env.bindings[self]
       try: del env.bindings[self] # for DummyVar
       except: pass
     elif isinstance(other, Var):
       if occurs_check and contain_var(self, other): return
       other.setvalue(self, env)
       yield True
-##      del env.bindings[other]
       try: del env.bindings[other] # for DummyVar
       except: pass
     else:
       for result in unify(self, other, env, occurs_check):
         yield True
       
-  def unify_rule_head(self, head, callee_env, caller_env, varset):
-    caller_env.bindings[self] = copy_rule_head(head, callee_env)
-    yield varset | set([self])
-    del caller_env.bindings[self]
+  def unify_rule_head(self, head, env, subst):
+    subst[self] = copy_rule_head(head, env)
+    yield True
   def copy_rule_head(self, env):
     try: return env.bindings[self]
     except KeyError:
@@ -168,7 +187,7 @@ class Var:
     if next is None: return envValue
     if next is self: return next
     result = deref(next, env)
-    if result is not next: self.setvalue(result)
+    if result is not next: self.setvalue(result, env)
     return result
   def getvalue(self, env):
     result = self.deref(env)
@@ -191,8 +210,6 @@ class Var:
     var_index += 1
     return self.__class__(self.name, var_index)
   
-  def clean_binding(self): self.binding = None
-  
   def free(self, env): return isinstance(self.deref(env), Var)
   
   def __repr__(self): return '%s%s'%(self.name, '_%s'%self.index if self.index!=0 else '')
@@ -214,20 +231,22 @@ class Var:
     from oad.builtins.arith import sub
     return sub(self, other)
 
+class DummyVar(Var):
+  def __init__(self, name='_v', index=0): Var.__init__(self, name)
+  def unify_rule_head(self, other, callee_env, caller_env, varset): 
+    for x in self.unify(other, callee_env):
+      yield varset | set([self])
+  def deref(self, env): return self
+  def getvalue(self, env):
+    binding = env[self]
+    if binding is self: return binding
+    return getvalue(binding, env)
+  def closure(self, env): return self
+  def free(self, env): return True  
+  def __eq__(self, other): return self.__class__ == other.__class__
+
 def vars(names): return [Var(x.strip()) for x in names.split(',')]
 def dummies(names): return [DummyVar(x.strip()) for x in names.split(',')]
-
-class LocalVar(Var):   # 好像不再必要了。  
-  def deref(self, env):
-    try: envValue = env.bindings[self]
-    except: envValue = env.bindings[self] = Var(self.name, self.index+1)
-    if isinstance(envValue, Var): self = envValue
-    else: return envValue
-    next = self.binding
-    if next is None: return self
-    result = next.deref(env)
-    if result is not next: self.setvalue(result)
-    return result
 
 class ClosureVar(Var):
   def __init__(self, var, value):
@@ -257,22 +276,6 @@ class ClosureVar(Var):
   def __repr__(self): return '(%s:%s)'%(self.var, self.value)
   def __eq__(self, other): return self.var is other
 
-class DummyVar(Var):
-  def __init__(self, name='_v', index=0): Var.__init__(self, name)
-  def unify_rule_head(self, other, callee_env, caller_env, varset): 
-    for x in self.unify(other, callee_env):
-      yield varset | set([self])
-  def deref(self, env): return self
-  def getvalue(self, env):
-    binding = env[self]
-    if binding is self: return binding
-    return getvalue(binding, env)
-  def closure(self, env): return self
-  def free(self, env): return True  
-  def __eq__(self, other): return self.__class__ == other.__class__
-
-from oad.solve import to_sexpression
-
 class Apply:
   def __init__(self, operator, *operand):
     self.operator = operator
@@ -283,7 +286,7 @@ class Apply:
     def evaluate_cont(op, solver): 
       return op.evaluate_cont(self.operand, cont, solver)
     return solver.cont(self.operator, evaluate_cont)
-  def parse(self, parser):
+  def ___parse___(self, parser):
     self.operator = parser.parse(self.operator)
     self.operand = parser.parse(self.operand)
     return self
@@ -346,11 +349,11 @@ class Cons:
     if self.__class__!=other.__class__: return False
     return match(self.head, other.head) and match(self.tail, other.tail)
 
-  def unify_rule_head(self, other, callee_env, caller_env, varset):
+  def unify_rule_head(self, other, env, subst):
     if self.__class__!=other.__class__: return
-    for varset1 in unify_rule_head(self.head, other.head, callee_env, caller_env, varset):
-      for varset2 in unify_rule_head(self.tail, other.tail, callee_env, caller_env, varset1):
-        yield varset2
+    for _ in unify_rule_head(self.head, other.head, env, subst):
+      for _ in unify_rule_head(self.tail, other.tail, env, subst):
+        yield True
           
   def copy_rule_head(self, env):
     head = copy_rule_head(self.head, env)
@@ -374,10 +377,6 @@ class Cons:
       return self
     return Cons(head, tail)
   
-  def clean_binding(self): 
-    clean_binding(self.head)
-    clean_binding(self.tail)
-
   def __eq__(self, other): 
     return self.__class__==other.__class__ and self.head==other.head and self.tail==other.tail
      

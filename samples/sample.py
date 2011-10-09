@@ -146,7 +146,7 @@ X, Expr, Expr2, ExprList, Result, Y = var.X.Y.Expr.Expr2.ExprList.Result # 语�
 X, Expr, ExprList, Result, Y, sexpression = vars('X, Expr, ExprList, Result, Y, sexpression') # 语句不能放在列表中
 
 '''[
-fun. evalRule(Result) == sexpression(Expr2)+eof+is_(Result, eval_<getvalue<Expr2),
+fun. evalRule(Result) == sexpression(Expr2)+eos+is_(Result, eval_<getvalue<Expr2),
 
 fun. sexpression == at
   (Result)
@@ -190,6 +190,6 @@ fun. sexpressionList == at
   
 fun. sexpression1(Expr) >= [spaces0(_)+sexpressionList(Expr)+spaces0(_)],
 
-fun. condSpace() >=  [ifp(notFollowChars('([])')+notFollowByChars('([])')+not_(eof))+spaces(_)
+fun. condSpace() >=  [ifp(notFollowChars('([])')+notFollowByChars('([])')+not_(eos))+spaces(_)
         +spaces0(_)]
 ]'''

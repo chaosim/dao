@@ -5,97 +5,175 @@ from oad.error import throw_type_error
 from oad.builtin import builtin, BuiltinMacro
 from oad.solve import mycont
 from oad.builtins.arithpred import is_
+from oad.builtins.control import or_, and_
+from oad import special
+from oad.builtin import builtin, BuiltinMacro
 
 # parser predicate
 # optional, any, some, times, seplist, ...
 
-from oad.builtin import builtin, BuiltinMacro
-
-# lazy: match at least, except matchers followed fail. 尽量少吃进，除非别人逼我多吃一点
+# lazy: match at least, except matchers that followed fail. 尽量少吃进，除非别人逼我多吃一点
 # nongreedy, match at most, throw out if matchers followed fail.先尽量多吃，如果别人要再吐出来
 # greedy, match at most, don,t throw out even matchers followed fail. 吃进去了就不会吐出来。
 lazy, nongreedy, greedy = range(3)
 
 class Repeater:
-  def __init__(self):
-    pass
-  def __parse_before_solve__(self):
-    if self.separator is None:
-      if self.min is not None:
-        if self.max is not None:
-          if self.min==self.max:
-            return times(self.item, self.min, self.template, self.result, self.mode)
+  '''nongreedy: matcher[:]/separator%template**result
+  greedy: +matcher[:]/separator%template**result
+  lazy: -matcher[:]/separator%template**result'''
+  def __init__(self, item, separator=None, min=None, max=None, template=None, result=None, mode=nongreedy):
+    self.item, self.separator, self.min, self.max = item, separator, min, max
+    self.template, self.result, self.mode = template, result, mode
+    
+  def ___parse___(self):
+    item = parse(self.item)
+    separator = parse(self.separator)
+    min = parse(self.min)
+    max = parse(self.max)
+    template = parse(self.template)
+    result = parse(self.result)
+    mode = parse(self.mode)    
+    if separator is None:
+      if min is not None:
+        if max is not None:
+          if min==max:
+            return times(item, min, template, result, mode)
           else:
-            return times_between(self.item, self.min, self.max, self.template, self.result, self.mode)
+            return times_between(item, min, max, template, result, mode)
         else:
-          if self.min==0: return any(item, self.template, self.result, self.mode)
-          elif self.min==1: return some(item, self.template, self.result, self.mode)
-          return times_more(self.item, self.min, self.template, self.result, self.mode)
+          if min==0: return any(item, template, result, mode)
+          elif min==1: return some(item, template, result, mode)
+          return times_more(item, min, template, result, mode)
       else:
-        if self.max is not None:
-          return times_less(self.item, self.max, self.template, self.result, self.mode)
-        else: return any(item, self.template, self.result, self.mode)
+        if max is not None:
+          return times_less(item, max, template, result, mode)
+        else: return any(item, template, result, mode)
     else:
-      if self.min is not None:
-        if self.max is not None:
-          if self.min==self.max:
-            return seplist(self.item, self.separatorn, self.template, self.result, self.mi, self.mode)
+      if min is not None:
+        if max is not None:
+          if min==max:
+            return seplist(item, separator, template, result, min, mode)
           else:
-            return seplist_times_between(self.item, self.separator, self.min, self.max, self.template, self.result, self.mode)
+            return seplist_times_between(item, separator, min, max, template, result, mode)
         else:
-          if self.min==0: return seplist(item, self.separator, self.template, self.result, None, self.mode)
-          return seplist_times_more(self.item, self.separator, self.min, self.template, self.result, self.mode)
+          if min==0: return seplist(item, separator, template, result, None, mode)
+          return seplist_times_more(item, separator, min, template, result, mode)
       else:
-        if self.max is not None:
-          return seplist_times_less(self.item, self.separator, self.max, self.template, self.result, self.mode)
-        else: return seplist(item, self.separator, self.template, self.result, None, self.mode)
-          
-        
+        if max is not None:
+          return seplist_times_less(item, separator, max, template, result, mode)
+        else: return seplist(item, separator, template, result, None, mode)
+  def __div__(self, separator):
+    '''separator'''
+    if self.separator is  None:
+      self.separator = separator
+      return self
+    raise TypeError(self)
+  def __mod__(self, template):
+    '''template'''
+    if self.template is None:
+      self.template = template
+      return self
+    raise TypeError(self)
+  def __pow__(self, result):
+    '''result'''
+    if self.result is None:
+      self.result = result
+      return self
+    raise TypeError(self)
+  def __pos__(self):
+    '''greedy mode'''
+    self.mode = greedy
+    return self
+  def __neg__(self):
+    '''lazy mode'''
+    self.mode = lazy
+    return self
+  def __add__(self, other): 
+    '''a+b'''
+    if isinstance(other, Sequence):
+      return Sequence([self]+other.exps)
+    else: return Sequence([self, other])
+  def __or__(self, other): 
+    '''a|b'''
+    return Or(self, other)
+  def __repr__(self):
+    return ''.join([repr(x) for x in 
+          [self.item, self.separator, self.min, self.max, 
+          self.template, self.result, self.mode]])
 
 class BuiltinMatcher(BuiltinMacro):
-  def __call__(self, *exps):
-    return MatcherApply(self, *exps)
+  def __call__(self, *exps): return ApplyMatcher(self, *exps)
 
-class MatcherApply(Apply):
+def slice_stop_default():
+  class A:
+    def __getitem__(self, other): return other.stop
+  return A()[:]
+slice_stop_default = slice_stop_default()
+
+def slice_step_default():
+  class A:
+    def __getitem__(self, other): return other.step
+  return A()[:]
+slice_step_default = slice_step_default()
+
+class ApplyMatcher(Apply):
+  '''
+  a+b: Sequence;
+  a|b: Or;
+  +a: optional(a, greedy)
+  -a: optional(a, nongreedy)'''
   def __getitem__(self, index):
     if not isinstance(index, slice):
       if index==0: raise ValueError(index)
       if index==1: return self
-      return Repeater(self, index)
+      return Repeater(self, None, index, index)
     elif isinstance(index, slice): 
-      if index.step is not None: raise ValueError(index)
-      if index.start>=index.stop: raise ValueError(index)
-      if index.start is None and index.stop is None:
-        return any(self)
-      if index.start==1 and index.stop is None:
-        return some(self)
-      if index.start==index.stop-1:
-        return times(self, index.start)
-      if index.start==None and index.stop==1:
-        return optional(self)
-      if index.start is not None and index.stop is None:
-        return Repeater(self, index.start)+any(self)
-      raise ValueError(index)
-  def __neg__(self):
-    return optional(self)
+      if index.step!=slice_step_default: raise ValueError(index)
+      if index.start>index.stop: raise ValueError(index)
+      if index.stop==slice_stop_default: index.stop = None
+      return Repeater(self, None, index.start, index.stop)
+    raise ValueError(index)
+  def __neg__(self): 
+    if self is not optional: return optional(self, nongreedy)
+    raise TypeError(self)
   def __pos__(self):
-    return some(self)
-  def __div__(self, other):
-    if self.operator not in [some, any, times, seplist]:
-      raise ValueError(self)
-    if self.result is not None:
-      raise ValueError(self)
-    self.template = other
-    return self
-  def __rshift__(self, other):
-    if self.operator in [some, any, times, seplist]:
-      if self.result is not None:
-        raise ValueError(self)
-      self.result = other
-      return self
-    raise ValueError(self)
+    if self.operator is not optional: return optional(self, greedy)
+    raise TypeError(self)
+  def __add__(self, other):
+    if isinstance(other, Sequence):
+      return Sequence([self], other.exps)
+    return Sequence([self, other])
+  def __or__(self, other):
+    if isinstance(other, Or):
+      return Or([self]+other.exps)
+    return Or([self, other])
 
 matcher = builtin(BuiltinMatcher)
+
+class Sequence:
+  def __init__(self, exps):
+    self.exps = exps
+  def __add__(self, other):
+    if isinstance(other, Sequence):
+      return Sequence(self.exps+other.exps)
+    return Sequence(self.exps+[other])
+  def __or__(self, other):
+    return Or(self, other)
+  def ___parse___(self, parser):
+    return special.begin(*[parser.parse(e) for e in self.exps])
+    
+class Or:
+  def __init__(self, call1, call2):
+    self.call1 = call1
+    self.call2 = call2
+  def __add__(self, other):
+    if isinstance(other, Sequence):
+      return Sequence([self]+other.exps)
+    return Sequence([self, other])
+  def __or__(self, other):
+    return Or(self, other)
+  def ___parse___(self, parser):
+    return or_(parser.parse(self.call1), parser.parse(self.call2))
 
 @matcher()
 def nullword(solver, cont): 
@@ -197,36 +275,41 @@ def any(item, template=None, result=None, mode=nongreedy):
   if result is None:
     if mode==greedy:
       @matcher('any')
-      def any_bultin(solver, cont):  
+      def any_bultin(solver, cont, item):  
         yield greedy_repeat_cont(deref(item, solver.env), cont), []
+      return any_bultin(item)
     elif mode==nongreedy:
       @matcher('any')
-      def any_bultin(solver, cont):  
+      def any_bultin(solver, cont, item):  
         yield nongreedy_repeat_cont(deref(item, solver.env), cont), []
+      return any_bultin(item)
     else:# mode==lazy:
       @matcher('any')
-      def any_bultin(solver, cont):  
+      def any_bultin(solver, cont, item):  
         yield lazy_repeat_cont(deref(item, solver.env), cont), []
+      return any_bultin(item)
   else:
     if mode==greedy:
       @matcher('any')
-      def any_bultin(solver, cont):  
+      def any_bultin(solver, cont, item, template, result):  
         yield greedy_repeat_result_cont(
           deref(item, solver.env), cont, 0, [], 
           deref(template, solver.env), deref(result, solver.env)), []
+      return any_bultin(item, template, result)
     elif mode==nongreedy:
       @matcher('any')
-      def any_bultin(solver, cont):  
+      def any_bultin(solver, cont, item, template, result):  
         yield nongreedy_repeat_result_cont(
           deref(item, solver.env), cont, 0, [], 
           deref(template, solver.env), deref(result, solver.env)), []
+      return any_bultin(item, template, result)
     else: # mode==lazy
       @matcher('any')
-      def any_bultin(solver, cont):  
+      def any_bultin(solver, cont, item, template, result):  
         yield lazy_repeat_result_cont(
           deref(item, solver.env), cont, 0, [], 
           deref(template, solver.env), deref(result, solver.env)), []
-  return any_bultin()
+      return any_bultin(item, template, result)
 
 def make_repeat_cont(solver, cont, item, matched_times, matched_list, template, result, mode):
   if result is None:
@@ -254,41 +337,46 @@ def some(item, template=None, result=None, mode=nongreedy):
   if result is None:
     if mode==greedy:
       @matcher('some')
-      def some_bultin(solver, cont):  
+      def some_bultin(solver, cont, item):  
         yield solver.cont(item, greedy_repeat_cont(
           deref(item, solver.env), cont)), []
+      return some_bultin(item)
     elif mode==nongreedy:
       @matcher('some')
-      def some_bultin(solver, cont):  
+      def some_bultin(solver, cont, item):  
         yield solver.cont(item, nongreedy_repeat_cont(
           deref(item, solver.env), cont)), []
+      return some_bultin(item)
     else:# mode==lazy:
       @matcher('some')
-      def some_bultin(solver, cont):  
+      def some_bultin(solver, cont, item):  
         yield solver.cont(item, lazy_repeat_cont(
           deref(item, solver.env), cont)), []
+      return some_bultin(item)
   else:
     if mode==greedy:
       @matcher('some')
-      def some_bultin(solver, cont):  
+      def some_bultin(solver, cont, item, template, result):  
         yield solver.cont(item, greedy_repeat_result_cont(
           deref(item, solver.env), cont, 1, [], 
           deref(template, solver.env), deref(result, solver.env))), []
+      return some_bultin(item, template, result)
     elif mode==nongreedy:
       @matcher('some')
-      def some_bultin(solver, cont):  
+      def some_bultin(solver, cont, item, template, result):  
         yield solver.cont(item, nongreedy_repeat_result_cont(
           deref(item, solver.env), cont, 1, [], 
           deref(template, solver.env), deref(result, solver.env))), []
+      return some_bultin(item, template, result)
     else: # mode==lazy
       @matcher('some')
-      def some_bultin(solver, cont):  
+      def some_bultin(solver, cont, item, template, result):  
         yield solver.cont(item, lazy_repeat_result_cont(
           deref(item, solver.env), cont, 1, [], 
           deref(template, solver.env), deref(result, solver.env))), []
-  return some_bultin()
+      return some_bultin(item, template, result)
 
-def greedy_times_cont(item, cont):
+def greedy_times_cont(item, expectTimes, cont, matched_times):
   if isinstance(expectTimes, int):
     @mycont(cont)
     def times_cont(value, solver):
@@ -422,7 +510,7 @@ def times(item, expectTimes, template=None, result=None, mode=nongreedy):
   if result is None:
     if mode==greedy:
       @matcher('times')
-      def times_bultin(solver, cont):
+      def times_bultin(solver, cont, item):
         expectTimes1 = getvalue(expectTimes, solver.env)
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
@@ -430,9 +518,10 @@ def times(item, expectTimes, template=None, result=None, mode=nongreedy):
             yield cont, True
             return
         yield greedy_times_cont(item, expectTimes1, cont, 0), True
+      return times_bultin(item)
     elif mode==nongreedy:
       @matcher('times')
-      def times_bultin(solver, cont):
+      def times_bultin(solver, cont, item):
         expectTimes1 = getvalue(expectTimes, solver.env)
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
@@ -440,9 +529,10 @@ def times(item, expectTimes, template=None, result=None, mode=nongreedy):
             yield cont, True
             return
         yield nongreedy_times_cont(item, expectTimes1, cont, 0), True
+      return times_bultin(item)
     else:# mode==lazy:
       @matcher('times')
-      def times_bultin(solver, cont): 
+      def times_bultin(solver, cont, item): 
         expectTimes1 = getvalue(expectTimes, solver.env)
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
@@ -450,10 +540,11 @@ def times(item, expectTimes, template=None, result=None, mode=nongreedy):
             yield cont, True
             return
         yield lazy_times_cont(item, expectTimes1, cont, 0), True
+      return times_bultin(item)
   else:
     if mode==greedy:
       @matcher('times')
-      def times_bultin(solver, cont):  
+      def times_bultin(solver, cont, item, template, result):  
         expectTimes1 = getvalue(expectTimes, solver.env)
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
@@ -463,9 +554,10 @@ def times(item, expectTimes, template=None, result=None, mode=nongreedy):
         yield greedy_times_result_cont(
           deref(item, solver.env), expectTimes1, cont, 0, [], 
           deref(template, solver.env), deref(result, solver.env)), []
+      return times(item, expectTimes, template, result)
     elif mode==nongreedy:
       @matcher('times')
-      def times_bultin(solver, cont): 
+      def times_bultin(solver, cont, item, template, result): 
         expectTimes1 = getvalue(expectTimes, solver.env)
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
@@ -475,9 +567,10 @@ def times(item, expectTimes, template=None, result=None, mode=nongreedy):
         yield nongreedy_times_result_cont(
           deref(item, solver.env), expectTimes1, cont, 0, [], 
           deref(template, solver.env), deref(result, solver.env)), []
+      return times_bultin(item, template, result)
     else: # mode==lazy
       @matcher('times')
-      def times_bultin(solver, cont): 
+      def times_bultin(solver, cont, item, template, result): 
         expectTimes1 = getvalue(expectTimes, solver.env)
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
@@ -487,7 +580,7 @@ def times(item, expectTimes, template=None, result=None, mode=nongreedy):
         yield lazy_times_result_cont(
           deref(item, solver.env), expectTimes1, cont, 0, [], 
           deref(template, solver.env), deref(result, solver.env)), []
-  return times_bultin()
+      return times_bultin(item, template, result)
 
 @matcher()
 def times_more(solver, cont, item, expectTimes, template=None, result=None, mode=nongreedy): 
@@ -655,7 +748,7 @@ def times_less(solver, cont, item, expectTimes, template=None, result=None, mode
         
 def times_between(item, min, max, template=None, result=None, mode=nongreedy):
   @matcher('times_between')
-  def times_between_builtin(solver, cont):
+  def times_between_builtin(solver, cont, item, template, result):
     min1 = deref(min, solver.env)
     max1 = deref(max, solver.env)
     if not isinstance(min1, int): raise ValueError(min1)
@@ -675,7 +768,7 @@ def times_between(item, min, max, template=None, result=None, mode=nongreedy):
           for _ in unify(result, matched_list, solver.env):
             yield cont, True
         else: yield cont, True
-  return times_between_builtin()
+  return times_between_builtin(item, template, result)
 
 def seplist(item, separator, template=None, result=None, 
             expect_times=None, mode=nongreedy):
@@ -685,63 +778,68 @@ def seplist(item, separator, template=None, result=None,
     if result is None:
       if mode==greedy:
         @matcher('seplist')
-        def seplist_bultin(solver, cont):  
+        def seplist_bultin(solver, cont, item, separator):  
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           yield solver.cont(item1, greedy_repeat_cont(
-            separator1+item1, cont)), []
+            and_(separator1, item1), cont)), []
+        return seplist_bultin(item, separator)
       elif mode==nongreedy:
         @matcher('seplist')
-        def seplist_bultin(solver, cont):  
+        def seplist_bultin(solver, cont, item, separator):  
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           yield solver.cont(item1, nongreedy_repeat_cont(
-            separator1+item1, cont)), []
+            and_(separator1, item1), cont)), []
       else:# mode==lazy:
-        @matcher('some')
-        def seplist_bultin(solver, cont):  
+        @matcher('seplist')
+        def seplist_bultin(solver, cont, item, separator):  
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           yield solver.cont(item1, lazy_repeat_cont(
-            separator1+item1, cont)), []
+            and_(separator1, item1), cont)), []
+        return seplist_bultin(item, separator)
     else:
       if mode==greedy:
         @matcher('seplist')
-        def seplist_bultin(solver, cont):  
+        def seplist_bultin(solver, cont, item, separator, template, result):  
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           for _ in solver.solve(item1, cont):
             yield greedy_repeat_result_cont(
-            separator1+item1, cont, 1, [], 
+            and_(separator1, item1), cont, 1, [], 
             deref(template, solver.env), deref(result, solver.env)), []
             return
           for _ in unify(result, [], solver.env):
             yield cont, True
+        return seplist_bultin(item, separator, template, result)
       elif mode==nongreedy:
         @matcher('seplist')
-        def seplist_bultin(solver, cont):  
+        def seplist_bultin(solver, cont, item, separator, template, result):  
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           yield solver.cont(item1, nongreedy_repeat_result_cont(
-            separator1+item1, cont, 1, [], 
+            and_(separator1, item1), cont, 1, [], 
             deref(template, solver.env), deref(result, solver.env))), []
           for _ in unify(result, [], solver.env):
             yield cont, True
+        return seplist_bultin(item, separator, template, result)
       else: # mode==lazy
         @matcher('seplist')
-        def seplist_bultin(solver, cont):  
+        def seplist_bultin(solver, cont, item, separator):  
           for _ in unify(result, [], solver.env):
             yield cont, True
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           yield solver.cont(item1, lazy_repeat_result_cont(
-            separator1+item1, cont, 1, [], 
+            and_(separator1, item1), cont, 1, [], 
             deref(template, solver.env), deref(result, solver.env))), []
+        return seplist_bultin(item, separator, template, result)
   else:
     if result is None:
       if mode==greedy:
         @matcher('seplist')
-        def seplist_bultin(solver, cont):
+        def seplist_bultin(solver, cont, item, separator):
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           expectTimes1 = getvalue(expectTimes, solver.env)
@@ -750,11 +848,12 @@ def seplist(item, separator, template=None, result=None,
             elif expectTimes1==0: 
               yield cont, True
               return
-          yield solver.cont(item1, greedy_times_cont(separator1+item1, 
+          yield solver.cont(item1, greedy_times_cont(and_(separator1, item1), 
                             expectTimes1, cont, 1, [])), True
+        return seplist_bultin(item, separator)
       elif mode==nongreedy:
         @matcher('seplist')
-        def seplist_bultin(solver, cont):
+        def seplist_bultin(solver, cont, item, separator):
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           expectTimes1 = getvalue(expectTimes, solver.env)
@@ -763,11 +862,12 @@ def seplist(item, separator, template=None, result=None,
             elif expectTimes1==0: 
               yield cont, True
               return
-          yield solver.cont(item1, nongreedy_times_cont(separator1+item1, 
+          yield solver.cont(item1, nongreedy_times_cont(and_(separator1, item1), 
                             expectTimes1, cont, 1, [])), True
+        return seplist_bultin(item, separator)
       else:# mode==lazy:
         @matcher('seplist')
-        def seplist_bultin(solver, cont): 
+        def seplist_bultin(solver, cont, item, separator): 
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           expectTimes1 = getvalue(expectTimes, solver.env)
@@ -776,12 +876,13 @@ def seplist(item, separator, template=None, result=None,
             elif expectTimes1==0: 
               yield cont, True
               return
-          yield solver.cont(item1, lazy_times_cont(separator1+item1, 
+          yield solver.cont(item1, lazy_times_cont(and_(separator1, item1), 
                             expectTimes1, cont, 1, [])), True
+        return seplist_bultin(item, separator)
     else:
       if mode==greedy:
         @matcher('seplist')
-        def seplist_bultin(solver, cont):  
+        def seplist_bultin(solver, cont, item, separator, template, result):  
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           expectTimes1 = getvalue(expectTimes, solver.env)
@@ -793,9 +894,10 @@ def seplist(item, separator, template=None, result=None,
           yield solver.cont(item1, greedy_times_result_cont(
             deref(item, solver.env), expectTimes1, cont, 1, [], 
             deref(template, solver.env), deref(result, solver.env))), []
+        return seplist_bultin(item, separator, template, result)
       elif mode==nongreedy:
         @matcher('seplist')
-        def seplist_bultin(solver, cont): 
+        def seplist_bultin(solver, cont, item, separator, template, result): 
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           expectTimes1 = getvalue(expectTimes, solver.env)
@@ -805,11 +907,12 @@ def seplist(item, separator, template=None, result=None,
               for _ in unify(result, [], solver.env): yield cont, True
               return
           yield solver.cont(item1, nongreedy_times_result_cont(
-            deref(item, solver.env), expectTimes1, cont, 1, [], 
+            and_(separator1, item1), expectTimes1, cont, 1, [], 
             deref(template, solver.env), deref(result, solver.env))), []
+        return seplist_bultin(item, separator, template, result)
       else: # mode==lazy
         @matcher('seplist')
-        def seplist_bultin(solver, cont): 
+        def seplist_bultin(solver, cont, item, separator, template, result): 
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           expectTimes1 = getvalue(expectTimes, solver.env)
@@ -819,13 +922,14 @@ def seplist(item, separator, template=None, result=None,
               for _ in unify(result, [], solver.env): yield cont, True
               return
           yield solver.cont(item1, lazy_times_result_cont(
-            deref(item, solver.env), expectTimes1, cont, 1, [], 
+            and_(separator1, item1), expectTimes1, cont, 1, [], 
             deref(template, solver.env), deref(result, solver.env))), []
+        return seplist_bultin(item, separator, template, result)
   return seplist_bultin()
     
 def seplist_times_more(item, separator, expect_times, template=None, result=None, mode=nongreedy):
   @matcher('seplist_times_more')
-  def seplist_bultin(solver, cont):
+  def seplist_bultin(solver, cont, item, separator, template, result):
     expect_times = deref(expect_times, solver.env)
     if not isinstance(expect_times, int): raise ValueError(expect_times)
     result1 = deref(result, solver.env)
@@ -840,13 +944,14 @@ def seplist_times_more(item, separator, expect_times, template=None, result=None
       if result1 is not None:
         matched_list = getvalue(temp_result1, solver.env)
       else: matched_list = None
-      next_cont = make_repeat_cont(solver, cont, item1+separator1, 
+      next_cont = make_repeat_cont(solver, cont, and_(separator1, item1), 
                     0, matched_list, template1, result1, mode)
       yield next_cont, v
+  return seplist_bultin(item, separator, template, result)
 
 def seplist_times_less(item, separator, expect_times, template=None, result=None, mode=nongreedy):
   @matcher('seplist_times_more')
-  def seplist_bultin(solver, cont):
+  def seplist_bultin(solver, cont, item, separator, template, result):
     expect_times = deref(expect_times, solver.env)
     if not isinstance(expect_times, int): raise ValueError(expect_times)
     if expect_times==0: 
@@ -894,10 +999,11 @@ def seplist_times_less(item, separator, expect_times, template=None, result=None
         next_cont = make_times_less_cont(solver, cont, item1, separator1, 
                       expect_times1-1, 1, [], template1, result1, mode)
         yield next_cont, v
-      
+  return seplist_bultin(item, separator, template, result)
+
 def seplist_times_between(item, separator, min, max, template=None, result=None, mode=nongreedy):
   @matcher('seplist_times_between')
-  def seplist_times_between_builtin(solver, cont):
+  def seplist_times_between_builtin(solver, cont, item, separator, template, result):
     min1 = deref(min, solver.env)
     max1 = deref(max, solver.env)
     if not isinstance(min1, int): raise ValueError(min1)
@@ -917,7 +1023,7 @@ def seplist_times_between(item, separator, min, max, template=None, result=None,
           for _ in unify(result, matched_list, solver.env):
             yield cont, True
         else: yield cont, True
-  return seplist_times_between_builtin()
+  return seplist_times_between_builtin(item, separator, template, result)
 
 @matcher()
 def follow(solver, cont, item):

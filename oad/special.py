@@ -2,14 +2,14 @@
 
 from oad.term import Apply, Function, Macro, closure, Var
 from oad.rule import Rule, RuleList
-from oad.solve import value_cont, mycont, to_sexpression
+from oad.solve import value_cont, mycont
 from oad.env import BlockEnvironment
 from oad.builtins.arith import eq, not_
 from oad.builtins.type import iter_next, make_iter
 
 # special forms: quote, begin, if, eval, let, lambda, function, macro, module
 class ParserForm: 
-  def parse(self, parser): 
+  def ___parse___(self, parser): 
     return self
 
 class SpecialForm(ParserForm):
@@ -47,7 +47,7 @@ def assign_var(var, value, env):
 class set(SpecialForm):
   def __init__(self, var, exp):
     self.var, self.exp = var, exp
-  def parse(self, parser): 
+  def ___parse___(self, parser): 
     self.exp = parser.parse(self.exp)
     return self
   def cont(self, cont, solver):
@@ -65,7 +65,7 @@ assign = set
 class set_list(SpecialForm):
   def __init__(self, vars, exp):
     self.vars, self.exp = vars, exp
-  def parse(self, parser): 
+  def ___parse___(self, parser): 
     self.exp = parser.parse(self.exp)
     return self
   def cont(self, cont, solver):
@@ -88,7 +88,7 @@ class begin(SpecialForm):
     self.exps = exps
   def cont(self, cont, solver): 
     return solver.exps_cont(self.exps, cont)
-  def parse(self, parser): 
+  def ___parse___(self, parser): 
     self.exps = tuple(parser.parse(exp) for exp in self.exps)
     return self
   def __eq__(self, other): 
@@ -107,7 +107,7 @@ def make_if_cont(then, els, cont):
 class if_(SpecialForm):
   def __init__(self, test, exp1, exp2=None):
     self.test, self.exp1, self.exp2 = test, exp1, exp2
-  def parse(self, parser): 
+  def ___parse___(self, parser): 
     self.exp1 = parser.parse(self.exp1)
     self.exp2 = parser.parse(self.exp2)
     return self
@@ -130,7 +130,7 @@ def make_iff_cont(then, clauses, els, cont):
 class iff(SpecialForm):
   def __init__(self, clauses, els=None):
     self.clauses, self.els = clauses, els
-  def parse(self, parser): 
+  def ___parse___(self, parser): 
     self.clauses = [parser.parse(clause) for clause in self.clauses]
     self.els = parser.parse(self.els)
     return self
@@ -152,7 +152,7 @@ class pytry(SpecialForm):
   def __init__(self, body, exception, clause, final=None):
     self.body = body
     self.exception, self.clause, self.final = exception, clause, final
-  def parse(self, parser): 
+  def ___parse___(self, parser): 
     for clause in self.clauses:
       clause[1] = parse(clause[1], parser)
     self.els = parse(self.els, parser)
@@ -183,7 +183,7 @@ class pytry(SpecialForm):
 class CaseForm(SpecialForm):
   def __init__(self, test, cases, els=None):
     self.test, self.cases, self.els = test, cases, els
-  def parse(self, parser): 
+  def ___parse___(self, parser): 
     for k in self.cases:
       self.cases[k] = parser.parse(self.cases[k])
     self.els = parser.parse(self.els)
@@ -206,7 +206,7 @@ class CaseForm(SpecialForm):
 class loop(SpecialForm):
   def __init__(self, *body):
     self.body = body
-  def parse(self, parser): 
+  def ___parse___(self, parser): 
     self.body = parser.parse(self.body)
     return self
   def cont(self, cont, solver):
@@ -223,7 +223,7 @@ class LoopForm(ParserForm):
   def __init__(self, body, label=None):
     self.body, self.label = body, label
   
-  def parse(self, parser):
+  def ___parse___(self, parser):
     exit_label, next_label = parser.make_label(self.label)
     parser.push_label('loop', exit_label, next_label)
     body = parser.parse(self.body)
@@ -237,7 +237,7 @@ class LoopForm(ParserForm):
 class LoopTimesForm(ParserForm):
   def __init__(self, times, body, label=None):
     self.times, self.body, self.label = times, body, label
-  def parse(self, parser):
+  def ___parse___(self, parser):
     exit_label, next_label = parser.make_label(self.label)
     parser.push_label('loop', exit_label, next_label)
     body = parser.parse(self.body)
@@ -254,7 +254,7 @@ class LoopTimesForm(ParserForm):
 class WhenLoopForm(ParserForm):
   def __init__(self, body, condition):
     self.body, self.condition = body, condition
-  def parse(self, parser): 
+  def ___parse___(self, parser): 
     exit_label, next_label = parser.make_label(self.label)
     parser.push_label('when', exit_label, next_label)
     body = parser.parse(self.body)
@@ -265,7 +265,7 @@ class WhenLoopForm(ParserForm):
 class LoopWhenForm(ParserForm):
   def __init__(self, body, condition, label=None):
     self.body, self.condition, self.label = body, condition, label
-  def parse(self, parser): 
+  def ___parse___(self, parser): 
     exit_label, next_label = parser.make_label(self.label)
     parser.push_label('when', exit_label, next_label)
     body = parser.parse(self.body)
@@ -280,7 +280,7 @@ class LoopWhenForm(ParserForm):
 class LoopUntilForm(ParserForm):
   def __init__(self, body, condition, label=None):
     self.body, self.condition, self.label = body, condition, label
-  def parse(self, parser): 
+  def ___parse___(self, parser): 
     exit_label, next_label = parser.make_label(self.label)
     parser.push_label('until', exit_label, next_label) 
     body = parser.parse(self.body)
@@ -295,7 +295,7 @@ class LoopUntilForm(ParserForm):
 class EachForm(ParserForm):
   def __init__(self, vars, iterator, body, label=None):
     self.vars, self.iterator, self.body, self.label = vars, iterator, body, label
-  def parse(self, parser): 
+  def ___parse___(self, parser): 
     exit_label, next_label = parser.make_label(self.label)
     parser.push_label('each', exit_label, next_label)
     body = parser.parse(self.body)
@@ -333,7 +333,7 @@ class OnForm(ParserForm):
 class exit(ParserForm):
   def __init__(self, value=None, type=None, label=None): 
     self.value, self.type, self.label = value, type, label
-  def parse(self, parser):
+  def ___parse___(self, parser):
     if self.label is None:
       return return_from(parser.exit_labels[self.type][-1], self.value)
     else:
@@ -343,7 +343,7 @@ class exit(ParserForm):
 class next(ParserForm):
   def __init__(self, type=None, label=None): 
     self.type, self.label = type, label
-  def parse(self, parser):
+  def ___parse___(self, parser):
     if self.label is None:
       return return_from(parser.next_labels[self.type][-1])
     else:
@@ -365,7 +365,7 @@ class FunctionForm(SpecialForm):
     self.arity2rules = {}
     for rule in rules:
       self.arity2rules.setdefault(len(rule[0]), RuleList()).append(Rule(rule[0], rule[1:]))
-  def parse(self, parser):
+  def ___parse___(self, parser):
     for arity, rule_list in self.arity2rules.items():
       self.arity2rules[arity] = parser.parse(rule_list)
     return self
@@ -450,7 +450,7 @@ class module(SpecialForm):
   def __init__(self, *body):
     #[module ...]
     self.body = body
-  def parse(self, parser):
+  def ___parse___(self, parser):
     self.body = parser.parse(self.body)
     return self
   def cont(self, cont, solver):
@@ -465,7 +465,7 @@ class module(SpecialForm):
 class block(SpecialForm):
   def __init__(self, label, *body):
     self.label, self.body = label, body
-  def parse(self, parser): 
+  def ___parse___(self, parser): 
     self.body = parser.parse(self.body)
     return self
   def cont(self, cont, solver):
@@ -478,7 +478,7 @@ class block(SpecialForm):
 class return_from(SpecialForm):
   def __init__(self, label, form=None):
     self.label, self.form = label, form
-  def parse(self, parser):
+  def ___parse___(self, parser):
     self.form = parser.parse(self.form)
     return self
   def cont(self, cont, solver):
@@ -518,7 +518,7 @@ def have_lookup(fun):
 class catch(SpecialForm):
   def __init__(self, tag, *body):
     self.tag, self.body = tag, body
-  def parse(self, parser):
+  def ___parse___(self, parser):
     self.tag = parser.parse(self.tag)
     self.body = parser.parse(self.body)
     return self
@@ -539,7 +539,7 @@ class catch(SpecialForm):
 class throw(SpecialForm):
   def __init__(self, tag, form):
     self.tag, self.form = tag, form
-  def parse(self, parser):
+  def ___parse___(self, parser):
     self.tag = parser.parse(self.tag)
     self.form = parser.parse(self.form)
     return self
@@ -554,7 +554,7 @@ class unwind_protect(SpecialForm):
   #[unwind-protect form cleanup]
   def __init__(self, form, *cleanup):
     self.form, self.cleanup = form, cleanup
-  def parse(self, parser):
+  def ___parse___(self, parser):
     self.form = parser.parse(self.form)
     self.cleanup = parser.parse(self.cleanup)
     return self

@@ -8,7 +8,7 @@ from oad.special import function, let, letrec, macro, begin, eval_
 from oad.builtins.arith import add
 from oad.builtins.parser import settext, parse
 from oad.builtins.parser import step, left, next, position, subtext, goto, skip
-from oad.builtins.terminal import char, number, eof, literal, letter 
+from oad.builtins.terminal import char, number, eos, literal, letter 
 from oad.builtins.terminal import dqstring, sqstring, spaces, uLetterdigitString
 from oad.builtins.matchterm import nullword, optional, parallel
 from oad.builtins.matchterm import any, some, times, times_more, times_less, seplist
@@ -68,7 +68,7 @@ class Testterminal:
   def test_nullword1(self):
     eq_(eval(parse(char('a')&nullword&char('b'), 'ab')), 'b')    
   def testnullword2(self):
-    eq_(eval(parse(and_(nullword, eof), 'a')), None) 
+    eq_(eval(parse(and_(nullword, eos), 'a')), None) 
     eq_(eval(parse(nullword, '')), True)
   def testnullword3(self):
     rule = and_(char('a'), nullword, char('b'))
@@ -129,10 +129,12 @@ class Testrule:
                           ((x,),char(x)))}
     eq_(eval(letrec(function1, parse(p(x), 'aa'))), 'a')
     eq_(eval(letrec(function1, parse(p(x), 'a'))), 'a')
-    eq_(eval(letrec(function1, parse(and_(p(x), eof), 'xy'))), None)
+    eq_(eval(letrec(function1, parse(and_(p(x), eos), 'xy'))), None)
     eq_(eval(letrec(function1, parse(p(x), ''))), None)
+    
   def xxxtest_left_recursive(self):
     assert 0, 'a good idea is waiting to be implemented'
+    assert 0, 'googd idea failed!'
     engine = Engine()
     X = Var()
     f = userTerm("f")
@@ -152,15 +154,15 @@ class TestOr:
     eq_(eval(letrec(ruleList, parse(s(x), '1'))), '1')
     eq_(eval(letrec(ruleList, parse(s(y),  '2'))), '2')         
     eq_(eval(letrec(ruleList, parse(s(x), '3'))), None)
-    eq_(eval(letrec(ruleList, parse(and_(s(x), eof), '12'))), None)
+    eq_(eval(letrec(ruleList, parse(and_(s(x), eos), '12'))), None)
     eq_(eval(letrec(ruleList, parse(s(x), ''))), None)
 
 class TestOptional:
   def test_optional(self):
     x = Var('x')
+    eq_(eval(parse(optional(char(x))+char('1'), '1')), None)
     eq_(eval(parse(optional(char(x)), '1')), '1')
     eq_(eval(parse(optional(char(x)), '')), True)
-    eq_(eval(parse(optional(char(x))+char('1'), '1')), None)
 
   def testoptionalRule(self):
     x, s = Var('x'), Var('s')
@@ -189,7 +191,7 @@ class TestParallel:
                 lt:function( ((4, 5),char('4')))}
     eq_(eval(letrec(ruleList, parse(s(x), '4'), x)), 4)
     eq_(eval(letrec(ruleList, parse(s(x), '6'), x)), None)
-    eq_(eval(letrec(ruleList, parse(and_(s(x), eof), '41'), x)), None)
+    eq_(eval(letrec(ruleList, parse(and_(s(x), eos), '41'), x)), None)
     eq_(eval(letrec(ruleList, parse(s(x), ''), x)), None)
         
 class TestAnySomeTimesSepList:
@@ -233,15 +235,15 @@ class TestAnySomeTimesSepList:
     eq_(eval(begin(parse(times(char(_), 3, _, Y), '234'), Y)), ['2','3','4'])
   def test_dummy_times_more(self):
     _, Y = DummyVar('_'), Var('Y')
-##    eq_(eval(begin(parse(times_more(char(_), 3, _, Y), '234'), Y)), ['2','3','4'])
-##    eq_(eval(begin(parse(times_more(char(_), 3, _, Y), '2345'), Y)), ['2','3','4', '5'])
+    eq_(eval(begin(parse(times_more(char(_), 3, _, Y), '234'), Y)), ['2','3','4'])
+    eq_(eval(begin(parse(times_more(char(_), 3, _, Y), '2345'), Y)), ['2','3','4', '5'])
     eq_(eval(begin(parse(times_more(char(_), 3, _, Y), '23'), Y)), None)
   def test_dummy_times_less(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(begin(parse(times_less(char(_), 3, _, Y)+char('4'), '234'), Y)), ['2','3'])
     eq_(eval(begin(parse(times_less(char(_), 3, _, Y), '234'), Y)), ['2','3','4'])
     eq_(eval(begin(parse(times_less(char(_), 3, _, Y), '23'), Y)), ['2','3'])
-    eq_(eval(begin(parse(times_less(char(_), 3, _, Y)+eof, '2345'), Y)), None)
+    eq_(eval(begin(parse(times_less(char(_), 3, _, Y)+eos, '2345'), Y)), None)
   def test_dummy_times_less_lazy(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(begin(parse(times_less(char(_), 3, _, Y, lazy)+char('4'), '234'), Y)), ['2','3'])
@@ -251,13 +253,13 @@ class TestAnySomeTimesSepList:
     eq_(eval(begin(parse(times_between(char(_), 2, 3, _, Y), '23'), Y)), ['2','3'])
     eq_(eval(begin(parse(times_between(char(_), 2, 3, _, Y), '2345'), Y)), ['2','3', '4'])
     eq_(eval(begin(parse(times_between(char(_), 2, 3, _, Y), '2'), Y)), None)
-    eq_(eval(begin(parse(times_between(char(_), 2, 3, _, Y)+eof, '2345'), Y)), None)
+    eq_(eval(begin(parse(times_between(char(_), 2, 3, _, Y)+eos, '2345'), Y)), None)
   def test_times_a2(self): 
     X, Y, S = Var('X'), Var('Y'), Var('S')
     function1 = function(((Y,), times(char('a'), 2, 'a', Y)))
     eq_(eval(begin(parse(function1(X),'aa'), X)), ['a', 'a'])
     eq_(eval(begin(parse(function1(X), 'a'), X)), None)
-    eq_(eval(begin(parse(and_(function1(X), eof), 'aaa'), X)), None)
+    eq_(eval(begin(parse(and_(function1(X), eos), 'aaa'), X)), None)
   def test_times_an(self): 
     X, Y, S, n = Var('X'), Var('Y'), Var('S'), Var('n')
     function1 = function( ((Y,), times(char('a'), n, 'a', Y)))
@@ -286,8 +288,8 @@ class TestKleeneByfunction:
                   ((nil,), nullword))}
     eq_(eval(letrec(ruleList, parse(s(x), 'aa'), x)), L('a', 'a'))
     eq_(eval(letrec(ruleList, parse(s(x), ''), x)), nil)
-    eq_(eval(letrec(ruleList, parse(and_(s(x), eof), '6'), x)), None)
-    eq_(eval(letrec(ruleList, parse(and_(s(x), eof), '41'), x)), None)
+    eq_(eval(letrec(ruleList, parse(and_(s(x), eos), '6'), x)), None)
+    eq_(eval(letrec(ruleList, parse(and_(s(x), eos), '41'), x)), None)
 
   def testKleene2(self):
     x, c, s, kleene = Var('x'), Var('c'), Var('s'), Var('kleene')
@@ -299,9 +301,9 @@ class TestKleeneByfunction:
     eq_(eval(letrec(ruleList, parse(s(x), 'aaa'), x)), L('a', 'a', 'a'))
     eq_(eval(letrec(ruleList, parse(s(x), 'bbb'), x)), L('b', 'b', 'b'))
     eq_(eval(letrec(ruleList, parse(s(x), ''), x)), nil)
-    eq_(eval(letrec(ruleList, parse(and_(s(x), eof), 'aab'), x)), None)
-    eq_(eval(letrec(ruleList, parse(and_(s(x), eof), 'abc'), x)), None)
-    eq_(eval(letrec(ruleList, parse(and_(s(x), eof), '41'), x)), None)
+    eq_(eval(letrec(ruleList, parse(and_(s(x), eos), 'aab'), x)), None)
+    eq_(eval(letrec(ruleList, parse(and_(s(x), eos), 'abc'), x)), None)
+    eq_(eval(letrec(ruleList, parse(and_(s(x), eos), '41'), x)), None)
 
   def testKleene3(self):
     x, c, kleene = Var('x'), Var('c'), Var('kleene')
@@ -341,17 +343,39 @@ class testIndentUndent:
     eq_(eval(letrec(ruleList, parse(s(0),  'asd\n bdf\n cdfh\n'))), True)
 
 class TestExpression:          
+  def testRecursiveReturnValue1(self):
+    E, F, G, e, e1 = Var('E'), Var('F'), Var('G'), Var('e'), Var('e1')
+    ruleList = {E:function(((e,), F(e))),
+                E:function(((e1,), G(e1))),
+                G:function(((1,), char('1')))}
+    eq_(eval(letrec(ruleList, parse(E(e),  '1'), e)), 1)
+    
+  def testRecursiveReturnValue2(self):
+    E, F, e, e1 = Var('E'), Var('F'), Var('e'), Var('e1')
+    ruleList = {E:function((((e, e),), F(e))),
+                F:function(((1,), char('1')))}
+    eq_(eval(letrec(ruleList, parse(E(e),  '1'), e)), (1, 1))
+    
+  def testRecursiveReturnValue3(self):
+    E, e, e1, e2 = Var('E'), Var('e'), Var('e1'), Var('e2')  
+    ruleList = {E:function( 
+                     ((e, 1), E(e, 2)),
+                     ((e, 2), char(e)),
+                     (((e1, e2), 1), E(e1,2), E(e2, 1))
+                         )}
+    eq_(eval(letrec(ruleList, parse(E(e, 1)+eos, '12'), e)), ('1', '2'))
+
   def testExpressionByRightRecursiveList(self):
     E, e, e1, e2 = Var('E'), Var('e'), Var('e1'), Var('e2')  
     ruleList = {E:function( 
                      (((e1, '/', e2), 1), E(e1,2), char('/'), E(e2, 1)),
                      ((1, 2), char('1')),
                      ((e, 1), E(e, 2)))}
-##    eq_(eval(letrec(ruleList, parse(E(e, 1),  '1/1/1'), e)), (1, '/', (1, '/', 1)))
-##    eq_(eval(letrec(ruleList, parse(E(e, 1),  '1/1'), e)), (1, '/', 1))
+    eq_(eval(letrec(ruleList, parse(E(e, 1),  '1/1/1'), e)), (1, '/', (1, '/', 1)))
+    eq_(eval(letrec(ruleList, parse(E(e, 1),  '1/1'), e)), (1, '/', 1))
     eq_(eval(letrec(ruleList, parse(E(e, 1),  '1'), e)), 1)
-##    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eof), '1+1/1'), e)), None)
-##    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eof), '2'), e)), None)
-##    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eof), '1/'), e)), None)
-##    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eof), '/'), e)), None)
-##    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eof), ''), e)), None)
+    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eos), '1+1/1'), e)), None)
+    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eos), '2'), e)), None)
+    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eos), '1/'), e)), None)
+    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eos), '/'), e)), None)
+    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eos), ''), e)), None)

@@ -96,7 +96,8 @@ class TestEach:
 
 class TestFun:
   def test_at(self):
-    eq_(parse(at(i)[1](j)[2][3](x,y)[4]), 
+    at1 = at(i)[1](j)[2][3](x,y)[4]
+    eq_(parse(at1), 
         AtForm([((i,),[[1]]), ((j,),[[2],[3]]),((x,y),[[4]])])) 
   def test_at2(self):
     eq_(parse(at[write(1)]), AtForm([(None,[[write(1)]])]))

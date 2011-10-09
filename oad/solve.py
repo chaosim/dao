@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
 # env: environment
-# cont: continution
+# cont: continution 
+# stream: stream such as text used by the matchers which do parsing
 
 from oad.env import GlobalEnvironment
 
@@ -13,12 +14,12 @@ def mycont(cont):
     return fun
   return make_mycont
  
-@mycont(None)
-def done(value, solver): yield done, value
-
 class DaoUncaughtThrow(Exception):
   def __init__(self, tag): self.tag = tag
   
+@mycont(None)
+def done(value, solver): yield done, value
+
 def done_unwind(cont, tag, stop_cont, solver):
   if cont is stop_cont: return cont
   raise DaoUncaughtThrow(tag)
@@ -62,7 +63,7 @@ class Parser:
     self.next_labels[None].pop()
 
   def parse(self, exp):
-    try: parse_method = exp.parse
+    try: parse_method = exp.___parse___
     except: 
       if isinstance(exp, list):
         return [self.parse(e) for e in exp]
@@ -70,44 +71,29 @@ class Parser:
         return tuple(self.parse(e) for e in exp)
       else: return exp
     try: return parse_method(self)
-    except: return exp
-  
-def parse(exp): return Parser().parse(exp)
+    except TypeError: return exp
 
-def to_sexpression(exp):
-  try: return exp.to_sexpression()
-  except TypeError: return exp 
-  except AttributeError: 
-    if isinstance(exp, list) or isinstance(exp, tuple):
-      return tuple(to_sexpression(e) for e in exp)
-    else: return exp
-    
-def xxxclean_binding(exp):
-  try: return exp.clean_binding()
-  except AttributeError:
-    if isinstance(exp, list) or isinstance(exp, tuple):
-      return tuple(clean_binding(e) for e in exp)
-    else: return exp
-    
+def parse(exp): 
+  return Parser().parse(exp)
+
 def eval(exp):
-##  exp = to_sexpression(exp)
-  exp = parse(exp)
-  return Solver(None, None, None).eval(exp)
+  return Solver().eval(exp)
 
 class Solver:
-  # exp, exps: sexpression and sexpression list
-  def __init__(self, env, stream, stop):
+  # exp: expression 
+  # exps: expression list
+  
+  def __init__(self, env=None, stream=None, stop=None):
     if env is None: env = GlobalEnvironment()
     self.env = env
     self.stop = stop
     self.stream = stream
-  def copy(self): 
-    return Solver(self.env, self.stream, self.stop)
-
+  
   def eval(self, exp):
     for x in self.solve(exp): return x
     
   def solve(self, exp, stop=done):
+    exp = parse(exp)
     cont = self.cont(exp, stop)
     for _, result in self.run_cont(cont, stop):
       yield result
@@ -121,6 +107,7 @@ class Solver:
       for _ in self.solve(exps[0], self.exps_cont(exps[1:], stop)): 
         for x in self.solve_exps(exps[1:], stop):
           yield x
+          
   def run_cont(self, cont, stop, value=None):
     self1 = self
     self = Solver(self.env, self.stream, stop)
@@ -167,18 +154,8 @@ class Solver:
     try: to_cont = exp.cont
     except: return value_cont(exp, cont)
     try: return to_cont(cont, self)
-    except: return value_cont(exp, cont)
+    except TypeError: return value_cont(exp, cont)
 
-  def list_cont(self, exp, cont):
-    if len(exp)==0: return value_cont(exp)
-    try: 
-      form = exp[0].make_special_form(*exp[1:])
-      return self.cont(form, cont)
-    except: pass
-    @mycont(cont)
-    def evaluate_list_tail_cont(operator, solver): 
-      return operator.evaluate_cont(exp[1:], cont, solver)
-    return self.cont(exp[0], evaluate_list_tail_cont)
   def exps_cont(self, exps, cont):
       if len(exps)==0: return value_cont(True, cont)
       elif len(exps)==1: return self.cont(exps[0], cont)

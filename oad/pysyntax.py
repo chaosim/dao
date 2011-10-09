@@ -5,11 +5,11 @@ some tools that help you define operator grammars to parse python expression.
 see dinpy.py for a real sample.
 
 >>> from oad.term import Var
->>> from oad.builtins.terminal import eof
+>>> from oad.builtins.terminal import eos
 >>> from oad.builtins.type import pytuple, first
 >>> bindings, body = Var('bindings'), Var('body')
 >>> do = word('do')
->>> let = element(call(bindings)+do+getitem(body)+eof+pytuple(first(bindings), body))
+>>> let = element(call(bindings)+do+getitem(body)+eos+pytuple(first(bindings), body))
 >>> parse(let({'x':1}).do[1,2])
 ({'x': 1}, (1, 2))
 '''
@@ -22,25 +22,15 @@ __all__ = ['element', 'parse', 'lead',
   'word', 'words', 'getitem_to_list', 'attr_item', 'attr_call']
 
 from oad.term import deref, unify, DummyVar
-from oad.solve import eval
+from oad.solve import eval, parse
 from oad import special, builtin
 from oad.builtins.parser import parse as dao_parse
 from oad.builtins.type import to_list
+from oad.builtins.control import and_
 
 def element(grammar):
   ''' name = element(grammar)'''
   return _lead_element_class(FormTraveller)(parse(grammar))
-
-def parse(form):
-  try: 
-    form_parse = form.__parse_syntax__
-  except: 
-    if isinstance(form, list):
-      return [parse(x) for x in form]
-    elif isinstance(form, tuple):
-      return tuple(parse(x) for x in form)
-    else: return form
-  return form_parse()
 
 def lead(klass): 
   '''
@@ -71,7 +61,7 @@ def _lead_function(klass, function):
   return lambda self, *args, **kw: function(klass(), *args, **kw)
 
 def _lead_element_function(klass, function):
-  return lambda self, *args, **kw: function(klass(self.__syntax_grammar__), *args, **kw)
+  return lambda self, *args, **kw: function(klass(self.__form_grammar__), *args, **kw)
 
 def _lead_element_class(klass):
   attrs = {}
@@ -95,69 +85,69 @@ names = (
 '__neg__, __pos__, __abs__, __invert__'.split(', '))
 class FormTraveller(object):
   def __init__(self, grammar=None):
-    self.__syntax_grammar__ = grammar
-    self.__syntax_data__ = []
+    self.__form_grammar__ = parse(grammar)
+    self.__operator_data__ = []
   def __lt__(self, other): 
-    self.__syntax_data__.append((__lt__, parse(other))); return self
+    self.__operator_data__.append((__lt__, parse(other))); return self
   def __le__(self, other): 
-    self.__syntax_data__.append((__le__, parse(other))); return self 
+    self.__operator_data__.append((__le__, parse(other))); return self 
   def __eq__(self, other): 
-    self.__syntax_data__.append((__eq__, parse(other))); return self 
+    self.__operator_data__.append((__eq__, parse(other))); return self 
   def __ne__(self, other): 
-    self.__syntax_data__.append((__ne__, parse(other))); return self 
+    self.__operator_data__.append((__ne__, parse(other))); return self 
   def __gt__(self, other): 
-    self.__syntax_data__.append((__gt__, parse(other))); return self 
+    self.__operator_data__.append((__gt__, parse(other))); return self 
   def __ge__(self, other): 
-    self.__syntax_data__.append((__ge__, parse(other))); return self 
+    self.__operator_data__.append((__ge__, parse(other))); return self 
   def __getattr__(self, name):
-    self.__syntax_data__.append((__getattr__, name)); return self 
+    self.__operator_data__.append((__getattr__, name)); return self 
   def __call__(self, *args, **kw): 
     kw1 = {}
     for k,v in kw.items(): kw1[parse(k)] = parse(v)
-    self.__syntax_data__.append((__call__, parse(args), kw1)); 
+    self.__operator_data__.append((__call__, parse(args), kw1)); 
     return self 
   def __getitem__(self, key): 
-    self.__syntax_data__.append((__getitem__, parse(key))); return self 
+    self.__operator_data__.append((__getitem__, parse(key))); return self 
   def __add__(self, other): 
-    self.__syntax_data__.append((__add__, parse(other))); return self 
+    self.__operator_data__.append((__add__, parse(other))); return self 
   def __sub__(self, other): 
-    self.__syntax_data__.append((__sub__, parse(other))); return self 
+    self.__operator_data__.append((__sub__, parse(other))); return self 
   def __mul__(self, other): 
-    self.__syntax_data__.append((__mul__, parse(other))); return self 
+    self.__operator_data__.append((__mul__, parse(other))); return self 
   def __floordiv__(self, other): 
-    self.__syntax_data__.append((__floordiv__, parse(other))); return self 
+    self.__operator_data__.append((__floordiv__, parse(other))); return self 
   def __div__(self, other): 
-    self.__syntax_data__.append((__div__, parse(other))); 
+    self.__operator_data__.append((__div__, parse(other))); 
     return self 
   def __truediv__(self, other): 
-    self.__syntax_data__.append((__lt__, parse(other))); return self 
+    self.__operator_data__.append((__lt__, parse(other))); return self 
   def __mod__(self, other): 
-    self.__syntax_data__.append((__mod__, parse(other))); return self 
+    self.__operator_data__.append((__mod__, parse(other))); return self 
   def __pow__(self, other): 
-    self.__syntax_data__.append((__pow__, parse(other))); return self 
+    self.__operator_data__.append((__pow__, parse(other))); return self 
   def __lshift__(self, other): 
-    self.__syntax_data__.append((__rshift__, parse(other))); return self 
+    self.__operator_data__.append((__rshift__, parse(other))); return self 
   def __rshift__(self, other): 
-    self.__syntax_data__.append((__and__, parse(other))); return self 
+    self.__operator_data__.append((__and__, parse(other))); return self 
   def __and__(self, other): 
-    self.__syntax_data__.append((__and__, parse(other))); return self 
+    self.__operator_data__.append((__and__, parse(other))); return self 
   def __xor__(self, other): 
-    self.__syntax_data__.append((__xor__, parse(other))); 
+    self.__operator_data__.append((__xor__, parse(other))); 
     return self 
   def __or__(self, other): 
-    self.__syntax_data__.append((__or__, parse(other))); return self 
+    self.__operator_data__.append((__or__, parse(other))); return self 
   def __iter__(self): 
-    self.__syntax_data__.append(__iter__); return self 
+    self.__operator_data__.append(__iter__); return self 
   def __neg__(self): 
-    self.__syntax_data__.append(__neg__); return self 
+    self.__operator_data__.append(__neg__); return self 
   def __pos__(self): 
-    self.__syntax_data__.append(__pos__); return self
+    self.__operator_data__.append(__pos__); return self
   def __abs__(self): 
-    self.__syntax_data__.append(__abs__); return self 
+    self.__operator_data__.append(__abs__); return self 
   def __invert__(self): 
-    self.__syntax_data__.append(__invert__); return self 
-  def __parse_syntax__(self):
-    return eval(dao_parse(self.__syntax_grammar__, self.__syntax_data__))
+    self.__operator_data__.append(__invert__); return self 
+  def ___parse___(self, parser):
+    return eval(dao_parse(self.__form_grammar__, self.__operator_data__))
   def __nonzero__(self): return False
   def __repr__(self): return self.__class__.__name__
   def __str__(self): return self.__class__.__name__
@@ -271,14 +261,14 @@ iterator = unary(__iter__)
 def word(word): return getattr(word)
 def words(text): return [getattr(w.strip()) for w in text.split(',')] 
 
-def attr_item(name): return lambda arg: getattr(name)+getitem(arg)
+def attr_item(name): return lambda arg: and_(getattr(name),getitem(arg))
 
-def attr_call(name): return lambda *args: getattr(name)&call(*args)
+def attr_call(name): return lambda *args: and_(getattr(name), call(*args))
 
 def getitem_to_list(argument=None):
   if argument is not None:
     _x = DummyVar('_x')
-    return getitem(_x)+special.set(argument, to_list(_x))
+    return and_(getitem(_x), special.set(argument, to_list(_x)))
   else: return getitem()
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ Expr2 = var.Expr2
 from dao.tests.util import function, eval_
 
 functions = [
-  fun. evalRule(Result)> sexpression(Expr2)+eof+is_(Result, eval_.getvalue(lExpr2)),
+  fun. evalRule(Result)> sexpression(Expr2)+eos+is_(Result, eval_.getvalue(lExpr2)),
   fun. sexpression> 
     [(Result)> char('{')+sexpression(Expr2)+char('}')+setvalue(Result, eval_.getvalue(Expr2)),
     (Expr)> atomExpression(Expr),
@@ -34,5 +34,5 @@ functions = [
     [[Expr, ExprList]>  sexpression(Expr)+condSpace+sexpressionList(ExprList),
      NIL/epsilon],
   fun. sexpression1(Expr)>  spaces0(_)+sexpressionList(Expr)+spaces0(_),
-  fun. condSpace()>  ifp(notFollowChars('([])')+notFollowByChars('([])')+not_(eof)).spaces(_)
+  fun. condSpace()>  ifp(notFollowChars('([])')+notFollowByChars('([])')+not_(eos)).spaces(_)
           .spaces0(_)]

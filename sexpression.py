@@ -1,7 +1,7 @@
 from dao.term import Var, DummyVar, LocalVar, NIL, Cons, conslist
 from dao.rule import Rule
 from dao.builtins.terminal import spaces0, spaces, char, number, symbol, dqstring
-from dao.builtins.terminal import epsilon, literal, eof
+from dao.builtins.terminal import epsilon, literal, eos
 from dao.builtins.terminal import notFollowChars, notFollowByChars
 from dao.builtins.matchterm import parallel, any, some
 from dao.builtins.control import ifp, not_, and_, or_
@@ -21,7 +21,7 @@ from dao.tests.util import function, eval_
 
 functions = [
   (evalRule, (function, 
-    ([Result], (and_, (sexpression, Expr2), [eof], (is_, Result, (eval_, (getvalue, Expr2))))))),
+    ([Result], (and_, (sexpression, Expr2), [eos], (is_, Result, (eval_, (getvalue, Expr2))))))),
   (sexpression, (function, 
     ([Result], (and_, (char, '{'), (sexpression, Expr2), (char, '}'), (setvalue, Result, (eval_, (getvalue, Expr2))))),
     ([Expr], (atomExpression, Expr)),
@@ -45,7 +45,7 @@ functions = [
   (sexpression1, (function, 
     ([Expr], (and_, (spaces0, _), (sexpressionList, Expr), (spaces0, _))))),
   (condSpace, (function, 
-    ([], (or_, (ifp, (and_, (notFollowChars, '([])'), (notFollowByChars, '([])'), (not_, [eof])),
+    ([], (or_, (ifp, (and_, (notFollowChars, '([])'), (notFollowByChars, '([])'), (not_, [eos])),
             (spaces, _)),
           (spaces0, _)))))]
  

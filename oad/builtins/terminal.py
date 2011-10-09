@@ -20,14 +20,14 @@ def char(solver, cont, argument):
     solver.stream = text, pos
 
 @matcher()
-def eof(solver, cont):
+def eos(solver, cont):
+  '''end of stream'''
   if solver.stream[1]>=len(solver.stream[0]): 
     yield cont,  True
-  
-eof = eof()
+eos = eos()
 
 @matcher()
-def followChars(solver, cont, chars):
+def lead_chars(solver, cont, chars):
   chars = deref(chars, solver.env)
   if isinstance(chars, str):
     if solver.stream[0][solver.stream[1]] not in chars.name: return
@@ -37,53 +37,53 @@ def followChars(solver, cont, chars):
   else: throw_type_error('Var or Atom', chars)
 
 @matcher()
-def notFollowChars(solver, cont, chars):
+def not_lead_chars(solver, cont, chars):
   chars = deref(chars, solver.env)
   assert isinstance(chars, str)
   if solver.stream[0][solver.stream[1]] in chars.name: return
   yield cont,  True
 
 @matcher()
-def followByChars(solver, cont, chars):
+def follow_chars(solver, cont, chars):
   chars = chars.deref(solver.env)
   assert isinstance(chars, Atom)
-  if not solver.stream.eof() and solver.stream.next() not in chars.name: 
+  if not solver.stream.eos() and solver.stream.next() not in chars.name: 
     return
   yield cont,  True
 
 @matcher()
-def notFollowByChars(solver, cont, chars):
+def not_follow_chars(solver, cont, chars):
   chars = chars.deref(solver.env)
   assert isinstance(chars, Atom)
-  if not solver.stream.eof() and solver.stream.next() in chars.name: 
+  if not solver.stream.eos() and solver.stream.next() in chars.name: 
     return
   solver.value = True  
 
-def followString(solver, cont, strArgument):
+def lead_string(solver, cont, strArgument):
   strArgument = strArgument.deref(solver.env)
   assert isinstance(strArgument, Atom)
   if not solver.stream.parsed().endwith(strArgument.name): raise UnifyFail
   solver.value = True
 
 @matcher()
-def notFollowString(solver, cont, string):
+def not_lead_string(solver, cont, string):
   string = string.deref(solver.env)
   if solver.stream.parsed().endwith(string.name): return
   solver.value = True  
 
-def followByString(solver, cont, strArgument):
+def follow_string(solver, cont, strArgument):
   strArgument = strArgument.deref(solver.env)
   assert isinstance(strArgument, Atom)
   if not solver.stream.left().startswith(strArgument.name): raise UnifyFail
   solver.value = True
 
 @matcher()
-def notFollowByString(solver, cont, string):
+def not_follow_string(solver, cont, string):
   string = string.deref(solver.env)
   if solver.stream.left().startswith(string.name): return
   solver.value = True  
 
-def charOnTest(test, name=''):
+def char_on_test(test, name=''):
   def func(solver, cont, arg0):
     #assert isinstance(arg0, Var) and arg0.free(solver.env)
     text, pos = solver.stream
@@ -96,22 +96,22 @@ def charOnTest(test, name=''):
   if name=='': name = test.__name
   return matcher(name)(func)
 
-def charBetween(lower, upper): return charOnTest(lambda char: lower<=char<=upper, "charbetween <%s-%s>"%(lower, upper))  
-def charIn(string, reprString=''): return charOnTest(lambda char: char in string, reprString or 'charin '+string)      
-digit = charBetween('0', '9')
-one_9 = charBetween('1', '9')
-lowcase = charBetween('a', 'z')
-uppercase = charBetween('A', 'Z')
-letter = charOnTest(lambda char: ('a'<=char<='z') or ('A'<=char<='Z'), 'letter')
-uletter = charOnTest(lambda char: char=='_' or ('a'<=char<='z') or ('A'<=char<='Z'), 
+def char_between(lower, upper): return char_on_test(lambda char: lower<=char<=upper, "charbetween <%s-%s>"%(lower, upper))  
+def char_in(string, repr_string=''): return char_on_test(lambda char: char in string, repr_string or 'charin '+string)      
+digit = char_between('0', '9')
+_1_9 = char_between('1', '9')
+lowcase = char_between('a', 'z')
+uppercase = char_between('A', 'Z')
+letter = char_on_test(lambda char: ('a'<=char<='z') or ('A'<=char<='Z'), 'letter')
+uletter = char_on_test(lambda char: char=='_' or ('a'<=char<='z') or ('A'<=char<='Z'), 
       '_letter')
-_letterdigitTest = (lambda char: char=='_' or 
+_letter_digit_test = (lambda char: char=='_' or 
                     ('0'<=char<='9') or ('a'<=char<='z') or ('A'<=char<='Z'))
-uletterdigit = charOnTest(_letterdigitTest, '_letterdigitChar')
-spaceString = ' \t\r\n'
-space = charIn(spaceString, reprString='spacesChar')
+u_letter_digit = char_on_test(_letter_digit_test, '_letterdigitChar')
+space_string = ' \t\r\n'
+space = char_in(space_string, repr_string='spacesChar')
 
-def stringOnTest(test, name='', onceMore=True):
+def string_on_test(test, name='', onceMore=True):
   def func(solver, cont,  arg):
     #assert isinstance(arg, Var) and arg.free(solver.env)
     text, pos = solver.stream
@@ -129,22 +129,22 @@ def stringOnTest(test, name='', onceMore=True):
       solver.stream = text, pos
   if name=='': name = test.__name
   return matcher(name)(func)
-def stringBetween(lower, upper, onceMore=True):
-  if not onceMore: name = "s<%s-%s>"%(lower, upper)
+def string_between(lower, upper, once_more=True):
+  if not once_more: name = "s<%s-%s>"%(lower, upper)
   else: name = "s<%s-%s>+"%(lower, upper)
-  return stringOnTest(lambda char: lower<=char<=upper, name, onceMore)  
-def stringIn(string, onceMore=True, reprString=''): 
-  return stringOnTest(lambda char: char in string, reprString or 's'+string, onceMore)  
-digits = stringBetween('0', '9')
-digits0 = stringBetween('0', '9', onceMore=False)
-lowcaseString = stringBetween('a', 'z')
-uppercaseString = stringBetween('A', 'Z')
-uLetterdigitString = stringOnTest(_letterdigitTest, '_letterdigitString')
-uLetterdigitString0 = stringOnTest(_letterdigitTest, '_letterdigitTestString0', False)
-spaces0 = stringIn(spaceString, onceMore=False, reprString='spaces0')
-spaces = stringIn(spaceString, reprString='spaces')
+  return string_on_test(lambda char: lower<=char<=upper, name, once_more)  
+def string_in(string, once_more=True, repr_string=''): 
+  return string_on_test(lambda char: char in string, repr_string or 's'+string, once_more)  
+digits = string_between('0', '9')
+digits0 = string_between('0', '9', once_more=False)
+lowcaseString = string_between('a', 'z')
+uppercaseString = string_between('A', 'Z')
+uLetterdigitString = string_on_test(_letter_digit_test, '_letterdigitString')
+uLetterdigitString0 = string_on_test(_letter_digit_test, '_letterdigitTestString0', False)
+spaces0 = string_in(space_string, once_more=False, repr_string='spaces0')
+spaces = string_in(space_string, repr_string='spaces')
 
-def quotestring(quote, name):
+def quote_string(quote, name):
   def func(solver, cont,  arg0):
     #assert isinstance(arg0, Var) and arg0.free(solver.env)
     text, pos = solver.stream
@@ -164,8 +164,8 @@ def quotestring(quote, name):
       yield cont,  True
       solver.stream = text, pos
   return matcher(name)(func)
-dqstring = quotestring('"', 'doublequotestring')
-sqstring = quotestring("'", 'singlequotestring')
+dqstring = quote_string('"', 'doublequotestring')
+sqstring = quote_string("'", 'singlequotestring')
 
 @matcher()
 def number(solver, cont,  arg0): 
