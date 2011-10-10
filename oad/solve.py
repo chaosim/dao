@@ -149,7 +149,7 @@ class Solver:
         cg = cont_gen
         cont_gen = parent[cont_gen]
         del parent[cg]
-        
+      except GeneratorExit: raise
   def cont(self, exp, cont):    
     try: to_cont = exp.cont
     except: return value_cont(exp, cont)

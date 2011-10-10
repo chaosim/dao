@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
 from oad.term import deref, getvalue, unify, Apply, Var
-from oad.error import throw_type_error
 from oad.builtin import builtin, BuiltinMacro
 from oad.solve import mycont
-from oad.builtins.arithpred import is_
+from oad.builtins.term import is_
 from oad.builtins.control import or_, and_
 from oad import special
-from oad.builtin import builtin, BuiltinMacro
+from oad.builtin import builtin, BuiltinFunction2
 
 # parser predicate
 # optional, any, some, times, seplist, ...
@@ -17,7 +16,40 @@ from oad.builtin import builtin, BuiltinMacro
 # greedy, match at most, don,t throw out even matchers followed fail. 吃进去了就不会吐出来。
 lazy, nongreedy, greedy = range(3)
 
-class Repeater:
+def slice_stop_default():
+  class A:
+    def __getitem__(self, other): return other.stop
+  return A()[:]
+slice_stop_default = slice_stop_default()
+
+def slice_step_default():
+  class A:
+    def __getitem__(self, other): return other.step
+  return A()[:]
+slice_step_default = slice_step_default()
+
+class Matcher:
+  def __getitem__(self, index):
+    if not isinstance(index, slice):
+      if index==0: raise ValueError(index)
+      if index==1: return self
+      return Repeater(self, None, index, index)
+    elif isinstance(index, slice): 
+      if index.step!=slice_step_default: raise ValueError(index)
+      if index.start>index.stop: raise ValueError(index)
+      stop = None if index.stop==slice_stop_default else  index.stop
+      return Repeater(self, None, index.start, stop)
+    raise ValueError(index)
+  def __add__(self, other):
+    if isinstance(other, MatcherSequence):
+      return MatcherSequence([self], other.exps)
+    return MatcherSequence([self, other])
+  def __or__(self, other):
+    if isinstance(other, MatcherOr):
+      return MatcherOr([self]+other.exps)
+    return MatcherOr([self, other])
+
+class Repeater(Matcher):
   '''nongreedy: matcher[:]/separator%template**result
   greedy: +matcher[:]/separator%template**result
   lazy: -matcher[:]/separator%template**result'''
@@ -74,7 +106,7 @@ class Repeater:
       self.template = template
       return self
     raise TypeError(self)
-  def __pow__(self, result):
+  def __mul__(self, result):
     '''result'''
     if self.result is None:
       self.result = result
@@ -88,14 +120,6 @@ class Repeater:
     '''lazy mode'''
     self.mode = lazy
     return self
-  def __add__(self, other): 
-    '''a+b'''
-    if isinstance(other, Sequence):
-      return Sequence([self]+other.exps)
-    else: return Sequence([self, other])
-  def __or__(self, other): 
-    '''a|b'''
-    return Or(self, other)
   def __repr__(self):
     return ''.join([repr(x) for x in 
           [self.item, self.separator, self.min, self.max, 
@@ -104,74 +128,43 @@ class Repeater:
 class BuiltinMatcher(BuiltinMacro):
   def __call__(self, *exps): return ApplyMatcher(self, *exps)
 
-def slice_stop_default():
-  class A:
-    def __getitem__(self, other): return other.stop
-  return A()[:]
-slice_stop_default = slice_stop_default()
-
-def slice_step_default():
-  class A:
-    def __getitem__(self, other): return other.step
-  return A()[:]
-slice_step_default = slice_step_default()
-
-class ApplyMatcher(Apply):
+class ApplyMatcher(Apply, Matcher):
   '''
-  a+b: Sequence;
-  a|b: Or;
+  a+b: MatcherSequence;
+  a|b: MatcherOr;
   +a: optional(a, greedy)
   -a: optional(a, nongreedy)'''
-  def __getitem__(self, index):
-    if not isinstance(index, slice):
-      if index==0: raise ValueError(index)
-      if index==1: return self
-      return Repeater(self, None, index, index)
-    elif isinstance(index, slice): 
-      if index.step!=slice_step_default: raise ValueError(index)
-      if index.start>index.stop: raise ValueError(index)
-      if index.stop==slice_stop_default: index.stop = None
-      return Repeater(self, None, index.start, index.stop)
-    raise ValueError(index)
   def __neg__(self): 
     if self is not optional: return optional(self, nongreedy)
     raise TypeError(self)
   def __pos__(self):
     if self.operator is not optional: return optional(self, greedy)
     raise TypeError(self)
-  def __add__(self, other):
-    if isinstance(other, Sequence):
-      return Sequence([self], other.exps)
-    return Sequence([self, other])
-  def __or__(self, other):
-    if isinstance(other, Or):
-      return Or([self]+other.exps)
-    return Or([self, other])
 
 matcher = builtin(BuiltinMatcher)
 
-class Sequence:
+class MatcherSequence:
   def __init__(self, exps):
     self.exps = exps
   def __add__(self, other):
-    if isinstance(other, Sequence):
-      return Sequence(self.exps+other.exps)
-    return Sequence(self.exps+[other])
+    if isinstance(other, MatcherSequence):
+      return MatcherSequence(self.exps+other.exps)
+    return MatcherSequence(self.exps+[other])
   def __or__(self, other):
-    return Or(self, other)
+    return MatcherOr(self, other)
   def ___parse___(self, parser):
     return special.begin(*[parser.parse(e) for e in self.exps])
     
-class Or:
+class MatcherOr:
   def __init__(self, call1, call2):
     self.call1 = call1
     self.call2 = call2
   def __add__(self, other):
-    if isinstance(other, Sequence):
-      return Sequence([self]+other.exps)
-    return Sequence([self, other])
+    if isinstance(other, MatcherSequence):
+      return MatcherSequence([self]+other.exps)
+    return MatcherSequence([self, other])
   def __or__(self, other):
-    return Or(self, other)
+    return MatcherOr(self, other)
   def ___parse___(self, parser):
     return or_(parser.parse(self.call1), parser.parse(self.call2))
 

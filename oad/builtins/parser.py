@@ -1,5 +1,6 @@
 from oad import builtin
 from oad.solve import mycont
+from oad.builtins.matcher import matcher
 
 # set and manipulate stream for parsing 
 
@@ -15,7 +16,7 @@ def parse(solver, cont, pred, text):
   yield solver.cont(pred, parser_cont), solver.stream
   solver.stream = stream
 
-@builtin.function2()
+@matcher()
 def settext(solver, cont, text):
   stream = solver.stream
   solver.stream = text, 0  #text, start position
@@ -23,16 +24,16 @@ def settext(solver, cont, text):
   solver.stream = stream
   
 # Theses primitive can be used with Stream or compatible class with same interface.
-# LineStream in lineparser.py is an sample.
+# LineStream in line_parser.py is an sample.
 
-@builtin.function2()
+@matcher()
 def step(solver, cont, size=1): # return current char before step
   text, pos = solver.stream
   solver.stream = text, pos+size
   yield cont, text[pos]
   solver.stream = text, pos
 
-@builtin.function2()
+@matcher()
 def skip(solver, cont, size=1): # return char after skip
   text, pos = solver.stream
   solver.stream = text, pos+size
@@ -40,25 +41,25 @@ def skip(solver, cont, size=1): # return char after skip
   else: yield cont, ''
   solver.stream = text, pos
 
-@builtin.function2()
+@matcher()
 def left(solver, cont):
   text, pos = solver.stream
   yield cont, text[pos:]
 
-@builtin.function2()
+@matcher()
 def next(solver, cont): 
   text, pos = solver.stream
   yield cont, text[pos]
 
-@builtin.function2()
+@matcher()
 def position(solver, cont): 
   yield cont, solver.stream[1]
 
-@builtin.function2()
+@matcher()
 def subtext(solver, cont, start, end): 
   yield cont, solver.stream[0][start:end]
 
-@builtin.function2()
+@matcher()
 def goto(solver, cont, position):
   text, pos = solver.stream
   solver.stream = text, position

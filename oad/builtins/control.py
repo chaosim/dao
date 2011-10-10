@@ -1,8 +1,43 @@
-from oad.term import Var, deref, Apply
+from oad.term import Var, deref, Apply, getvalue
 from oad import builtin
 from oad.solve import CutException
+from oad.builtin import Builtin, Function
+from oad.term import Apply
 
 # control predicates
+
+# call with current continuation
+
+class ContinuationFunction(Builtin, Function):
+  def apply(self, solver, values, cont):
+    return self.function(values[0], solver)
+      
+@builtin.macro()
+def callcc(solver, cont, fun):
+  ''' call with current continuation '''
+  yield solver.cont(Apply(fun, ContinuationFunction(cont)), cont), fun
+
+# finding all solutions to a goal
+
+@builtin.macro()
+def findall(solver, cont, goal, template, bag):
+  goal = deref(goal, solver.env)
+  result = []
+  for x in solver.solve(goal, cont):
+    result.append(getvalue(template, solver.env))
+  for x in bag.unify(result, solver.env):
+    yield cont, True
+    
+# meta call predicates
+
+@builtin.macro()
+def call(solver, cont, pred): yield solver.cont(deref(pred, solver.env), cont), True
+
+@builtin.macro()
+def once(solver, cont, pred):
+  for x in solver.solve(deref(pred, solver.env), cont):
+    yield cont, x
+    return
 
 @builtin.macro()
 def succeed(solver, cont): yield cont, True
@@ -50,7 +85,7 @@ def and_(solver, cont, *calls):
 def or_(solver, cont, call1, call2):
   call1 = deref(call1, solver.env)
   call2 = deref(call2, solver.env)
-  if isinstance(call1, Apply) and call1.operator==ifp: # A -> B; C
+  if isinstance(call1, Apply) and call1.operator==if_p: # A -> B; C
     if_clause = deref(call1.operand[0], solver.env)
     then_clause = deref(call1.operand[1], solver.env)
     call1 = if_clause&cut&then_clause
@@ -61,18 +96,18 @@ def or_(solver, cont, call1, call2):
   yield or_cont, True
 
 @builtin.macro('->')  
-def ifp(solver, cont, if_clause, then_clause):
+def if_p(solver, cont, if_clause, then_clause):
   # This unusual semantics is part of the ISO and all de-facto Prolog standards.
   # see SWI-Prolog help.
   if_clause = deref(if_clause, solver.env)
   then_clause = deref(then_clause, solver.env)
-  def ifp_cont(value, solver):
+  def if_p_cont(value, solver):
     if not value: return
     yield solver.cont(then_clause, cont), True
-  yield solver.cont(if_clause, ifp_cont), True
+  yield solver.cont(if_clause, if_p_cont), True
 
 @builtin.macro('not')  
-def not_(solver, cont, call):
+def not_p(solver, cont, call):
   call = deref(call, solver.env)
   for x in solver.solve(call, cont):
     return

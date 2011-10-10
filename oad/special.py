@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 
-from oad.term import Apply, Function, Macro, closure, Var
+from oad.term import Apply, Function, Macro, closure, Var, ClosureVar
 from oad.rule import Rule, RuleList
 from oad.solve import value_cont, mycont
 from oad.env import BlockEnvironment
 from oad.builtins.arith import eq, not_
-from oad.builtins.type import iter_next, make_iter
+from oad.builtins.term import iter_next, make_iter
+from oad import builtin
 
 # special forms: quote, begin, if, eval, let, lambda, function, macro, module
 class ParserForm: 
@@ -28,21 +29,18 @@ class quote(SpecialForm):
   def __repr__(self): return "'%s"%self.exp
 
 def assign_var(var, value, env):
-##  print 'set',
   env0 = env
   while env is not None:
-    if env.hasBindings() and var not in env.bindings:
-      env = env.outer
-    else: 
-      in_env = True
-      break
-  else: 
-    in_env = False
-    env = env0
-  if in_env: old = env[var]
-  else: old = None
-  env[var] = value
-  return env, in_env, old
+    try: 
+      old = env.bindings[var]
+      env.bindings[var] = value
+      yield True
+      env.bindings[var] = old
+      return
+    except KeyError: env = env.outer
+  env0.bindings[var] = value
+  yield True
+  del env0.bindings[var]
   
 class set(SpecialForm):
   def __init__(self, var, exp):
@@ -53,10 +51,8 @@ class set(SpecialForm):
   def cont(self, cont, solver):
     @mycont(cont)
     def set_cont(value, solver):
-      env, in_env, old = assign_var(self.var, value, solver.env)
-      yield cont, value
-      if in_env: env[self.var] = old
-      else: del env[self.var]
+      for _ in assign_var(self.var, value, solver.env):
+        yield cont, value
     return solver.cont(self.exp, set_cont)
   def __eq__(self, other): return self.var==other.var and self.exp==other.exp
   def __repr__(self): return "set(%s %s)"%(self.var, self.exp)
@@ -72,11 +68,9 @@ class set_list(SpecialForm):
     @mycont(cont)
     def set_cont(values, solver):
       if len(values)!=len(self.vars): raise ValueError(values)
-      modifies = [assign_var(var, v, solver.env) for var, v in zip(self.vars, values)]
-      yield cont, True
-      for env, in_env, old in modifies:
-        if in_env: env[self.var] = old
-        else: del env[self.var]
+      for _ in apply_generators([assign_var(var, v, solver.env) 
+                                 for var, v in zip(self.vars, values)]):
+        yield cont, True
 
     return solver.cont(self.exp, set_cont)
   def __eq__(self, other): return self.vars==other.vars and self.exp==other.exp
@@ -242,7 +236,7 @@ class LoopTimesForm(ParserForm):
     parser.push_label('loop', exit_label, next_label)
     body = parser.parse(self.body)
     parser.pop_label('loop')
-    i = Var('i')
+    i = Var('loop_i')
     return block(exit_label, set(i, self.times),loop(
       block(next_label, if_(eq(i,0), return_from(exit_label)), set(i, i-1), 
           *body)))
@@ -259,7 +253,7 @@ class WhenLoopForm(ParserForm):
     parser.push_label('when', exit_label, next_label)
     body = parser.parse(self.body)
     parser.pop_label('when')
-    next_body = [if_(not_(self.condition), return_from(exit_label))]+body
+    next_body = [if_(not_p(self.condition), return_from(exit_label))]+body
     return block(exit_label, loop(block(next_label, next_body)))
 
 class LoopWhenForm(ParserForm):
@@ -462,6 +456,14 @@ class module(SpecialForm):
       yield cont, env
     return solver.exps_cont(self.body, module_done_cont)
 
+@builtin.macro()
+def from_(solver, cont, module, var):
+  if isinstance(var, ClosureVar): var = var.var
+  @mycont(cont)
+  def from_module_cont(module, solver): 
+    yield cont, module[var]
+  yield solver.cont(module, from_module_cont), module
+  
 class block(SpecialForm):
   def __init__(self, label, *body):
     self.label, self.body = label, body

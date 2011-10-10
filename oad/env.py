@@ -12,7 +12,6 @@ class Environment:
     return self
   def __setitem__(self, var, value):
     self.bindings[var] = value
-  def hasBindings(self): return True
   def __repr__(self): return "env"
 
 class NullEnvironment(Environment):
@@ -21,7 +20,6 @@ class NullEnvironment(Environment):
     raise Exception('block %s does not exist.')%label
   def __setitem__(self, var, value):
     raise Exception('null env')
-  def hasBindings(self): return False
   def __repr__(self): return "NullEnv"
   
 class GlobalEnvironment(Environment): 
@@ -58,10 +56,6 @@ class BlockEnvironment(ExtendEnvironment):
   def __init__(self, label, outer, cont):
     self.label, self.outer, self.cont = label, outer, cont
     self.bindings = {}
-  def __getitem__(self, var): return self.outer[var]
-  def __setitem__(self, var, value):
-    self.outer[var] = value
-  def hasBindings(self): return False
   def lookup(self, label, cont, solver):
     if label==self.label: 
       return unwind(cont, label, self.cont, solver)

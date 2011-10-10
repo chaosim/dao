@@ -6,22 +6,20 @@ from oad.term import cons
 from oad.solve import eval
 from oad.special import quote, set, begin, if_, iff, lambda_, let, letrec, eval_
 from oad.special import function, macro, block, return_from, catch, throw
-from oad.special import unwind_protect, module, loop, CaseForm
+from oad.special import unwind_protect, module, from_, loop, CaseForm
 from oad.special import LoopTimesForm, LoopUntilForm, LoopWhenForm, EachForm
 
-from oad.builtins.control import and_, cut
-from oad.builtins.module import from_
+from oad.builtins.control import and_, cut, callcc
 from oad.builtins.format import write
 from oad.builtins.arith import gt, eq, sub, mul, add, div
-from oad.builtins.arithpred import define
-from oad.builtins.callcc import callcc
+from oad.builtins.term import define
 
-from oad.testutil import *
+from oad.util import *
 
 class TestSimple:
   def testInteger(self):
     eq_(eval(1), 1)    
-  def testAtom(self):
+  def testString(self):
     eq_(eval("1"), "1")
     eq_(eval(1), 1)
   def testArithmetic(self):

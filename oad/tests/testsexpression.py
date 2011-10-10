@@ -3,7 +3,7 @@ from oad.error import UnifyFail
 from oad.builtins.arith import add, sub, eq
 from oad.term import True
 
-from oad.term import var, NIL, String, Integer, Atom, Symbol
+from oad.term import var, NIL, String, Integer, String, Symbol
 from oad.term import conslist as L
 from oad.rule import Rule
 from oad.builtins.terminal import spaces0, symbol, char
@@ -72,7 +72,7 @@ class Test_eval_while_parsing:
     eq_(parse(grammar, '{(let ((f (macro ((x) (char x))))) (f x) x)}a'), Symbol('a')) 
 
 class Test_eval_by_parse:
-  def testAtom(self):
+  def testString(self):
     eq_(parse(grammar3, '1'), Integer(1))
     eq_(parse(grammar3, '12'), Integer(12))
     eq_(parse(grammar3, '"12"'), String("12"))
@@ -111,7 +111,7 @@ class Test_eval_by_parse:
     eq_(parse(grammar3, "(eval '(+ 1 1))"), Integer(2))
     
 class Testeval:
-  def testAtom(self):
+  def testString(self):
     eq_(eval(grammar, '"1"'), String("1"))
     eq_(eval(grammar, '1'), Integer(1))
     eq_(eval(grammar, '12'), Integer(12))

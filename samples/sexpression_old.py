@@ -3,16 +3,16 @@ from dao.rule import Rule
 from dao.builtins.terminal import spaces0, spaces, char, number, symbol, dqstring
 from dao.builtins.terminal import epsilon, literal, eos
 from dao.builtins.terminal import notFollowChars, notFollowByChars
-from dao.builtins.matchterm import parallel, any, some
-from dao.builtins.control import ifp, not_, and_, or_
+from dao.builtins.matcher import parallel, any, some
+from dao.builtins.control import if_p, not_p, and_, or_
 from dao.builtins.term import getvalue, setvalue
-from dao.builtins.arithpred import define, is_, assign
+from dao.builtins.arith import define, is_, assign
 from dao.parse import Grammar
 
 (sexpression1, sexpression, bracketExpression, puncExpression, sexpressionList, 
- atomExpression, condSpace, evalRule) = (Var(name) for name in (
+ stringExpression, condSpace, evalRule) = (Var(name) for name in (
    'sexpression1',  'sexpression', "bracketExpression", "puncExpression",  'sexpressionList', 
-   'atomExpression', 'condSpace', 'evalRule'))
+   'stringExpression', 'condSpace', 'evalRule'))
 
 _ = DummyVar('_')
 X, Expr, ExprList, Result, Y = Var('X'), Var('Expr'), Var('ExprList'), Var('Result'), Var('Y')
@@ -24,10 +24,10 @@ functions = [
     ([Result], (and_, (sexpression, Expr2), [eos], (is_, Result, (eval_, (getvalue, Expr2))))))),
   (sexpression, (function, 
     ([Result], (and_, (char, '{'), (sexpression, Expr2), (char, '}'), (setvalue, Result, (eval_, (getvalue, Expr2))))),
-    ([Expr], (atomExpression, Expr)),
+    ([Expr], (stringExpression, Expr)),
     ([Expr], (bracketExpression, Expr)),
     ([Expr], (puncExpression, Expr)))),
-  (atomExpression, (function, 
+  (stringExpression, (function, 
     ([X], (number, X)),
     ([X], (dqstring, X)),
     ([X], (symbol, X)))),
@@ -45,7 +45,7 @@ functions = [
   (sexpression1, (function, 
     ([Expr], (and_, (spaces0, _), (sexpressionList, Expr), (spaces0, _))))),
   (condSpace, (function, 
-    ([], (or_, (ifp, (and_, (notFollowChars, '([])'), (notFollowByChars, '([])'), (not_, [eos])),
+    ([], (or_, (if_p, (and_, (notFollowChars, '([])'), (notFollowByChars, '([])'), (not_p, [eos])),
             (spaces, _)),
           (spaces0, _)))))]
  

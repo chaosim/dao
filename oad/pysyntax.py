@@ -6,10 +6,10 @@ see dinpy.py for a real sample.
 
 >>> from oad.term import Var
 >>> from oad.builtins.terminal import eos
->>> from oad.builtins.type import pytuple, first
+>>> from oad.builtins.term import pytuple, first
 >>> bindings, body = Var('bindings'), Var('body')
 >>> do = word('do')
->>> let = element(call(bindings)+do+getitem(body)+eos+pytuple(first(bindings), body))
+>>> let = element('let', call(bindings)+do+getitem(body)+eos+pytuple(first(bindings), body))
 >>> parse(let({'x':1}).do[1,2])
 ({'x': 1}, (1, 2))
 '''
@@ -25,12 +25,12 @@ from oad.term import deref, unify, DummyVar
 from oad.solve import eval, parse
 from oad import special, builtin
 from oad.builtins.parser import parse as dao_parse
-from oad.builtins.type import to_list
+from oad.builtins.term import to_list
 from oad.builtins.control import and_
 
-def element(grammar):
+def element(name, grammar):
   ''' name = element(grammar)'''
-  return _lead_element_class(FormTraveller)(parse(grammar))
+  return _lead_element_class(FormTraveller)(name, parse(grammar))
 
 def lead(klass): 
   '''
@@ -58,10 +58,12 @@ def lead_class(klass):
   return type('Lead'+klass.__name__, klass.__bases__, attrs)
 
 def _lead_function(klass, function):
-  return lambda self, *args, **kw: function(klass(), *args, **kw)
+  return lambda self, *args, **kw: function(
+    klass(self.__form_name__, self.__form_grammar__), *args, **kw)
 
 def _lead_element_function(klass, function):
-  return lambda self, *args, **kw: function(klass(self.__form_grammar__), *args, **kw)
+  return lambda self, *args, **kw: function(
+    klass(self.__form_name__, self.__form_grammar__), *args, **kw)
 
 def _lead_element_class(klass):
   attrs = {}
@@ -84,7 +86,8 @@ names = (
 '__mod__, __pow__, __lshift__, __rshift__, __and__, __xor__, __or__, '
 '__neg__, __pos__, __abs__, __invert__'.split(', '))
 class FormTraveller(object):
-  def __init__(self, grammar=None):
+  def __init__(self, name, grammar):
+    self.__form_name__ = name
     self.__form_grammar__ = parse(grammar)
     self.__operator_data__ = []
   def __lt__(self, other): 
@@ -149,8 +152,38 @@ class FormTraveller(object):
   def ___parse___(self, parser):
     return eval(dao_parse(self.__form_grammar__, self.__operator_data__))
   def __nonzero__(self): return False
-  def __repr__(self): return self.__class__.__name__
-  def __str__(self): return self.__class__.__name__
+  def __repr__(self): 
+    result = self.__form_name__
+    for x in self.__operator_data__:
+      if x[0]==__lt__: result += '<%s'%str(x[1])
+      elif x[0]==__le__: result += '<=%s'%str(x[1])
+      elif x[0]==__eq__: result += '==%s'%str(x[1])
+      elif x[0]== __ne__: result += '!=%s'%str(x[1])
+      elif x[0]== __gt__: result += '>%s'%str(x[1])
+      elif x[0]== __ge__: result += '>=%s'%str(x[1])
+      elif x[0]== __getattr__: result += '.%s'%str(x[1])
+      elif x[0]== __call__: result += '(%s)'%str(x[1])
+      elif x[0]== __getitem__: result += '[%s]'%str(x[1])
+      elif x[0]==  __iter__: result = 'iter(%s)'%result
+      elif x[0]== __add__: result += '+%s'%str(x[1])
+      elif x[0]== __sub__: result += '-%s'%str(x[1])
+      elif x[0]== __mul__: result += '*%s'%str(x[1])
+      elif x[0]== __floordiv__: result += '//%s'%str(x[1])
+      elif x[0]== __div__: result += '/%s'%str(x[1])
+      elif x[0]== __truediv__: result += '/%s'%str(x[1])
+      elif x[0]== __mod__: result += '%%%s'%str(x[1])
+      elif x[0]== __pow__: result += '**%s'%str(x[1])
+      elif x[0]== __lshift__: result += '<<%s'%str(x[1])
+      elif x[0]== __rshift__: result += '>>%s'%str(x[1])
+      elif x[0]==  __and__: result += '&%s'%str(x[1])
+      elif x[0]== __xor__: result += '^%s'%str(x[1])
+      elif x[0]== __or__: result += '|%s'%str(x[1])
+      elif x== __neg__: result = '-%s'%result
+      elif x== __pos__: result = '+%s'%result
+      elif x== __abs__: result = 'abs(%s)'%result
+      elif x== __invert__: result = '~%s'%result
+    return result
+
 
 def binary(attr):
   @builtin.macro(names[attr])

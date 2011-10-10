@@ -2,11 +2,11 @@
 
 '''terminal used for parsing
  solver.stream should have an interface similar to Stream in parser.py.
- LineStream in lineparser.py is comatible with Stream.'''
+ LineStream in line_parser.py is comatible with Stream.'''
 
 from oad.term import deref, unify, Var
 from oad import builtin
-from oad.builtins.matchterm import matcher
+from oad.builtins.matcher import matcher
 
 @matcher()
 def char(solver, cont, argument): 
@@ -34,10 +34,10 @@ def lead_chars(solver, cont, chars):
     yield cont,  True
   elif isinstance(chars, Var): 
     for _ in unify(chars, char, solver.env): yield cont,  True
-  else: throw_type_error('Var or Atom', chars)
+  else: throw_type_error('Var or String', chars)
 
 @matcher()
-def not_lead_chars(solver, cont, chars):
+def not_plead_chars(solver, cont, chars):
   chars = deref(chars, solver.env)
   assert isinstance(chars, str)
   if solver.stream[0][solver.stream[1]] in chars.name: return
@@ -46,39 +46,39 @@ def not_lead_chars(solver, cont, chars):
 @matcher()
 def follow_chars(solver, cont, chars):
   chars = chars.deref(solver.env)
-  assert isinstance(chars, Atom)
+  assert isinstance(chars, String)
   if not solver.stream.eos() and solver.stream.next() not in chars.name: 
     return
   yield cont,  True
 
 @matcher()
-def not_follow_chars(solver, cont, chars):
+def not_pfollow_chars(solver, cont, chars):
   chars = chars.deref(solver.env)
-  assert isinstance(chars, Atom)
+  assert isinstance(chars, String)
   if not solver.stream.eos() and solver.stream.next() in chars.name: 
     return
   solver.value = True  
 
 def lead_string(solver, cont, strArgument):
   strArgument = strArgument.deref(solver.env)
-  assert isinstance(strArgument, Atom)
+  assert isinstance(strArgument, String)
   if not solver.stream.parsed().endwith(strArgument.name): raise UnifyFail
   solver.value = True
 
 @matcher()
-def not_lead_string(solver, cont, string):
+def not_plead_string(solver, cont, string):
   string = string.deref(solver.env)
   if solver.stream.parsed().endwith(string.name): return
   solver.value = True  
 
 def follow_string(solver, cont, strArgument):
   strArgument = strArgument.deref(solver.env)
-  assert isinstance(strArgument, Atom)
+  assert isinstance(strArgument, String)
   if not solver.stream.left().startswith(strArgument.name): raise UnifyFail
   solver.value = True
 
 @matcher()
-def not_follow_string(solver, cont, string):
+def not_pfollow_string(solver, cont, string):
   string = string.deref(solver.env)
   if solver.stream.left().startswith(string.name): return
   solver.value = True  
@@ -97,7 +97,7 @@ def char_on_test(test, name=''):
   return matcher(name)(func)
 
 def char_between(lower, upper): return char_on_test(lambda char: lower<=char<=upper, "charbetween <%s-%s>"%(lower, upper))  
-def char_in(string, repr_string=''): return char_on_test(lambda char: char in string, repr_string or 'charin '+string)      
+def char_in(string, repr_string=''): return char_on_test(lambda char: char in string, repr_string or 'char_in '+string)      
 digit = char_between('0', '9')
 _1_9 = char_between('1', '9')
 lowcase = char_between('a', 'z')

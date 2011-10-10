@@ -3,11 +3,16 @@
 from oad import *
 from oad.dinpy import *
 
+from oad.term import nil
 from oad.builtins.format import write
 from oad.builtins.terminal import *
-from oad.builtins.arithpred import *
+from oad.builtins.arith import *
 from oad.special import eval_
+from oad.builtins.term import setvalue
+from oad.builtins.matcher import nullword
+from oad.builtins.control import if_p, not_p
 
+dao.version = '0.1.0'
 # when lisp meets prolog in python
 
 # 假如有一门语言，(),{},[],冒号，逗号，分号，句号，空格，换行，缩进等等都是运算符，
@@ -16,7 +21,7 @@ from oad.special import eval_
 # 关键字
 # 必须避开python的关键字，
 # 尽量短: 不超过5个字母
-# control: do, loop, each, if_, iff, els, elsif, when, until, on, at, 
+# control: dao, do, loop, each, if_, iff, els, elsif, when, until, on, at, 
   # exit, next, goto
 # variable: use, set, out, local, var, v, globl, my, dummy
 # structure: rule, rules, lamda, let, letre, fun, macro, klass, block,
@@ -29,7 +34,7 @@ a, x, y = v.a, v.x, v.y # 普通变量
 i, j = var.i.j
 
 #oad.ver090
-[
+dao[
 # oad program samples:
 
 ##use.a.b.c,
@@ -40,15 +45,25 @@ i, j = var.i.j
 ##use.a/'test_*1',
 
 v.a_trt_b, # 刚导入的变量
+]
 
+print dao.code
+
+dao.run()
+
+dao[
 block.name[
   write(1),
-  exit.name >>1,
-  exit,
-  exit >>1,
-  write(2)
+##  exit.name >>1,
+##  exit,
+##  exit >>1,
+##  write(2)
 ],
+]
+print dao.code
+dao.run()
 
+[
 loop(10) [write(1)],
 loop(10) [write(1), write(2)],
 loop(10) [write(1), write(2)],
@@ -118,41 +133,45 @@ case(x).of(1)[write(1)]
 ##    f2: open('out.txt', 'w')}).
 ##  do [write(f1, 'hello')],
 
-loop(10)[some/char(x)[10]],  
+loop(10)[char(x)[10]],  
 
 py.open('readme.txt'),
 
-some/char(x)[10],
-any/char(x)[10],
-may/char(x), # 可选字符
+char(x)[10][10],
+char(x)[10][:],
+-char(x), # 可选字符
 ]
 
-[
+dao[
 x-1,          # 与上面意思相同
--char,        # 可以定义成optional(char),漂亮
-##~+char,       # 非贪婪的一个或多个字符
-##char[:],      # char重复任意次（包括0次）
-##char[1:],      # char重复任意次（不包括0次）
-##char[:]/',',  # 逗号分隔的列表
-##char[5],      # char重复5次
-##char[5]/space,      # 空格分隔的字符列表，重复5次
-##element(x,y,z)[:]/space&(x+y)>>z, #任意项element(x,y,z)以模板x+y收集到z
-##char[:5],     # char不大于五次
-##char[5:],      # char至少五次
+-char(x),        # 非贪婪可选
++char(x),       # 贪婪可选
+char(x)[:],      # 非贪婪char(x)重复任意次（包括0次）
++char(x)[1:],      # 贪婪char(x)重复任意次（不包括0次）
+-char(x)[1:],      # 懒惰char(x)重复任意次（不包括0次）
+char(x)[:]/char(' '),  # 空格分隔的列表
+char(x)[5],      # char(x)重复5次
+char(x)[5]/char(','),      # 空格分隔的char(x)列表，重复5次
+char(x)[:]/' '%(x,y)*a, #任意项char(x)(x,y,z)以模板x,y收集到z
+char(x)[:5],     # char(x)不大于五次
+char(x)[5:],      # char(x)至少五次
+char(x)[5:8],      # char(x)至少五次
 ]
 
 X, Expr, Expr2, ExprList, Result, Y = var.X.Y.Expr.Expr2.ExprList.Result # 语句不能放在列表中
 
 X, Expr, ExprList, Result, Y, sexpression = vars('X, Expr, ExprList, Result, Y, sexpression') # 语句不能放在列表中
+stringExpression, bracketExpression, puncExpression, sexpressionList, condSpace = vars(
+  'stringExpression, bracketExpression, puncExpression, sexpressionList, condSpace')
 
-'''[
+dao[
 fun. evalRule(Result) == sexpression(Expr2)+eos+is_(Result, eval_<getvalue<Expr2),
 
 fun. sexpression == at
   (Result)
     [char('{')+sexpression(Expr2)+char('}')+setvalue(Result, eval_<getvalue<Expr2)]
   (Expr)
-    [atomExpression(Expr)]
+    [stringExpression(Expr)]
     [bracketExpression(Expr)]
     [puncExpression(Expr)],
   
@@ -160,7 +179,7 @@ fun. sexpression == at
   (Result)
     [char('{')+sexpression(Expr2)+char('}')+setvalue(Result, eval_<getvalue<Expr2)]
   (Expr)
-    [atomExpression(Expr)]
+    [stringExpression(Expr)]
     [bracketExpression(Expr)]
     [puncExpression(Expr)],
   
@@ -168,28 +187,29 @@ fun. sexpression == at
   (Result)
     [char('{')+sexpression(Expr2)+char('}')+setvalue(Result, eval_<getvalue<Expr2)]
   (Expr)
-    [atomExpression(Expr)]
+    [stringExpression(Expr)]
     [bracketExpression(Expr)]
     [puncExpression(Expr)],
     
-fun. atomExpression(X) == at [number(X)] [dqstring(X)] [symbol(X)],
+fun. stringExpression(X) == at [number(X)] [dqstring(X)] [symbol(X)],
 
 fun. bracketExpression (ExprList) == at
     [char('(')+spaces0(_)+sexpressionList(ExprList)+spaces0(_)+char(')')]
     [char('[')+spaces0(_)+sexpressionList(ExprList)+spaces0(_)+char(']')],
     
 fun. puncExpression == at
-  ('quote', Expr) [char("'")/sexpression(Expr)]
-  ('quote', Expr) [('quasiquote', Expr)==  char("`")+sexpression(Expr)]
+  ('quote', Expr) [char("'")][sexpression(Expr)]
+  ('quote', Expr) [char("`")+sexpression(Expr)]
   ('unquote-splicing', Expr) [literal(",@")+sexpression(Expr)]
   ('unquote', Expr) [char(",")+(sexpression, Expr)],
   
 fun. sexpressionList == at
   (Expr, ExprList) [sexpression(Expr)+condSpace+sexpressionList(ExprList)]
-  (NIL) [epsilon],
+  (nil) [nullword],
   
 fun. sexpression1(Expr) >= [spaces0(_)+sexpressionList(Expr)+spaces0(_)],
 
-fun. condSpace() >=  [ifp(notFollowChars('([])')+notFollowByChars('([])')+not_(eos))+spaces(_)
+fun. condSpace() >=  [if_p(not_plead_chars('([])')+not_pfollow_chars('([])')+not_p(eos))+spaces(_)
         +spaces0(_)]
-]'''
+]
+

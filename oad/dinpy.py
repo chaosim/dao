@@ -4,7 +4,7 @@
 
 '''dao grammar embeded in python list display by operator grammar'''
 
-__all__ = ['_', 'v', 'var', 'vars', 'dummies', 'put', 
+__all__ = ['dao', '_', 'v', 'var', 'vars', 'dummies', 'put', 
   'iff', 'let', 'case', 'els', 'block', 
   'label', 'do', 'loop', 'each', 'when', 'exit', 'next',
   'fun', 'macro', 'at', 'parse',
@@ -15,19 +15,39 @@ from oad.term import Var, DummyVar, Apply, conslist as L, vars, dummies
 from oad import builtin
 from oad import special
 from oad.special import set as assign
-from oad.builtins.matchterm import some, any, optional as opt
+from oad.builtins.matcher import some, any, optional as opt
 from oad.builtins.terminal import eos
-from oad.builtins.type import pytuple, make_apply, head_list, list_tail#, to_list
-from oad.builtins.type import items, first #, index
-from oad.builtins.term import getvalue, ground_value
-from oad.builtins.arithpred import is_, ne as pred_ne
+from oad.builtins.term import pytuple, make_apply, head_list, list_tail#, to_list
+from oad.builtins.term import items, first #, index
+from oad.builtins.term import getvalue, ground_value, is_
+from oad.builtins.arith import ne_p
 from oad.term import dummies
+from oad.solve import eval
 
 class DinpySyntaxError(Exception): pass
 
+class Dao(object): 
+  def __init__(self): 
+    pass
+  def __setattr__(self, attr, value):
+    if attr=='version':
+      self._version = tuple(int(x) for x in value.split('.'))
+      self.code = []
+    else: return object.__setattr__(self, attr, value)
+  def run(self):
+    result = eval(self.code)
+    self.code = []
+    return result
+  def __getitem__(self, code):
+    self.code.append(code)
+dao = Dao()
+
 ## vv.a
-def single_var(klass, varcahce):
+def single_var(name, klass, varcahce):
   class VForm(object):
+    def __init__(self, name=name, grammar=None):
+      self.__form_name__ = 'v'
+      self.__form_grammar__ = None
     def __getattr__(self, var): return varcache(var, klass)
   return lead(VForm)
 
@@ -36,20 +56,22 @@ def varcache2(name, klass=Var):
   return _var_cache2.setdefault(klass, {}).setdefault(name, klass(name))
 
 # used only in dinpy.py internally, do not export me.
-vv = single_var(Var, varcache2)
-__ = single_var(DummyVar, varcache2)
+vv = single_var('vv', Var, varcache2)
+__ = single_var('__', DummyVar, varcache2)
 
 _var_cache = {}
 def varcache(name, klass=Var):
   return _var_cache.setdefault(klass, {}).setdefault(name, klass(name))
 
 # used in codes parsed by dinpy parser
-v = single_var(Var, varcache)
-_ = single_var(DummyVar, varcache)
+v = single_var('v', Var, varcache)
+_ = single_var('_', DummyVar, varcache)
 
 ## var.a.b.c
 class VarForm(object):
-  def __init__(self):
+  def __init__(self, name=None, grammar=None):
+    self.__form_name__ = 'var'
+    self.__form_grammar__ = None
     self.__vars__ = []
   def __getattr__(self, var):
     self.__vars__.append(varcache(var))
@@ -65,12 +87,18 @@ def getvar(name, klass=Var):
 def _vars(text): return [varcache2(x.strip()) for x in text.split(',')]
 
 class MayForm:
+  def __init__(self, name=None, grammar=None):
+    self.__form_name__ = 'may'
+    self.__form_grammar__ = None
   def __div__(self, element):
     return opt(element)
 may = MayForm()
 
-def some_any(matcher):
+def some_any(name, matcher):
   class Form:
+    def __init__(self, name=name, grammar=None):
+      self.__form_name__ = name
+      self.__form_grammar__ = None
     def __div__(self, item):
       try:
         self.template
@@ -104,8 +132,8 @@ def some_any(matcher):
         except: raise DinpySyntaxError
   return Form
 
-Some = lead(some_any(some))
-Any = lead(some_any(any))
+Some = lead(some_any('some', some))
+Any = lead(some_any('any', any))
 
 # my.a, globl.a
 ## my = element(some(getattr(__._), L('local', __._), y)+eos)
@@ -116,7 +144,7 @@ Any = lead(some_any(any))
 ##          |some(use_item)+div+use_block
 
 # put.a = 1, put.i.j==(1,2)
-put = element(
+put = element('put',
   # put.a == 1
     getattr(vv.var)+eq(vv.value)+eos
       +make_apply(special.set, getvar(vv.var), vv.value)
@@ -136,7 +164,7 @@ def make_let(args, body):
   else: return special.let(args[0], body)
   
 #let({var:value}).do[...]
-let = element(call(vv.bindings)+_do+getitem(vv.body)+eos
+let = element('let', call(vv.bindings)+_do+getitem(vv.body)+eos
               +make_let(vv.bindings, vv.body))
 
 @builtin.function('make_iff')
@@ -148,7 +176,8 @@ _then, _elsif, _els = words('then, elsif, els')
 _test, _test2, _body =  dummies('_test, _test2, _body')
 
 # iff(1).then[2], iff(1).then[2]  .elsif(3).then[4] .els[5]
-iff = element(call(vv.test)+_then+getitem(vv.clause)
+iff = element('iff',
+              call(vv.test)+_then+getitem(vv.clause)
               +any(_elsif+call(_test)+_then+getitem(_body)+is_(_test2, first(_test)), 
                    (_test2, _body), vv.clauses)
               +opt(_els+getitem(vv.els_clause))+eos
@@ -175,7 +204,8 @@ def make_case(test, cases):
 of_fun = attr_call('of')
 
 # case(x).of(1)[write(1)].of(2,3)[write(4)].els[write(5)]
-case = element( call(vv.test)+(
+case = element('case',
+  call(vv.test)+(
   #.of(1)[write(1)].of(2,3)[write(4)].els[write(5)]
     (some(of_fun(__.values)+getitem(__.clause),(__.values,__.clause), vv.clauses)
      +_els+getitem_to_list(vv.els)+eos
@@ -186,14 +216,16 @@ case = element( call(vv.test)+(
 els = CASE_ELS
 
 # when(x>1).do[write(1)
-when = element(call(vv.test)+_do+getitem_to_list(vv.body)+eos+
+when = element('when',
+  call(vv.test)+_do+getitem_to_list(vv.body)+eos+
   make_apply(special.LoopWhenForm, vv.body, first(vv.test)))
 
 when_fun = attr_call('when')
 until_fun = attr_call('until')
 
 # do.write(1).until(1), do.write(1).when(1)
-do = element(getitem_to_list(vv.body)+(
+do = element('do',
+  getitem_to_list(vv.body)+(
   # .when(1)
     when_fun(vv.test)+eos
     +make_apply(special.LoopWhenForm, vv.body, first(vv.test))
@@ -203,7 +235,7 @@ do = element(getitem_to_list(vv.body)+(
   ))
 
 # loop[write(1)], loop(1)[write(1)]
-loop = element(
+loop = element('loop',
   # loop[write(1)]
     getitem_to_list(vv.body)+eos
     +make_apply(special.LoopForm, vv.body)
@@ -228,17 +260,19 @@ def make_each(vars, iterators, body):
 # each(i,j)[1:10][1:10]. do[write(i, j)]
 # each(i,j)[zip(range(5), range(5))]. do [write(i,j)],
 # each(i,j)[range(5)][range(5)]. do [write(i,j)],
-each = element(call(vv.vars)+some(getitem(__.iterator), __.iterator, vv.iterators)
+each = element('each',
+    call(vv.vars)+some(getitem(__.iterator), __.iterator, vv.iterators)
                +_do+getitem_to_list(vv.body)+eos
     +make_each(vv.vars, vv.iterators, vv.body))
 
-exit = element(may/getattr(vv.type)+opt(div(vv.label))+opt(rshift(vv.value))+eos)
-next = element(opt(getattr(vv.type))+opt(div(vv.label))+eos)
-label = element(getattr(vv.type)+div(vv.body)+eos)
+exit = element('exit', 
+         may/getattr(vv.type)+opt(div(vv.label))+opt(rshift(vv.value))+eos)
+next = element('next', opt(getattr(vv.type))+opt(div(vv.label))+eos)
+label = element('label', getattr(vv.type)+div(vv.body)+eos)
 
-block = element(getattr(vv.name)+getitem(vv.block)+eos)
+block = element('block', getattr(vv.name)+getitem(vv.block)+eos)
 
-py = element(div(vv.func)+call(vv.args)+eos)
+py = element('py', div(vv.func)+call(vv.args)+eos)
 
 ##on = element(call(x)+do_word+body+eos) # with statements in dao
 
@@ -251,7 +285,7 @@ class AtForm:
     
 # at(*args)[...](*args)[...][...]
 # at[...][...]
-at = element(
+at = element('at',
   some(opt(call(__.args))+assign(__.args, ground_value(__.args))
        +some(getitem_to_list(__.body), __.body, __.bodies), 
         (__.args, __.bodies), vv.args_bodies)+eos
@@ -388,8 +422,5 @@ def fun_macro_grammar(klass):
 ##  | (getattr(vv.name)+call(vv.args)+getitem(vv.index)+neg+assign(result, retract(vv.name, vv.args)))
   )
 
-fun = element(fun_macro_grammar(special.FunctionForm))
-macro = element(fun_macro_grammar(special.MacroForm))
-
-def lshift_apply(function):
-  return element(some(lshift(vv.arg))+not_(follow_by(lshift(_))), make_apply(function, vv.arg))
+fun = element('fun', fun_macro_grammar(special.FunctionForm))
+macro = element('macro', fun_macro_grammar(special.MacroForm))

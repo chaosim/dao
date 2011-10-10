@@ -16,7 +16,7 @@ def apply_generators(generators): # one shot generators, such as unify, set/rest
     except StopIteration:
       if i==0: return
       i -= 1
-    except GeneratorExit: pass
+    except GeneratorExit: raise
 
 def unify_list(list1, list2, env, occurs_check=False):
   if len(list1)!=len(list2): return

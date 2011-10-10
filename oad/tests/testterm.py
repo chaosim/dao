@@ -3,35 +3,35 @@
 from nose.tools import eq_, ok_, assert_raises
 from oad.builtin import *
 from oad.error import UnifyFail, CatchableError
-from oad.term import atom, Var, term, Term, userTerm, nonterminal, function
+from oad.term import string, Var, term, Term, userTerm, nonterminal, function
 from oad.rule import rule, Rule 
 from oad.engine import Trail, Engine
 
 class TestUnify:
-  def test_atom(self):
-    a = atom("hallo")
-    b = atom("hallo")
+  def test_string(self):
+    a = string("hallo")
+    b = string("hallo")
     a.unify(b, None) # does not raise
-    assert_raises(UnifyFail, a.unify, atom('xxx'), None, False)
+    assert_raises(UnifyFail, a.unify, string('xxx'), None, False)
 
   def test_var(self):
     b = Var()
     trail = Trail()
-    b.unify(atom("hallo"), trail)
-    eq_(b.getvalue(trail), atom("hallo"))
+    b.unify(string("hallo"), trail)
+    eq_(b.getvalue(trail), string("hallo"))
     a = Var()
     b = Var()
     a.unify(b, trail)
-    a.unify(atom("hallo"), trail)
-    eq_(a.getvalue(trail),atom("hallo"))
-    eq_(b.getvalue(trail),atom("hallo"))
+    a.unify(string("hallo"), trail)
+    eq_(a.getvalue(trail),string("hallo"))
+    eq_(b.getvalue(trail),string("hallo"))
 
   def test_unify_var(self):
     b = Var()
     trail = Trail()
     b.unify(b, trail)
-    b.unify(atom("hallo"), trail)
-    assert_raises(UnifyFail, b.unify, atom("bye"), trail)
+    b.unify(string("hallo"), trail)
+    assert_raises(UnifyFail, b.unify, string("bye"), trail)
 
   def test_recursive(self):
     b = Var()
@@ -46,8 +46,8 @@ class TestUnify:
     t2 = f(Y, "HALLO")
     trail = Trail()
     t1.unify(t2, trail)
-    eq_(X.getvalue(trail), atom("HALLO"))
-    eq_(Y.getvalue(trail), atom("hallo"))
+    eq_(X.getvalue(trail), string("HALLO"))
+    eq_(Y.getvalue(trail), string("hallo"))
 
 from oad.term import DynamicVar
 class TestDynamicVar:

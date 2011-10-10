@@ -2,7 +2,7 @@ from nose.tools import eq_, assert_raises
 
 from oad.term import Var, DummyVar, Cons, nil, conslist as L
 from oad.solve import eval
-from oad.builtins.control import fail, or_, and_, not_, cut
+from oad.builtins.control import fail, or_, and_, not_p, cut
 
 from oad.special import function, let, letrec, macro, begin, eval_
 from oad.builtins.arith import add
@@ -10,15 +10,15 @@ from oad.builtins.parser import settext, parse
 from oad.builtins.parser import step, left, next, position, subtext, goto, skip
 from oad.builtins.terminal import char, number, eos, literal, letter 
 from oad.builtins.terminal import dqstring, sqstring, spaces, uLetterdigitString
-from oad.builtins.matchterm import nullword, optional, parallel
-from oad.builtins.matchterm import any, some, times, times_more, times_less, seplist
-from oad.builtins.matchterm import lazy, times_between
-from oad.builtins.atom import charin
-from oad.testutil import *
+from oad.builtins.matcher import nullword, optional, parallel
+from oad.builtins.matcher import any, some, times, times_more, times_less, seplist
+from oad.builtins.matcher import lazy, times_between
+from oad.builtins.string import char_in
+from oad.util import *
 
-class xTestLineparser:
+class xTestLine_parser:
   def test_row_column(self):
-    from oad.builtins.lineparser import settext, row, column
+    from oad.builtins.line_parser import settext, row, column
     eq_(eval(begin(settext('ab'), row())), 0)
     eq_(eval(begin(settext('ab'), row(),char('a'), column())), 1)
     
@@ -45,7 +45,7 @@ class TestLowLevelPrimitive:
 class TestParameterize:
   def test_chars(self):
     x, cs,chars = Var('x'), Var('cs'), Var('chars')
-    eq_(eval(let({chars: function(((x, cs), and_(char(x),charin(x, cs))))},
+    eq_(eval(let({chars: function(((x, cs), and_(char(x),char_in(x, cs))))},
                             parse(chars(x, 'a'), 'a'))), True)
   def test_kleene1(self):
     f, item, kleene = Var('f'), Var('item'), Var('kleene')

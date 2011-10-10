@@ -1,5 +1,5 @@
 from oad.term import deref, unify_list_rule_head, conslist, getvalue, match
-from oad import error
+##from oad import error
 from oad import builtin
 from oad.rule import Rule
 
@@ -53,7 +53,7 @@ def replace(solver, cont, rules, head, body):
   
   
 # retract(+Term)                                                    [ISO]
-#   When  Term  is an  atom  or a  term  it is  unified with  the  first
+#   When  Term  is an  string  or a  term  it is  unified with  the  first
 #   unifying  fact or clause  in the database.   The  fact or clause  is
 #   removed from the database.
 @builtin.macro('retract')
