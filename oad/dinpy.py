@@ -4,10 +4,28 @@
 
 '''dao grammar embeded in python list display by operator grammar'''
 
-__all__ = ['dao', '_', 'v', 'var', 'vars', 'dummies', 'put', 
-  'iff', 'let', 'case', 'els', 'block', 
-  'label', 'do', 'loop', 'each', 'when', 'exit', 'next',
-  'fun', 'macro', 'at', 'parse',
+# keyword must be short(don't be longer than 5 letters).
+# keyword can not be the keyword of python.
+
+# control: dao, do, loop, each, if_, iff, els, elsif, when, until, on, at, exit, next, goto
+# variable: use, set, out, local, var, v, globl, my, dummy
+# structure: rule, rules, lamda, let, letre, fun, macro, klass, block, label
+# solve, eval
+
+__all__ = [
+  'dao', 'parse', 
+  
+  # declaration and variable
+  '_', 'v', 'var', 'vars', 'dummies', 'put', 
+  
+  # control structure
+  'iff', 'let', 'case', 'els',  'on', 'block','label',
+  'do', 'loop', 'each', 'when', 'exit', 'next',
+  
+  # function and macro definition
+  'fun', 'macro', 'at',
+  
+  # miscellaneous
   'py', 'some', 'any', 'may']
 
 from oad.pysyntax import *
@@ -15,34 +33,40 @@ from oad.term import Var, DummyVar, Apply, conslist as L, vars, dummies
 from oad import builtin
 from oad import special
 from oad.special import set as assign
-from oad.builtins.matcher import some, any, optional as opt
+from oad.builtins.matcher import some, any, may
 from oad.builtins.terminal import eos
-from oad.builtins.term import pytuple, make_apply, head_list, list_tail#, to_list
-from oad.builtins.term import items, first #, index
+from oad.builtins.term import pytuple, pycall, py_apply, head_list, list_tail
+from oad.builtins.term import items, first, left
 from oad.builtins.term import getvalue, ground_value, is_
 from oad.builtins.arith import ne_p
-from oad.term import dummies
-from oad.solve import eval
+from oad.solve import eval, solve, tag_loop_label
 
 class DinpySyntaxError(Exception): pass
 
 class Dao(object): 
   def __init__(self): 
-    pass
+    self.code = []
   def __setattr__(self, attr, value):
     if attr=='version':
       self._version = tuple(int(x) for x in value.split('.'))
       self.code = []
     else: return object.__setattr__(self, attr, value)
-  def run(self):
-    result = eval(self.code)
+  def eval(self):
+    result = eval(special.begin(*self.code))
+    self.code = []
+    return result
+  def solve(self):
+    result = solve(special.begin(*self.code))
     self.code = []
     return result
   def __getitem__(self, code):
-    self.code.append(code)
+    code = tag_loop_label(parse(code))
+    if isinstance(code, tuple): self.code +=  list(code)
+    else: self.code += [code]
+    return self
 dao = Dao()
 
-## vv.a
+## vv.a v.a
 def single_var(name, klass, varcahce):
   class VForm(object):
     def __init__(self, name=name, grammar=None):
@@ -86,71 +110,22 @@ def getvar(name, klass=Var):
 
 def _vars(text): return [varcache2(x.strip()) for x in text.split(',')]
 
-class MayForm:
-  def __init__(self, name=None, grammar=None):
-    self.__form_name__ = 'may'
-    self.__form_grammar__ = None
-  def __div__(self, element):
-    return opt(element)
-may = MayForm()
-
-def some_any(name, matcher):
-  class Form:
-    def __init__(self, name=name, grammar=None):
-      self.__form_name__ = name
-      self.__form_grammar__ = None
-    def __div__(self, item):
-      try:
-        self.template
-        return matcher(self.element, self.template, item)
-      except:
-        try: 
-          self.element
-          self.template = item
-        except: self.element = item
-      return self
-    def __add__(self, other):
-      try: 
-        self.template
-        raise DinpySyntaxError
-      except:
-        try: return matcher(self.element)+other
-        except: raise DinpySyntaxError
-    def __or__(self, other):
-      try: 
-        self.template
-        raise DinpySyntaxError
-      except:
-        try: return matcher(self.element)|other
-        except: raise DinpySyntaxError
-    def ___parse___(self):
-      try: 
-        self.template
-        raise DinpySyntaxError
-      except:
-        try: return matcher(self.element)
-        except: raise DinpySyntaxError
-  return Form
-
-Some = lead(some_any('some', some))
-Any = lead(some_any('any', any))
-
 # my.a, globl.a
 ## my = element(some(getattr(__._), L('local', __._), y)+eos)
 ## globl = element(some(getattr(__._), L('globl', __._), y)+eos)
 
 ##use_item = attr|div(var)|div(str)
-##use = 'use'+some(use_item)+optional(use_block)|any(use_item)+use_block\
+##use = 'use'+some(use_item)+mayional(use_block)|any(use_item)+use_block\
 ##          |some(use_item)+div+use_block
 
 # put.a = 1, put.i.j==(1,2)
 put = element('put',
   # put.a == 1
     getattr(vv.var)+eq(vv.value)+eos
-      +make_apply(special.set, getvar(vv.var), vv.value)
+      +pycall(special.set, getvar(vv.var), vv.value)
   # put.i.j==(1,2)
-  | Some/(getattr(__._)+assign(vv.x, getvar(__._)))/vv.x/vv.vars+eq(vv.value)+eos
-        +make_apply(special.set_list, vv.vars, vv.value)
+  | (getattr(__._)+assign(vv.x, getvar(__._)))[1:]%vv.x*vv.vars+eq(vv.value)+eos
+        +pycall(special.set_list, vv.vars, vv.value)
   )
 
 _do, _of, _at = words('do, of, at')
@@ -180,7 +155,7 @@ iff = element('iff',
               call(vv.test)+_then+getitem(vv.clause)
               +any(_elsif+call(_test)+_then+getitem(_body)+is_(_test2, first(_test)), 
                    (_test2, _body), vv.clauses)
-              +opt(_els+getitem(vv.els_clause))+eos
+              +may(_els+getitem(vv.els_clause))+eos
               +make_iff(vv.test, vv.clause, vv.clauses, vv.els_clause))
 
 class CASE_ELS: pass
@@ -218,7 +193,7 @@ els = CASE_ELS
 # when(x>1).do[write(1)
 when = element('when',
   call(vv.test)+_do+getitem_to_list(vv.body)+eos+
-  make_apply(special.LoopWhenForm, vv.body, first(vv.test)))
+  pycall(special.LoopWhenForm, vv.body, first(vv.test)))
 
 when_fun = attr_call('when')
 until_fun = attr_call('until')
@@ -228,20 +203,20 @@ do = element('do',
   getitem_to_list(vv.body)+(
   # .when(1)
     when_fun(vv.test)+eos
-    +make_apply(special.LoopWhenForm, vv.body, first(vv.test))
+    +pycall(special.LoopWhenForm, vv.body, first(vv.test))
   #.until(1)
   | until_fun(vv.test)+eos
-    +make_apply(special.LoopUntilForm, vv.body, first(vv.test))
+    +pycall(special.LoopUntilForm, vv.body, first(vv.test))
   ))
 
 # loop[write(1)], loop(1)[write(1)]
 loop = element('loop',
   # loop[write(1)]
     getitem_to_list(vv.body)+eos
-    +make_apply(special.LoopForm, vv.body)
+    +pycall(special.LoopForm, vv.body)
   # loop(1)[write(1)]
   | call(vv.times)+getitem_to_list(vv.body)+eos
-    +make_apply(special.LoopTimesForm, first(vv.times), vv.body)
+    +pycall(special.LoopTimesForm, first(vv.times), vv.body)
   )
 
 @builtin.function('make_each1')
@@ -265,16 +240,56 @@ each = element('each',
                +_do+getitem_to_list(vv.body)+eos
     +make_each(vv.vars, vv.iterators, vv.body))
 
+@builtin.function('make_exit')
+def make_exit(type, level, label, value):
+  type = None if isinstance(type, Var) else type
+  level = 0 if isinstance(level, Var) else level
+  label = None if isinstance(label, Var) else label
+  value = None if isinstance(value, Var) else value
+  return special.exit(value, type, level, label)
+
+# exit.loop^2 >> 3,  eixt/a>>3
 exit = element('exit', 
-         may/getattr(vv.type)+opt(div(vv.label))+opt(rshift(vv.value))+eos)
-next = element('next', opt(getattr(vv.type))+opt(div(vv.label))+eos)
-label = element('label', getattr(vv.type)+div(vv.body)+eos)
+         may((getattr(vv.type)+may(div(vv.level)))|may(div(vv.label)))
+             +may(rshift(vv.value))+eos
+             +make_exit(vv.type, vv.level, vv.label, vv.value))
 
-block = element('block', getattr(vv.name)+getitem(vv.block)+eos)
+@builtin.function('make_next')
+def make_next(type, level, label):
+  type = None if isinstance(type, Var) else type
+  level = 0 if isinstance(level, Var) else level
+  label = None if isinstance(label, Var) else label
+  return special.next(type, level, label)
 
-py = element('py', div(vv.func)+call(vv.args)+eos)
+next = element('next', 
+        may(getattr(vv.type)+may(div(vv.level))|may(div(vv.label)))+eos
+        +make_next(vv.type, vv.level, vv.label))
 
-##on = element(call(x)+do_word+body+eos) # with statements in dao
+@builtin.function('set_loop_label')
+def set_loop_label(label, body):
+  body = body[0]
+  if not isinstance(body, special.RepeatForm): raise DinpySyntaxError
+  body.label = label
+  return body
+
+label = element('label', getattr(vv.name)+mod(vv.body)+eos
+          +set_loop_label(vv.name, vv.body))
+
+@builtin.function('make_block')
+def make_block(name, body):
+  return special.block(name, *body)
+
+block = element('block', getattr(vv.name)+getitem_to_list(vv.body)+eos
+                +make_block(vv.name, vv.body))
+
+py = element('py', 
+       ( getattr(vv.func)+assign(vv.func, getvar(vv.func))+eos
+           +pycall(vv.func, vv.args))
+       | +call(vv.args)+eos+pycall(first(vv.args), left(vv.args)))
+
+# with statements in dao
+on = element('on', call(vv.form)+_do+getitem(vv.body)+eos+
+    pycall(special.OnForm, vv.form, vv.body)) 
 
 class AtForm:
   def __init__(self, clauses):
@@ -286,10 +301,10 @@ class AtForm:
 # at(*args)[...](*args)[...][...]
 # at[...][...]
 at = element('at',
-  some(opt(call(__.args))+assign(__.args, ground_value(__.args))
+  some(may(call(__.args))+assign(__.args, ground_value(__.args))
        +some(getitem_to_list(__.body), __.body, __.bodies), 
         (__.args, __.bodies), vv.args_bodies)+eos
-        +make_apply(AtForm, vv.args_bodies))
+        +pycall(AtForm, vv.args_bodies))
 
 from oad.builtins.rule import replace, remove, assert_, asserta, \
      abolish, retractall, retract
@@ -414,10 +429,10 @@ def fun_macro_grammar(klass):
         +eos+make_fun7(vv.rules))
   #   - fun.a/3,
   | (getattr(vv.name)+neg+div(vv.arity)+eos
-     +make_apply(abolish, getvar(vv.name), vv.arity))
+     +pycall(abolish, getvar(vv.name), vv.arity))
   #- fun.a(x),
   | (getattr(vv.name)+call(vv.args)+neg+eos
-     +make_apply(retractall, getvar(vv.name), vv.args))
+     +pycall(retractall, getvar(vv.name), vv.args))
   #- fun.a(x)[1],
 ##  | (getattr(vv.name)+call(vv.args)+getitem(vv.index)+neg+assign(result, retract(vv.name, vv.args)))
   )

@@ -58,6 +58,12 @@ class TestIff:
               els[5]), 
         special.iff([(1, 2),(3, 4)], 5))
 
+class TestLoop:
+  def test_loop(self):
+    eq_(parse(loop[write(1)]), special.LoopForm([write(1)])) 
+  def test_loop_times(self):
+    eq_(parse(loop(10)[write(1)]), special.LoopTimesForm(10, [write(1)], 'a')) 
+
 class TestDo:
   def test_do_when(self):
     eq_(parse(do[write(1)].when(1)), special.LoopWhenForm([write(1)], 1)) 
@@ -92,7 +98,23 @@ class TestEach:
   def test_getitem2(self):
     i = v.i; j = v.j
     eq_(parse(each(i,j)[range(2)][range(2)].do[write(i,j)]), 
-        special.EachForm((i,j), zip(range(2),range(2)),[write(i,j)])) 
+        special.EachForm((i,j), zip(range(2),range(2)),[write(i,j)]))
+    
+class TestExitNext:
+  def test_exit1(self):
+    eq_(parse(exit.loop), special.exit(None, 'loop')) 
+  def test_exit2(self):
+    eq_(parse(exit.loop/2>>3), special.exit(3, 'loop', 2)) 
+  def test_next1(self):
+    eq_(parse(next.loop), special.next('loop')) 
+  def test_next2(self):
+    eq_(parse(next.loop/2), special.next('loop', 2)) 
+    
+class TestBlockLabel:
+  def test_label(self):
+    eq_(parse(label.a%[loop[0]]), special.LoopForm([0], 'a')) 
+  def test_block(self):
+    eq_(parse(block.a[1]), special.block('a', 1)) 
 
 class TestFun:
   def test_at(self):

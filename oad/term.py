@@ -290,6 +290,10 @@ class Apply:
     self.operator = parser.parse(self.operator)
     self.operand = parser.parse(self.operand)
     return self
+  def tag_loop_label(self, tagger):
+    self.operator = tagger.tag_loop_label(self.operator)
+    self.operand = tagger.tag_loop_label(self.operand)
+    return self
 
   def closure(self, env):
     return Apply(self.operator, *[closure(x, env) for x in self.operand])

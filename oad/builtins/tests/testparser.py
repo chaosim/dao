@@ -1,7 +1,7 @@
 from nose.tools import eq_, assert_raises
 
 from oad.term import Var, DummyVar, Cons, nil, conslist as L
-from oad.solve import eval
+from oad.solve import eval, parse as preparse
 from oad.builtins.control import fail, or_, and_, not_p, cut
 
 from oad.special import function, let, letrec, macro, begin, eval_
@@ -160,7 +160,7 @@ class TestOr:
 class TestOptional:
   def test_optional(self):
     x = Var('x')
-    eq_(eval(parse(optional(char(x))+char('1'), '1')), None)
+    eq_(eval(preparse(parse(optional(char(x))+char('1'), '1'))), None)
     eq_(eval(parse(optional(char(x)), '1')), '1')
     eq_(eval(parse(optional(char(x)), '')), True)
 
@@ -240,20 +240,20 @@ class TestAnySomeTimesSepList:
     eq_(eval(begin(parse(times_more(char(_), 3, _, Y), '23'), Y)), None)
   def test_dummy_times_less(self):
     _, Y = DummyVar('_'), Var('Y')
-    eq_(eval(begin(parse(times_less(char(_), 3, _, Y)+char('4'), '234'), Y)), ['2','3'])
+    eq_(eval(preparse(begin(parse(times_less(char(_), 3, _, Y)+char('4'), '234'), Y))), ['2','3'])
     eq_(eval(begin(parse(times_less(char(_), 3, _, Y), '234'), Y)), ['2','3','4'])
     eq_(eval(begin(parse(times_less(char(_), 3, _, Y), '23'), Y)), ['2','3'])
-    eq_(eval(begin(parse(times_less(char(_), 3, _, Y)+eos, '2345'), Y)), None)
+    eq_(eval(preparse(begin(parse(times_less(char(_), 3, _, Y)+eos, '2345'), Y))), None)
   def test_dummy_times_less_lazy(self):
     _, Y = DummyVar('_'), Var('Y')
-    eq_(eval(begin(parse(times_less(char(_), 3, _, Y, lazy)+char('4'), '234'), Y)), ['2','3'])
+    eq_(eval(preparse(begin(parse(times_less(char(_), 3, _, Y, lazy)+char('4'), '234'), Y))), ['2','3'])
   def test_dummy_times_between(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(begin(parse(times_between(char(_), 2, 3, _, Y), '234'), Y)), ['2','3', '4'])
     eq_(eval(begin(parse(times_between(char(_), 2, 3, _, Y), '23'), Y)), ['2','3'])
     eq_(eval(begin(parse(times_between(char(_), 2, 3, _, Y), '2345'), Y)), ['2','3', '4'])
     eq_(eval(begin(parse(times_between(char(_), 2, 3, _, Y), '2'), Y)), None)
-    eq_(eval(begin(parse(times_between(char(_), 2, 3, _, Y)+eos, '2345'), Y)), None)
+    eq_(eval(preparse(begin(parse(times_between(char(_), 2, 3, _, Y)+eos, '2345'), Y))), None)
   def test_times_a2(self): 
     X, Y, S = Var('X'), Var('Y'), Var('S')
     function1 = function(((Y,), times(char('a'), 2, 'a', Y)))

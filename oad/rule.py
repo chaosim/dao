@@ -10,6 +10,8 @@ class Rule(object):
 
   def ___parse___(self, parser):
     return Rule(self.head, parser.parse(self.body))
+  def tag_loop_label(self, tagger):
+    return Rule(self.head, tagger.tag_loop_label(self.body))
   def apply(self, solver, env, cont, recursive, values):
     values = [getvalue(v, solver.env) for v in values]
     caller_env = solver.env
@@ -53,6 +55,8 @@ def set_bindings(bindings, var, value):
 class RuleList(list):  
   def ___parse___(self, parser):
     return RuleList([parser.parse(rule) for rule in self])
+  def tag_loop_label(self, tagger):
+    return RuleList([tagger.tag_loop_label(rule) for rule in self])
   def apply(self, solver, env, cont, recursive, values):
     def rules_cont(values, solver):
       for rule in self:

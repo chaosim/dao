@@ -8,6 +8,8 @@ from oad.builtins.control import or_, and_
 from oad import special
 from oad.builtin import builtin, BuiltinFunction2
 
+# TODO: longest: the longest matcher.
+
 # parser predicate
 # optional, any, some, times, seplist, ...
 
@@ -29,6 +31,11 @@ def slice_step_default():
 slice_step_default = slice_step_default()
 
 class Matcher:
+  '''
+  a+b: MatcherSequence;
+  a|b: MatcherOr;
+  +a: optional(a, greedy)
+  -a: optional(a, nongreedy)'''
   def __getitem__(self, index):
     if not isinstance(index, slice):
       if index==0: raise ValueError(index)
@@ -47,24 +54,30 @@ class Matcher:
   def __or__(self, other):
     if isinstance(other, MatcherOr):
       return MatcherOr([self]+other.exps)
-    return MatcherOr([self, other])
+    return MatcherOr(self, other)
+  def __neg__(self): 
+    if self is not optional: return optional(self, nongreedy)
+    raise TypeError(self)
+  def __pos__(self):
+    if self.operator is not optional: return optional(self, greedy)
+    raise TypeError(self)
 
 class Repeater(Matcher):
-  '''nongreedy: matcher[:]/separator%template**result
-  greedy: +matcher[:]/separator%template**result
-  lazy: -matcher[:]/separator%template**result'''
+  '''nongreedy: matcher[:]/separator%template*result
+  greedy: +matcher[:]/separator%template*result
+  lazy: -matcher[:]/separator%template*result'''
   def __init__(self, item, separator=None, min=None, max=None, template=None, result=None, mode=nongreedy):
     self.item, self.separator, self.min, self.max = item, separator, min, max
     self.template, self.result, self.mode = template, result, mode
     
-  def ___parse___(self):
-    item = parse(self.item)
-    separator = parse(self.separator)
-    min = parse(self.min)
-    max = parse(self.max)
-    template = parse(self.template)
-    result = parse(self.result)
-    mode = parse(self.mode)    
+  def ___parse___(self, parser):
+    item = parser.parse(self.item)
+    separator = parser.parse(self.separator)
+    min = parser.parse(self.min)
+    max = parser.parse(self.max)
+    template = parser.parse(self.template)
+    result = parser.parse(self.result)
+    mode = parser.parse(self.mode)    
     if separator is None:
       if min is not None:
         if max is not None:
@@ -128,43 +141,27 @@ class Repeater(Matcher):
 class BuiltinMatcher(BuiltinMacro):
   def __call__(self, *exps): return ApplyMatcher(self, *exps)
 
-class ApplyMatcher(Apply, Matcher):
-  '''
-  a+b: MatcherSequence;
-  a|b: MatcherOr;
-  +a: optional(a, greedy)
-  -a: optional(a, nongreedy)'''
-  def __neg__(self): 
-    if self is not optional: return optional(self, nongreedy)
-    raise TypeError(self)
-  def __pos__(self):
-    if self.operator is not optional: return optional(self, greedy)
-    raise TypeError(self)
+class ApplyMatcher(Matcher, Apply): pass
 
 matcher = builtin(BuiltinMatcher)
 
-class MatcherSequence:
+def convert_to_matcher(builtin):
+  builtin.__class__ = BuiltinMatcher
+  
+class MatcherSequence(Matcher):
   def __init__(self, exps):
     self.exps = exps
   def __add__(self, other):
     if isinstance(other, MatcherSequence):
       return MatcherSequence(self.exps+other.exps)
     return MatcherSequence(self.exps+[other])
-  def __or__(self, other):
-    return MatcherOr(self, other)
   def ___parse___(self, parser):
     return special.begin(*[parser.parse(e) for e in self.exps])
     
-class MatcherOr:
+class MatcherOr(Matcher):
   def __init__(self, call1, call2):
     self.call1 = call1
     self.call2 = call2
-  def __add__(self, other):
-    if isinstance(other, MatcherSequence):
-      return MatcherSequence([self]+other.exps)
-    return MatcherSequence([self, other])
-  def __or__(self, other):
-    return MatcherOr(self, other)
   def ___parse___(self, parser):
     return or_(parser.parse(self.call1), parser.parse(self.call2))
 
@@ -175,33 +172,37 @@ null = nullword = nullword()
 
 @matcher()
 def optional(solver, cont, item, mode=nongreedy):
-  item = deref(item, solver.env)
   for x in solver.solve(item, cont):
     yield cont, x
     if greedy: return
   yield cont, True
+may = optional
 
 @matcher()
-def parallel(solver, cont, *calls):
-  call0 = deref(calls[0], solver.env)
-  if len(calls)==1: 
-    yield solver.cont(call0, cont), True
-    return
+def parallel(solver, cont, call1, call2):
   stream = solver.stream
   @mycont(cont)
-  def pallel_cont(value, solver):
-    if pallel_cont.right==-1: pallel_cont.right = solver.stream[1]
-    elif pallel_cont.right!=solver.stream[1]: return
-    if len(pallel_cont.calls)==0: 
-      yield cont, True
-      return
+  def pallel_cont(_, solver):
+    right = solver.stream[1]
     solver.stream = stream
-    call0 = pallel_cont.calls[0]
-    pallel_cont.calls =pallel_cont.calls[1:]
-    yield solver.cont(call0, pallel_cont), True
-  pallel_cont.right = -1
-  pallel_cont.calls = calls[1:]
-  yield solver.cont(call0, pallel_cont), True
+    for value in solver.solve(call2, cont):
+      if solver.stream[1]==right: yield cont, True
+  yield solver.cont(call1, pallel_cont), True
+
+##@matcher() # not necessary be a builtin.
+##def longest(solver, cont, call):
+##  stream = solver.stream
+##  right = -1
+##  for value in solver.solve(call, cont):
+##    if solver.stream[1]<=right: continue
+##    right = solver.stream[1]
+##    bindings = solver.env.binings.copy()
+##    value1 = value
+##  if right==-1: return
+##  solver.stream = stream[0], right
+##  solver.env.binings = bindings
+##  yield cont,value1
+##
 
 def greedy_repeat_cont(item, cont):
   @mycont(cont)
@@ -1026,3 +1027,4 @@ def follow(solver, cont, item):
     solver.stream = stream
     yield cont, value
   yield solver.cont(item, follow_cont), True
+

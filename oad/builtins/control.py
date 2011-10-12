@@ -95,6 +95,17 @@ def or_(solver, cont, call1, call2):
 ##  or_cont.cut = True
   yield or_cont, True
 
+@builtin.macro('first')
+def first(solver, cont, call1, call2):
+  call1 = deref(call1, solver.env)
+  solved = False
+  for value in solver.solve(call1, cont):
+    solved = True
+    yield cont, value
+  if solved: return
+  call2 = deref(call2, solver.env)
+  yield solver.solve(call2, cont), True
+
 @builtin.macro('->')  
 def if_p(solver, cont, if_clause, then_clause):
   # This unusual semantics is part of the ISO and all de-facto Prolog standards.

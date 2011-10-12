@@ -117,8 +117,12 @@ def pytuple(*arguments):
 @builtin.function('is_pytuple?')
 def is_pytuple(x):  return isinstance(x, tuple)
 
-@builtin.function('make_apply?')
-def make_apply(fun, *args):  
+@builtin.function('pycall')
+def pycall(fun, *args):  
+  return fun(*args)
+
+@builtin.function('py_apply')
+def py_apply(fun, args):  
   return fun(*args)
 
 @builtin.function('head_list')
@@ -138,6 +142,10 @@ def index(sequence, index):
 @builtin.function('first')
 def first(sequence): 
   return sequence[0]
+
+@builtin.function('left')
+def left(sequence): 
+  return sequence[1:]
 
 @builtin.function('second')
 def second(sequence): 

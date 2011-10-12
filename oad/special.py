@@ -2,7 +2,7 @@
 
 from oad.term import Apply, Function, Macro, closure, Var, ClosureVar
 from oad.rule import Rule, RuleList
-from oad.solve import value_cont, mycont
+from oad.solve import value_cont, mycont, DaoSyntaxError
 from oad.env import BlockEnvironment
 from oad.builtins.arith import eq, not_
 from oad.builtins.term import iter_next, make_iter
@@ -10,8 +10,7 @@ from oad import builtin
 
 # special forms: quote, begin, if, eval, let, lambda, function, macro, module
 class ParserForm: 
-  def ___parse___(self, parser): 
-    return self
+  def ___parse___(self, parser): return self
 
 class SpecialForm(ParserForm):
   # 具体的特殊式各自定义自己的__init__, __repr__与cont
@@ -48,6 +47,9 @@ class set(SpecialForm):
   def ___parse___(self, parser): 
     self.exp = parser.parse(self.exp)
     return self
+  def tag_loop_label(self, tagger): 
+    self.exp = tagger.tag_loop_label(self.exp)
+    return self
   def cont(self, cont, solver):
     @mycont(cont)
     def set_cont(value, solver):
@@ -63,6 +65,9 @@ class set_list(SpecialForm):
     self.vars, self.exp = vars, exp
   def ___parse___(self, parser): 
     self.exp = parser.parse(self.exp)
+    return self
+  def tag_loop_label(self, tagger): 
+    self.exp = tagger.tag_loop_label(self.exp)
     return self
   def cont(self, cont, solver):
     @mycont(cont)
@@ -85,6 +90,9 @@ class begin(SpecialForm):
   def ___parse___(self, parser): 
     self.exps = tuple(parser.parse(exp) for exp in self.exps)
     return self
+  def tag_loop_label(self, tagger): 
+    self.exps = tuple(tagger.tag_loop_label(exp) for exp in self.exps)
+    return self
   def __eq__(self, other): 
     return self.exps==other.exps
   def __repr__(self):
@@ -104,6 +112,10 @@ class if_(SpecialForm):
   def ___parse___(self, parser): 
     self.exp1 = parser.parse(self.exp1)
     self.exp2 = parser.parse(self.exp2)
+    return self
+  def tag_loop_label(self, tagger): 
+    self.exp1 = tagger.tag_loop_label(self.exp1)
+    self.exp2 = tagger.tag_loop_label(self.exp2)
     return self
   def cont(self, cont, solver):
     if_cont = make_if_cont(self.exp1, self.exp2, cont)
@@ -128,6 +140,10 @@ class iff(SpecialForm):
     self.clauses = [parser.parse(clause) for clause in self.clauses]
     self.els = parser.parse(self.els)
     return self
+  def tag_loop_label(self, tagger): 
+    self.clauses = [tagger.tag_loop_label(clause) for clause in self.clauses]
+    self.els = tagger.tag_loop_label(self.els)
+    return self
   def cont(self, cont, solver):
     if len(self.clauses)==1: 
       ifcont = make_if_cont(self.clauses[0][1], self.els, cont)
@@ -148,8 +164,13 @@ class pytry(SpecialForm):
     self.exception, self.clause, self.final = exception, clause, final
   def ___parse___(self, parser): 
     for clause in self.clauses:
-      clause[1] = parse(clause[1], parser)
-    self.els = parse(self.els, parser)
+      clause[1] = parser.parse(clause[1])
+    self.els = parser.parse(self.els)
+    return self
+  def tag_loop_label(self, tagger): 
+    for clause in self.clauses:
+      clause[1] = tagger.tag_loop_label(clause[1])
+    self.els = tagger.tag_loop_label(self.els)
     return self
   def cont(self, cont, solver):
     @mycont(cont)
@@ -182,6 +203,11 @@ class CaseForm(SpecialForm):
       self.cases[k] = parser.parse(self.cases[k])
     self.els = parser.parse(self.els)
     return self
+  def tag_loop_label(self, tagger): 
+    for k in self.cases:
+      self.cases[k] = tagger.tag_loop_label(self.cases[k])
+    self.els = tagger.tag_loop_label(self.els)
+    return self
   def cont(self, cont, solver):
     @mycont(cont)
     def case_cont(value, solver):
@@ -203,6 +229,9 @@ class loop(SpecialForm):
   def ___parse___(self, parser): 
     self.body = parser.parse(self.body)
     return self
+  def tag_loop_label(self, tagger): 
+    self.body = tagger.tag_loop_label(self.body)
+    return self
   def cont(self, cont, solver):
     @mycont(cont)
     def loop_cont(value, solver):
@@ -213,29 +242,37 @@ class loop(SpecialForm):
   def __repr__(self):
     return 'loop{%s}'%repr(self.body)
 
-class LoopForm(ParserForm):
+class RepeatForm(ParserForm): pass
+
+class LoopForm(RepeatForm):
   def __init__(self, body, label=None):
     self.body, self.label = body, label
   
-  def ___parse___(self, parser):
-    exit_label, next_label = parser.make_label(self.label)
-    parser.push_label('loop', exit_label, next_label)
-    body = parser.parse(self.body)
-    parser.pop_label('loop')
+  def ___parse___(self, parser): 
+    return self
+  def tag_loop_label(self, tagger):
+    exit_label, next_label = tagger.make_label(self.label)
+    tagger.push_label('loop', exit_label, next_label)
+    body = tagger.tag_loop_label(self.body)
+    tagger.pop_label('loop')
     return block(exit_label, loop(block(next_label, *body)))
   def __eq__(self, other):
     return self.body==other.body
   def __repr__(self):
-    return 'LoopForm(%s)'%(self.body)
+    label = self.label+': ' if self.label else ''
+    body = ', '.join([repr(e) for e in self.body])
+    return 'Loop[%s%s]'%(label,body)
 
-class LoopTimesForm(ParserForm):
+class LoopTimesForm(RepeatForm):
   def __init__(self, times, body, label=None):
     self.times, self.body, self.label = times, body, label
-  def ___parse___(self, parser):
-    exit_label, next_label = parser.make_label(self.label)
-    parser.push_label('loop', exit_label, next_label)
-    body = parser.parse(self.body)
-    parser.pop_label('loop')
+  def ___parse___(self, parser): 
+    return self
+  def tag_loop_label(self, tagger):
+    exit_label, next_label = tagger.make_label(self.label)
+    tagger.push_label('times', exit_label, next_label)
+    body = tagger.tag_loop_label(self.body)
+    tagger.pop_label('times')
     i = Var('loop_i')
     return block(exit_label, set(i, self.times),loop(
       block(next_label, if_(eq(i,0), return_from(exit_label)), set(i, i-1), 
@@ -243,27 +280,31 @@ class LoopTimesForm(ParserForm):
   def __eq__(self, other):
     return self.times==other.times and self.body==other.body
   def __repr__(self):
-    return 'LoopTimesForm(%s,%s)'%(self.times, self.body)
+    label = self.label+': ' if self.label else ''
+    body = ', '.join([repr(e) for e in self.body])
+    return 'Loop(%s)[%s%s]'%(self.times, label,body)
 
-class WhenLoopForm(ParserForm):
+class WhenLoopForm(RepeatForm):
   def __init__(self, body, condition):
     self.body, self.condition = body, condition
-  def ___parse___(self, parser): 
-    exit_label, next_label = parser.make_label(self.label)
-    parser.push_label('when', exit_label, next_label)
-    body = parser.parse(self.body)
-    parser.pop_label('when')
+  def ___parse___(self, parser): return self
+  def tag_loop_label(self, tagger):
+    exit_label, next_label = tagger.make_label(self.label)
+    tagger.push_label('when', exit_label, next_label)
+    body = tagger.tag_loop_label(self.body)
+    tagger.pop_label('when')
     next_body = [if_(not_p(self.condition), return_from(exit_label))]+body
     return block(exit_label, loop(block(next_label, next_body)))
 
-class LoopWhenForm(ParserForm):
+class LoopWhenForm(RepeatForm):
   def __init__(self, body, condition, label=None):
     self.body, self.condition, self.label = body, condition, label
-  def ___parse___(self, parser): 
-    exit_label, next_label = parser.make_label(self.label)
-    parser.push_label('when', exit_label, next_label)
-    body = parser.parse(self.body)
-    parser.pop_label('when')
+  def ___parse___(self, parser): return self
+  def tag_loop_label(self, tagger):
+    exit_label, next_label = tagger.make_label(self.label)
+    tagger.push_label('when', exit_label, next_label)
+    body = tagger.tag_loop_label(self.body)
+    tagger.pop_label('when')
     next_body = body+(if_(not_(self.condition), return_from(exit_label)), )
     return block(exit_label, loop(block(next_label, *next_body)))
   def __eq__(self, other):
@@ -271,14 +312,15 @@ class LoopWhenForm(ParserForm):
   def __repr__(self):
     return 'LoopWhenForm(%s,%s)'%(self.body, self.condition)
 
-class LoopUntilForm(ParserForm):
+class LoopUntilForm(RepeatForm):
   def __init__(self, body, condition, label=None):
     self.body, self.condition, self.label = body, condition, label
-  def ___parse___(self, parser): 
-    exit_label, next_label = parser.make_label(self.label)
-    parser.push_label('until', exit_label, next_label) 
-    body = parser.parse(self.body)
-    parser.pop_label('until')
+  def ___parse___(self, parser): return self
+  def tag_loop_label(self, tagger):
+    exit_label, next_label = tagger.make_label(self.label)
+    tagger.push_label('until', exit_label, next_label) 
+    body = tagger.tag_loop_label(self.body)
+    tagger.pop_label('until')
     next_body = body+(if_(self.condition, return_from(exit_label)), )
     return block(exit_label, loop(block(next_label, *next_body)))
   def __eq__(self, other):
@@ -286,14 +328,15 @@ class LoopUntilForm(ParserForm):
   def __repr__(self):
     return 'LoopUntilForm(%s,%s)'%(self.body, self.condition)
 
-class EachForm(ParserForm):
+class EachForm(RepeatForm):
   def __init__(self, vars, iterator, body, label=None):
     self.vars, self.iterator, self.body, self.label = vars, iterator, body, label
-  def ___parse___(self, parser): 
-    exit_label, next_label = parser.make_label(self.label)
-    parser.push_label('each', exit_label, next_label)
-    body = parser.parse(self.body)
-    parser.pop_label('each')
+  def ___parse___(self, parser): return self
+  def tag_loop_label(self, tagger):
+    exit_label, next_label = tagger.make_label(self.label)
+    tagger.push_label('each', exit_label, next_label)
+    body = tagger.tag_loop_label(self.body)
+    tagger.pop_label('each')
     iterator = Var('iterator')
     if isinstance(self.vars, Var):
       setvar = set(self.vars, iter_next(iterator))
@@ -308,9 +351,58 @@ class EachForm(ParserForm):
   def __repr__(self):
     return 'EachForm(%s, %s,%s)'%(repr(self.vars), self.iterator, self.body)
 
+class exit(ParserForm):
+  def __init__(self, value=None, type=None, level=0, label=None): 
+    self.value, self.type, self.level, self.label = value, type, level, label
+  def tag_loop_label(self, tagger):
+    if self.label is None:
+      try: 
+        labels = tagger.exit_labels[self.type]
+        return return_from(labels[len(labels)-1-self.level], self.value)
+      except: raise DaoSyntaxError(self)
+    else:
+      return return_from(self.label, self.value)
+  def __eq__(self, other):
+    return self.value==other.value and self.type==other.type \
+           and self.level==other.level and self.label==other.label
+  def __repr__(self):
+    result = 'exit'
+    if self.label: result += ' '+self.label
+    elif self.type: result += ' '+self.type
+    if self.value: result += ' '+repr(self.value)
+    return result
+
+class next(ParserForm):
+  def __init__(self, type=None, level=0, label=None): 
+    self.type, self.level, self.label = type, level, label
+  def tag_loop_label(self, tagger):
+    if self.label is None:
+      try: 
+        labels = tagger.next_labels[self.type]
+        return return_from(labels[len(labels)-1-self.level])
+      except: raise DaoSyntaxError
+    else:
+      return return_from(self.label+tagger.surfix)
+  def __eq__(self, other):
+    return self.type==other.type \
+           and self.level==other.level and self.label==other.label
+  def __repr__(self):
+    result = 'next'
+    if self.label: result += ' '+self.label
+    elif self.type: result += ' '+self.type
+    return result
+
 class OnForm(ParserForm):
   def __init__(self, form, body, var=None):
     self.form, self.body, self.var = form, body, var
+  def ___parse___(self, parser): 
+    self.form = parser.___parse___(self.form)
+    self.body = parser.___parse___(self.body)
+    return self
+  def tag_loop_label(self, tagger): 
+    self.form = tagger.tag_loop_label(self.form)
+    self.body = tagger.tag_loop_label(self.body)
+    return self
   def cont(self, solver):
     @mycont(cont)
     def on_cont(value, solver):
@@ -323,26 +415,6 @@ class OnForm(ParserForm):
           for v in solver.solve(body, cont):
             yield cont, v
     return solver.cont(self.form, cont)
-
-class exit(ParserForm):
-  def __init__(self, value=None, type=None, label=None): 
-    self.value, self.type, self.label = value, type, label
-  def ___parse___(self, parser):
-    if self.label is None:
-      return return_from(parser.exit_labels[self.type][-1], self.value)
-    else:
-      return return_from('exit_'+self.label+parser.surfix, self.value)
-  def __repr__(self): return "exit"
-
-class next(ParserForm):
-  def __init__(self, type=None, label=None): 
-    self.type, self.label = type, label
-  def ___parse___(self, parser):
-    if self.label is None:
-      return return_from(parser.next_labels[self.type][-1])
-    else:
-      return return_from('next_'+self.label+parser.surfix)
-  def __repr__(self): return "next"
 
 # which distinct by the strict and lazy evaluation of the arguments.
 # the implentations is based on "Lisp In Small Pieces" by Christian Queinnec and Ecole Polytechnique
@@ -362,6 +434,10 @@ class FunctionForm(SpecialForm):
   def ___parse___(self, parser):
     for arity, rule_list in self.arity2rules.items():
       self.arity2rules[arity] = parser.parse(rule_list)
+    return self
+  def tag_loop_label(self, tagger):
+    for arity, rule_list in self.arity2rules.items():
+      self.arity2rules[arity] = tagger.tag_loop_label(rule_list)
     return self
   def cont(self, cont, solver):
     func = UserFunction(self.arity2rules, solver.env, recursive=False)
@@ -433,6 +509,12 @@ class UserMacro(Rules,  Macro):
 class eval_(SpecialForm):
   def __init__(self, exp):
     self.exp = exp
+  def ___parse___(self, parser):
+    self.exp = parser.parse(self.exp)
+    return self
+  def tag_loop_label(self, tagger):
+    self.exp = tagger.tag_loop_label(self.exp)
+    return self
   def cont(self, cont, solver):
     @mycont(cont)
     def eval_cont(value, solver): return solver.cont(value, cont)(value, solver)
@@ -446,6 +528,9 @@ class module(SpecialForm):
     self.body = body
   def ___parse___(self, parser):
     self.body = parser.parse(self.body)
+    return self
+  def tag_loop_label(self, tagger):
+    self.body = tagger.tag_loop_label(self.body)
     return self
   def cont(self, cont, solver):
     old_env = solver.env
@@ -470,18 +555,27 @@ class block(SpecialForm):
   def ___parse___(self, parser): 
     self.body = parser.parse(self.body)
     return self
+  def tag_loop_label(self, tagger):
+    self.body = tagger.tag_loop_label(self.body)
+    return self
   def cont(self, cont, solver):
     solver.env = BlockEnvironment(self.label, solver.env, cont)
     return solver.exps_cont(self.body, cont)
   def __eq__(self, other):
     return self.label==other.label and self.body==other.body
-  def __repr__(self): return 'block(%s)'%repr(self.body)
+  def __repr__(self):
+    label = self.label+': ' if self.label else ''
+    body = ', '.join([repr(e) for e in self.body])
+    return '[%s%s]'%(label, body)
 
 class return_from(SpecialForm):
   def __init__(self, label, form=None):
     self.label, self.form = label, form
   def ___parse___(self, parser):
     self.form = parser.parse(self.form)
+    return self
+  def tag_loop_label(self, tagger):
+    self.form = tagger.tag_loop_label(self.form)
     return self
   def cont(self, cont, solver):
     env = solver.env
@@ -524,6 +618,10 @@ class catch(SpecialForm):
     self.tag = parser.parse(self.tag)
     self.body = parser.parse(self.body)
     return self
+  def tag_loop_label(self, tagger):
+    self.tag = tagger.tag_loop_label(self.tag)
+    self.body = tagger.tag_loop_label(self.body)
+    return self
   def cont(self, cont, solver):
     env = solver.env
     @mycont(cont)
@@ -545,6 +643,10 @@ class throw(SpecialForm):
     self.tag = parser.parse(self.tag)
     self.form = parser.parse(self.form)
     return self
+  def tag_loop_label(self, tagger):
+    self.tag = tagger.tag_loop_label(self.tag)
+    self.form = tagger.tag_loop_label(self.form)
+    return self
   def cont(self, cont, solver):
     @mycont(cont)
     def throw_cont(tag, solver): 
@@ -560,15 +662,15 @@ class unwind_protect(SpecialForm):
     self.form = parser.parse(self.form)
     self.cleanup = parser.parse(self.cleanup)
     return self
+  def tag_loop_label(self, tagger):
+    self.cleanup = tagger.tag_loop_label(self.cleanup)
+    self.form = tagger.tag_loop_label(self.form)
+    return self
   def cont(self, cont, solver):
     env = solver.env
     cont0 = cont
     @mycont(cont0)
     def unwind_protect_cont(value, solver):
-      solver.env = env
-      @mycont(cont0)
-      def protect_return_cont(_, solver): yield cont, value
-      yield solver.exps_cont(self.cleanup, protect_return_cont), True
       def unwind1(cont, tag, stop_cont, solver):
         solver.env = env
         @mycont(cont0)
@@ -576,4 +678,9 @@ class unwind_protect(SpecialForm):
           yield unwind(cont0, tag, stop_cont, solver), value
         return solver.exps_cont(self.cleanup, unwind_cont)
       unwind_protect_cont.unwind = unwind1
+      
+      solver.env = env
+      @mycont(cont0)
+      def protect_return_cont(_, solver): yield cont, value
+      yield solver.exps_cont(self.cleanup, protect_return_cont), True
     return solver.cont(self.form, unwind_protect_cont)

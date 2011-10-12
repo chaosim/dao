@@ -2,7 +2,7 @@
 
 from nose.tools import eq_, ok_, assert_raises
 
-from oad.solve import parse
+from oad.solve import parse, tag_loop_label
 
 from oad.term import cons
 from oad.solve import eval
@@ -28,26 +28,26 @@ class TestSimple:
   def testbegin(self):
     eq_(parse(begin(1,2)), begin(1,2))
 
-class TestLoopForm:
+class TestTagLoopForm:
   def test_loop1(self):
-    eq_(parse(LoopForm((1, 2, exit()))), 
+    eq_(tag_loop_label(LoopForm((1, 2, exit()))), 
         block('exit_label1', 
           loop(block('next_label2', 1,2, return_from('exit_label1')))))    
   def test_loop2(self):
-    eq_(parse(LoopForm((1, next(), 2))), 
+    eq_(tag_loop_label(LoopForm((1, next(), 2))), 
         block('exit_label1', 
           loop(block('next_label2', 1, return_from('next_label2'),2)))) 
     
-class TestLoopTimesForm:
+class TestTagLoopTimesForm:
   def test_loop1(self):
-    print parse(LoopTimesForm(3, (write(i), exit())))
+    print tag_loop_label(LoopTimesForm(3, (write(i), exit())))
 ##    eq_(parse(LoopTimesForm(3, (write(i), exit()))), 
 ##        block('exit_label1',set(i, 3), 
 ##          loop(block('next_label2', 
 ##                     if_(eq(i,1), return_from('exit_label1')), set(i, i-1),
 ##                     write(i), return_from('exit_label1')))))    
   def test_loop2(self):
-    print parse(LoopTimesForm(3, (1, next(), 2)))
+    print tag_loop_label(LoopTimesForm(3, (1, next(), 2)))
 ##    eq_(parse(LoopTimesForm(3, (1, next(), 2))), 
 ##        block('exit_label1',set(i, 3), 
 ##          loop(block('next_label2', 

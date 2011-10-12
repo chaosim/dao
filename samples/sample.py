@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
 
+# when lisp meets prolog in python
+
+# 假如有一门语言，(),{},[],冒号，逗号，分号，句号，空格，换行，缩进等等都是运算符，
+# 而且都可以任意重载，并且由程序员指定运算符的优先级，那么就可以随意定义新语言了。
+
 from oad import *
 from oad.dinpy import *
 
@@ -11,29 +16,15 @@ from oad.special import eval_
 from oad.builtins.term import setvalue
 from oad.builtins.matcher import nullword
 from oad.builtins.control import if_p, not_p
+from oad.builtins.term import is_
 
 dao.version = '0.1.0'
-# when lisp meets prolog in python
-
-# 假如有一门语言，(),{},[],冒号，逗号，分号，句号，空格，换行，缩进等等都是运算符，
-# 而且都可以任意重载，并且由程序员指定运算符的优先级，那么就可以随意定义新语言了。
-
-# 关键字
-# 必须避开python的关键字，
-# 尽量短: 不超过5个字母
-# control: dao, do, loop, each, if_, iff, els, elsif, when, until, on, at, 
-  # exit, next, goto
-# variable: use, set, out, local, var, v, globl, my, dummy
-# structure: rule, rules, lamda, let, letre, fun, macro, klass, block,
-  # label
-# solve, eval
 
 _a = _.a # 哑变量
 ##a = local.a # 局部变量
 a, x, y = v.a, v.x, v.y # 普通变量
 i, j = var.i.j
 
-#oad.ver090
 dao[
 # oad program samples:
 
@@ -45,26 +36,26 @@ dao[
 ##use.a/'test_*1',
 
 v.a_trt_b, # 刚导入的变量
-]
 
+block.block1[
+  loop[
+    write(1),
+##    next.loop,
+##    exit,
+    write(2),
+    exit >>3,
+  ]
+]]
 print dao.code
-
-dao.run()
+print dao.eval()
 
 dao[
-block.name[
-  write(1),
-##  exit.name >>1,
-##  exit,
-##  exit >>1,
-##  write(2)
-],
+loop(10) [write(1)]
 ]
 print dao.code
-dao.run()
+print dao.eval()
 
-[
-loop(10) [write(1)],
+dao[
 loop(10) [write(1), write(2)],
 loop(10) [write(1), write(2)],
 loop[write(1), write(2)], #无限循环
@@ -119,6 +110,7 @@ fun. a == [], # 删除函数a的整个定义
 
 each(i)[1:10].
   do[write(i)],
+  
 label.a % 
 each.i[1:10].j[1:10].
   do[write(i, j)],
@@ -135,7 +127,9 @@ case(x).of(1)[write(1)]
 
 loop(10)[char(x)[10]],  
 
-py.open('readme.txt'),
+put.command==open,
+py.command('readme.txt'),
+py(open, 'readme.txt'), 
 
 char(x)[10][10],
 char(x)[10][:],
@@ -143,19 +137,19 @@ char(x)[10][:],
 ]
 
 dao[
-x-1,          # 与上面意思相同
--char(x),        # 非贪婪可选
-+char(x),       # 贪婪可选
-char(x)[:],      # 非贪婪char(x)重复任意次（包括0次）
-+char(x)[1:],      # 贪婪char(x)重复任意次（不包括0次）
--char(x)[1:],      # 懒惰char(x)重复任意次（不包括0次）
-char(x)[:]/char(' '),  # 空格分隔的列表
-char(x)[5],      # char(x)重复5次
-char(x)[5]/char(','),      # 空格分隔的char(x)列表，重复5次
-char(x)[:]/' '%(x,y)*a, #任意项char(x)(x,y,z)以模板x,y收集到z
-char(x)[:5],     # char(x)不大于五次
-char(x)[5:],      # char(x)至少五次
-char(x)[5:8],      # char(x)至少五次
+x-1,          
+-char(x),               # 非贪婪可选
++char(x),               # 贪婪可选
+char(x)[:],             # 非贪婪char(x)重复任意次（包括0次）
++char(x)[1:],           # 贪婪char(x)重复任意次（不包括0次）
+-char(x)[1:],           # 懒惰char(x)重复任意次（不包括0次）
+char(x)[:]/char(' '),   # 空格分隔的列表
+char(x)[5],             # char(x)重复5次
+char(x)[5]/char(','),   # 空格分隔的char(x)列表，重复5次
+char(x)[:]/' '%(x,y)*a, #任意项char(x)以模板x,y收集到a
+char(x)[:5],            # char(x)不大于五次
+char(x)[5:],            # char(x)至少五次
+char(x)[5:8],           # char(x)至少五次
 ]
 
 X, Expr, Expr2, ExprList, Result, Y = var.X.Y.Expr.Expr2.ExprList.Result # 语句不能放在列表中

@@ -3,7 +3,7 @@
 from nose.tools import eq_, ok_, assert_raises
 
 from oad.term import cons
-from oad.solve import eval
+from oad.solve import eval, tag_loop_label
 from oad.special import quote, set, begin, if_, iff, lambda_, let, letrec, eval_
 from oad.special import function, macro, block, return_from, catch, throw
 from oad.special import unwind_protect, module, from_, loop, CaseForm
@@ -61,17 +61,17 @@ class TestLoop:
                             if_(eq(i, 0), return_from(a, 1)))), i)), 0)
     # eq_(eval(loop(0)), 0) infinite loop
   def testLoopTimes(self):
-    eq_(eval(let({i:3}, LoopTimesForm(3, (set(i, sub(i, 1)), write(i))))), None)
+    eq_(eval(tag_loop_label(let({i:3}, LoopTimesForm(3, (set(i, sub(i, 1)), write(i)))))), None)
   def testLoopWhen(self):
-    eq_(eval(let({i:3}, LoopWhenForm((set(i, sub(i, 1)), write(i)), 
-                                     gt(i,0)))), None)
+    eq_(eval(tag_loop_label(let({i:3}, LoopWhenForm((set(i, sub(i, 1)), write(i)), 
+                                     gt(i,0))))), None)
   def testLoopUntil(self):
-    eq_(eval(let({i:3}, LoopUntilForm((set(i, sub(i, 1)), write(i)), 
-                                     eq(i,0)))), None)
+    eq_(eval(tag_loop_label(let({i:3}, LoopUntilForm((set(i, sub(i, 1)), write(i)), 
+                                     eq(i,0))))), None)
   def testEachForm(self):
-    eq_(eval(EachForm(i, range(3), [write(i)])), None)
+    eq_(eval(tag_loop_label(EachForm(i, range(3), [write(i)]))), None)
   def testEachForm2(self):
-    eq_(eval(EachForm((i, j), zip(range(3), range(3)), [write(i, j)])), None)
+    eq_(eval(tag_loop_label(EachForm((i, j), zip(range(3), range(3)), [write(i, j)]))), None)
     
 class TestFunction:
   def test_let_set(self):

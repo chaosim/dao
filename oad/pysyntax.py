@@ -19,11 +19,12 @@ __all__ = ['element', 'parse', 'lead',
   'lshift', 'rshift', 'add', 'sub', 'mul', 'div', 'floordiv', 'mod',
   'pos', 'neg', 'invert', 'abs', 'pow', 
   'getattr', 'call', 'getitem', 'iterator', 
-  'word', 'words', 'getitem_to_list', 'attr_item', 'attr_call']
+  'attr_item', 'attr_call', 'word', 'words', 'getitem_to_list']
 
 from oad.term import deref, unify, DummyVar
 from oad.solve import eval, parse
-from oad import special, builtin
+from oad import special
+from oad.builtins.matcher import matcher
 from oad.builtins.parser import parse as dao_parse
 from oad.builtins.term import to_list
 from oad.builtins.control import and_
@@ -129,9 +130,9 @@ class FormTraveller(object):
   def __pow__(self, other): 
     self.__operator_data__.append((__pow__, parse(other))); return self 
   def __lshift__(self, other): 
-    self.__operator_data__.append((__rshift__, parse(other))); return self 
+    self.__operator_data__.append((__lshift__, parse(other))); return self 
   def __rshift__(self, other): 
-    self.__operator_data__.append((__and__, parse(other))); return self 
+    self.__operator_data__.append((__rshift__, parse(other))); return self 
   def __and__(self, other): 
     self.__operator_data__.append((__and__, parse(other))); return self 
   def __xor__(self, other): 
@@ -186,7 +187,7 @@ class FormTraveller(object):
 
 
 def binary(attr):
-  @builtin.macro(names[attr])
+  @matcher(names[attr])
   def func(solver, cont, argument=None): 
     argument = deref(argument, solver.env)
     syntax_result, pos = solver.stream
@@ -204,7 +205,7 @@ def binary(attr):
     solver.stream = syntax_result, pos
   return func
 
-@builtin.macro('__call__')
+@matcher('__call__')
 def call(solver, cont, args=None, kwargs=None): 
   args = deref(args, solver.env)
   kwargs = deref(kwargs, solver.env)
@@ -228,7 +229,7 @@ def call(solver, cont, args=None, kwargs=None):
   solver.stream = syntax_result, pos
 
 def unary(attr):
-  @builtin.macro(names[attr])
+  @matcher(names[attr])
   def func(solver, cont): 
     syntax_result, pos = solver.stream
     if pos==len(syntax_result): return

@@ -30,8 +30,8 @@ class GlobalEnvironment(Environment):
   def __getitem__(self, var): 
     try: return self.bindings[var]
     except: return var
-  def lookup(self, label, solver): 
-    raise Exception('block %s does not exist.')%label
+  def lookup(self, label, cont, solver): 
+    raise Exception('block %s does not exist.'%label)
   def __repr__(self): return "GlobalENV%s"%self.bindings
     
 class ExtendEnvironment(Environment):
@@ -60,6 +60,7 @@ class BlockEnvironment(ExtendEnvironment):
     if label==self.label: 
       return unwind(cont, label, self.cont, solver)
     return self.outer.lookup(label, cont, solver)
+  def __repr__(self): return '[%s: %s]'%(self.label, self.bindings)
 
 class ModuleEnvironment(ExtendEnvironment): pass
   

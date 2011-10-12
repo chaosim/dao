@@ -8,22 +8,31 @@ from oad.env import GlobalEnvironment
 
 class CutException: pass
 
-def mycont(cont):
-  def make_mycont(fun):
-    fun.cont = cont
-    return fun
-  return make_mycont
- 
 class DaoUncaughtThrow(Exception):
   def __init__(self, tag): self.tag = tag
-  
-@mycont(None)
-def done(value, solver): yield done, value
 
+class  DaoSyntaxError(Exception):
+  pass
+
+def mycont(cont):
+  def mycont_tagger(fun):
+    fun.cont = cont
+    return fun
+  return mycont_tagger
+ 
+def unwind(fun):
+  def unwind_tagger(tagged_fun):
+    tagged_fun.unwind = fun
+    return tagged_fun
+  return unwind_tagger
+ 
 def done_unwind(cont, tag, stop_cont, solver):
   if cont is stop_cont: return cont
   raise DaoUncaughtThrow(tag)
-done.unwind = done_unwind
+
+@unwind(done_unwind)
+@mycont(None)
+def done(value, solver): yield done, value
 
 def value_cont(exp, cont):
   @mycont(cont)
@@ -35,33 +44,7 @@ def cut(cont_gen):
   try: return cont_gen.cut
   except: return False
 
-class Parser:
-  surfix = '$'
-  def __init__(self): 
-    self.new_label_id = 1
-    self.exit_labels = {}
-    self.next_labels = {}
-  def make_label(self, label):
-    if label is None: 
-      exit_label = 'exit_label'+str(self.new_label_id)
-      self.new_label_id += 1
-      next_label = 'next_label'+str(self.new_label_id)
-      self.new_label_id += 1
-    else: 
-      exit_label = 'exit_'+label+self.surfix
-      next_label = 'next_'+label+self.surfix
-    return exit_label, next_label
-  def push_label(self, control, exit_label, next_label):
-    self.exit_labels.setdefault(control,[]).append(exit_label)
-    self.next_labels.setdefault(control,[]).append(next_label)
-    self.exit_labels.setdefault(None,[]).append(exit_label)
-    self.next_labels.setdefault(None,[]).append(next_label)
-  def pop_label(self, control):
-    self.exit_labels[control].pop()
-    self.next_labels[control].pop()
-    self.exit_labels[None].pop()
-    self.next_labels[None].pop()
-
+class Parser: 
   def parse(self, exp):
     try: parse_method = exp.___parse___
     except: 
@@ -76,8 +59,57 @@ class Parser:
 def parse(exp): 
   return Parser().parse(exp)
 
+class LoopExitNextTagger:
+  ''' use tagger to preprocess before solve expression'''
+  surfix = '$'
+  def __init__(self): 
+    self.new_label_id = 1
+    self.exit_labels = {}
+    self.next_labels = {}
+  def make_label(self, label):
+    if label is None: 
+      exit_label = 'exit_label'+str(self.new_label_id)
+      self.new_label_id += 1
+      next_label = 'next_label'+str(self.new_label_id)
+      self.new_label_id += 1
+    else: 
+      exit_label = label
+      next_label = label+self.surfix
+    return exit_label, next_label
+  def push_label(self, control, exit_label, next_label):
+    self.exit_labels.setdefault(control,[]).append(exit_label)
+    self.next_labels.setdefault(control,[]).append(next_label)
+    self.exit_labels.setdefault(None,[]).append(exit_label)
+    self.next_labels.setdefault(None,[]).append(next_label)
+  def pop_label(self, control):
+    self.exit_labels[control].pop()
+    self.next_labels[control].pop()
+    self.exit_labels[None].pop()
+    self.next_labels[None].pop()
+
+  def tag_loop_label(self, exp):
+    try: exp_tag_loop_label = exp.tag_loop_label
+    except: 
+      if isinstance(exp, list):
+        return [self.tag_loop_label(e) for e in exp]
+      elif isinstance(exp, tuple):
+        return tuple(self.tag_loop_label(e) for e in exp)
+      else: return exp
+    try: return exp_tag_loop_label(self)
+    except TypeError: return exp
+
+def tag_loop_label(exp): 
+  return LoopExitNextTagger().tag_loop_label(exp)
+
 def eval(exp):
   return Solver().eval(exp)
+
+def eval_list(exps):
+  from special import begin
+  return Solver().eval(begin(*exps))
+
+def solve(exp): 
+  return Solver.solve(exp)
 
 class Solver:
   # exp: expression 
@@ -93,7 +125,6 @@ class Solver:
     for x in self.solve(exp): return x
     
   def solve(self, exp, stop=done):
-    exp = parse(exp)
     cont = self.cont(exp, stop)
     for _, result in self.run_cont(cont, stop):
       yield result
