@@ -5,8 +5,9 @@ from nose.tools import eq_, ok_, assert_raises
 from oad.term import cons
 from oad.solve import eval, tag_loop_label
 from oad.special import quote, set, begin, if_, iff, lambda_, let, letrec, eval_
-from oad.special import function, macro, block, return_from, catch, throw
-from oad.special import unwind_protect, module, from_, loop, CaseForm
+from oad.special import function, macro
+from oad.special import block, exit_block, continue_block, catch, throw
+from oad.special import unwind_protect, module, from_, CaseForm
 from oad.special import LoopTimesForm, LoopUntilForm, LoopWhenForm, EachForm
 
 from oad.builtins.control import and_, cut, callcc
@@ -56,18 +57,22 @@ class TestControl:
 class TestLoop:
   def testloop(self):
     eq_(eval(let({i:3}, 
-                 block(a, 
-                       loop(set(i, sub(i, 1)), 
-                            if_(eq(i, 0), return_from(a, 1)))), i)), 0)
-    # eq_(eval(loop(0)), 0) infinite loop
+                 block(a, set(i, sub(i, 1)), 
+                            if_(eq(i, 0), exit_block(a, 1)),
+                            continue_block(a)), i)), 0)
+  def test_unwind_protect_loop(self):
+    eq_(eval(let({i:3}, 
+                 block(a, set(i, sub(i, 1)), 
+                            if_(eq(i, 0), exit_block(a, 1)),
+                            unwind_protect(continue_block(a), write(2))), i)), 0)
   def testLoopTimes(self):
     eq_(eval(tag_loop_label(let({i:3}, LoopTimesForm(3, (set(i, sub(i, 1)), write(i)))))), None)
   def testLoopWhen(self):
     eq_(eval(tag_loop_label(let({i:3}, LoopWhenForm((set(i, sub(i, 1)), write(i)), 
-                                     gt(i,0))))), None)
+                                     gt(i,0))))), False)
   def testLoopUntil(self):
     eq_(eval(tag_loop_label(let({i:3}, LoopUntilForm((set(i, sub(i, 1)), write(i)), 
-                                     eq(i,0))))), None)
+                                     eq(i,0))))), False)
   def testEachForm(self):
     eq_(eval(tag_loop_label(EachForm(i, range(3), [write(i)]))), None)
   def testEachForm2(self):
@@ -186,19 +191,19 @@ class TestMacro:
 class TestCallccBlockCatch:
   def testblock(self):
     f = Var('f')
-    eq_(eval(block('foo', let({f: lambda_((), return_from('foo',1))}, 
+    eq_(eval(block('foo', let({f: lambda_((), exit_block('foo',1))}, 
                             mul(2,block('foo', f()))))), 
         1)
   def testblock2(self):
-    eq_(eval(block('a', return_from('a', 2), 3)), 2)
+    eq_(eval(block('a', exit_block('a', 2), 3)), 2)
   def testcatch1(self):
     eq_(eval(catch(1, 2)), 2)
   def testcatch2(self):
     eq_(eval(catch(1, throw(1, 2), 3)), 2)
   def test_unwind_protect(self):
-    eq_(eval(block('foo', unwind_protect(return_from('foo', 1), write(2)))), 1)
+    eq_(eval(block('foo', unwind_protect(exit_block('foo', 1), write(2)))), 1)
   def test_unwind_protect2(self):
-    eq_(eval(block('foo', unwind_protect(return_from('foo', 1), 
+    eq_(eval(block('foo', unwind_protect(exit_block('foo', 1), 
                             write(2), write(3)))), 1)
   def testcallcc(self):
     from oad.solve import done

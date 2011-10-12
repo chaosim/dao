@@ -20,17 +20,18 @@ def mycont(cont):
     return fun
   return mycont_tagger
  
-def unwind(fun):
+def tag_unwind(fun):
   def unwind_tagger(tagged_fun):
     tagged_fun.unwind = fun
     return tagged_fun
   return unwind_tagger
  
-def done_unwind(cont, tag, stop_cont, solver):
-  if cont is stop_cont: return cont
+def done_unwind(cont, tag, stop_cont, solver, next_cont=None):
+  if cont is stop_cont: 
+    return cont if next_cont is None else next_cont
   raise DaoUncaughtThrow(tag)
 
-@unwind(done_unwind)
+@tag_unwind(done_unwind)
 @mycont(None)
 def done(value, solver): yield done, value
 
@@ -64,28 +65,18 @@ class LoopExitNextTagger:
   surfix = '$'
   def __init__(self): 
     self.new_label_id = 1
-    self.exit_labels = {}
-    self.next_labels = {}
+    self.labels = {}
   def make_label(self, label):
     if label is None: 
-      exit_label = 'exit_label'+str(self.new_label_id)
+      label = '$'+str(self.new_label_id)
       self.new_label_id += 1
-      next_label = 'next_label'+str(self.new_label_id)
-      self.new_label_id += 1
-    else: 
-      exit_label = label
-      next_label = label+self.surfix
-    return exit_label, next_label
-  def push_label(self, control, exit_label, next_label):
-    self.exit_labels.setdefault(control,[]).append(exit_label)
-    self.next_labels.setdefault(control,[]).append(next_label)
-    self.exit_labels.setdefault(None,[]).append(exit_label)
-    self.next_labels.setdefault(None,[]).append(next_label)
-  def pop_label(self, control):
-    self.exit_labels[control].pop()
-    self.next_labels[control].pop()
-    self.exit_labels[None].pop()
-    self.next_labels[None].pop()
+    return label
+  def push_label(self, control_struct_type, label):
+    self.labels.setdefault(control_struct_type, []).append(label)
+    self.labels.setdefault(None,[]).append(label)
+  def pop_label(self, control_struct_type):
+    self.labels[control_struct_type].pop()
+    self.labels[None].pop()
 
   def tag_loop_label(self, exp):
     try: exp_tag_loop_label = exp.tag_loop_label

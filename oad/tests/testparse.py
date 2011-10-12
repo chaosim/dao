@@ -7,8 +7,9 @@ from oad.solve import parse, tag_loop_label
 from oad.term import cons
 from oad.solve import eval
 from oad.special import quote, set, begin, if_, lambda_, let, letrec, eval_
-from oad.special import function, macro, block, return_from, catch, throw
-from oad.special import unwind_protect, module, from_, loop
+from oad.special import function, macro, block, exit_block, continue_block
+from oad.special import catch, throw
+from oad.special import unwind_protect, module, from_
 from oad.special import LoopForm, LoopTimesForm, exit, next
 
 from oad.builtins.control import and_, cut, callcc
@@ -31,25 +32,13 @@ class TestSimple:
 class TestTagLoopForm:
   def test_loop1(self):
     eq_(tag_loop_label(LoopForm((1, 2, exit()))), 
-        block('exit_label1', 
-          loop(block('next_label2', 1,2, return_from('exit_label1')))))    
+        block('$1', 1, 2,exit_block('$1'), continue_block('$1')))    
   def test_loop2(self):
     eq_(tag_loop_label(LoopForm((1, next(), 2))), 
-        block('exit_label1', 
-          loop(block('next_label2', 1, return_from('next_label2'),2)))) 
+        block('$1', 1, continue_block('$1'), 2, continue_block('$1')))
     
 class TestTagLoopTimesForm:
   def test_loop1(self):
     print tag_loop_label(LoopTimesForm(3, (write(i), exit())))
-##    eq_(parse(LoopTimesForm(3, (write(i), exit()))), 
-##        block('exit_label1',set(i, 3), 
-##          loop(block('next_label2', 
-##                     if_(eq(i,1), return_from('exit_label1')), set(i, i-1),
-##                     write(i), return_from('exit_label1')))))    
   def test_loop2(self):
     print tag_loop_label(LoopTimesForm(3, (1, next(), 2)))
-##    eq_(parse(LoopTimesForm(3, (1, next(), 2))), 
-##        block('exit_label1',set(i, 3), 
-##          loop(block('next_label2', 
-##                     if_(eq(i,1), return_from('exit_label1')), set(i, i-1),
-##                     write(i), return_from('next_label2')))))    
