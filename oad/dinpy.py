@@ -29,6 +29,8 @@ __all__ = [
   'py', 'some', 'any', 'may']
 
 from oad.pysyntax import *
+from oad import dexpr
+from oad.dexpr import VarSymbol, DummyVarSymbol
 from oad.term import Var, DummyVar, Apply, conslist as L, vars, dummies
 from oad import builtin
 from oad import special
@@ -39,7 +41,7 @@ from oad.builtins.term import pytuple, pycall, py_apply, head_list, list_tail
 from oad.builtins.term import items, first, left
 from oad.builtins.term import getvalue, ground_value, is_
 from oad.builtins.arith import ne_p
-from oad.solve import eval, solve, tag_loop_label
+from oad.solve import eval, solve, tag_loop_label, parse_block
 
 class DinpySyntaxError(Exception): pass
 
@@ -60,36 +62,44 @@ class Dao(object):
     self.code = []
     return result
   def __getitem__(self, code):
-    code = tag_loop_label(parse(code))
+    code = parse(code)
+    code = tag_loop_label(code)
     if isinstance(code, tuple): self.code +=  list(code)
     else: self.code += [code]
     return self
 dao = Dao()
 
 ## vv.a v.a
-def single_var(name, klass, varcahce):
+def my_single_var(name, klass):
   class VForm(object):
     def __init__(self, name=name, grammar=None):
       self.__form_name__ = 'v'
       self.__form_grammar__ = None
-    def __getattr__(self, var): return varcache(var, klass)
+    def __getattr__(self, var): return my_varcache(var, klass)
   return lead(VForm)
 
-_var_cache2 = {}
-def varcache2(name, klass=Var):
-  return _var_cache2.setdefault(klass, {}).setdefault(name, klass(name))
+_my_varcache = {}
+def my_varcache(name, klass=Var):
+  return _my_varcache.setdefault(klass, {}).setdefault(name, klass(name))
 
 # used only in dinpy.py internally, do not export me.
-vv = single_var('vv', Var, varcache2)
-__ = single_var('__', DummyVar, varcache2)
+vv = my_single_var('vv', Var)
+__ = my_single_var('__', DummyVar)
 
-_var_cache = {}
-def varcache(name, klass=Var):
-  return _var_cache.setdefault(klass, {}).setdefault(name, klass(name))
+## vv.a v.a
+def single_symbol(name, klass):
+  class VForm(object):
+    def __init__(self, name=name, grammar=None):
+      self.__form_name__ = 'v'
+      self.__form_grammar__ = None
+    def __getattr__(self, name): return klass(name)
+  return lead(VForm)
+
+from oad.dexpr import varcache
 
 # used in codes parsed by dinpy parser
-v = single_var('v', Var, varcache)
-_ = single_var('_', DummyVar, varcache)
+v = single_symbol('v', VarSymbol)
+_ = single_symbol('_', DummyVarSymbol)
 
 ## var.a.b.c
 class VarForm(object):
@@ -98,7 +108,7 @@ class VarForm(object):
     self.__form_grammar__ = None
     self.__vars__ = []
   def __getattr__(self, var):
-    self.__vars__.append(varcache(var))
+    self.__vars__.append(VarSymbol(var))
     return self
   def __len__(self): return len(self.__vars__)
   def __iter__(self): return iter(self.__vars__)
@@ -130,30 +140,52 @@ put = element('put',
 
 _do, _of, _at = words('do, of, at')
 
+def get_eq_operands(binary):
+  if not isinstance(binary.y, VarSymbol):
+    raise DinpySyntaxError
+  if isinstance(binary.x, dexpr.__eq__):
+    return get_eq_operands(binary.x)+(binary.y,)
+  elif isinstance(binary.x, VarSymbol):
+    return (binary.x, binary.y)
+  raise DinpySyntaxError
+
 @builtin.function('getvar')
 def make_let(args, body): 
-  if not isinstance(args[0], dict): raise DinpySyntaxError
-  for k, v in args[0].items():
-    if not isinstance(k, Var): raise DinpySyntaxError
-  if isinstance(body, tuple): return special.let(args[0], *body)
-  else: return special.let(args[0], body)
+  bindings = {}
+  for b in args:
+    if not isinstance(b, dexpr.__eq__): raise DinpySyntaxError
+    k, v = parse(b.x), parse(b.y)
+    if isinstance(k, Var): bindings[k] = v
+    else: 
+      if isinstance(k, dexper.__eq__): k =  get_eq_operands(k)
+      elif not isinstance(k, list): raise DinpySyntaxError
+      for x in k: 
+        x = parse(x) 
+        if isinstance(x, Var): bindings[x] = v
+        else: raise DinpySyntaxError
+  if isinstance(body, tuple): return special.let(bindings, *body)
+  else: return special.let(bindings, body)
   
 #let({var:value}).do[...]
-let = element('let', call(vv.bindings)+_do+getitem(vv.body)+eos
-              +make_let(vv.bindings, vv.body))
+let = element('let',
+  call(vv.bindings)+_do+getitem(vv.body)+eos
+    +make_let(vv.bindings, vv.body))
 
 @builtin.function('make_iff')
 def make_iff(test, clause, clauses, els_clause):
-  els_clause = els_clause if not isinstance(els_clause, Var) else None
-  return special.iff([(test[0],clause)]+clauses, els_clause)
+  els_clause = parse_block(els_clause) if not isinstance(els_clause, Var) else None
+  test = parse(test[0])
+  clause = parse_block(clause)
+  clauses1 =  [(parse(t), parse_block(c)) for t, c in clauses]
+  return special.iff([(test, clause)]+clauses1, els_clause)
 
 _then, _elsif, _els = words('then, elsif, els')
 _test, _test2, _body =  dummies('_test, _test2, _body')
 
 # iff(1).then[2], iff(1).then[2]  .elsif(3).then[4] .els[5]
 iff = element('iff',
-              call(vv.test)+_then+getitem(vv.clause)
-              +any(_elsif+call(_test)+_then+getitem(_body)+is_(_test2, first(_test)), 
+              call(vv.test)+getitem(vv.clause)
+              +any(_elsif+call(_test)+getitem(_body)+is_(_test2, first(_test)), 
                    (_test2, _body), vv.clauses)
               +may(_els+getitem(vv.els_clause))+eos
               +make_iff(vv.test, vv.clause, vv.clauses, vv.els_clause))
@@ -267,7 +299,7 @@ next = element('next',
 
 @builtin.function('set_loop_label')
 def set_loop_label(label, body):
-  body = body[0]
+  body = parse(body)
   if not isinstance(body, special.RepeatForm): raise DinpySyntaxError
   body.label = label
   return body
@@ -316,9 +348,12 @@ def make_fun1(name, args, body):
   head = args
   if isinstance(body, AtForm): 
     body = body.clauses
-    if len(body)>1: raise DinpySyntaxError
-    if body[0][0] is not None: raise DinpySyntaxError
-    if len(body[0][1])==1: return replace(fun, head, *body[0][1][0])
+    if len(body)>1: raise DinpySyntaxError # should not be (args)[body]...(args)[body]
+    if body[0][0] is not None: raise DinpySyntaxError # should not be (args)[body]
+    body = body[0][1][0]
+    if len(body[0][1])==1: 
+      return (special.if_(callp(fun), replace(fun, head, *body), 
+                special.set(fun, function((head, body)))))
     return special.begin(*[remove(fun, head)]+[assert_(fun, head, x) for x in body[0][1]])
   else: return replace(fun, head, *body)
   

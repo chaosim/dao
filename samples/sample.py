@@ -25,6 +25,8 @@ _a = _.a # 哑变量
 a, x, y = v.a, v.x, v.y # 普通变量
 i, j = var.i.j
 
+print i==1
+
 dao[
 # oad program samples:
 
@@ -45,98 +47,98 @@ block.block1[
     write(2),
     exit >>3,
   ]
-]]
-print dao.code
-print dao.eval()
+],
 
-dao[
-loop(10) [write(1)]
+loop(3) [write(1)],
+
+loop(2) [write(3), write(4)],
+loop[write(1), write(2), exit], #无限循环
+put.i.j.z==(0,1,2), #i.j.z = (0,1,2)
+##put[out.i, my.a, globl.b, a, a^3]==(0,1,2),
+
+put.i==0,
+
+label.a %
+loop[
+  put.i == i+1,
+  iff (i==1) [next], 
+  write(i), 
+  iff (i==3) [exit], 
+  iff (i==1) [next.loop], #再一次执行label为a的块
+##  iff(eq(i,3)) [exit], #从block a退出，返回None
+##  iff(eq(i,3)) [exit >>12], #从block a退出，返回12
+##  iff(eq(i,3)) [exit.loop1 >>12], #从block a退出，返回12
+##  goto.a, #要不要实现它？？？
+          ], #跳到下一轮循环，退出循环
 ]
 print dao.code
 print dao.eval()
 
 dao[
-loop(10) [write(1), write(2)],
-loop(10) [write(1), write(2)],
-loop[write(1), write(2)], #无限循环
-put.i==0,  #赋值
-put.i.j.z==(0,1,2), #i.j.z = (0,1,2)
-##put[out.i, my.a, globl.b, a, a^3]==(0,1,2),
-label.a %
-loop(100) [ #label.a, 
-##          inc(i), 
-          iff (i==1) [next], 
-          iff (i==1) [next.loop], #再一次执行label为a的块
-          write(i), 
-          iff(i==5) [exit], #从block a退出，返回None
-          iff(i==5) [exit >>12], #从block a退出，返回12
-          iff(i==5) [exit.loop1 >>12], #从block a退出，返回12
-##          goto.a, #要不要实现它？？？
-          ], #跳到下一轮循环，退出循环
-do[write(1)].when(i<3),
-do[write(1), 1].until(i==3),
-
+put.i==0,
+do[ put.i==i+1, write(i)].when(i==3),
+put.i==0,
+do[put.i==i+1, write(i)].until(i==3),
 '''block comment''',  
 "block comment",
 
-let ({v.a: 1,
-      v.b: 2}). 
-   do[write(v.a,v.b)],
+let (a==1, 
+     b==2) 
+   [write(v.a,v.b)],
+let (a==b==c==1) 
+   [write(v.a,v.b)],
+let ((a,b,c)==range(3)) 
+   [write(v.a,v.b)],
 
-do[write(v.a,v.b)].where({v.a:1,v.b:2}),
-
-fun. a(x)== write(1), #覆盖与a(x)匹配的整个定义
-fun. a==
-  at(x)  [write(1)], #覆盖a的整个定义
-fun. a(x) <= [write(2)], #在前面插入定义
-fun. a(x) >= [write(2)],#在后面附加定义
-fun==at(x)[1]
-       (y)[y],
-fun(x)==[1],
-fun(x)==at[1][2],
-macro. a(x,y) == write(2),
-macro. a ==
-  at(x,y).  write(2),
-macro. a(x,[y],{a:1}) >= (write(2)), #可选参数，关键字参数
-fun. a (x) == [], #删除函数a中与(x)一致的定义
-fun. a == [], # 删除函数a的整个定义
-- fun.a/3,
-- fun.a(x),
+##fun. a(x)== [write(1)], #覆盖与a(x)匹配的整个定义
+##fun. a==
+##  at(x)  [write(1)], #覆盖a的整个定义
+##fun. a(x) <= [write(2)], #在前面插入定义
+##fun. a(x) >= [write(2)],#在后面附加定义
+##fun==at(x)[1]
+##       (y)[y],
+##fun(x)==[1],
+##fun(x)==at[1][2],
+##macro. a(x,y) == write(2),
+##macro. a ==
+##  at(x,y).  write(2),
+##macro. a(x,[y],{a:1}) >= (write(2)), #可选参数，关键字参数
+##fun. a (x) == [], #删除函数a中与(x)一致的定义
+##fun. a == [], # 删除函数a的整个定义
+##- fun.a/3,
+##- fun.a(x),
 
 ##  rule. r1 == at(1) [write(1)],
 ##  rules. rs1 == at(1) [write(1)],
 ##  fun. a - rule.r1, #从函数a中删除匹配规则r1的规则
 ##  fun. a - rules.rs1, #从函数a中删除匹配规则集rs1的规则
 
-each(i)[1:10].
-  do[write(i)],
-  
-label.a % 
-each.i[1:10].j[1:10].
-  do[write(i, j)],
-  
-each(i,j)[zip(range(5), range(5))].
-  do [write(i,j)],
+##each(i)[1:10].
+##  do[write(i)],
+##  
+##label.a % 
+##each.i[1:10].j[1:10].
+##  do[write(i, j)],
+##  
+##each(i,j)[zip(range(5), range(5))].
+##  do [write(i,j)],
+##
+##case(x).of(1)[write(1)]
+##      .of(2)[write(2)],
 
-case(x).of(1)[write(1)]
-      .of(2)[write(2)],
-
-##on({f1: open('readme.txt'),
-##    f2: open('out.txt', 'w')}).
+##on(f1==open('readme.txt'),
+##    f2==open('out.txt', 'w')).
 ##  do [write(f1, 'hello')],
 
-loop(10)[char(x)[10]],  
+##loop(10)[char(x)[10]],  
 
-put.command==open,
-py.command('readme.txt'),
-py(open, 'readme.txt'), 
+##put.command==open,
+##py.command('readme.txt'),
+##py(open, 'readme.txt'), 
 
-char(x)[10][10],
-char(x)[10][:],
--char(x), # 可选字符
-]
-
-dao[
+##char(x)[10][10],
+##char(x)[10][:],
+##-char(x), # 可选字符
 x-1,          
 -char(x),               # 非贪婪可选
 +char(x),               # 贪婪可选

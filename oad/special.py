@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from oad.term import Apply, Function, Macro, closure, Var, ClosureVar
+from oad.term import apply_generators
 from oad.rule import Rule, RuleList
 from oad.solve import value_cont, mycont, tag_unwind, DaoSyntaxError
 from oad.env import BlockEnvironment
@@ -43,7 +44,8 @@ def assign_var(var, value, env):
 class set(SpecialForm):
   def __init__(self, var, exp):
     self.var, self.exp = var, exp
-  def ___parse___(self, parser): 
+  def ___parse___(self, parser):
+    self.var = parser.parse(self.var)
     self.exp = parser.parse(self.exp)
     return self
   def tag_loop_label(self, tagger): 
@@ -63,6 +65,7 @@ class set_list(SpecialForm):
   def __init__(self, vars, exp):
     self.vars, self.exp = vars, exp
   def ___parse___(self, parser): 
+    self.vars = parser.parse(self.vars)
     self.exp = parser.parse(self.exp)
     return self
   def tag_loop_label(self, tagger): 
@@ -120,7 +123,8 @@ class if_(SpecialForm):
     if_cont = make_if_cont(self.exp1, self.exp2, cont)
     return solver.cont(self.test, if_cont)
   def __repr__(self):
-    return 'if %s: %s else:%s'%(self.test, self.exp1, self.exp2)
+    els = 'else: %s'%repr(self.exp2) if self.exp2 else ''
+    return 'if %s: %s%s'%(self.test, self.exp1, els)
 
 def make_iff_cont(then, clauses, els, cont):
   @mycont(cont)
@@ -152,9 +156,9 @@ class iff(SpecialForm):
   def __eq__(self, other):
     return self.clauses==other.clauses and self.els==other.els
   def __repr__(self):
-    result = 'if %s then %s; '%self.clauses[0]
-    result += ''.join('elif %s then %s; '%clause for clause in self.clauses[1:])
-    result += 'els %s'%self.els
+    result = 'if %s: %s'%self.clauses[0]
+    result += ''.join(' elif %s: %s'%clause for clause in self.clauses[1:])
+    result += ' els: %s'%self.els if self.els else ''
     return result
 
 class pytry(SpecialForm):
@@ -192,7 +196,6 @@ class pytry(SpecialForm):
     result += ''.join('elif %s then %s; '%clause for clause in self.clauses[1:])
     result += 'els %s'%self.els
     return result
-
 
 class CaseForm(SpecialForm):
   def __init__(self, test, cases, els=None):
@@ -273,14 +276,14 @@ class LoopTimesForm(RepeatForm):
     tagger.pop_label('times')
     i = Var('loop_i')
     start_condition = (if_(eq(i,0), exit_block(label)), set(i, i-1))
-    body = start_condition+body+(continue_block(label),)
+    body = start_condition+tuple(body)+(continue_block(label),)
     return begin(set(i, self.times), block(label, *body))
   def __eq__(self, other):
     return self.times==other.times and self.body==other.body
   def __repr__(self):
     label = self.label+': ' if self.label else ''
     body = ', '.join([repr(e) for e in self.body])
-    return 'Loop(%s)[%s%s]'%(self.times, label,body)
+    return 'Loop(%s)[%s%s]'%(self.times, label, body)
 
 class WhenLoopForm(RepeatForm):
   def __init__(self, body, condition):

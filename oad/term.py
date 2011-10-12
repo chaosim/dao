@@ -230,6 +230,12 @@ class Var:
   def __sub__(self, other): 
     from oad.builtins.arith import sub
     return sub(self, other)
+  def __radd__(self, other): 
+    from oad.builtins.arith import add
+    return add(other, self)
+  def __rsub__(self, other): 
+    from oad.builtins.arith import sub
+    return sub(other, self)
 
 class DummyVar(Var):
   def __init__(self, name='_v', index=0): Var.__init__(self, name)

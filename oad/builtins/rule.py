@@ -1,7 +1,8 @@
-from oad.term import deref, unify_list_rule_head, conslist, getvalue, match
+from oad.term import deref, unify_list_rule_head, conslist, getvalue, match, Var
 ##from oad import error
 from oad import builtin
 from oad.rule import Rule
+from oad.special import FunctionForm
 
 # rule manipulation
 
@@ -30,8 +31,11 @@ def asserta(solver, cont, rules, head, body):
 
 # replace the rules which the head can match with.
 @builtin.macro('replace')
-def replace(solver, cont, rules, head, body):
+def replace(solver, cont, rules, head, *body):
   rules = getvalue(rules, solver.env)
+  if isinstance(rules, Var):
+    solver.env[rules] = FunctionForm((head, body))
+    yield cont, rules
   if len(head) not in rules.rules: return
   arity_rules = rules.rules[len(head)]
   old = None

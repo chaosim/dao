@@ -92,54 +92,54 @@ class FormTraveller(object):
     self.__form_grammar__ = parse(grammar)
     self.__operator_data__ = []
   def __lt__(self, other): 
-    self.__operator_data__.append((__lt__, parse(other))); return self
+    self.__operator_data__.append((__lt__, other)); return self
   def __le__(self, other): 
-    self.__operator_data__.append((__le__, parse(other))); return self 
+    self.__operator_data__.append((__le__, other)); return self 
   def __eq__(self, other): 
-    self.__operator_data__.append((__eq__, parse(other))); return self 
+    self.__operator_data__.append((__eq__, other)); return self 
   def __ne__(self, other): 
-    self.__operator_data__.append((__ne__, parse(other))); return self 
+    self.__operator_data__.append((__ne__, other)); return self 
   def __gt__(self, other): 
-    self.__operator_data__.append((__gt__, parse(other))); return self 
+    self.__operator_data__.append((__gt__, other)); return self 
   def __ge__(self, other): 
-    self.__operator_data__.append((__ge__, parse(other))); return self 
+    self.__operator_data__.append((__ge__, other)); return self 
   def __getattr__(self, name):
     self.__operator_data__.append((__getattr__, name)); return self 
-  def __call__(self, *args, **kw): 
-    kw1 = {}
-    for k,v in kw.items(): kw1[parse(k)] = parse(v)
-    self.__operator_data__.append((__call__, parse(args), kw1)); 
+  def __call__(self, *args, **kwargs): 
+    self.__operator_data__.append((__call__, args, kwargs)); 
     return self 
   def __getitem__(self, key): 
-    self.__operator_data__.append((__getitem__, parse(key))); return self 
+    self.__operator_data__.append((__getitem__, key)); return self 
   def __add__(self, other): 
-    self.__operator_data__.append((__add__, parse(other))); return self 
+    self.__operator_data__.append((__add__, other)); return self 
   def __sub__(self, other): 
-    self.__operator_data__.append((__sub__, parse(other))); return self 
+    self.__operator_data__.append((__sub__, other)); return self 
   def __mul__(self, other): 
-    self.__operator_data__.append((__mul__, parse(other))); return self 
+    self.__operator_data__.append((__mul__, other)); return self 
   def __floordiv__(self, other): 
-    self.__operator_data__.append((__floordiv__, parse(other))); return self 
+    self.__operator_data__.append((__floordiv__, other)); return self 
   def __div__(self, other): 
-    self.__operator_data__.append((__div__, parse(other))); 
+    self.__operator_data__.append((__div__, other)); 
     return self 
   def __truediv__(self, other): 
-    self.__operator_data__.append((__lt__, parse(other))); return self 
+    self.__operator_data__.append((__lt__, other)); return self 
   def __mod__(self, other): 
-    self.__operator_data__.append((__mod__, parse(other))); return self 
+    self.__operator_data__.append((__mod__, other)); 
+##    print other
+    return self 
   def __pow__(self, other): 
-    self.__operator_data__.append((__pow__, parse(other))); return self 
+    self.__operator_data__.append((__pow__, other)); return self 
   def __lshift__(self, other): 
-    self.__operator_data__.append((__lshift__, parse(other))); return self 
+    self.__operator_data__.append((__lshift__, other)); return self 
   def __rshift__(self, other): 
-    self.__operator_data__.append((__rshift__, parse(other))); return self 
+    self.__operator_data__.append((__rshift__, other)); return self 
   def __and__(self, other): 
-    self.__operator_data__.append((__and__, parse(other))); return self 
+    self.__operator_data__.append((__and__, other)); return self 
   def __xor__(self, other): 
-    self.__operator_data__.append((__xor__, parse(other))); 
+    self.__operator_data__.append((__xor__, other)); 
     return self 
   def __or__(self, other): 
-    self.__operator_data__.append((__or__, parse(other))); return self 
+    self.__operator_data__.append((__or__, other)); return self 
   def __iter__(self): 
     self.__operator_data__.append(__iter__); return self 
   def __neg__(self): 
@@ -153,6 +153,12 @@ class FormTraveller(object):
   def ___parse___(self, parser):
     return eval(dao_parse(self.__form_grammar__, self.__operator_data__))
   def __nonzero__(self): return False
+  
+  # prevent __getattr__
+  def closure(self, env): return self
+  def deref(self, env): return self
+  def getvalue(self, env): return self
+  
   def __repr__(self): 
     result = self.__form_name__
     for x in self.__operator_data__:
@@ -191,6 +197,7 @@ def binary(attr):
   def func(solver, cont, argument=None): 
     argument = deref(argument, solver.env)
     syntax_result, pos = solver.stream
+##    print  syntax_result, syntax_result[pos][1]
     if pos==len(syntax_result): return
     try: 
       if syntax_result[pos][0]!=attr: return

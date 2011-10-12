@@ -47,18 +47,31 @@ def cut(cont_gen):
 
 class Parser: 
   def parse(self, exp):
-    try: parse_method = exp.___parse___
+    try: exp_parse = exp.___parse___
     except: 
       if isinstance(exp, list):
         return [self.parse(e) for e in exp]
       elif isinstance(exp, tuple):
         return tuple(self.parse(e) for e in exp)
       else: return exp
-    try: return parse_method(self)
+    try: return exp_parse(self)
+    except TypeError: return exp
+  def parse_block(self, exp):
+    try: exp_parse_block = exp.___parse_block___
+    except: 
+      if isinstance(exp, list):
+        return [self.parse(e) for e in exp]
+      elif isinstance(exp, tuple):
+        return tuple(self.parse(e) for e in exp)
+      else: return exp
+    try: return exp_parse_block(self)
     except TypeError: return exp
 
 def parse(exp): 
   return Parser().parse(exp)
+
+def parse_block(exp):
+  return Parser().parse_block(exp) 
 
 class LoopExitNextTagger:
   ''' use tagger to preprocess before solve expression'''
@@ -184,5 +197,5 @@ class Solver:
       else:
         @mycont(cont)
         def exps_cont(value, solver):
-          yield self.exps_cont(exps[1:], cont), value
+          yield solver.exps_cont(exps[1:], cont), value
         return self.cont(exps[0], exps_cont)

@@ -111,7 +111,7 @@ class TestRule:
   def test_replace(self):
     from oad.builtins.rule import replace
     eq_(eval(let({f:function(([1], 1), ([2], 2))}, 
-               replace(f, [2], [3]), f(2))), 3)
+               replace(f, [2], 3), f(2))), 3)
     
         
 from oad.builtins.string import length, concat, char_in, substring
