@@ -67,4 +67,4 @@ class RuleList(list):
   def copy(self):
     return RuleList([r.copy() for r in self])
   def __repr__(self): 
-    return '{%s}'%' '.join([repr(rule) for rule in self])
+    return 'RuleList[%s]'%' '.join([repr(rule) for rule in self])

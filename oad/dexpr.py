@@ -22,7 +22,8 @@ class Expression:
   def __rge__(self, other): return  ge(other, self)
 ##  def __getattr__(self, other): 
 ##    return  getattr__(self, other)
-  def __call__(self, *args, **kw): return  call(self, args, kw)
+  def __call__(self, *args, **kw): 
+    return  call(self, args, kw)
   def __getitem__(self, other): return  getitem(self, other)
   def __add__(self, other): return  add(self, other)
   def __radd__(self, other): return  add(other, self)
@@ -224,7 +225,7 @@ class neg(Unary):
     if isinstance(self.x, Unary) and isinstance(self.x.x, VarSymbol):
       x = varcache(self.x.x.name)
       return special.set(x, arith.sub(x, 1))
-    else: return -parser.parse(self.x)
+    else: return arith.neg(parser.parse(self.x))
 class pos(Unary): 
   def ___parse___(self, parser): 
     if isinstance(self.x, Unary) and isinstance(self.x.x, VarSymbol):
@@ -237,7 +238,8 @@ class invert__(Unary):
   operator = arith.invert
 
 class call(Expression):
-  def __init__(self, caller, *args, **kwargs): 
+  def __init__(self, caller, args, kwargs): 
     self.caller, self.args, self.kwargs = caller, args, kwargs
-  def ___parse___(self, parser): 
-    return self.caller(*parser.parse(self.args), **parser.parse(self.kwargs))
+  def ___parse___(self, parser):
+    caller = parser.parse(self.caller)
+    return caller(*parser.parse(self.args), **parser.parse(self.kwargs))

@@ -151,10 +151,14 @@ def left(sequence):
 def second(sequence): 
   return sequence[1]
 
+from oad.solve import DaoStopIteration
 
 @builtin.function('iter_next')
 def iter_next(iterator): 
-  return iterator.next()
+  try: return iterator.next()
+  except StopIteration:
+##    iterator.close()
+    raise DaoStopIteration
 
 @builtin.function('make_iter')
 def make_iter(iterator): 

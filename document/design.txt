@@ -27,7 +27,9 @@ functionºÍmacroµÄ¹ØÏµ£¿ÄÜ·ñÈ¡ÏûÒ»¸ö£¿functionÊÇ²»ÊÇºêµÄÌØÀý£¿ºÃÏñ²»ÐÐ£¬ÒòÎª»¹Òªº
 ¹Ø¼ü×Ö²ÎÊý£¬
 ¿ÉÑ¡²ÎÊý£¬Ä¬ÈÏ²ÎÊý£¬¹Ø¼ü×Ö²ÎÊý¶¼²»»áµ¼ÖÂºÏÒ»Ê§°Ü¡£
 
-pythonµÄÄ¬ÈÏ²ÎÊýÊµÏÖ·½·¨Ò»¶¨ÓÐÎÊÌâ£¬Ó¦¸ÃÔÙÖ´ÐÐº¯ÊýµÄÊ±ºòÉèÖÃÄ¬ÈÏÖµ¡£ÊµÏÖÓ¦¸ÃÒ²²»¸´ÔÓ¡£
+pythonµÄÄ¬ÈÏ²ÎÊýÊµÏÖ·½·¨Ò»¶¨ÓÐÎÊÌâ£¬Ó¦¸ÃÔÚÖ´ÐÐº¯ÊýµÄÊ±ºòÉèÖÃÄ¬ÈÏÖµ¡£ÊµÏÖÓ¦¸ÃÒ²²»¸´ÔÓ¡£
 
 ÈçºÎ²»Ð´±àÒëÆ÷¾ÍÄÜÊµÏÖ±àÒë£¿
 pypyÄÜÂð£¿continuationÄÜÓÐ¶à´ó°ïÖú£¿ 
+
+pretty printer

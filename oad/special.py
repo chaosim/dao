@@ -58,7 +58,7 @@ class set(SpecialForm):
         yield cont, value
     return solver.cont(self.exp, set_cont)
   def __eq__(self, other): return self.var==other.var and self.exp==other.exp
-  def __repr__(self): return "set(%s %s)"%(self.var, self.exp)
+  def __repr__(self): return "set(%s, %s)"%(self.var, self.exp)
 assign = set
 
 class set_list(SpecialForm):
@@ -162,9 +162,9 @@ class iff(SpecialForm):
     return result
 
 class pytry(SpecialForm):
-  def __init__(self, body, exception, clause, final=None):
+  def __init__(self, body, exception, ex_clause, final=None):
     self.body = body
-    self.exception, self.clause, self.final = exception, clause, final
+    self.exception, self.ex_clause, self.final = exception, ex_clause, final
   def ___parse___(self, parser): 
     for clause in self.clauses:
       clause[1] = parser.parse(clause[1])
@@ -179,23 +179,23 @@ class pytry(SpecialForm):
     @mycont(cont)
     def pytry_cont(value, solver):
       try:
-        for value in solver.solve(self.body):
-          yield cont, value
+        for c, value in solver.exp_run_cont(self.body, cont):
+          yield c, value
       except self.exception, e: 
-        for value in solver.solve(self.clause):
-          yield cont, value
+        for c, v in solver.exp_run_cont(self.ex_clause, cont):#
+          yield c, v
       finally:
         if self.final is None: return
-        for value in solver.solve(self.final):
-          yield cont, value
+        for c, value in solver.exp_run_cont(self.final, cont):
+          yield c, value
     return pytry_cont    
   def __eq__(self, other):
     return self.clauses==other.clauses and self.els==other.els
   def __repr__(self):
-    result = 'if %s then %s; '%self.clauses[0]
-    result += ''.join('elif %s then %s; '%clause for clause in self.clauses[1:])
-    result += 'els %s'%self.els
-    return result
+    return 'pytry: %s except %s: %s%s'%(
+      repr(self.body), repr(self.exception), repr(self.ex_clause), 
+      ' finally: %s'%repr(self.final) if self.final else '')
+
 
 class CaseForm(SpecialForm):
   def __init__(self, test, cases, els=None):
@@ -225,25 +225,6 @@ class CaseForm(SpecialForm):
     result += 'els %s'%self.els
     return result
 
-##class loop(SpecialForm):
-##  def __init__(self, *body):
-##    self.body = body
-##  def ___parse___(self, parser): 
-##    self.body = parser.parse(self.body)
-##    return self
-##  def tag_loop_label(self, tagger): 
-##    self.body = tagger.tag_loop_label(self.body)
-##    return self
-##  def cont(self, cont, solver):
-##    @mycont(cont)
-##    def loop_cont(value, solver):
-##      yield solver.exps_cont(self.body, loop_cont), value
-##    return solver.exps_cont(self.body, loop_cont)
-##  def __eq__(self, other):
-##    return self.body==other.body
-##  def __repr__(self):
-##    return 'loop{%s}'%repr(self.body)
-##
 class RepeatForm(ParserForm): pass
 
 class LoopForm(RepeatForm):
@@ -333,6 +314,7 @@ class LoopUntilForm(RepeatForm):
   def __repr__(self):
     return 'LoopUntilForm(%s,%s)'%(self.body, self.condition)
 
+from oad.solve import DaoStopIteration
 class EachForm(RepeatForm):
   def __init__(self, vars, iterator, body, label=None):
     self.vars, self.iterator, self.body, self.label = vars, iterator, body, label
@@ -340,16 +322,17 @@ class EachForm(RepeatForm):
   def tag_loop_label(self, tagger):
     label = tagger.make_label(self.label)
     tagger.push_label('each', label)
-    body = tagger.tag_loop_label(self.body)
+    body = list(tagger.tag_loop_label(self.body))
     tagger.pop_label('each')
     iterator = Var('loop_iterator')
     if isinstance(self.vars, Var):
       setvar = set(self.vars, iter_next(iterator))
     else:
       setvar = set_list(self.vars, iter_next(iterator))
-    body.append(continue_block(label))
-    return block(label, pytry(setvar, StopIteration, exit_block(label)),
-                 *body)
+    return set(iterator, make_iter(self.iterator))+\
+           block(label, 
+                  pytry(setvar, DaoStopIteration, exit_block(label)),
+                  *(body+[continue_block(label)]))
   def __eq__(self, other):
     return self.vars==other.vars and self.iterator==other.iterator and self.body==other.body
   def __repr__(self):
@@ -413,28 +396,35 @@ class OnForm(ParserForm):
       with value:
         if self.var is not None:
           for _ in self.var.unify(form_value, solver.env):
-            for v in solver.solve(body, cont):
-              yield cont, v
+            for c, v in solver.exp_run_cont(body, cont):
+              yield c, v
         else:
-          for v in solver.solve(body, cont):
-            yield cont, v
+          for c, v in solver.exp_run_cont(body, cont):
+            yield c, v
     return solver.cont(self.form, cont)
 
 # which distinct by the strict and lazy evaluation of the arguments.
 # the implentations is based on "Lisp In Small Pieces" by Christian Queinnec and Ecole Polytechnique
 
 def let(bindings, *body):
-  return FunctionForm((bindings.keys(),)+ body)(*bindings.values())
+  if isinstance(bindings, dict): raise Error
+  vars = tuple(b[0] for b in bindings)
+  values = tuple(b[1] for b in bindings)
+  return FunctionForm((vars,)+ body)(*values)
   
 def lambda_(vars, *body): 
   #[lambda [var ...] ...]
   return FunctionForm((vars,)+body)
 
+def make_rules(rules):
+  result = {}
+  for rule in rules:
+    result.setdefault(len(rule[0]), RuleList()).append(Rule(rule[0], rule[1:]))
+  return result
+
 class FunctionForm(SpecialForm):
   def __init__(self, *rules):
-    self.arity2rules = {}
-    for rule in rules:
-      self.arity2rules.setdefault(len(rule[0]), RuleList()).append(Rule(rule[0], rule[1:]))
+    self.arity2rules = make_rules(rules)
   def ___parse___(self, parser):
     for arity, rule_list in self.arity2rules.items():
       self.arity2rules[arity] = parser.parse(rule_list)
@@ -458,7 +448,10 @@ class FunctionForm(SpecialForm):
 function = FunctionForm
 
 def letrec(bindings, *body):
-  return RecursiveFunctionForm((bindings.keys(),)+ body)(*bindings.values())
+  if isinstance(bindings, dict): raise Error
+  vars = tuple(b[0] for b in bindings)
+  values = tuple(b[1] for b in bindings)
+  return RecursiveFunctionForm((vars,)+ body)(*values)
 
 class RecursiveFunctionForm(FunctionForm): 
   def cont(self, cont, solver):
@@ -475,9 +468,7 @@ class RecursiveFunctionForm(FunctionForm):
   
 class MacroForm(FunctionForm):
   def __init__(self, *rules):
-    self.arity2rules = {}
-    for rule in rules:
-      self.arity2rules.setdefault(len(rule[0]), RuleList()).append(Rule(rule[0], rule[1:]))
+    self.arity2rules = self.arity2rules = make_rules(rules)
   def cont(self, cont, solver):
     macro = UserMacro(self.arity2rules, solver.env, recursive=False)
     return value_cont(macro, cont)

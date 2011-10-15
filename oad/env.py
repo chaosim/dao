@@ -54,7 +54,9 @@ class ExtendEnvironment(Environment):
 
 def unwind(cont, tag, stop_cont, solver, next_cont=None):
   try: cont_unwind = cont.unwind
-  except AttributeError: 
+  except AttributeError:
+    if cont is solver.stop_cont:
+      solver.solved = True
     if cont is stop_cont: 
       return cont if next_cont is None else next_cont
     else: return unwind(cont.cont, tag, stop_cont, solver, next_cont)

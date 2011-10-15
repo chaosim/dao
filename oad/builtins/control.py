@@ -23,7 +23,7 @@ def callcc(solver, cont, fun):
 def findall(solver, cont, goal, template, bag):
   goal = deref(goal, solver.env)
   result = []
-  for x in solver.solve(goal, cont):
+  for c, x in solver.exp_run_cont(goal, cont):
     result.append(getvalue(template, solver.env))
   for x in bag.unify(result, solver.env):
     yield cont, True
@@ -35,8 +35,8 @@ def call(solver, cont, pred): yield solver.cont(deref(pred, solver.env), cont), 
 
 @builtin.macro()
 def once(solver, cont, pred):
-  for x in solver.solve(deref(pred, solver.env), cont):
-    yield cont, x
+  for c, x in solver.exp_run_cont(deref(pred, solver.env), cont):
+    yield c, x
     return
 
 @builtin.macro()
@@ -99,12 +99,12 @@ def or_(solver, cont, call1, call2):
 def first(solver, cont, call1, call2):
   call1 = deref(call1, solver.env)
   solved = False
-  for value in solver.solve(call1, cont):
+  for c, value in solver.exp_run_cont(call1, cont):
     solved = True
-    yield cont, value
+    yield c, value
   if solved: return
   call2 = deref(call2, solver.env)
-  yield solver.solve(call2, cont), True
+  yield solver.cont(call2, cont), True
 
 @builtin.macro('->')  
 def if_p(solver, cont, if_clause, then_clause):
@@ -120,6 +120,6 @@ def if_p(solver, cont, if_clause, then_clause):
 @builtin.macro('not')  
 def not_p(solver, cont, call):
   call = deref(call, solver.env)
-  for x in solver.solve(call, cont):
+  for c, x in solver.exp_run_cont(call, cont):
     return
   yield cont, True

@@ -1,8 +1,8 @@
 from oad.term import deref, unify_list_rule_head, conslist, getvalue, match, Var
 ##from oad import error
 from oad import builtin
-from oad.rule import Rule
-from oad.special import UserFunction, UserMacro
+from oad.rule import Rule, RuleList
+from oad.special import UserFunction, UserMacro, make_rules
 
 # rule manipulation
 
@@ -12,6 +12,9 @@ def abolish(solver, cont, rules, arity):
   if not isinstance(rules, UserFunction) and not isinstance(rules, UserMacro):
     yield cont, rules
   arity = deref(arity, solver.cont)
+  if arity not in rules.rules:
+    yield cont, rules.rules
+    return
   old = rules.rules[arity]
   del rules.rules[arity]
   yield cont, rules.rules
@@ -42,9 +45,14 @@ def asserta(solver, cont, rules, head, body, klass=UserFunction):
   del rules.rules[0]
 
 @builtin.macro('asserta')
-def insert_def(solver, cont, rules, head, body, klass=UserFunction):
+def insert_def(solver, cont, rules, head, bodies, klass=UserFunction):
   rules = getvalue(rules, solver.env)
   if not isinstance(rules, klass): raise ValueError(rules)
+  if len(head) not in rules.rules:
+    rules.rules[len(head)] = RuleList([Rule(head, body) for body in bodies])
+    yield cont, rules
+    del rules.rules[len(head)]
+    return
   for body in reversed(bodies):
     rules.rules[len(head)].insert(0, Rule(head, body))
   yield cont, rules
@@ -57,6 +65,8 @@ def replace(solver, cont, rules, head, *body):
   if isinstance(rules, Var):
     solver.env[rules] = FunctionForm((head, body))
     yield cont, rules
+    del solver.env[rules]
+    return
   if len(head) not in rules.rules: return
   arity_rules = rules.rules[len(head)]
   old = None
@@ -81,13 +91,17 @@ def replace(solver, cont, rules, head, *body):
 def replace_def(solver, cont, rules, head, bodies, klass=UserFunction):
   rules = getvalue(rules, solver.env)
   if isinstance(rules, Var):
-    new_rules = [(head, body) for body in bodies]
-    solver.env[rules] = klass((head, body))
+    new_rules = [(head,)+tuple(body) for body in bodies]
+    solver.env[rules] = klass(make_rules(new_rules), solver.env, False)
     yield cont, rules
     del solver.env[rules]
     return
   elif not isinstance(rules, klass): raise ValueError
-  if len(head) not in rules.rules: return
+  if len(head) not in rules.rules: 
+    rules.rules[len(head)] = RuleList([Rule(head, body) for body in bodies])
+    yield cont, rules
+    del rules.rules[len(head)]
+    return
   arity_rules = rules.rules[len(head)]
   old = arity_rules.copy()
   index = 0
@@ -95,7 +109,7 @@ def replace_def(solver, cont, rules, head, bodies, klass=UserFunction):
     rule = arity_rules[index]
     if match(head, rule.head): del arity_rules[index]
     else: index += 1
-  for body in bodies: arity_rules.append((head, body))
+  for body in bodies: arity_rules.append(Rule(head,body))
   yield cont, rules
   if old is not None:
     rules.rules[len(head)] = old
@@ -153,7 +167,9 @@ def retractall(solver, cont, rules, head, klass=UserFunction):
 def remove(solver, cont, rules, head, klass=UserFunction):
   rules = getvalue(rules, solver.env)
   if not isinstance(rules, klass): raise ValueError
-  if len(head) not in rules.rules: return
+  if len(head) not in rules.rules: 
+    yield cont, True
+    return
   arity_rules = rules.rules[len(head)]
   index = 0
   old  = None

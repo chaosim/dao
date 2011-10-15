@@ -166,7 +166,11 @@ class FormTraveller(object):
   def __repr__(self): 
     result = self.__form_name__
     for x in self.__operator_data__:
-      if x[0]==__lt__: result += '<%s'%str(x[1])
+      if x== __neg__: result = '-%s'%result
+      elif x== __pos__: result = '+%s'%result
+      elif x== __abs__: result = 'abs(%s)'%result
+      elif x== __invert__: result = '~%s'%result
+      elif x[0]==__lt__: result += '<%s'%str(x[1])
       elif x[0]==__le__: result += '<=%s'%str(x[1])
       elif x[0]==__eq__: result += '==%s'%str(x[1])
       elif x[0]== __ne__: result += '!=%s'%str(x[1])
@@ -189,10 +193,6 @@ class FormTraveller(object):
       elif x[0]==  __and__: result += '&%s'%str(x[1])
       elif x[0]== __xor__: result += '^%s'%str(x[1])
       elif x[0]== __or__: result += '|%s'%str(x[1])
-      elif x== __neg__: result = '-%s'%result
-      elif x== __pos__: result = '+%s'%result
-      elif x== __abs__: result = 'abs(%s)'%result
-      elif x== __invert__: result = '~%s'%result
     return result
 
 

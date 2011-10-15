@@ -6,7 +6,8 @@
 
 from oad.env import GlobalEnvironment
 
-class CutException: pass
+class CutException(Exception): pass
+class DaoStopIteration(Exception): pass
 
 class DaoUncaughtThrow(Exception):
   def __init__(self, tag): self.tag = tag
@@ -26,8 +27,8 @@ def tag_unwind(fun):
     return tagged_fun
   return unwind_tagger
  
-def done_unwind(cont, tag, stop_cont, solver, next_cont=None):
-  if cont is stop_cont: 
+def done_unwind(cont, tag, stop_cont_cont, solver, next_cont=None):
+  if cont is stop_cont_cont: 
     return cont if next_cont is None else next_cont
   raise DaoUncaughtThrow(tag)
 
@@ -95,10 +96,6 @@ def tag_loop_label(exp):
 def eval(exp):
   return Solver().eval(exp)
 
-def eval_list(exps):
-  from special import begin
-  return Solver().eval(begin(*exps))
-
 def solve(exp): 
   return Solver.solve(exp)
 
@@ -106,34 +103,45 @@ class Solver:
   # exp: expression 
   # exps: expression list
   
-  def __init__(self, env=None, stream=None, stop=None):
+  def __init__(self, env=None, stream=None, stop_cont=None):
     if env is None: env = GlobalEnvironment()
     self.env = env
-    self.stop = stop
+    self.stop_cont = stop_cont
     self.stream = stream
+    self.solved = False
   
   def eval(self, exp):
+    if isinstance(exp, list) or isinstance(exp, tuple):
+      from oad.special import begin
+      exp = begin(*exp)
     for x in self.solve(exp): return x
     
-  def solve(self, exp, stop=done):
-    cont = self.cont(exp, stop)
-    for _, result in self.run_cont(cont, stop):
+  def solve(self, exp, stop_cont=done):
+    for _, result in self.exp_run_cont(exp, stop_cont):
       yield result
       
-  def solve_exps(self, exps, stop=done):
+  def solve_exps(self, exps, stop_cont=done):
     if len(exps)==0: yield True
     elif len(exps)==1: 
-      for x in self.solve(exps[0], stop):
-        yield x
+      for c, x in self.exp_run_cont(exps[0], stop_cont):
+        yield c, x
     else:
-      for _ in self.solve(exps[0], self.exps_cont(exps[1:], stop)): 
-        for x in self.solve_exps(exps[1:], stop):
+      for c, _ in self.exp_run_cont(exps[0], self.exps_cont(exps[1:], stop_cont)): 
+        for c, x in self.exps_run_cont(exps[1:], stop_cont):
           yield x
           
-  def run_cont(self, cont, stop, value=None):
+  def exp_run_cont(self, exp, stop_cont, value=None):
+    cont = self.cont(exp, stop_cont)
+    return self.run_cont(cont, stop_cont, value)
+  
+  def exps_run_cont(self, exps, stop_cont, value=None):
+    cont = self.exps_cont(exps, stop_cont)
+    return self.run_cont(cont, stop_cont, value)
+  
+  def run_cont(self, cont, stop_cont, value=None):
     self1 = self
-    self = Solver(self.env, self.stream, stop)
-    stop = self.stop 
+    self = Solver(self.env, self.stream, stop_cont)
+    stop_cont = self.stop_cont 
     root = cont_gen = cont(value, self)
     cut_gen = {}
     cut_gen[cont_gen] = cut(cont)
@@ -141,7 +149,7 @@ class Solver:
     while 1:
       try: 
         c, v  = cont_gen.next()
-        if c is stop: 
+        if self.solved or c is stop_cont: 
           env, stream = self1.env, self1.stream
           self1.env, self1.stream = self.env, self.stream
           yield c, v
@@ -172,6 +180,9 @@ class Solver:
         cont_gen = parent[cont_gen]
         del parent[cg]
       except GeneratorExit: raise
+##      except: 
+##        self1.env, self1.stream = env, stream
+##        raise
   def cont(self, exp, cont):    
     try: to_cont = exp.cont
     except: return value_cont(exp, cont)

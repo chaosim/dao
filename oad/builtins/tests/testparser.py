@@ -45,22 +45,22 @@ class TestLowLevelPrimitive:
 class TestParameterize:
   def test_chars(self):
     x, cs,chars = Var('x'), Var('cs'), Var('chars')
-    eq_(eval(let({chars: function(((x, cs), and_(char(x),char_in(x, cs))))},
+    eq_(eval(let([(chars, function(((x, cs), and_(char(x),char_in(x, cs)))))],
                             parse(chars(x, 'a'), 'a'))), True)
   def test_kleene1(self):
     f, item, kleene = Var('f'), Var('item'), Var('kleene')
     fun = macro(((item,),  
-                         letrec({f:macro(((), eval_(item), f()),
-                                         ((), nullword))}, 
+                         letrec([(f,macro(((), eval_(item), f()),
+                                         ((), nullword)))], 
                               f())))
-    eq_(eval(let({kleene:fun}, settext('aa'), kleene(char('a')))), True)
+    eq_(eval(let([(kleene,fun)], settext('aa'), kleene(char('a')))), True)
   def test_kleene2(self):
     f, pred, kleene = Var('f'), Var('pred'), Var('kleene')
     fun = macro(((pred,),  
-                         letrec({f:macro( ((x,), pred(x), f(x)),
-                                          ((x,), nullword))}, 
+                         letrec([(f,macro( ((x,), pred(x), f(x)),
+                                          ((x,), nullword)))], 
                               f(x))))
-    eq_(eval(let({kleene:fun}, settext('ab'), kleene(char))), True)
+    eq_(eval(let([(kleene,fun)], settext('ab'), kleene(char))), True)
     
 class Testterminal:
   def test_char(self):
@@ -103,30 +103,30 @@ class Testterminal:
     
 class Testrule:
   def test_two_rule(self):
-    eq_(eval(letrec({f:function( ((),char('a')),((),char('b')))}, 
+    eq_(eval(letrec([(f,function( ((),char('a')),((),char('b'))))], 
                parse(f(),'a'), parse(f(), 'b'))), 
         'b')
     
   def test_right_recursive1(self):
     function1 = function( ((), and_(char('a'), f())),
                      ((),char('b')))
-    eq_(eval(letrec({f:function1}, 
+    eq_(eval(letrec([(f,function1)], 
                parse(f(),'b'), parse(f(),'ab'), parse(f(),'aab'))), 
         'b')
-    eq_(eval(letrec({f:function1}, parse(f(), 'a'))), None)
+    eq_(eval(letrec([(f,function1)], parse(f(), 'a'))), None)
     
   def test_right_recursive2(self):
     x, p = Var('x'), Var('p')
-    function1 = {p:function( ((), and_(char(x), p())),
-                     ((),char(x)))}
+    function1 = [(p,function( ((), and_(char(x), p())),
+                     ((),char(x))))]
     eq_(eval(letrec(function1, parse(p(),'a'), parse(p(),'ab'), parse(p(),'abc'))),
         'c')
     eq_(eval(letrec(function1, parse(p(), ''))), None)
 
   def test_unify_right_recursive(self):
     x, p = Var('x'), Var('p')
-    function1 = {p:function( ((x,), and_(char(x), p(x))),
-                          ((x,),char(x)))}
+    function1 = [(p,function( ((x,), and_(char(x), p(x))),
+                          ((x,),char(x))))]
     eq_(eval(letrec(function1, parse(p(x), 'aa'))), 'a')
     eq_(eval(letrec(function1, parse(p(x), 'a'))), 'a')
     eq_(eval(letrec(function1, parse(and_(p(x), eos), 'xy'))), None)
@@ -148,9 +148,9 @@ class Testrule:
 class TestOr:
   def testOr(self):
     x, s, one, two = Var('x'), Var('s'), Var('one'), Var('two')
-    ruleList = {s: function( ((x,), or_(one(x), two(x)))),
-                one: function( (('1',),char('1'))),
-                two: function( (('2',),char('2')))}
+    ruleList = [(s, function( ((x,), or_(one(x), two(x))))),
+                (one, function( (('1',),char('1')))),
+                (two, function( (('2',),char('2'))))]
     eq_(eval(letrec(ruleList, parse(s(x), '1'))), '1')
     eq_(eval(letrec(ruleList, parse(s(y),  '2'))), '2')         
     eq_(eval(letrec(ruleList, parse(s(x), '3'))), None)
@@ -166,14 +166,14 @@ class TestOptional:
 
   def testoptionalRule(self):
     x, s = Var('x'), Var('s')
-    ruleList ={s: function( ((x,), and_(optional(char('a')),char(x))))}
+    ruleList =[(s, function( ((x,), and_(optional(char('a')),char(x)))))]
     eq_(eval(let(ruleList, parse(s(x), 'a'), x)), None)
     eq_(eval(let(ruleList, parse(s(x),  'aa'), x)), 'a')         
     eq_(eval(let(ruleList, parse(s(x),  'b'), x)), 'b')
     
   def testoptionalcut(self):
     x, s = Var('x'), Var('s')
-    ruleList = {s: function( ((x,), and_(optional(char('a')), cut, char(x))))}
+    ruleList = [(s, function( ((x,), and_(optional(char('a')), cut, char(x)))))]
     eq_(eval(let(ruleList, parse(s(x),  'aa'), x)), 'a')         
     eq_(eval(let(ruleList, parse(s(x),  'b'), x)), 'b') 
     eq_(eval(let(ruleList, parse(s(x), 'a'), x)), None)
@@ -186,9 +186,9 @@ class TestParallel:
     
   def testparallelRule(self):
     x, s, gt, lt = Var('x'), Var('s'), Var('>'), Var('<')
-    ruleList = {s:function( ((x,), parallel(gt(x, 3), lt(x, 5)))),
-                gt:function( ((4, 3),char('4'))),
-                lt:function( ((4, 5),char('4')))}
+    ruleList = [(s,function( ((x,), parallel(gt(x, 3), lt(x, 5))))),
+                (gt,function( ((4, 3),char('4')))),
+                (lt,function( ((4, 5),char('4'))))]
     eq_(eval(letrec(ruleList, parse(s(x), '4'), x)), 4)
     eq_(eval(letrec(ruleList, parse(s(x), '6'), x)), None)
     eq_(eval(letrec(ruleList, parse(and_(s(x), eos), '41'), x)), None)
@@ -282,10 +282,10 @@ class TestAnySomeTimesSepList:
 class TestKleeneByfunction:  
   def testKleene1(self): #occurs_check
     x, s, kleene = Var('x'), Var('s'), Var('kleene')
-    ruleList = {s:function( ((x,), kleene(x))),
-                kleene:function( 
+    ruleList = [(s,function( ((x,), kleene(x)))),
+                (kleene,function( 
                   ((Cons('a', x),), and_(char('a'), kleene(x))),
-                  ((nil,), nullword))}
+                  ((nil,), nullword)))]
     eq_(eval(letrec(ruleList, parse(s(x), 'aa'), x)), L('a', 'a'))
     eq_(eval(letrec(ruleList, parse(s(x), ''), x)), nil)
     eq_(eval(letrec(ruleList, parse(and_(s(x), eos), '6'), x)), None)
@@ -293,10 +293,10 @@ class TestKleeneByfunction:
 
   def testKleene2(self):
     x, c, s, kleene = Var('x'), Var('c'), Var('s'), Var('kleene')
-    ruleList = {s:function( ((x,), kleene(c, x))),
-                kleene:function( 
+    ruleList = [(s,function( ((x,), kleene(c, x)))),
+                (kleene,function( 
                   ((c, Cons(c, x)), and_(char(c), kleene(c, x))),
-                  ((c, nil), nullword))}
+                  ((c, nil), nullword)))]
     eq_(eval(letrec(ruleList, parse(s(x), 'aa'), x)), L('a', 'a'))
     eq_(eval(letrec(ruleList, parse(s(x), 'aaa'), x)), L('a', 'a', 'a'))
     eq_(eval(letrec(ruleList, parse(s(x), 'bbb'), x)), L('b', 'b', 'b'))
@@ -307,9 +307,9 @@ class TestKleeneByfunction:
 
   def testKleene3(self):
     x, c, kleene = Var('x'), Var('c'), Var('kleene')
-    ruleList = {kleene:function( 
+    ruleList = [(kleene,function( 
                   ((Cons(c, x),), char(c),kleene(x)),
-                  ((nil,), nullword))}
+                  ((nil,), nullword)))]
     eq_(eval(letrec(ruleList, parse(kleene(x), 'a'), x)), L('a'))
     eq_(eval(letrec(ruleList, parse(kleene(x), 'aa'), x)), L('a', 'a'))
     eq_(eval(letrec(ruleList, parse(kleene(x), 'aaa'), x)), L('a', 'a', 'a'))
@@ -319,10 +319,10 @@ class TestKleeneByfunction:
 
   def testKleene4(self):
     x, _, c, s, kleene = Var('x'), DummyVar('_'), Var('c'), Var('s'), Var('kleene')
-    ruleList = {s:function( ((x,), kleene(_, x))),
-                kleene:function( 
+    ruleList = [(s,function( ((x,), kleene(_, x)))),
+                (kleene,function( 
                   ((_, Cons(c, x)), char(c)&kleene(_, x)),
-                  ((_, nil), nullword))}
+                  ((_, nil), nullword)))]
     eq_(eval(letrec(ruleList, parse(s(x), 'a'), x)), L('a'))
     eq_(eval(letrec(ruleList, parse(s(x), 'aa'), x)), L('a', 'a'))
     eq_(eval(letrec(ruleList, parse(s(x), 'aaa'), x)), L('a', 'a', 'a'))
@@ -335,42 +335,42 @@ class testIndentUndent:
   def testIndentUndent(self):
     _, n, s, line = DummyVar('_'), Var('n'), Var('s'), Var('line')
     space = char(' ')
-    ruleList = {s:function( ((n,), some(line(n)),s(add(n,1))),
-                            ((n,), some(line(n)))),
-                line:function( ((n,), times(space, n),some(letter(_)),any(space),char('\n')))
-                }
+    ruleList = [(s,function( ((n,), some(line(n)),s(add(n,1))),
+                            ((n,), some(line(n))))),
+                (line,function( ((n,), times(space, n),some(letter(_)),any(space),char('\n'))))
+                ]
     eq_(eval(letrec(ruleList, parse(s(0),  'a\n b\n c\n'))), True)
     eq_(eval(letrec(ruleList, parse(s(0),  'asd\n bdf\n cdfh\n'))), True)
 
 class TestExpression:          
   def testRecursiveReturnValue1(self):
     E, F, G, e, e1 = Var('E'), Var('F'), Var('G'), Var('e'), Var('e1')
-    ruleList = {E:function(((e,), F(e))),
-                E:function(((e1,), G(e1))),
-                G:function(((1,), char('1')))}
+    ruleList = [(E,function(((e,), F(e)))),
+                (E,function(((e1,), G(e1)))),
+                (G,function(((1,), char('1'))))]
     eq_(eval(letrec(ruleList, parse(E(e),  '1'), e)), 1)
     
   def testRecursiveReturnValue2(self):
     E, F, e, e1 = Var('E'), Var('F'), Var('e'), Var('e1')
-    ruleList = {E:function((((e, e),), F(e))),
-                F:function(((1,), char('1')))}
+    ruleList = [(E,function((((e, e),), F(e)))),
+                (F,function(((1,), char('1'))))]
     eq_(eval(letrec(ruleList, parse(E(e),  '1'), e)), (1, 1))
     
   def testRecursiveReturnValue3(self):
     E, e, e1, e2 = Var('E'), Var('e'), Var('e1'), Var('e2')  
-    ruleList = {E:function( 
+    ruleList = [(E,function( 
                      ((e, 1), E(e, 2)),
                      ((e, 2), char(e)),
                      (((e1, e2), 1), E(e1,2), E(e2, 1))
-                         )}
+                         ))]
     eq_(eval(letrec(ruleList, parse(E(e, 1)+eos, '12'), e)), ('1', '2'))
 
   def testExpressionByRightRecursiveList(self):
     E, e, e1, e2 = Var('E'), Var('e'), Var('e1'), Var('e2')  
-    ruleList = {E:function( 
+    ruleList = [(E,function( 
                      (((e1, '/', e2), 1), E(e1,2), char('/'), E(e2, 1)),
                      ((1, 2), char('1')),
-                     ((e, 1), E(e, 2)))}
+                     ((e, 1), E(e, 2))))]
     eq_(eval(letrec(ruleList, parse(E(e, 1),  '1/1/1'), e)), (1, '/', (1, '/', 1)))
     eq_(eval(letrec(ruleList, parse(E(e, 1),  '1/1'), e)), (1, '/', 1))
     eq_(eval(letrec(ruleList, parse(E(e, 1),  '1'), e)), 1)

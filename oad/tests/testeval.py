@@ -51,27 +51,27 @@ class TestControl:
     eq_(eval(CaseForm(2, {0: [write(0)], 1:[write(1)], 2:[write(2)]}, [write(3)])), True)
   def testeval(self):
     eq_(eval(eval_(quote(1))), (1))
-    eq_(eval(let({x:1}, eval_(quote(x)))), 1)
+    eq_(eval(let([(x,1)], eval_(quote(x)))), 1)
     eq_(eval(eval_(quote(add(1, 1)))), (2))
 
 class TestLoop:
   def testloop(self):
-    eq_(eval(let({i:3}, 
+    eq_(eval(let([(i,3)], 
                  block(a, set(i, sub(i, 1)), 
                             if_(eq(i, 0), exit_block(a, 1)),
                             continue_block(a)), i)), 0)
   def test_unwind_protect_loop(self):
-    eq_(eval(let({i:3}, 
+    eq_(eval(let([(i,3)], 
                  block(a, set(i, sub(i, 1)), 
                             if_(eq(i, 0), exit_block(a, 1)),
                             unwind_protect(continue_block(a), write(2))), i)), 0)
   def testLoopTimes(self):
-    eq_(eval(tag_loop_label(let({i:3}, LoopTimesForm(3, (set(i, sub(i, 1)), write(i)))))), None)
+    eq_(eval(tag_loop_label(let([(i,3)], LoopTimesForm(3, (set(i, sub(i, 1)), write(i)))))), None)
   def testLoopWhen(self):
-    eq_(eval(tag_loop_label(let({i:3}, LoopWhenForm((set(i, sub(i, 1)), write(i)), 
+    eq_(eval(tag_loop_label(let([(i,3)], LoopWhenForm((set(i, sub(i, 1)), write(i)), 
                                      gt(i,0))))), False)
   def testLoopUntil(self):
-    eq_(eval(tag_loop_label(let({i:3}, LoopUntilForm((set(i, sub(i, 1)), write(i)), 
+    eq_(eval(tag_loop_label(let([(i,3)], LoopUntilForm((set(i, sub(i, 1)), write(i)), 
                                      eq(i,0))))), False)
   def testEachForm(self):
     eq_(eval(tag_loop_label(EachForm(i, range(3), [write(i)]))), None)
@@ -80,20 +80,20 @@ class TestLoop:
     
 class TestFunction:
   def test_let_set(self):
-    eq_(eval(let({a:1}, set(a,2), a)), 2)
-    eq_(eval(let({a:1}, 
-                  let({b:1}, set(a,2), a))), 2)
+    eq_(eval(let([(a,1)], set(a,2), a)), 2)
+    eq_(eval(let([(a,1)], 
+                  let([(b,1)], set(a,2), a))), 2)
   def testLambda(self):
     eq_(eval(lambda_([x], 1)(2)), 1)
     eq_(eval(lambda_([x], x)(2)), 2)
     eq_(eval(lambda_((x, y), add(x, y))(1, 3)), 4)
   def testlet(self):
-    eq_(eval(let({x:1}, x)), (1))
-    eq_(eval(let({x:1}, let({x:2}, x))), 2)
-    eq_(eval(let({x:1, y:2}, add(x, y))), 3)
+    eq_(eval(let([(x,1)], x)), (1))
+    eq_(eval(let([(x,1)], let([(x,2)], x))), 2)
+    eq_(eval(let([(x,1), (y,2)], add(x, y))), 3)
   def testletdouble(self):
     f = Var('f')
-    eq_(eval(let({f: lambda_([x], add(x, x))}, f(1))), 2)
+    eq_(eval(let([(f, lambda_([x], add(x, x)))], f(1))), 2)
   def test1(self):
     eq_(eval(function([[1], 1],[[2],2])(x)), 1) 
     eq_(eval(function([[1], 1],[[x],x])(2)), 2) 
@@ -103,69 +103,69 @@ class TestFunction:
     eq_(eval(function([[x], add(x, x)])(2)), 4) 
   def testdouble2(self):
     f = Var('f')
-    eq_(eval(let({f: function([[x], x+x])}, f(1))), 2) 
-    eq_(eval(let({f: function([[x], x+x])}, f(f(1)))), 4) 
+    eq_(eval(let([(f, function([[x], x+x]))], f(1))), 2) 
+    eq_(eval(let([(f, function([[x], x+x]))], f(f(1)))), 4) 
     
 class Test_letrec:
   def testembedvar1(self):
     e, e2, f, g, h = Var('e'), Var('e2'), Var('f'), Var('g'), Var('h')
-    eq_(eval(letrec({f: function([[1], 1])},
+    eq_(eval(letrec([(f, function([[1], 1]))],
                 f(e), e)), 1)
   def testembedvar2(self):
     e, e2, f, g, h = Var('e'), Var('e2'), Var('f'), Var('g'), Var('h')
-    eq_(eval(letrec({f: macro([[cons(1, e2)], g(e2)]),
-                     g: function([[e], h(e)]),
-                     h: function([[1], True])},
+    eq_(eval(letrec([(f, macro([[cons(1, e2)], g(e2)])),
+                     (g, function([[e], h(e)])),
+                     (h, function([[1], True]))],
                 f(e), e)), cons(1, 1))
   def testletrec(self):
-    eq_(eval(letrec({f: function([[1], 1],[[x],f(x-1)])}, f(1))), 1)
-    eq_(eval(letrec({f: function([[1], 1],[[x],f(x-1)])}, f(2))), 1) 
+    eq_(eval(letrec([(f, function([[1], 1],[[x],f(x-1)]))], f(1))), 1)
+    eq_(eval(letrec([(f, function([[1], 1],[[x],f(x-1)]))], f(2))), 1) 
   def testletrec(self):
-    eq_(eval(letrec({f: lambda_([n], if_(eq(n, 1), 1, f(sub(n, 1))))},
+    eq_(eval(letrec([(f, lambda_([n], if_(eq(n, 1), 1, f(sub(n, 1)))))],
                   f(2))), 1)
   def testletrecfac(self):
-    eq_(eval(letrec({fac: lambda_([n], if_(eq(n,1), 1, mul(n, fac(sub(n, 1)))))},
+    eq_(eval(letrec([(fac, lambda_([n], if_(eq(n,1), 1, mul(n, fac(sub(n, 1))))))],
                   fac(3))), 6)
   def testletrecoddeven(self):
-    eq_(eval(letrec({odd: lambda_([n], if_(eq(n,0), 0, even(sub(n,1)))),
-                    even: lambda_([n], if_(eq(n,0), 1, odd(sub(n, 1))))},
+    eq_(eval(letrec([(odd, lambda_([n], if_(eq(n,0), 0, even(sub(n,1))))),
+                    (even, lambda_([n], if_(eq(n,0), 1, odd(sub(n, 1)))))],
                   odd(3))), 1)
 
 class TestCut:
   #http://en.wikibooks.org/wiki/Prolog/Cuts_and_Negatio
   def testCut1(self):
     a, b, c, x = Var('a'), Var('b'), Var('c'), Var('x'), 
-    eq_(eval(letrec({a: function([[x], b(x)&cut&c(x)]), #[cut] = cut = cut() 
-                     b: function([[1], True],
+    eq_(eval(letrec([(a, function([[x], b(x)&cut&c(x)])), #[cut] = cut = cut() 
+                     (b, function([[1], True],
                                  [[2], True],
-                                 [[3], True]),
-                     c: function([[1], True])},
+                                 [[3], True])),
+                     (c, function([[1], True]))],
              a(x), x)), (1)) 
   def test_cut2(self):
     a, b, c, x = Var('a'), Var('b'), Var('c'), Var('x'), 
-    eq_(eval(letrec({a: function([[x], b(x)&cut&c(x)]),
-                     b: function([[1], True],
+    eq_(eval(letrec([(a, function([[x], b(x)&cut&c(x)])),
+                     (b, function([[1], True],
                                     [[2], True],
-                                    [[3], True]),
-                     c: function([[2], True])},
+                                    [[3], True])),
+                     (c, function([[2], True]))],
              a(x), x)), None)
   def test_cut2_no_Cut(self):
     a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x'), 
-    eq_(eval(letrec({a: function([[x], b(x)&c(x)],
-                                 [[x], d(x)]),
-                     b: function([[1], True],
-                                 [[4], True]),
-                     c: function([[3], True]),
-                     d: function([[4], True])},
+    eq_(eval(letrec([(a, function([[x], b(x)&c(x)],
+                                 [[x], d(x)])),
+                     (b, function([[1], True],
+                                 [[4], True])),
+                     (c, function([[3], True])),
+                     (d, function([[4], True]))],
              a(x), x)), 4) 
   def testCut4(self):
     a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x'), 
-    eq_(eval(letrec({a: function([[x], b(x)&cut&c(x)],
-                          [[x], d(x)]),
-                     b: function([[1], True],
-                                 [[4], True]),
-                     c: function([[3], True]),
-                     d: function([[3], True])},
+    eq_(eval(letrec([(a, function([[x], b(x)&cut&c(x)],
+                          [[x], d(x)])),
+                     (b, function([[1], True],
+                                 [[4], True])),
+                     (c, function([[3], True])),
+                     (d, function([[3], True]))],
              a(x), x)), 3)
     
 class TestMacro:
@@ -175,14 +175,14 @@ class TestMacro:
     eq_(eval(macro([[x, y], eval_(x)],
                    [[x, y],eval_(y)])(write(1), write(2))), True) 
   def test_closure(self):
-    eq_(eval(let({f: macro([[x], write(eval_(x))]),
-                  x: 1},
+    eq_(eval(let([(f, macro([[x], write(eval_(x))])),
+                  (x, 1)],
              f(x+x))), True) 
-    eq_(eval(let({f: function([[x], write(x)]),
-                  x: 1},
+    eq_(eval(let([(f, function([[x], write(x)])),
+                  (x, 1)],
              f(x+x))), True) 
-    eq_(eval(let({f: macro([[x], write(x)]),
-                  x: 1},
+    eq_(eval(let([(f, macro([[x], write(x)])),
+                  (x, 1)],
              f(x+x))), True) 
   def test4(self):
     eq_(eval(macro([[x], x])(write(1))), write(1)) 
@@ -191,7 +191,7 @@ class TestMacro:
 class TestCallccBlockCatch:
   def testblock(self):
     f = Var('f')
-    eq_(eval(block('foo', let({f: lambda_((), exit_block('foo',1))}, 
+    eq_(eval(block('foo', let([(f, lambda_((), exit_block('foo',1)))], 
                             mul(2,block('foo', f()))))), 
         1)
   def testblock2(self):
@@ -220,15 +220,15 @@ class TestModule:
     
   def testfrom(self):
     a, m = Var('a'), Var('m')
-    eq_(eval(let({m:module(define(a,1))}, from_(m,a))), 1)
+    eq_(eval(let([(m,module(define(a,1)))], from_(m,a))), 1)
     
   def test_embeded_module(self):
     a, m1, m2 = Var('a'), Var('m1'), Var('m2')
-    eq_(eval(let({m1:module(define(a,1),define(m2, module(define(a,2))))}, 
+    eq_(eval(let([(m1,module(define(a,1),define(m2, module(define(a,2)))))], 
                from_(from_(m1,m2),a))), 2) 
 
   def test_let_in_module(self):
     a, m1, m2 = Var('a'), Var('m1'), Var('m2')
-    eq_(eval(let({m1:module(define(a,1), let({a:2}, define(a,3)))}, 
+    eq_(eval(let([(m1,module(define(a,1), let([(a,2)], define(a,3))))], 
                from_(m1,a))), 1) 
 

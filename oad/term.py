@@ -116,7 +116,7 @@ def match_list(list1, list2):
 # match(var, nonvar): True,
 # match(nonvar, var): False
 def match(x, y):
-  try: x_match = x.match(y)
+  try: x_match = x.match
   except AttributeError: 
     if (isinstance(x, list) or isinstance(x, tuple)) or\
        isinstance(y, list) and isinstance(y, tuple):

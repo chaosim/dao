@@ -17,13 +17,63 @@ from oad.builtins.term import setvalue
 from oad.builtins.matcher import nullword
 from oad.builtins.control import if_p, not_p
 from oad.builtins.term import is_
+from oad.solve import eval, tag_loop_label
 
 dao.version = '0.1.0'
 
 _a = _.a # 哑变量
 ##a = local.a # 局部变量
-a, x, y = v.a, v.x, v.y # 普通变量
+a, b, c, x, y = v.a, v.b, v.c, v.x, v.y # 普通变量
 i, j = var.i.j
+
+
+##dao[
+##
+##each(i)[1:3].
+##  do[write(i)],
+##each(i,j)[1:3][1:3].
+##  do[write(i, j)],
+##  
+##label.a % 
+##each(i,j)[1:10][1:10].
+##  do[write(i, j)],
+##  
+##each(i,j)[zip(range(5), range(5))].
+##  do [write(i,j)],
+##
+##case(1)
+##  .of(1)[write(1)]
+##  .of(2)[write(2)],
+##]
+##print dao.code
+##dao.eval()
+##
+##print
+
+##code = parse(
+##[fun. a== at(x)  [write('sdgsgd')],
+## a(1)])
+##code = tag_loop_label(code)
+##print code
+##eval(code)
+
+##code = parse(loop(3)[write(1)])
+##code = tag_loop_label(code)
+##print code
+##eval(code)
+##
+
+##code = parse([ i << 0, write(i), ++i , write(i), --i, write(i)])
+##code = tag_loop_label(code)
+##print code
+##eval(code)
+
+##bindings = a << b << 1 # serial let is waiting to implemented!!!
+##code = parse([let (bindings) 
+##  .do[write(v.a,v.b)]])
+##code = tag_loop_label(code)
+##print code
+##eval(code)
 
 dao[
 # oad program samples:
@@ -55,27 +105,28 @@ put.i.j.z==(0,1,2), #i.j.z = (0,1,2)
 ##put[out.i, my.a, globl.b, a, a^3]==(0,1,2),
 
 i << 0,
-
 label.a %
 loop[
   -- i,
+  write(i), 
   ++ i,
   ++ i,
   i << i+10,
+  write(i), 
   iff (i==1) [next], 
   write(i), 
-  iff (i==3) [exit], 
+  iff (i>20) [exit], 
   iff (i==1) [next.loop], #再一次执行label为a的块
 ##  iff(eq(i,3)) [exit], #从block a退出，返回None
 ##  iff(eq(i,3)) [exit >>12], #从block a退出，返回12
 ##  iff(eq(i,3)) [exit.loop1 >>12], #从block a退出，返回12
 ##  goto.a, #要不要实现它？？？
           ], #跳到下一轮循环，退出循环
-]
-print dao.code
-print dao.eval()
-
-dao[
+##]
+##print dao.code
+##dao.eval()
+##
+##dao[
 i << 0,
 do[ i << i+1, write(i)].when(i==3),
 i << 0,
@@ -83,49 +134,62 @@ do[ ++i, write(i)].until(i==3),
 '''block comment''',  
 "block comment",
 
-let (a==1, 
-     b==2) 
-   [write(v.a,v.b)],
-let (a==b==c==1) 
-   [write(v.a,v.b)],
-let ( [a,b,c]==range(3)) 
-   [write(v.a,v.b)],
-
+let (a << 1, 
+     b << 2) 
+  .do[write(v.a, v.b)],
+##let (a << b << c << 1) #serial let is waiting to implemented.
+##  .do[write(v.a, v.b)],
+let( a/ b/ c << range(3)) 
+  .do[write(v.a, v.b, v.c)],
+write('adafa'),
+##]
+##print dao.code
+##dao.eval()
+##
+##dao[
 ##fun. a(x)== [write(1)], #覆盖与a(x)匹配的整个定义
-##fun. a==
-##  at(x)  [write(1)], #覆盖a的整个定义
+fun. a==
+  at(x)  [write(x)], #覆盖a的整个定义
 ##fun. a(x) <= [write(2)], #在前面插入定义
 ##fun. a(x) >= [write(2)],#在后面附加定义
-##fun==at(x)[1]
-##       (y)[y],
-##fun(x)==[1],
-##fun(x)==at[1][2],
+##fun(x)[1]
+##   (y)[y],
+##fun(x)[1],
+##fun(x)[1][2],
 ##macro. a(x,y) == write(2),
 ##macro. a ==
 ##  at(x,y).  write(2),
 ##macro. a(x,[y],{a:1}) >= (write(2)), #可选参数，关键字参数
 ##fun. a (x) == [], #删除函数a中与(x)一致的定义
 ##fun. a == [], # 删除函数a的整个定义
-##- fun.a/3,
-##- fun.a(x),
+a(1),
+- fun.a/3,
+- fun.a(x),
+a('affd'),
 
 ##  rule. r1 == at(1) [write(1)],
 ##  rules. rs1 == at(1) [write(1)],
 ##  fun. a - rule.r1, #从函数a中删除匹配规则r1的规则
 ##  fun. a - rules.rs1, #从函数a中删除匹配规则集rs1的规则
-
-##each(i)[1:10].
-##  do[write(i)],
-##  
-##label.a % 
-##each.i[1:10].j[1:10].
-##  do[write(i, j)],
-##  
-##each(i,j)[zip(range(5), range(5))].
-##  do [write(i,j)],
+]
+##print dao.code
+##dao.eval()
 ##
-##case(x).of(1)[write(1)]
-##      .of(2)[write(2)],
+dao[
+
+each(i)[1:10].
+  do[write(i)],
+  
+##label.a % 
+each(i,j)[1:10][1:10].
+  do[write(i, j)],
+  
+each(i,j)[zip(range(5), range(5))].
+  do [write(i,j)],
+
+case(1)
+  .of(1)[write(1)]
+  .of(2)[write(2)],
 
 ##on(f1==open('readme.txt'),
 ##    f2==open('out.txt', 'w')).
@@ -153,6 +217,13 @@ char(x)[:]/' '%(x,y)*a, #任意项char(x)以模板x,y收集到a
 char(x)[:5],            # char(x)不大于五次
 char(x)[5:],            # char(x)至少五次
 char(x)[5:8],           # char(x)至少五次
+]
+print
+print dao.code
+print
+dao.eval()
+
+dao[1
 ]
 
 X, Expr, Expr2, ExprList, Result, Y = var.X.Y.Expr.Expr2.ExprList.Result # 语句不能放在列表中
@@ -206,7 +277,7 @@ fun. sexpressionList == at
   
 fun. sexpression1(Expr) >= [spaces0(_)+sexpressionList(Expr)+spaces0(_)],
 
-fun. condSpace() >=  [if_p(not_plead_chars('([])')+not_pfollow_chars('([])')+not_p(eos))+spaces(_)
+fun. condSpace() >=  [if_p(not_p(lead_chars('([])'))+not_pfollow_chars('([])')+not_p(eos))+spaces(_)
         +spaces0(_)]
 ]
 

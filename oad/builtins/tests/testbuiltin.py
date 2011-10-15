@@ -17,10 +17,10 @@ from oad.builtins.term import isvar, nonvar, is_
 
 class TestControl:
   def test_fail(self):
-    eq_(eval(let({f: function([[1], fail], [[x], succeed])}, f(x))), True)
+    eq_(eval(let([(f,function([[1], fail], [[x], succeed]))], f(x))), True)
 
   def test_succeed(self):
-    eq_(eval(let({f: function([[1], succeed])}, f(x))), True)
+    eq_(eval(let([(f,function([[1], succeed]))], f(x))), True)
 
   def test_Or(self):
     eq_(eval(or_(fail, succeed)), True)
@@ -93,24 +93,24 @@ class TestMetacall:
 class Testfindall:
   def test_findall(self):
     x, y, z = Var('x'), Var('y'), Var('z')
-    eq_(eval(let({f: function(((), 2), ((), 3))}, 
+    eq_(eval(let([(f, function(((), 2), ((), 3)))], 
                findall(is_(x, f()), x, y), y)), [2, 3])
     
 class TestRule:
   def test_abolish(self):
     from oad.builtins.rule import abolish
-    eq_(eval(let({f:function([[1], 1])}, abolish(f, 1))), {})
+    eq_(eval(let([(f,function([[1], 1]))], abolish(f, 1))), {})
   def test_assert(self):
     from oad.builtins.rule import assert_
-    eq_(eval(let({f:function(([1], 1))}, 
+    eq_(eval(let([(f,function(([1], 1)))], 
                assert_(f, [2], [2]), f(2))), 2)
   def test_asserta(self):
     from oad.builtins.rule import asserta
-    eq_(eval(let({f:function(([1], 1))}, 
+    eq_(eval(let([(f,function(([1], 1)))], 
                asserta(f, [2], [2]), f(2))), 2)
   def test_replace(self):
     from oad.builtins.rule import replace
-    eq_(eval(let({f:function(([1], 1), ([2], 2))}, 
+    eq_(eval(let([(f,function(([1], 1), ([2], 2)))], 
                replace(f, [2], 3), f(2))), 3)
     
         

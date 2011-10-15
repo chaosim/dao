@@ -13,7 +13,7 @@
 # solve, eval
 
 __all__ = [
-  'dao', 'parse', 
+  'dao', 'parse', 'eval',
   
   # declaration and variable
   '_', 'v', 'var', 'vars', 'dummies', 'put', 
@@ -41,8 +41,32 @@ from oad.builtins.term import pytuple, pycall, py_apply, head_list, list_tail
 from oad.builtins.term import items, first, left
 from oad.builtins.term import getvalue, ground_value, is_
 from oad.builtins.arith import ne_p
-from oad.solve import eval, solve, tag_loop_label
+from oad.solve import eval as oad_eval, solve, tag_loop_label
 
+def eval(code):
+  code = parse(code)
+  code = tag_loop_label(code)
+  return oad_eval(code)
+
+class DaoCodeFormater: 
+  def __init__(self, indent_width=2):
+    self.indent = 0
+    self.indent_width = indent_width
+    self.text = ''
+    self.row = 0
+    self.column = 0
+    
+  def indent(self): self.indent += self.indent_width
+  def unindent(self): self.indent -= self.indent_width
+  def pprint(self, code):
+    try: code____pprint___ = code.___pprint___
+    except:
+      if isinstance(code, list) or isinstance(code, tuple): 
+        for x in code:
+          self.text += self.pprint(x)
+      else: self.text += repr(code)
+    code____pprint___(self)
+  
 class Dao(object): 
   def __init__(self): 
     self.code = []
@@ -50,21 +74,27 @@ class Dao(object):
     if attr=='version':
       self._version = tuple(int(x) for x in value.split('.'))
       self.code = []
+      return self
     else: return object.__setattr__(self, attr, value)
-  def eval(self):
-    result = eval(special.begin(*self.code))
-    self.code = []
-    return result
-  def solve(self):
-    result = solve(special.begin(*self.code))
-    self.code = []
-    return result
   def __getitem__(self, code):
-    code = parse(code)
-    code = tag_loop_label(code)
     if isinstance(code, tuple): self.code +=  list(code)
     else: self.code += [code]
     return self
+  def parse(self):
+    return tag_loop_label(parse(self.code))
+  def solve(self):
+    result = solve(tag_loop_label(parse(self.code)))
+    self.code = []
+    return result
+  def eval(self):
+    result = oad_eval(tag_loop_label(parse(self.code)))
+    self.code = []
+    return result
+  def pprint(self, formater=None):
+    if formater is None: formater = DaoCodeFormater()
+    formater.text += 'dao.version = %s' % self.version
+    return formater.pprint(self.code)
+    
 dao = Dao()
 
 ## vv.a v.a
@@ -135,27 +165,35 @@ put = element('put',
 
 _do, _of, _at = words('do, of, at')
 
-def get_eq_operands(binary):
+def get_let_vars(binary, klass):
   if not isinstance(binary.y, VarSymbol): raise DinpySyntaxError
   if isinstance(binary.x, VarSymbol): return (binary.x, binary.y)
-  if isinstance(binary.x, dexpr.eq): 
-    return get_eq_operands(binary.x)+(binary.y,)
+  if isinstance(binary.x, klass): 
+    return get_let_vars(binary.x, klass)+(binary.y,)
   raise DinpySyntaxError
 
 @builtin.function('getvar')
 def make_let(args, body): 
-  bindings = {}
+  bindings = []
   for b in args:
-    if not isinstance(b, dexpr.eq): raise DinpySyntaxError
-    k, v = parse(b.x), parse(b.y)
-    if isinstance(k, Var): bindings[k] = v
+    if not isinstance(b, dexpr.lshift): raise DinpySyntaxError
+    vars, value = b.x, parse(b.y)
+    if isinstance(vars, VarSymbol): bindings.append((parse(vars), value))
     else: 
-      if isinstance(k, dexper.eq): k =  get_eq_operands(k)
-      elif not isinstance(k, list): raise DinpySyntaxError
-      for x in k: 
-        x = parse(x) 
-        if isinstance(x, Var): bindings[x] = v
-        else: raise DinpySyntaxError
+      if isinstance(vars, dexpr.lshift): 
+        vars =  get_let_vars(vars, dexpr.lshift)
+        i = len(vars)-1
+        v2 = varcache(vars[i].name)
+        bindings.append((v2, value))
+        while i>0:
+          v1 = varcache(vars[i-1].name)
+          bindings.append((v1, v2))
+          v2 = v1
+          i -= 1
+      elif isinstance(vars, dexpr.div): 
+        bindings += [(varcache(v.name), value) for v, value 
+                         in zip(get_let_vars(vars, dexpr.div), value)]
+      else: raise DinpySyntaxError
   body = parse(body)
   if isinstance(body, tuple): return special.let(bindings, *body)
   else: return special.let(bindings, body)
@@ -194,14 +232,11 @@ def make_case(test, cases):
   case_dict = {}
   for case, clause in cases:
     case = parse(case)
-    if isinstance(clause, tuple) or isinstance(clause, list): 
-      clause = [parse(c) for c in clause]
-    else: clause = [parse(clause)]
-    if isinstance(case, tuple):
-      assert case!=()
+    if case is CASE_ELS: 
+      els_clause = parse(clause) if clause is not None else None
+    else:
+      clause = parse(clause)
       for x in case: case_dict[x] = clause
-    elif case is CASE_ELS: els_clause = clause
-    else: case_dict[case] = clause
   return special.CaseForm(parse(test[0]), case_dict, els_clause)
 
 of_fun = attr_call('of')
@@ -210,15 +245,15 @@ of_fun = attr_call('of')
 case = element('case',
   call(vv.test)+(
   #.of(1)[write(1)].of(2,3)[write(4)].els[write(5)]
-    (some(of_fun(__.values)+getitem(__.clause),(__.values,__.clause), vv.clauses)
-     +_els+getitem_to_list(vv.els)+eos
-    +make_case(vv.test, list_tail(vv.clauses, pytuple(CASE_ELS, vv.els))))
+    (some(of_fun(__.values)+getitem_to_list(__.clause),(__.values,__.clause), vv.clauses)
+     +may(_els+getitem_to_list(vv.els))+eos
+    +make_case(vv.test, list_tail(vv.clauses, pytuple(CASE_ELS, ground_value(vv.els)))))
   #/{1:[write(1)],2:[write(4)],3:[write(4)], els:[write(5)]}
-  | div(vv.clauses)+eos+make_case(vv.test, items(vv.clauses))
+##  | div(vv.clauses)+eos+make_case(vv.test, items(vv.clauses))
   ))
 els = CASE_ELS
 
-@builtin.function('make_case')
+@builtin.function('make_do_loop')
 def make_do_loop(klass, body, test):
   return klass(parse(body), parse(test))
 
@@ -241,33 +276,47 @@ do = element('do',
     +make_do_loop(special.LoopUntilForm, vv.body, first(vv.test))
   ))
 
+@builtin.function('make_loop')
+def make_loop(body, times):
+  if times is None: return special.LoopForm(parse(body))
+  else: return special.LoopTimesForm(parse(times[0]), parse(body))
+
 # loop[write(1)], loop(1)[write(1)]
 loop = element('loop',
-  # loop[write(1)]
+  (# loop[write(1)]
     getitem_to_list(vv.body)+eos
-    +pycall(special.LoopForm, vv.body)
   # loop(1)[write(1)]
-  | call(vv.times)+getitem_to_list(vv.body)+eos
-    +pycall(special.LoopTimesForm, first(vv.times), vv.body)
+  | call(vv.times)+getitem_to_list(vv.body))
+    +eos+make_loop(vv.body, ground_value(vv.times))
   )
 
 @builtin.function('make_each1')
 def make_each(vars, iterators, body):
+  def tran_iterator(iterator):
+    if isinstance(iterator, slice): 
+      start = parse(iterator.start)
+      stop = parse(iterator.stop)
+      step = parse(iterator.step)
+      iterator = range(start, stop, 1 if step is None else step)
+    else: iterator = parse(iterator)
+    return iterator
   if len(vars)==0: raise DinpySyntaxError
   for x in vars: 
     if not isinstance(x, VarSymbol): raise DinpySyntaxError
   vars = parse(vars)
-  if len(iterators)==1: 
-    iterators = iterators[0]
-    if isinstance(iterators, slice): 
-      if len(vars)!=1: raise DinpySyntaxError
-      start = parse(iterators.start)
-      stop = parse(iterators.stop)
-      step = parse(iterators.step)
-      iterators = range(start, stop, 1 if step is None else step)
-    else: iterators = parse(iterators)
-    iterators1 = iterators
+  if len(vars)==1: 
+    if len(iterators)!=1: raise DinpySyntaxError
+    if not isinstance(iterators[0], slice) and len(iterators[0])!=1: 
+      raise DinpySyntaxError
+    iterator = tran_iterator(iterators[0]) 
+    return special.EachForm(vars[0], iterator, parse(body))
   else:
+    if len(iterators)==1:
+      return special.EachForm(vars, iterators[0], parse(body))
+##      if len(iterators[0])==1:
+##        iterator = tran_iterator(iterators[0]) 
+##        return special.EachForm(vars, iterator, parse(body))
+##      else: iterators = iterators[0]
     iterators1 = []
     for iterator in iterators:
       if isinstance(iterator, slice):
@@ -276,9 +325,7 @@ def make_each(vars, iterators, body):
         step = parse(iterator.step)
         iterators1.append(range(start, stop, 1 if step is None else step))
       else: iterators1.append(parse(iterator))
-    iterators = zip(*iterators1)
-  body = parse(body)
-  return special.EachForm(vars, iterators, body)
+    return special.EachForm(vars, zip(*iterators1), parse(body))
 
 # each(i,j)[1:10][1:10]. do[write(i, j)]
 # each(i,j)[zip(range(5), range(5))]. do [write(i,j)],
@@ -367,7 +414,7 @@ at = element('at',
   some(may(call(__.args))+assign(__.args, ground_value(__.args))
        +some(getitem_to_list(__.body), __.body, __.bodies), 
         (__.args, __.bodies), vv.args_bodies)+eos
-        +pycall(AtForm, vv.args_bodies))
+        +make_AtForm(vv.args_bodies))
 
 from oad.builtins.rule import replace_def, remove, append_def, insert_def, \
      abolish, retractall, retract
@@ -421,8 +468,8 @@ def make_fun4(name, rules, klass):
     for head, bodies in rules.clauses:
       if head is None: head = ()
       for body in bodies:
-        rules1.append((head, body))
-    return assign(fun, klass(rules1))
+        rules1.append((head,)+tuple(body))
+    return assign(fun, klass(*rules1))
   elif isinstance(rules, list):
     return assign(fun, klass(((), rules)))
   else: raise DinpySyntaxError
@@ -461,7 +508,7 @@ def make_fun7(clauses, klass):
   rules = []
   for head, bodies in clauses:
     if head is None: head = ()
-    for body in bodies: rules.append((head, body))
+    for body in bodies: rules.append((parse(head), parse(body)))
   return klass(*rules)
   
 #  - fun.a(x),
