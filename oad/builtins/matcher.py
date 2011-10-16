@@ -4,7 +4,7 @@ from oad.term import deref, getvalue, unify, Apply, Var
 from oad.builtin import builtin, BuiltinMacro
 from oad.solve import mycont
 from oad.builtins.term import is_
-from oad.builtins.control import or_, and_
+from oad.builtins.control import or_p, and_p
 from oad import special
 from oad.builtin import builtin, BuiltinFunction2
 
@@ -163,7 +163,7 @@ class MatcherOr(Matcher):
     self.call1 = call1
     self.call2 = call2
   def ___parse___(self, parser):
-    return or_(parser.parse(self.call1), parser.parse(self.call2))
+    return or_p(parser.parse(self.call1), parser.parse(self.call2))
 
 @matcher()
 def nullword(solver, cont): 
@@ -776,7 +776,7 @@ def seplist(item, separator, template=None, result=None,
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           yield solver.cont(item1, greedy_repeat_cont(
-            and_(separator1, item1), cont)), []
+            and_p(separator1, item1), cont)), []
         return seplist_bultin(item, separator)
       elif mode==nongreedy:
         @matcher('seplist')
@@ -784,14 +784,14 @@ def seplist(item, separator, template=None, result=None,
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           yield solver.cont(item1, nongreedy_repeat_cont(
-            and_(separator1, item1), cont)), []
+            and_p(separator1, item1), cont)), []
       else:# mode==lazy:
         @matcher('seplist')
         def seplist_bultin(solver, cont, item, separator):  
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           yield solver.cont(item1, lazy_repeat_cont(
-            and_(separator1, item1), cont)), []
+            and_p(separator1, item1), cont)), []
         return seplist_bultin(item, separator)
     else:
       if mode==greedy:
@@ -801,7 +801,7 @@ def seplist(item, separator, template=None, result=None,
           item1 = deref(item, solver.env) 
           for c, _ in solver.exp_run_cont(item1, cont):
             yield greedy_repeat_result_cont(
-            and_(separator1, item1), c, 1, [], 
+            and_p(separator1, item1), c, 1, [], 
             deref(template, solver.env), deref(result, solver.env)), []
             return
           for _ in unify(result, [], solver.env):
@@ -813,7 +813,7 @@ def seplist(item, separator, template=None, result=None,
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           yield solver.cont(item1, nongreedy_repeat_result_cont(
-            and_(separator1, item1), cont, 1, [], 
+            and_p(separator1, item1), cont, 1, [], 
             deref(template, solver.env), deref(result, solver.env))), []
           for _ in unify(result, [], solver.env):
             yield cont, True
@@ -826,7 +826,7 @@ def seplist(item, separator, template=None, result=None,
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
           yield solver.cont(item1, lazy_repeat_result_cont(
-            and_(separator1, item1), cont, 1, [], 
+            and_p(separator1, item1), cont, 1, [], 
             deref(template, solver.env), deref(result, solver.env))), []
         return seplist_bultin(item, separator, template, result)
   else:
@@ -842,7 +842,7 @@ def seplist(item, separator, template=None, result=None,
             elif expectTimes1==0: 
               yield cont, True
               return
-          yield solver.cont(item1, greedy_times_cont(and_(separator1, item1), 
+          yield solver.cont(item1, greedy_times_cont(and_p(separator1, item1), 
                             expectTimes1, cont, 1, [])), True
         return seplist_bultin(item, separator)
       elif mode==nongreedy:
@@ -856,7 +856,7 @@ def seplist(item, separator, template=None, result=None,
             elif expectTimes1==0: 
               yield cont, True
               return
-          yield solver.cont(item1, nongreedy_times_cont(and_(separator1, item1), 
+          yield solver.cont(item1, nongreedy_times_cont(and_p(separator1, item1), 
                             expectTimes1, cont, 1, [])), True
         return seplist_bultin(item, separator)
       else:# mode==lazy:
@@ -870,7 +870,7 @@ def seplist(item, separator, template=None, result=None,
             elif expectTimes1==0: 
               yield cont, True
               return
-          yield solver.cont(item1, lazy_times_cont(and_(separator1, item1), 
+          yield solver.cont(item1, lazy_times_cont(and_p(separator1, item1), 
                             expectTimes1, cont, 1, [])), True
         return seplist_bultin(item, separator)
     else:
@@ -901,7 +901,7 @@ def seplist(item, separator, template=None, result=None,
               for _ in unify(result, [], solver.env): yield cont, True
               return
           yield solver.cont(item1, nongreedy_times_result_cont(
-            and_(separator1, item1), expectTimes1, cont, 1, [], 
+            and_p(separator1, item1), expectTimes1, cont, 1, [], 
             deref(template, solver.env), deref(result, solver.env))), []
         return seplist_bultin(item, separator, template, result)
       else: # mode==lazy
@@ -916,7 +916,7 @@ def seplist(item, separator, template=None, result=None,
               for _ in unify(result, [], solver.env): yield cont, True
               return
           yield solver.cont(item1, lazy_times_result_cont(
-            and_(separator1, item1), expectTimes1, cont, 1, [], 
+            and_p(separator1, item1), expectTimes1, cont, 1, [], 
             deref(template, solver.env), deref(result, solver.env))), []
         return seplist_bultin(item, separator, template, result)
   return seplist_bultin()
@@ -938,7 +938,7 @@ def seplist_times_more(item, separator, expect_times, template=None, result=None
       if result1 is not None:
         matched_list = getvalue(temp_result1, solver.env)
       else: matched_list = None
-      next_cont = make_repeat_cont(solver, cont, and_(separator1, item1), 
+      next_cont = make_repeat_cont(solver, cont, and_p(separator1, item1), 
                     0, matched_list, template1, result1, mode)
       yield next_cont, v
   return seplist_bultin(item, separator, template, result)

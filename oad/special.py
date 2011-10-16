@@ -18,8 +18,8 @@ class SpecialForm(ParserForm):
   def __call__(self, *exps): return Apply(self, *exps)
   def __add__(self, other): return begin(self, other)
   def __or__(self, other): 
-    from oad.builtins.control import or_
-    return or_(self, other)
+    from oad.builtins.control import or_p
+    return or_p(self, other)
 
 class quote(SpecialForm):
   def __init__(self, exp): self.exp = exp
@@ -182,7 +182,7 @@ class pytry(SpecialForm):
         for c, value in solver.exp_run_cont(self.body, cont):
           yield c, value
       except self.exception, e: 
-        for c, v in solver.exp_run_cont(self.ex_clause, cont):#
+        for c, v in solver.exp_run_cont(self.ex_clause, cont):
           yield c, v
       finally:
         if self.final is None: return

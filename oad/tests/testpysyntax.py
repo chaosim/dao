@@ -26,15 +26,15 @@ class TestParse:
   def test1(self):
     g = element('g', getattr('a'))
     g1 = g.a.b[1]
-    eq_(parse(g1), True)
+    eq_(preparse(g1), True)
   def test2(self):
     g = element('g',getattr('a')&eos)
     g1 = g.a.b
-    eq_(parse(g1), None)
+    eq_(preparse(g1), None)
   def test3(self):
     g = element('g',attr_call('a')(x, y)&eos)
     g1 = g.a(1)
-    eq_(parse(g1), True)
+    eq_(preparse(g1), True)
   def test4(self):
     g = element('g',attr_call('a')(x, y)&eos&x)
-    eq_(parse(g.a(1)), (1,))
+    eq_(preparse(g.a(1)), (1,))

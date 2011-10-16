@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ''' 
-some tools that help you define operator grammars to parse python expression.
+some tools that help you define operator grammars to preparse python expression.
 see dinpy.py for a real sample.
 
 >>> from oad.term import Var
@@ -10,11 +10,11 @@ see dinpy.py for a real sample.
 >>> bindings, body = Var('bindings'), Var('body')
 >>> do = word('do')
 >>> let = element('let', call(bindings)+do+getitem(body)+eos+pytuple(first(bindings), body))
->>> parse(let({'x':1}).do[1,2])
+>>> preparse(let({'x':1}).do[1,2])
 ({'x': 1}, (1, 2))
 '''
 
-__all__ = ['element', 'parse', 'lead',  
+__all__ = ['element', 'preparse', 'lead',  
   'lt', 'le', 'eq', 'ne', 'gt', 'ge', 'bitor', 'xor', 'bitand', 
   'lshift', 'rshift', 'add', 'sub', 'mul', 'div', 'floordiv', 'mod',
   'pos', 'neg', 'invert', 'abs', 'pow', 
@@ -23,18 +23,20 @@ __all__ = ['element', 'parse', 'lead',
   'DinpySyntaxError']
 
 from oad.term import deref, unify, DummyVar
-from oad.solve import eval, parse
+from oad.solve import eval, preparse
 from oad import special
 from oad.builtins.matcher import matcher
 from oad.builtins.parser import parse as dao_parse
 from oad.builtins.term import to_list
-from oad.builtins.control import and_
+from oad.builtins.control import and_p
+
+##from oad.dinpy.dexpr import DinpySyntaxError
 
 class DinpySyntaxError(Exception): pass
 
 def element(name, grammar):
   ''' name = element(grammar)'''
-  return _lead_element_class(FormTraveller)(name, parse(grammar))
+  return _lead_element_class(FormTraveller)(name, preparse(grammar))
 
 def lead(klass): 
   '''
@@ -92,7 +94,7 @@ names = (
 class FormTraveller(object):
   def __init__(self, name, grammar):
     self.__form_name__ = name
-    self.__form_grammar__ = parse(grammar)
+    self.__form_grammar__ = preparse(grammar)
     self.__operator_data__ = []
   def __lt__(self, other): 
     self.__operator_data__.append((__lt__, other)); return self
@@ -306,14 +308,14 @@ iterator = unary(__iter__)
 def word(word): return getattr(word)
 def words(text): return [getattr(w.strip()) for w in text.split(',')] 
 
-def attr_item(name): return lambda arg: and_(getattr(name),getitem(arg))
+def attr_item(name): return lambda arg: and_p(getattr(name),getitem(arg))
 
-def attr_call(name): return lambda *args: and_(getattr(name), call(*args))
+def attr_call(name): return lambda *args: and_p(getattr(name), call(*args))
 
 def getitem_to_list(argument=None):
   if argument is not None:
     _x = DummyVar('_x')
-    return and_(getitem(_x), special.set(argument, to_list(_x)))
+    return and_p(getitem(_x), special.set(argument, to_list(_x)))
   else: return getitem()
 
 if __name__ == "__main__":

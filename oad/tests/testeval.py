@@ -10,8 +10,8 @@ from oad.special import block, exit_block, continue_block, catch, throw
 from oad.special import unwind_protect, module, from_, CaseForm
 from oad.special import LoopTimesForm, LoopUntilForm, LoopWhenForm, EachForm
 
-from oad.builtins.control import and_, cut, callcc
-from oad.builtins.format import write
+from oad.builtins.control import and_p, cut, callcc
+from oad.builtins.io import write
 from oad.builtins.arith import gt, eq, sub, mul, add, div
 from oad.builtins.term import define
 

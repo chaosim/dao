@@ -6,12 +6,12 @@ from oad.special import *
 from oad.term import Var, conslist as L
 from oad.solve import eval
 from oad.builtins.arith import eq, sub, mul, add, div
-from oad.builtins.control import succeed, fail, or_, and_, not_p, repeat
+from oad.builtins.control import succeed, fail, or_p, and_p, not_p, repeat
 from oad.builtins.control import findall, call, once
 from oad.builtins.parser import settext
 from oad.builtins.terminal import char
 from oad.builtins.term import unify, notunify
-from oad.builtins.format import write
+from oad.builtins.io import write
 from oad.builtins.term import ground
 from oad.builtins.term import isvar, nonvar, is_
 
@@ -23,7 +23,7 @@ class TestControl:
     eq_(eval(let([(f,function([[1], succeed]))], f(x))), True)
 
   def test_Or(self):
-    eq_(eval(or_(fail, succeed)), True)
+    eq_(eval(or_p(fail, succeed)), True)
     
   def test_and(self):
     eq_(eval(succeed&succeed), True)
@@ -36,11 +36,11 @@ class TestControl:
   def test_repeat(self):
     return
     # the code below loops for ever, after modifie the behaviour of solver.stream and terminals.
-    eq_(eval(and_(settext('123'), repeat, char(x), unify(x, '3'))), True)
+    eq_(eval(and_p(settext('123'), repeat, char(x), unify(x, '3'))), True)
   def test_repeat2(self):
     return
     # the code below loops for ever.
-    eq_(eval(and_(settext('123'), repeat, char(x), unify(x, '4'))), True) 
+    eq_(eval(and_p(settext('123'), repeat, char(x), unify(x, '4'))), True) 
     
   def test_if(self):
     from oad.builtins.control import if_p

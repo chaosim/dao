@@ -37,15 +37,15 @@ def copy_term(solver, cont, item, copy):
  
 # comparison and unification of terms
 
-@builtin.macro('=:=')
+@builtin.macro('unify')
 def unify(solver, cont, v0, v1):
   for _ in term.unify(v0, v1, solver.env): yield cont, True
 
-@builtin.macro('=::=')
+@builtin.macro('unify_with_occurs_check')
 def unify_with_occurs_check(solver, cont, v0, v1):
   for _ in term.unify(v0, v1, solver.env, occurs_check=True): yield cont, True
 
-@builtin.macro('=/=')
+@builtin.macro('notunify')
 def notunify(solver, cont, var0, var1):
   for _ in term.unify(var0, var1, solver.env): 
     return

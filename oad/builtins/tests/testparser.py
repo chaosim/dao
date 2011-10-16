@@ -1,13 +1,13 @@
 from nose.tools import eq_, assert_raises
 
 from oad.term import Var, DummyVar, Cons, nil, conslist as L
-from oad.solve import eval, parse as preparse
-from oad.builtins.control import fail, or_, and_, not_p, cut
+from oad.solve import eval, preparse
+from oad.builtins.control import fail, or_p, and_p, not_p, cut
 
 from oad.special import function, let, letrec, macro, begin, eval_
 from oad.builtins.arith import add
 from oad.builtins.parser import settext, parse
-from oad.builtins.parser import step, left, next, position, subtext, goto, skip
+from oad.builtins.parser import step, left, nextchar, position, subtext, goto, skip
 from oad.builtins.terminal import char, number, eos, literal, letter 
 from oad.builtins.terminal import dqstring, sqstring, spaces, uLetterdigitString
 from oad.builtins.matcher import nullword, optional, parallel
@@ -27,7 +27,7 @@ class TestLowLevelPrimitive:
     eq_(eval(begin(settext('ab'), step(), step())), 'b')
     eq_(eval(begin(settext('ab'), step(), left())), 'b')
   def test_next(self):
-    eq_(eval(begin(settext('ab'), next(), next())), 'a')
+    eq_(eval(begin(settext('ab'), nextchar(), nextchar())), 'a')
   def test_left(self):
     eq_(eval(begin(settext('ab'), left())), 'ab')
   def test_position(self):
@@ -38,14 +38,14 @@ class TestLowLevelPrimitive:
     eq_(eval(begin(settext('abcde'), skip(3), next())), 'd')
     eq_(eval(begin(settext('abcde'), skip(4), skip(-2), next())), 'c')
   def test_skip(self):
-    eq_(eval(begin(settext('abcde'), goto(2), next())), 'c')
+    eq_(eval(begin(settext('abcde'), goto(2), nextchar())), 'c')
   def test_goto(self):
     eq_(eval(begin(settext('abcde'), goto(1))), 'bcde')
 
 class TestParameterize:
   def test_chars(self):
     x, cs,chars = Var('x'), Var('cs'), Var('chars')
-    eq_(eval(let([(chars, function(((x, cs), and_(char(x),char_in(x, cs)))))],
+    eq_(eval(let([(chars, function(((x, cs), and_p(char(x),char_in(x, cs)))))],
                             parse(chars(x, 'a'), 'a'))), True)
   def test_kleene1(self):
     f, item, kleene = Var('f'), Var('item'), Var('kleene')
@@ -68,10 +68,10 @@ class Testterminal:
   def test_nullword1(self):
     eq_(eval(parse(char('a')&nullword&char('b'), 'ab')), 'b')    
   def testnullword2(self):
-    eq_(eval(parse(and_(nullword, eos), 'a')), None) 
+    eq_(eval(parse(and_p(nullword, eos), 'a')), None) 
     eq_(eval(parse(nullword, '')), True)
   def testnullword3(self):
-    rule = and_(char('a'), nullword, char('b'))
+    rule = and_p(char('a'), nullword, char('b'))
     eq_(eval(parse(rule, 'ab')), 'b')
     eq_(eval(parse(rule, 'a b')), None)
     eq_(eval(parse(rule, 'a')), None)
@@ -108,7 +108,7 @@ class Testrule:
         'b')
     
   def test_right_recursive1(self):
-    function1 = function( ((), and_(char('a'), f())),
+    function1 = function( ((), and_p(char('a'), f())),
                      ((),char('b')))
     eq_(eval(letrec([(f,function1)], 
                parse(f(),'b'), parse(f(),'ab'), parse(f(),'aab'))), 
@@ -117,7 +117,7 @@ class Testrule:
     
   def test_right_recursive2(self):
     x, p = Var('x'), Var('p')
-    function1 = [(p,function( ((), and_(char(x), p())),
+    function1 = [(p,function( ((), and_p(char(x), p())),
                      ((),char(x))))]
     eq_(eval(letrec(function1, parse(p(),'a'), parse(p(),'ab'), parse(p(),'abc'))),
         'c')
@@ -125,11 +125,11 @@ class Testrule:
 
   def test_unify_right_recursive(self):
     x, p = Var('x'), Var('p')
-    function1 = [(p,function( ((x,), and_(char(x), p(x))),
+    function1 = [(p,function( ((x,), and_p(char(x), p(x))),
                           ((x,),char(x))))]
     eq_(eval(letrec(function1, parse(p(x), 'aa'))), 'a')
     eq_(eval(letrec(function1, parse(p(x), 'a'))), 'a')
-    eq_(eval(letrec(function1, parse(and_(p(x), eos), 'xy'))), None)
+    eq_(eval(letrec(function1, parse(and_p(p(x), eos), 'xy'))), None)
     eq_(eval(letrec(function1, parse(p(x), ''))), None)
     
   def xxxtest_left_recursive(self):
@@ -148,13 +148,13 @@ class Testrule:
 class TestOr:
   def testOr(self):
     x, s, one, two = Var('x'), Var('s'), Var('one'), Var('two')
-    ruleList = [(s, function( ((x,), or_(one(x), two(x))))),
+    ruleList = [(s, function( ((x,), or_p(one(x), two(x))))),
                 (one, function( (('1',),char('1')))),
                 (two, function( (('2',),char('2'))))]
     eq_(eval(letrec(ruleList, parse(s(x), '1'))), '1')
     eq_(eval(letrec(ruleList, parse(s(y),  '2'))), '2')         
     eq_(eval(letrec(ruleList, parse(s(x), '3'))), None)
-    eq_(eval(letrec(ruleList, parse(and_(s(x), eos), '12'))), None)
+    eq_(eval(letrec(ruleList, parse(and_p(s(x), eos), '12'))), None)
     eq_(eval(letrec(ruleList, parse(s(x), ''))), None)
 
 class TestOptional:
@@ -166,14 +166,14 @@ class TestOptional:
 
   def testoptionalRule(self):
     x, s = Var('x'), Var('s')
-    ruleList =[(s, function( ((x,), and_(optional(char('a')),char(x)))))]
+    ruleList =[(s, function( ((x,), and_p(optional(char('a')),char(x)))))]
     eq_(eval(let(ruleList, parse(s(x), 'a'), x)), None)
     eq_(eval(let(ruleList, parse(s(x),  'aa'), x)), 'a')         
     eq_(eval(let(ruleList, parse(s(x),  'b'), x)), 'b')
     
   def testoptionalcut(self):
     x, s = Var('x'), Var('s')
-    ruleList = [(s, function( ((x,), and_(optional(char('a')), cut, char(x)))))]
+    ruleList = [(s, function( ((x,), and_p(optional(char('a')), cut, char(x)))))]
     eq_(eval(let(ruleList, parse(s(x),  'aa'), x)), 'a')         
     eq_(eval(let(ruleList, parse(s(x),  'b'), x)), 'b') 
     eq_(eval(let(ruleList, parse(s(x), 'a'), x)), None)
@@ -191,7 +191,7 @@ class TestParallel:
                 (lt,function( ((4, 5),char('4'))))]
     eq_(eval(letrec(ruleList, parse(s(x), '4'), x)), 4)
     eq_(eval(letrec(ruleList, parse(s(x), '6'), x)), None)
-    eq_(eval(letrec(ruleList, parse(and_(s(x), eos), '41'), x)), None)
+    eq_(eval(letrec(ruleList, parse(and_p(s(x), eos), '41'), x)), None)
     eq_(eval(letrec(ruleList, parse(s(x), ''), x)), None)
         
 class TestAnySomeTimesSepList:
@@ -201,7 +201,7 @@ class TestAnySomeTimesSepList:
     eq_(eval(begin(parse(any(char(X), X, Y), '234'), Y)), ['2'])
     eq_(eval(begin(parse(any(char(X), X, Y), ''), Y)), [])
   def test_any2(self):
-    eq_(eval(parse(any(or_(char('1'), char('2'))), '2')), True)
+    eq_(eval(parse(any(or_p(char('1'), char('2'))), '2')), True)
   def test_dummy_any(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(begin(parse(any(char(_), _, Y), '222'), Y)), ['2','2','2'])
@@ -215,11 +215,11 @@ class TestAnySomeTimesSepList:
     eq_(eval(begin(parse(some(char(X), X, Y), ''), Y)), None)
   def test_some2(self):
     X = Var('X')
-    eq_(eval(parse(and_(some( char(X)),char('4')), '224')), '4')
-    eq_(eval(parse(and_(some(char(X)), cut, char('4')), '224')), '4')
-    eq_(eval(parse(and_(some(char(X)), char('3'), char('5')), '2234')), None)
+    eq_(eval(parse(and_p(some( char(X)),char('4')), '224')), '4')
+    eq_(eval(parse(and_p(some(char(X)), cut, char('4')), '224')), '4')
+    eq_(eval(parse(and_p(some(char(X)), char('3'), char('5')), '2234')), None)
   def test_some3(self):
-    eq_(eval(parse(some(or_(char('1'),char('2'))), '2')), True)
+    eq_(eval(parse(some(or_p(char('1'),char('2'))), '2')), True)
   def test_dumy_some(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(begin(parse(some(char(_), _, Y), '222'), Y)), ['2','2','2'])
@@ -259,7 +259,7 @@ class TestAnySomeTimesSepList:
     function1 = function(((Y,), times(char('a'), 2, 'a', Y)))
     eq_(eval(begin(parse(function1(X),'aa'), X)), ['a', 'a'])
     eq_(eval(begin(parse(function1(X), 'a'), X)), None)
-    eq_(eval(begin(parse(and_(function1(X), eos), 'aaa'), X)), None)
+    eq_(eval(begin(parse(and_p(function1(X), eos), 'aaa'), X)), None)
   def test_times_an(self): 
     X, Y, S, n = Var('X'), Var('Y'), Var('S'), Var('n')
     function1 = function( ((Y,), times(char('a'), n, 'a', Y)))
@@ -284,26 +284,26 @@ class TestKleeneByfunction:
     x, s, kleene = Var('x'), Var('s'), Var('kleene')
     ruleList = [(s,function( ((x,), kleene(x)))),
                 (kleene,function( 
-                  ((Cons('a', x),), and_(char('a'), kleene(x))),
+                  ((Cons('a', x),), and_p(char('a'), kleene(x))),
                   ((nil,), nullword)))]
     eq_(eval(letrec(ruleList, parse(s(x), 'aa'), x)), L('a', 'a'))
     eq_(eval(letrec(ruleList, parse(s(x), ''), x)), nil)
-    eq_(eval(letrec(ruleList, parse(and_(s(x), eos), '6'), x)), None)
-    eq_(eval(letrec(ruleList, parse(and_(s(x), eos), '41'), x)), None)
+    eq_(eval(letrec(ruleList, parse(and_p(s(x), eos), '6'), x)), None)
+    eq_(eval(letrec(ruleList, parse(and_p(s(x), eos), '41'), x)), None)
 
   def testKleene2(self):
     x, c, s, kleene = Var('x'), Var('c'), Var('s'), Var('kleene')
     ruleList = [(s,function( ((x,), kleene(c, x)))),
                 (kleene,function( 
-                  ((c, Cons(c, x)), and_(char(c), kleene(c, x))),
+                  ((c, Cons(c, x)), and_p(char(c), kleene(c, x))),
                   ((c, nil), nullword)))]
     eq_(eval(letrec(ruleList, parse(s(x), 'aa'), x)), L('a', 'a'))
     eq_(eval(letrec(ruleList, parse(s(x), 'aaa'), x)), L('a', 'a', 'a'))
     eq_(eval(letrec(ruleList, parse(s(x), 'bbb'), x)), L('b', 'b', 'b'))
     eq_(eval(letrec(ruleList, parse(s(x), ''), x)), nil)
-    eq_(eval(letrec(ruleList, parse(and_(s(x), eos), 'aab'), x)), None)
-    eq_(eval(letrec(ruleList, parse(and_(s(x), eos), 'abc'), x)), None)
-    eq_(eval(letrec(ruleList, parse(and_(s(x), eos), '41'), x)), None)
+    eq_(eval(letrec(ruleList, parse(and_p(s(x), eos), 'aab'), x)), None)
+    eq_(eval(letrec(ruleList, parse(and_p(s(x), eos), 'abc'), x)), None)
+    eq_(eval(letrec(ruleList, parse(and_p(s(x), eos), '41'), x)), None)
 
   def testKleene3(self):
     x, c, kleene = Var('x'), Var('c'), Var('kleene')
@@ -374,8 +374,8 @@ class TestExpression:
     eq_(eval(letrec(ruleList, parse(E(e, 1),  '1/1/1'), e)), (1, '/', (1, '/', 1)))
     eq_(eval(letrec(ruleList, parse(E(e, 1),  '1/1'), e)), (1, '/', 1))
     eq_(eval(letrec(ruleList, parse(E(e, 1),  '1'), e)), 1)
-    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eos), '1+1/1'), e)), None)
-    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eos), '2'), e)), None)
-    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eos), '1/'), e)), None)
-    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eos), '/'), e)), None)
-    eq_(eval(letrec(ruleList, parse(and_(E(e, 1), eos), ''), e)), None)
+    eq_(eval(letrec(ruleList, parse(and_p(E(e, 1), eos), '1+1/1'), e)), None)
+    eq_(eval(letrec(ruleList, parse(and_p(E(e, 1), eos), '2'), e)), None)
+    eq_(eval(letrec(ruleList, parse(and_p(E(e, 1), eos), '1/'), e)), None)
+    eq_(eval(letrec(ruleList, parse(and_p(E(e, 1), eos), '/'), e)), None)
+    eq_(eval(letrec(ruleList, parse(and_p(E(e, 1), eos), ''), e)), None)

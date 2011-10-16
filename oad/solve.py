@@ -58,7 +58,7 @@ class Parser:
     try: return exp_parse(self)
     except TypeError: return exp
 
-def parse(exp): 
+def preparse(exp): 
   return Parser().parse(exp)
 
 class LoopExitNextTagger:
@@ -124,10 +124,10 @@ class Solver:
     if len(exps)==0: yield True
     elif len(exps)==1: 
       for c, x in self.exp_run_cont(exps[0], stop_cont):
-        yield c, x
+        yield x
     else:
-      for c, _ in self.exp_run_cont(exps[0], self.exps_cont(exps[1:], stop_cont)): 
-        for c, x in self.exps_run_cont(exps[1:], stop_cont):
+      left_exps_cont = self.exps_cont(exps[1:], stop_cont)
+      for c, x in self.exp_run_cont(exps[0], left_exps_cont): 
           yield x
           
   def exp_run_cont(self, exp, stop_cont, value=None):

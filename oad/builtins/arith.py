@@ -2,51 +2,51 @@ from oad import builtin
 from oad.term import Var, ClosureVar, deref, getvalue
 import operator
 
-@builtin.function('not')
+@builtin.function('not_')
 def not_(value):
   return not value
 
-@builtin.function('<')
+@builtin.function('lt')
 def lt(x, y): return operator.lt(x, y)  
-@builtin.function('<=')
+@builtin.function('le')
 def le(x, y): return operator.le(x, y)  
-@builtin.function('==')
+@builtin.function('eq')
 def eq(x, y): return operator.eq(x, y)  
-@builtin.function('!=')
+@builtin.function('ne')
 def ne(x, y): return operator.ne(x, y)  
-@builtin.function('>')
+@builtin.function('gt')
 def gt(x, y): return operator.gt(x, y)  
-@builtin.function('>=')
+@builtin.function('ge')
 def ge(x, y): return operator.ge(x, y)  
 @builtin.function('getattr')
 def getattr(x, y): return operator.getattr(x, y)  
 @builtin.function('getitem')
 def getitem(x, y): return operator.getitem(x, y)
-@builtin.function('+')
+@builtin.function('add')
 def add(x, y): return operator.add(x, y)  
-@builtin.function('-')
+@builtin.function('sub')
 def sub(x, y): return operator.sub(x, y)  
-@builtin.function('*')
+@builtin.function('mul')
 def mul(x, y): return operator.mul(x, y)  
-@builtin.function('/')
+@builtin.function('floordiv')
 def floordiv(x, y): return operator.floordiv  
-@builtin.function('/')
+@builtin.function('div')
 def div(x, y): return operator.div(x, y)  
-@builtin.function('//')
+@builtin.function('truediv')
 def truediv(x, y): return operator.truediv(x, y)  
-@builtin.function('%')
+@builtin.function('mod')
 def mod(x, y): return operator.mod(x, y)  
-@builtin.function('**')
+@builtin.function('pow')
 def pow(x, y): return operator.pow(x, y)  
-@builtin.function('<<')
+@builtin.function('lshift')
 def lshift(x, y): return operator.lshift(x, y)
-@builtin.function('>>')
+@builtin.function('rshift')
 def rshift(x, y): return operator.rshift(x, y)  
-@builtin.function('&')
+@builtin.function('and_')
 def and_(x, y): return operator.and_(x, y)  
-@builtin.function('^')
+@builtin.function('xor')
 def xor(x, y): return operator.xor(x, y)  
-@builtin.function('|')
+@builtin.function('or_')
 def or_(x, y): return operator.or_(x, y)
 
 @builtin.function('iter')
@@ -74,7 +74,7 @@ def between(solver, cont, *exps):
   for x in range(lower, upper+1):
     for y in mid.unify(x, solver.env): yield cont, True
 
-@builtin.function2('====')
+@builtin.function2('equal')
 def equal(solver, cont, left, right):
   if deref(left, solver.env)==deref(right, solver.env): 
     yield cont, True
@@ -87,9 +87,10 @@ def arith_predicate(function, name):
       yield cont, True
   return pred
 
-eq_p = arith_predicate(operator.eq, '==?')
-ne_p = arith_predicate(operator.ne, '!=?')
-lt_p = arith_predicate(operator.lt, '<?')
-le_p = arith_predicate(operator.le, '<="')
-gt_p = arith_predicate(operator.gt, '>?')
-ge_p = arith_predicate(operator.ge, '>=?')
+eq_p = arith_predicate(operator.eq, 'eq_p')
+ne_p = arith_predicate(operator.ne, 'ne_p')
+lt_p = arith_predicate(operator.lt, 'lt_p')
+le_p = arith_predicate(operator.le, 'le_p"')
+gt_p = arith_predicate(operator.gt, 'gt_p')
+ge_p = arith_predicate(operator.ge, 'ge_p')
+

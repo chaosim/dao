@@ -47,7 +47,7 @@ def left(solver, cont):
   yield cont, text[pos:]
 
 @matcher()
-def next(solver, cont): 
+def nextchar(solver, cont): 
   text, pos = solver.stream
   yield cont, text[pos]
 

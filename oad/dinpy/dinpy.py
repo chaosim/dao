@@ -13,7 +13,7 @@
 # solve, eval
 
 __all__ = [
-  'dao', 'parse', 'eval',
+  'dao', 'preparse', 'eval',
   
   # declaration and variable
   '_', 'v', 'var', 'vars', 'dummies', 'put', 
@@ -29,8 +29,8 @@ __all__ = [
   'py', 'some', 'any', 'may']
 
 from oad.pysyntax import *
-from oad import dexpr
-from oad.dexpr import VarSymbol, DummyVarSymbol
+from oad.dinpy import dexpr
+from oad.dinpy.dexpr import _VarSymbol, _DummyVarSymbol
 from oad.term import Var, DummyVar, Apply, conslist as L, vars, dummies
 from oad import builtin
 from oad import special
@@ -44,7 +44,7 @@ from oad.builtins.arith import ne_p
 from oad.solve import eval as oad_eval, solve, tag_loop_label
 
 def eval(code):
-  code = parse(code)
+  code = preparse(code)
   code = tag_loop_label(code)
   return oad_eval(code)
 
@@ -80,14 +80,14 @@ class Dao(object):
     if isinstance(code, tuple): self.code +=  list(code)
     else: self.code += [code]
     return self
-  def parse(self):
-    return tag_loop_label(parse(self.code))
+  def preparse(self):
+    return tag_loop_label(preparse(self.code))
   def solve(self):
-    result = solve(tag_loop_label(parse(self.code)))
+    result = solve(tag_loop_label(preparse(self.code)))
     self.code = []
     return result
   def eval(self):
-    result = oad_eval(tag_loop_label(parse(self.code)))
+    result = oad_eval(tag_loop_label(preparse(self.code)))
     self.code = []
     return result
   def pprint(self, formater=None):
@@ -125,11 +125,11 @@ def single_symbol(name, klass):
     def __getattr__(self, name): return klass(name)
   return lead(VForm)
 
-from oad.dexpr import varcache
+from oad.dinpy.dexpr import varcache
 
 # used in codes parsed by dinpy parser
-v = single_symbol('v', VarSymbol)
-_ = single_symbol('_', DummyVarSymbol)
+v = single_symbol('v', _VarSymbol)
+_ = single_symbol('_', _DummyVarSymbol)
 
 ## var.a.b.c
 class SymbolForm(object):
@@ -138,7 +138,7 @@ class SymbolForm(object):
     self.__form_grammar__ = None
     self.__symbols__ = []
   def __getattr__(self, name):
-    self.__symbols__.append(VarSymbol(name))
+    self.__symbols__.append(_VarSymbol(name))
     return self
   def __len__(self): return len(self.__symbols__)
   def __iter__(self): return iter(self.__symbols__)
@@ -160,14 +160,14 @@ def getvar(name, klass=Var):
 put = element('put',
   # put.i.j<<(1,2)
   (getattr(__._)+assign(vv.x, getvar(__._)))[1:]%vv.x*vv.vars+lshift(vv.value)+eos
-        +pycall(special.set_list, vv.vars, pycall(parse,vv.value))
+        +pycall(special.set_list, vv.vars, pycall(preparse,vv.value))
   )
 
 _do, _of, _at = words('do, of, at')
 
 def get_let_vars(binary, klass):
-  if not isinstance(binary.y, VarSymbol): raise DinpySyntaxError
-  if isinstance(binary.x, VarSymbol): return (binary.x, binary.y)
+  if not isinstance(binary.y, _VarSymbol): raise DinpySyntaxError
+  if isinstance(binary.x, _VarSymbol): return (binary.x, binary.y)
   if isinstance(binary.x, klass): 
     return get_let_vars(binary.x, klass)+(binary.y,)
   raise DinpySyntaxError
@@ -176,12 +176,12 @@ def get_let_vars(binary, klass):
 def make_let(args, body): 
   bindings = []
   for b in args:
-    if not isinstance(b, dexpr.lshift): raise DinpySyntaxError
-    vars, value = b.x, parse(b.y)
-    if isinstance(vars, VarSymbol): bindings.append((parse(vars), value))
+    if not isinstance(b, dexpr._lshift): raise DinpySyntaxError
+    vars, value = b.x, preparse(b.y)
+    if isinstance(vars, _VarSymbol): bindings.append((preparse(vars), value))
     else: 
-      if isinstance(vars, dexpr.lshift): 
-        vars =  get_let_vars(vars, dexpr.lshift)
+      if isinstance(vars, dexpr._lshift): 
+        vars =  get_let_vars(vars, dexpr._lshift)
         i = len(vars)-1
         v2 = varcache(vars[i].name)
         bindings.append((v2, value))
@@ -190,11 +190,11 @@ def make_let(args, body):
           bindings.append((v1, v2))
           v2 = v1
           i -= 1
-      elif isinstance(vars, dexpr.div): 
+      elif isinstance(vars, dexpr._div): 
         bindings += [(varcache(v.name), value) for v, value 
-                         in zip(get_let_vars(vars, dexpr.div), value)]
+                         in zip(get_let_vars(vars, dexpr._div), value)]
       else: raise DinpySyntaxError
-  body = parse(body)
+  body = preparse(body)
   if isinstance(body, tuple): return special.let(bindings, *body)
   else: return special.let(bindings, body)
   
@@ -207,10 +207,10 @@ let = element('let',
 
 @builtin.function('make_iff')
 def make_iff(test, clause, clauses, els_clause):
-  els_clause = parse(els_clause) if not isinstance(els_clause, Var) else None
-  test = parse(test[0])
-  clause = parse(clause)
-  clauses1 =  [(parse(t), parse(c)) for t, c in clauses]
+  els_clause = preparse(els_clause) if not isinstance(els_clause, Var) else None
+  test = preparse(test[0])
+  clause = preparse(clause)
+  clauses1 =  [(preparse(t), preparse(c)) for t, c in clauses]
   return special.iff([(test, clause)]+clauses1, els_clause)
 
 _then, _elsif, _els = words('then, elsif, els')
@@ -231,13 +231,13 @@ CASE_ELS = CASE_ELS()
 def make_case(test, cases): 
   case_dict = {}
   for case, clause in cases:
-    case = parse(case)
+    case = preparse(case)
     if case is CASE_ELS: 
-      els_clause = parse(clause) if clause is not None else None
+      els_clause = preparse(clause) if clause is not None else None
     else:
-      clause = parse(clause)
+      clause = preparse(clause)
       for x in case: case_dict[x] = clause
-  return special.CaseForm(parse(test[0]), case_dict, els_clause)
+  return special.CaseForm(preparse(test[0]), case_dict, els_clause)
 
 of_fun = attr_call('of')
 
@@ -255,7 +255,7 @@ els = CASE_ELS
 
 @builtin.function('make_do_loop')
 def make_do_loop(klass, body, test):
-  return klass(parse(body), parse(test))
+  return klass(preparse(body), preparse(test))
 
 # when(x>1).do[write(1)
 when = element('when',
@@ -278,8 +278,8 @@ do = element('do',
 
 @builtin.function('make_loop')
 def make_loop(body, times):
-  if times is None: return special.LoopForm(parse(body))
-  else: return special.LoopTimesForm(parse(times[0]), parse(body))
+  if times is None: return special.LoopForm(preparse(body))
+  else: return special.LoopTimesForm(preparse(times[0]), preparse(body))
 
 # loop[write(1)], loop(1)[write(1)]
 loop = element('loop',
@@ -294,38 +294,38 @@ loop = element('loop',
 def make_each(vars, iterators, body):
   def tran_iterator(iterator):
     if isinstance(iterator, slice): 
-      start = parse(iterator.start)
-      stop = parse(iterator.stop)
-      step = parse(iterator.step)
+      start = preparse(iterator.start)
+      stop = preparse(iterator.stop)
+      step = preparse(iterator.step)
       iterator = range(start, stop, 1 if step is None else step)
-    else: iterator = parse(iterator)
+    else: iterator = preparse(iterator)
     return iterator
   if len(vars)==0: raise DinpySyntaxError
   for x in vars: 
-    if not isinstance(x, VarSymbol): raise DinpySyntaxError
-  vars = parse(vars)
+    if not isinstance(x, _VarSymbol): raise DinpySyntaxError
+  vars = preparse(vars)
   if len(vars)==1: 
     if len(iterators)!=1: raise DinpySyntaxError
     if not isinstance(iterators[0], slice) and len(iterators[0])!=1: 
       raise DinpySyntaxError
     iterator = tran_iterator(iterators[0]) 
-    return special.EachForm(vars[0], iterator, parse(body))
+    return special.EachForm(vars[0], iterator, preparse(body))
   else:
     if len(iterators)==1:
-      return special.EachForm(vars, iterators[0], parse(body))
+      return special.EachForm(vars, iterators[0], preparse(body))
 ##      if len(iterators[0])==1:
 ##        iterator = tran_iterator(iterators[0]) 
-##        return special.EachForm(vars, iterator, parse(body))
+##        return special.EachForm(vars, iterator, preparse(body))
 ##      else: iterators = iterators[0]
     iterators1 = []
     for iterator in iterators:
       if isinstance(iterator, slice):
-        start = parse(iterator.start)
-        stop = parse(iterator.stop)
-        step = parse(iterator.step)
+        start = preparse(iterator.start)
+        stop = preparse(iterator.stop)
+        step = preparse(iterator.step)
         iterators1.append(range(start, stop, 1 if step is None else step))
-      else: iterators1.append(parse(iterator))
-    return special.EachForm(vars, zip(*iterators1), parse(body))
+      else: iterators1.append(preparse(iterator))
+    return special.EachForm(vars, zip(*iterators1), preparse(body))
 
 # each(i,j)[1:10][1:10]. do[write(i, j)]
 # each(i,j)[zip(range(5), range(5))]. do [write(i,j)],
@@ -340,7 +340,7 @@ def make_exit(type, level, label, value):
   type = None if isinstance(type, Var) else type
   level = 0 if isinstance(level, Var) else level
   label = None if isinstance(label, Var) else label
-  return special.exit(parse(value), type, level, label)
+  return special.exit(preparse(value), type, level, label)
 
 # exit.loop^2 >> 3,  eixt/a>>3
 exit = element('exit', 
@@ -361,7 +361,7 @@ next = element('next',
 
 @builtin.function('set_loop_label')
 def set_loop_label(label, body):
-  body = parse(body)
+  body = preparse(body)
   if not isinstance(body, special.RepeatForm): raise DinpySyntaxError
   body.label = label
   return body
@@ -371,7 +371,7 @@ label = element('label', getattr(vv.name)+mod(vv.body)+eos
 
 @builtin.function('make_block')
 def make_block(name, body):
-  body = tuple(parse(x) for x in body)
+  body = tuple(preparse(x) for x in body)
   return special.block(name, *body)
 
 block = element('block', getattr(vv.name)+getitem_to_list(vv.body)+eos
@@ -379,7 +379,7 @@ block = element('block', getattr(vv.name)+getitem_to_list(vv.body)+eos
 
 @builtin.function('make_pycall')
 def make_pycall(args):
-  args = tuple(parse(x) for x in args)
+  args = tuple(preparse(x) for x in args)
   return pycall(args[0], args[1:])
 
 py = element('py', 
@@ -389,8 +389,8 @@ py = element('py',
 
 @builtin.function('make_on_form')
 def make_on_form(form, body):
-  form = parse(form)
-  body = tuple(parse(x) for x in body)
+  form = preparse(form)
+  body = tuple(preparse(x) for x in body)
   return special.OnForm(form, *body)
 
 # with statements in dao
@@ -406,7 +406,7 @@ class AtForm:
     
 @builtin.function('make_AtForm')
 def make_AtForm(args_bodies):
-  return AtForm(parse(args_bodies))
+  return AtForm(preparse(args_bodies))
 
 # at(*args)[...](*args)[...][...]
 # at[...][...]
@@ -423,8 +423,8 @@ from oad.builtins.rule import replace_def, remove, append_def, insert_def, \
 @builtin.function('make_fun1')
 def make_fun1(name, args, body, klass): 
   fun = varcache(name)
-  head = parse(args)
-  body = parse(body)
+  head = preparse(args)
+  body = preparse(body)
   if isinstance(body, AtForm): 
     body = body.clauses
     if len(body)>1: raise DinpySyntaxError # should not be (args)[body]...(args)[body]
@@ -437,7 +437,7 @@ def make_fun1(name, args, body, klass):
 def make_fun2(name, args, body, klass): 
   fun = varcache(name)
   head = args
-  body = parse(body)
+  body = preparse(body)
   if isinstance(body, AtForm): 
     body = body.clauses
     if len(body)>1: raise DinpySyntaxError
@@ -450,7 +450,7 @@ def make_fun2(name, args, body, klass):
 def make_fun3(name, args, body, klass): 
   fun = varcache(name)
   head = args
-  body = parse(body)
+  body = preparse(body)
   if isinstance(body, AtForm): 
     body = body.clauses
     if len(body)>1: raise DinpySyntaxError
@@ -462,7 +462,7 @@ def make_fun3(name, args, body, klass):
 @builtin.function('make_fun4')
 def make_fun4(name, rules, klass): 
   fun = varcache(name)
-  rules = parse(rules)
+  rules = preparse(rules)
   if isinstance(rules, AtForm): 
     rules1 = []
     for head, bodies in rules.clauses:
@@ -478,7 +478,7 @@ def make_fun4(name, rules, klass):
 @builtin.function('make_fun5')
 def make_fun5(name, rules, klass): 
   fun = varcache(name)
-  rules = parse(rules)
+  rules = preparse(rules)
   if isinstance(rules, AtForm): 
     clauses = [(head if head is not None else (), bodies) 
               for head, bodies in rules.clauses]
@@ -492,7 +492,7 @@ def make_fun5(name, rules, klass):
 @builtin.function('make_fun6')
 def make_fun6(name, rules, klass): 
   fun = varcache(name)
-  rules = parse(rules)
+  rules = preparse(rules)
   if isinstance(rules, AtForm): 
     clauses = [(head if head is not None else (), bodies) 
               for head, bodies in rules.clauses]
@@ -508,14 +508,14 @@ def make_fun7(clauses, klass):
   rules = []
   for head, bodies in clauses:
     if head is None: head = ()
-    for body in bodies: rules.append((parse(head), parse(body)))
+    for body in bodies: rules.append((preparse(head), preparse(body)))
   return klass(*rules)
   
 #  - fun.a(x),
 @builtin.function('make_fun8')
 def make_fun8(name, args, klass): # remove
   fun = varcache(name)
-  args = parse(args)
+  args = preparse(args)
   return remove(fun, args, klass)
   
 ## fun. a(x)== [...],  fun. a(x) <= at[...][...], 覆盖与a(x)匹配的整个定义

@@ -65,8 +65,8 @@ def cut(solver, cont):
   raise CutException
 cut = cut()
 
-@builtin.macro('and')
-def and_(solver, cont, *calls):
+@builtin.macro('and_p')
+def and_p(solver, cont, *calls):
   if len(calls)==1:
     call = deref(calls[0], solver.env)
     yield solver.cont(call, cont), True
@@ -79,10 +79,10 @@ def and_(solver, cont, *calls):
     call1 = deref(calls[:-1], solver.env)
     call2 = deref(calls[-1], solver.env)
     def and_cont(value, solver): yield solver.cont(call2, cont), value
-    yield solver.cont(and_(*call1), and_cont), True
+    yield solver.cont(and_p(*call1), and_cont), True
     
-@builtin.macro('or_')
-def or_(solver, cont, call1, call2):
+@builtin.macro('or_p')
+def or_p(solver, cont, call1, call2):
   call1 = deref(call1, solver.env)
   call2 = deref(call2, solver.env)
   if isinstance(call1, Apply) and call1.operator==if_p: # A -> B; C
@@ -95,8 +95,8 @@ def or_(solver, cont, call1, call2):
 ##  or_cont.cut = True
   yield or_cont, True
 
-@builtin.macro('first')
-def first(solver, cont, call1, call2):
+@builtin.macro('first_p')
+def first_p(solver, cont, call1, call2):
   call1 = deref(call1, solver.env)
   solved = False
   for c, value in solver.exp_run_cont(call1, cont):

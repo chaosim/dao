@@ -2,7 +2,7 @@
 
 from nose.tools import eq_, ok_, assert_raises
 
-from oad.solve import parse, tag_loop_label
+from oad.solve import preparse, tag_loop_label
 
 from oad.term import cons
 from oad.solve import eval
@@ -12,8 +12,8 @@ from oad.special import catch, throw
 from oad.special import unwind_protect, module, from_
 from oad.special import LoopForm, LoopTimesForm, exit, next
 
-from oad.builtins.control import and_, cut, callcc
-from oad.builtins.format import write
+from oad.builtins.control import and_p, cut, callcc
+from oad.builtins.io import write
 from oad.builtins.arith import eq, sub, mul, add, div
 from oad.builtins.term import define
 
@@ -21,13 +21,13 @@ from oad.util import *
 
 class TestSimple:
   def testInteger(self):
-    eq_(parse(1), (1))    
+    eq_(preparse(1), (1))    
   def testquote(self):
-    eq_(parse(quote(x)), quote(x))
+    eq_(preparse(quote(x)), quote(x))
   def testset(self):
-    eq_(parse(set(a,2)), set(a,2))
+    eq_(preparse(set(a,2)), set(a,2))
   def testbegin(self):
-    eq_(parse(begin(1,2)), begin(1,2))
+    eq_(preparse(begin(1,2)), begin(1,2))
 
 class TestTagLoopForm:
   def test_loop1(self):

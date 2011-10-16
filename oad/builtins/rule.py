@@ -34,7 +34,7 @@ def append_def(solver, cont, rules, head, bodies, klass=UserFunction):
   for body in bodies:
     rules.rules[len(head)].append(Rule(head, body))
   yield cont, rules
-  del rules.rules[-len(bodies):]
+  del rules.rules[len(head)][-len(bodies):]
 
 @builtin.macro('asserta')
 def asserta(solver, cont, rules, head, body, klass=UserFunction):
@@ -56,7 +56,7 @@ def insert_def(solver, cont, rules, head, bodies, klass=UserFunction):
   for body in reversed(bodies):
     rules.rules[len(head)].insert(0, Rule(head, body))
   yield cont, rules
-  del rules.rules[0:len(bodies)]
+  del rules.rules[len(head)][0:len(bodies)]
 
 # replace the rules which the head can match with.
 @builtin.macro('replace')
@@ -94,7 +94,7 @@ def replace_def(solver, cont, rules, head, bodies, klass=UserFunction):
     new_rules = [(head,)+tuple(body) for body in bodies]
     solver.env[rules] = klass(make_rules(new_rules), solver.env, False)
     yield cont, rules
-    del solver.env[rules]
+    del solver.env.bindings[rules]
     return
   elif not isinstance(rules, klass): raise ValueError
   if len(head) not in rules.rules: 

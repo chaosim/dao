@@ -307,8 +307,8 @@ class Apply:
     return '%s(%s)'%(self.operator, 
                 ','.join([repr(e) for e in self.operand]))
   def __and__(self, other):
-    from oad.builtins.control import and_
-    return and_(self, other)
+    from oad.builtins.control import and_p
+    return and_p(self, other)
   def __add__(self, other):
     from oad.special import begin
     return begin(self, other)
