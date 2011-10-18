@@ -8,6 +8,9 @@ from oad.builtins.control import or_p, and_p
 from oad import special
 from oad.builtin import builtin, BuiltinFunction2
 
+from oad.solve import run_mode, interactive
+from oad.solve import interactive_solver, interactive_tagger, interactive_parser
+
 # TODO: longest: the longest matcher.
 
 # parser predicate
@@ -134,6 +137,11 @@ class Repeater(Matcher):
     self.mode = lazy
     return self
   def __repr__(self):
+    if run_mode() is interactive:
+      code = interactive_parser().parse(self)
+      code = interactive_tagger().tag_loop_label(code)
+      result = interactive_solver().eval(code)
+      return repr(result) if result is not None else '' if result is not None else ''
     return ''.join([repr(x) for x in 
           [self.item, self.separator, self.min, self.max, 
           self.template, self.result, self.mode]])

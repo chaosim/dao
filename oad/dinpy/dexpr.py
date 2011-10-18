@@ -6,6 +6,8 @@
 
 from oad.builtins import arith
 from oad import special
+from oad.solve import run_mode, interactive
+from oad.solve import interactive_solver, interactive_tagger, interactive_parser
 
 all = ['DinpySyntaxError']
 
@@ -103,7 +105,7 @@ class _Builtin(_Expression):
 ##  def __rpow__(self, other): return  _pow(other, self)
 ##  def __lshift__(self, other): return  _lshift(self, other)
   def __rlshift__(self, other): return  _lshift(other, self)
-  def __rshift__(self, other): return  _rshift(self, other)
+##  def __rshift__(self, other): return  _rshift(self, other)
 ##  def __rrshift__(self, other): return  _rshift(other, self)
 ##  def __and__(self, other): return  _and(self, other)
 ##  def __rand__(self, other): return  _and(other, self)
@@ -117,7 +119,13 @@ class _Builtin(_Expression):
 ##  def __abs__(self): return  _abs(self)
 ##  def __invert__(self): return  _invert(self)
   def __nonzero__(self): return False
-  def __repr__(self): return repr(self.builtin)
+  def __repr__(self): 
+    if run_mode() is interactive:
+      code = interactive_parser().parse(self)
+      code = interactive_tagger().tag_loop_label(code)
+      result = interactive_solver().eval(code)
+      return repr(result) if result is not None else ''
+    return repr(self.builtin)
   
 def symbols(text):
   return tuple(_VarSymbol(x.strip()) for x in text.split(','))
@@ -132,7 +140,12 @@ class _VarSymbol(_Expression):
 ##    return self.__class__==other.__class__ and self.name==other.name
   def ___parse___(self, parser): 
     return varcache(self.name, Var)
-  def __repr__(self): return 'Symbol(%s)'%self.name
+  def __repr__(self): 
+    if run_mode() is interactive:
+      code = interactive_parser().parse(self)
+      result = interactive_solver().eval(code)
+      return repr(result) if result is not None else ''
+    return 'Symbol(%s)'%self.name
 
 def dummies(text):
   return tuple(_DummyVarSymbol(x.strip()) for x in text.split(','))
@@ -147,14 +160,26 @@ class _Binary(_Expression):
     self.x, self.y = x, y
   def ___parse___(self, parser): 
     return self.operator(parser.parse(self.x), parser.parse(self.y))
-  def __repr__(self): return '%s(%s, %s)'%(self.operator, self.x, self.y)
+  def __repr__(self): 
+    if run_mode() is interactive:
+      code = interactive_parser().parse(self)
+      code = interactive_tagger().tag_loop_label(code)
+      result = interactive_solver().eval(code)
+      return repr(result) if result is not None else ''
+    return '%s(%s, %s)'%(self.operator, self.x, self.y)
 
 class _Unary(_Expression): 
   def __init__(self, x): 
     self.x = x
   def ___parse___(self, parser): 
     return self.operator(parser.parse(self.x))
-  def __repr__(self): return '%s(%s)'%(self.__class__.__name__, self.x)
+  def __repr__(self): 
+    if run_mode() is interactive:
+      code = interactive_parser().parse(self)
+      code = interactive_tagger().tag_loop_label(code)
+      result = interactive_solver().eval(code)
+      return repr(result) if result is not None else ''
+    return '%s(%s)'%(self.__class__.__name__, self.x)
 
 class _lt(_Binary): 
   operator = arith.lt  
@@ -249,3 +274,12 @@ class _call(_Expression):
   def ___parse___(self, parser):
     caller = parser.parse(self.caller)
     return caller(*parser.parse(self.args), **parser.parse(self.kwargs))
+  def __repr__(self): 
+    if run_mode() is interactive:
+      code = interactive_parser().parse(self)
+      code = interactive_tagger().tag_loop_label(code)
+      result = interactive_solver().eval(code)
+      return repr(result) if result is not None else ''
+    return '%s(%s,%s)'%(','.join([repr(a) for a in self.args]),
+                        ', '+','.join(['%s=%s' for k, a in self.kwargs]) 
+                            if self.kwargs else '')

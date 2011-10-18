@@ -1,63 +1,104 @@
 from oad import builtin
-from oad.term import Var, ClosureVar, deref, getvalue
+from oad.term import Var, ClosureVar, deref, getvalue, Apply
 import operator
+
+class OperatorApply(Apply): pass
+
+_op_str = {'lt':'<', 'le':'<=', 'eq':'==', 'ne':'!=', 'ge':'>=','gt':'>',
+           'add':'+', 'sub':'-','mul':'*', 'div':'/',
+           'floordiv':'/', 'truediv':'//','mod':'%','pow':'**',
+           'and_':'&', 'xor':'^','or_':'|',
+           'lshift':'.<<.', 'rshift':'>>',
+           'pos':'+','neg':'-','invert':'~'}
+_op_precedence = {'lt':10, 'le':10, 'eq':10, 'ne':10, 'ge':10,'gt':10,
+           'add':60, 'sub':60,'mul':70, 'div':70,
+           'floordiv':70, 'truediv':70,'mod':70,'pow':100,
+           'and_':40, 'xor':30,'or_':20,
+           'lshift':50, 'rshift':50,
+           'pos':80,'neg':80,'invert':90}
+
+def _operator_repr(oprand, operator):
+  if isinstance(oprand, OperatorApply):
+    if _op_precedence[oprand.operator.name]<_op_precedence[operator.name]:
+      return '(%s)'%oprand
+  return '%s'%oprand
+
+class ApplyBinary(OperatorApply): 
+  def __repr__(self):
+    x = _operator_repr(self.operand[0], self.operator)
+    y = _operator_repr(self.operand[1], self.operator)
+    return '%s%s%s'%(x, _op_str[self.operator.name], y)
+
+class ApplyUnary(OperatorApply): 
+  def __repr__(self):
+    x = _operator_repr(self.operand[0], self.operator)
+    return '%s%s'%(_op_str[self.operator.name], x)
+
+class BuiltinBinary(builtin.BuiltinFunction):
+  def __call__(self, x, y): return ApplyBinary(self, x, y)
+
+class BuiltinUnary(builtin.BuiltinFunction):
+  def __call__(self, x): return ApplyUnary(self, x)
+
+binary = builtin.builtin(BuiltinBinary)
+unary = builtin.builtin(BuiltinUnary)
 
 @builtin.function('not_')
 def not_(value):
   return not value
 
-@builtin.function('lt')
+@binary('lt')
 def lt(x, y): return operator.lt(x, y)  
-@builtin.function('le')
+@binary('le')
 def le(x, y): return operator.le(x, y)  
-@builtin.function('eq')
+@binary('eq')
 def eq(x, y): return operator.eq(x, y)  
-@builtin.function('ne')
+@binary('ne')
 def ne(x, y): return operator.ne(x, y)  
-@builtin.function('gt')
+@binary('gt')
 def gt(x, y): return operator.gt(x, y)  
-@builtin.function('ge')
+@binary('ge')
 def ge(x, y): return operator.ge(x, y)  
-@builtin.function('getattr')
+@binary('getattr')
 def getattr(x, y): return operator.getattr(x, y)  
-@builtin.function('getitem')
+@binary('getitem')
 def getitem(x, y): return operator.getitem(x, y)
-@builtin.function('add')
+@binary('add')
 def add(x, y): return operator.add(x, y)  
-@builtin.function('sub')
+@binary('sub')
 def sub(x, y): return operator.sub(x, y)  
-@builtin.function('mul')
+@binary('mul')
 def mul(x, y): return operator.mul(x, y)  
-@builtin.function('floordiv')
+@binary('floordiv')
 def floordiv(x, y): return operator.floordiv  
-@builtin.function('div')
+@binary('div')
 def div(x, y): return operator.div(x, y)  
-@builtin.function('truediv')
+@binary('truediv')
 def truediv(x, y): return operator.truediv(x, y)  
-@builtin.function('mod')
+@binary('mod')
 def mod(x, y): return operator.mod(x, y)  
-@builtin.function('pow')
+@binary('pow')
 def pow(x, y): return operator.pow(x, y)  
-@builtin.function('lshift')
+@binary('lshift')
 def lshift(x, y): return operator.lshift(x, y)
-@builtin.function('rshift')
+@binary('rshift')
 def rshift(x, y): return operator.rshift(x, y)  
-@builtin.function('and_')
+@binary('and_')
 def and_(x, y): return operator.and_(x, y)  
-@builtin.function('xor')
+@binary('xor')
 def xor(x, y): return operator.xor(x, y)  
-@builtin.function('or_')
+@binary('or_')
 def or_(x, y): return operator.or_(x, y)
 
 @builtin.function('iter')
 def iter(x): return operator.iter(x) 
-@builtin.function('-')
+@unary('neg')
 def neg(x): return operator.neg(x)  
-@builtin.function('+')
+@unary('pos')
 def pos(x): return operator.pos(x)  
 @builtin.function('abs')
 def abs(x): return operator.abs(x)  
-@builtin.function('~')
+@binary('invert')
 def invert(x): return operator.invert(x)
 
 @builtin.function2()
@@ -79,10 +120,10 @@ def equal(solver, cont, left, right):
   if deref(left, solver.env)==deref(right, solver.env): 
     yield cont, True
 
-def arith_predicate(function, name):
+def arith_predicate(binary, name):
   @builtin.macro(name)
   def pred(solver, cont, var0, var1):
-    if function(getvalue(var0, solver.env), 
+    if binary(getvalue(var0, solver.env), 
                 getvalue(var1, solver.env)):
       yield cont, True
   return pred

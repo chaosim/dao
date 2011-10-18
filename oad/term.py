@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from oad.solve import value_cont, mycont
+from oad.solve import run_mode, interactive
+from oad.solve import interactive_solver, interactive_tagger, interactive_parser
 
 def apply_generators(generators): # one shot generators, such as unify, set/restore
   length = len(generators)
@@ -304,6 +306,11 @@ class Apply:
   def closure(self, env):
     return Apply(self.operator, *[closure(x, env) for x in self.operand])
   def __repr__(self): 
+    if run_mode() is interactive:
+      code = interactive_parser().parse(self)
+      code = interactive_tagger().tag_loop_label(code)
+      result = interactive_solver().eval(code)
+      return repr(result) if result is not None else ''
     return '%s(%s)'%(self.operator, 
                 ','.join([repr(e) for e in self.operand]))
   def __and__(self, other):

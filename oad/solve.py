@@ -27,7 +27,7 @@ def tag_unwind(fun):
     return tagged_fun
   return unwind_tagger
  
-def done_unwind(cont, tag, stop_cont_cont, solver, next_cont=None):
+def done_unwind(cont, value, tag, stop_cont_cont, solver, next_cont=None):
   if cont is stop_cont_cont: 
     return cont if next_cont is None else next_cont
   raise DaoUncaughtThrow(tag)
@@ -98,6 +98,36 @@ def eval(exp):
 
 def solve(exp): 
   return Solver.solve(exp)
+
+interactive, noninteractive = 1, 0
+_run_mode = interactive
+_interactive_solver = None
+_interactive_parser = None
+_interactive_tagger = None
+
+def run_mode(): return _run_mode
+def interactive_solver(): return _interactive_solver
+def interactive_parser(): return _interactive_parser
+def interactive_tagger(): return _interactive_tagger
+
+def set_run_mode(mode=interactive, solver=None, tagger=None, parser=None):
+  global _run_mode, _interactive_solver, _interactive_parser, _interactive_tagger
+  if mode==interactive:
+    _run_mode = interactive
+    if solver is None:
+      _interactive_solver = Solver() if _interactive_solver is None\
+                           else _interactive_solver
+    else: _interactive_solver = solver
+    if tagger is None:
+      _interactive_tagger = LoopExitNextTagger() if _interactive_tagger is None\
+                           else _interactive_tagger
+    else: _interactive_tagger = tagger
+    if parser is None:
+      _interactive_parser = Parser() if _interactive_parser is None\
+                           else _interactive_parser
+    else: _interactive_parser = _parser
+  else: 
+    _run_mode = noninteractive
 
 class Solver:
   # exp: expression 

@@ -16,7 +16,7 @@ __all__ = [
   'dao', 'preparse', 'eval',
   
   # declaration and variable
-  '_', 'v', 'var', 'vars', 'dummies', 'put', 
+  '_', 'v', 'var', 'put', #, 'vars', 'dummies'
   
   # control structure
   'iff', 'let', 'case', 'els',  'on', 'block','label',
@@ -25,8 +25,9 @@ __all__ = [
   # function and macro definition
   'fun', 'macro', 'at',
   
-  # miscellaneous
-  'py', 'some', 'any', 'may']
+##  # miscellaneous
+##  'py', 'some', 'any', 'may'
+]
 
 from oad.pysyntax import *
 from oad.dinpy import dexpr
@@ -159,7 +160,8 @@ def getvar(name, klass=Var):
 # put.a = 1, put.i.j==(1,2)
 put = element('put',
   # put.i.j<<(1,2)
-  (getattr(__._)+assign(vv.x, getvar(__._)))[1:]%vv.x*vv.vars+lshift(vv.value)+eos
+  (getattr(__._)+assign(vv.x, getvar(__._)))[1:]%vv.x*vv.vars
+        +lshift(vv.value)+eos
         +pycall(special.set_list, vv.vars, pycall(preparse,vv.value))
   )
 

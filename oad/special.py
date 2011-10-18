@@ -9,6 +9,9 @@ from oad.builtins.arith import eq, not_
 from oad.builtins.term import iter_next, make_iter
 from oad import builtin
 
+from oad.solve import run_mode, set_run_mode, interactive, noninteractive
+from oad.solve import interactive_parser, interactive_tagger
+
 # special forms: quote, begin, if, eval, let, lambda, function, macro, module
 class ParserForm: 
   def ___parse___(self, parser): return self
@@ -25,7 +28,17 @@ class quote(SpecialForm):
   def __init__(self, exp): self.exp = exp
   def cont(self, cont, solver): return value_cont(self.exp, cont)
   def __eq__(self, other): return self.exp==other.exp
-  def __repr__(self): return "'%s"%self.exp
+  def __repr__(self): 
+    if run_mode()==interactive:
+      set_run_mode(noninteractive)
+      code  = interactive_parser().parse(self.exp)
+      code  = interactive_tagger().tag_loop_label(code)
+      result = "%s"%code
+      set_run_mode(interactive)
+      return result
+    else: 
+      return "'%s"%self.exp
+    
 
 def assign_var(var, value, env):
   env0 = env
@@ -258,7 +271,7 @@ class LoopTimesForm(RepeatForm):
     i = Var('loop_i')
     start_condition = (if_(eq(i,0), exit_block(label)), set(i, i-1))
     body = start_condition+tuple(body)+(continue_block(label),)
-    return begin(set(i, self.times), block(label, *body))
+    return begin(set(i, self.times), block(label, *body), None)
   def __eq__(self, other):
     return self.times==other.times and self.body==other.body
   def __repr__(self):
@@ -267,16 +280,16 @@ class LoopTimesForm(RepeatForm):
     return 'Loop(%s)[%s%s]'%(self.times, label, body)
 
 class WhenLoopForm(RepeatForm):
-  def __init__(self, body, condition):
-    self.body, self.condition = body, condition
+  def __init__(self, body, condition, label=None):
+    self.body, self.condition, self.label = body, condition, label
   def ___parse___(self, parser): return self
   def tag_loop_label(self, tagger):
     label = tagger.make_label(self.label)
     tagger.push_label('when', label)
     body = tagger.tag_loop_label(self.body)
     tagger.pop_label('when')
-    start_condition = [if_(not_p(self.condition), exit_block(label))]
-    return block(label, *(start_condition+body+[continue_block(label)]))
+    start_condition = [if_(not_(self.condition), exit_block(label))]
+    return begin(block(label, *(start_condition+list(body)+[continue_block(label)])), None)
   def __eq__(self, other):
     return self.body==other.body and self.condition==other.condition
   def __repr__(self):
@@ -292,7 +305,7 @@ class LoopWhenForm(RepeatForm):
     body = tagger.tag_loop_label(self.body)
     tagger.pop_label('when')
     body = body+(if_(self.condition, continue_block(label)), )
-    return block(label, *body)
+    return begin(block(label, *body), None)
   def __eq__(self, other):
     return self.body==other.body and self.condition==other.condition
   def __repr__(self):
@@ -308,7 +321,7 @@ class LoopUntilForm(RepeatForm):
     body = tagger.tag_loop_label(self.body)
     tagger.pop_label('until')
     body = body+(if_(not_(self.condition), continue_block(label)), )
-    return block(label, *body)
+    return begin(block(label, *body), None)
   def __eq__(self, other):
     return self.body==other.body and self.condition==other.condition
   def __repr__(self):
@@ -579,7 +592,7 @@ class exit_block(SpecialForm):
     env = solver.env
     @mycont(cont)
     def exit_block_cont(value, solver):
-      exit_cont =  env.lookup_exit_cont(self.label, cont, solver)
+      exit_cont =  env.lookup_exit_cont(self.label, cont, value, solver)
       yield exit_cont, value
     return solver.cont(self.form, exit_block_cont)
   def __eq__(self, other):
@@ -611,7 +624,7 @@ def have_lookup(fun):
     if tag==cont.tag:
       @mycont(cont)
       def throwing_cont(value, solver): 
-        yield unwind(cont, tag, cont, solver), value
+        yield unwind(cont, value, tag, cont, solver), value
       solver.env = cont.env
       return solver.cont(stop_cont.form, throwing_cont)
     else: return lookup(cont, tag, stop_cont, solver)
@@ -661,7 +674,21 @@ class throw(SpecialForm):
     throw_cont.form, throw_cont.env = self.form, solver.env
     return solver.cont(self.tag, throw_cont)
 
-
+##class unwind_protect_cont:
+##  def __init__(self, cont, env):
+##    self.cont, self.env = cont, env
+##  def __call__(self, value, solver):
+##    @mycont(self.cont)
+##    def protect_return_cont(_, solver): yield self.cont, value
+##    solver.env = self.env
+##    yield solver.exps_cont(self.cleanup, protect_return_cont), True
+##  def unwind_protect_cont_unwind(cont, tag, stop_cont, solver, next_cont):
+##    solver.env = self.env
+##    @mycont(self.cont)
+##    def unwind_cont(value, solver):
+##      yield unwind(cont0, tag, stop_cont, solver, next_cont), value
+##    return solver.exps_cont(self.cleanup, unwind_cont)
+    
 class unwind_protect(SpecialForm):
   #[unwind-protect form cleanup]
   def __init__(self, form, *cleanup):
@@ -678,11 +705,11 @@ class unwind_protect(SpecialForm):
     env = solver.env
     cont0 = cont
     
-    def unwind_protect_cont_unwind(cont, tag, stop_cont, solver, next_cont):
+    def unwind_protect_cont_unwind(cont, form_value, tag, stop_cont, solver, next_cont):
       solver.env = env
       @mycont(cont0)
       def unwind_cont(value, solver):
-        yield unwind(cont0, tag, stop_cont, solver, next_cont), value
+        yield unwind(cont0, form_value, tag, stop_cont, solver, next_cont), form_value
       return solver.exps_cont(self.cleanup, unwind_cont)
     
     @tag_unwind(unwind_protect_cont_unwind)
@@ -691,6 +718,6 @@ class unwind_protect(SpecialForm):
       @mycont(cont0)
       def protect_return_cont(_, solver): yield cont0, value
       solver.env = env
-      yield solver.exps_cont(self.cleanup, cont0), True
+      yield solver.exps_cont(self.cleanup, protect_return_cont), True
       
     return solver.cont(self.form, unwind_protect_cont)

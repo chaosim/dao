@@ -4,6 +4,8 @@
 some tools that help you define operator grammars to preparse python expression.
 see dinpy.py for a real sample.
 
+>>> from oad.solve import set_run_mode, noninteractive
+>>> set_run_mode(noninteractive)
 >>> from oad.term import Var
 >>> from oad.builtins.terminal import eos
 >>> from oad.builtins.term import pytuple, first
@@ -22,6 +24,8 @@ __all__ = ['element', 'preparse', 'lead',
   'attr_item', 'attr_call', 'word', 'words', 'getitem_to_list',
   'DinpySyntaxError']
 
+from oad.solve import run_mode, interactive
+from oad.solve import interactive_solver, interactive_tagger, interactive_parser
 from oad.term import deref, unify, DummyVar
 from oad.solve import eval, preparse
 from oad import special
@@ -166,6 +170,11 @@ class FormTraveller(object):
   def getvalue(self, env): return self
   
   def __repr__(self): 
+    if run_mode() is interactive:
+      code = interactive_parser().parse(self)
+      code = interactive_tagger().tag_loop_label(code)
+      result = interactive_solver().eval(code)
+      return repr(result) if result is not None else ''
     result = self.__form_name__
     for x in self.__operator_data__:
       if x== __neg__: result = '-%s'%result

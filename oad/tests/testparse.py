@@ -6,6 +6,8 @@ from oad.solve import preparse, tag_loop_label
 
 from oad.term import cons
 from oad.solve import eval
+from oad.solve import set_run_mode, noninteractive
+set_run_mode(noninteractive)
 from oad.special import quote, set, begin, if_, lambda_, let, letrec, eval_
 from oad.special import function, macro, block, exit_block, continue_block
 from oad.special import catch, throw

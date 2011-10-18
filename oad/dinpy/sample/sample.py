@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # when lisp meets prolog in python
+
 # oad program samples
 
 from oad.dinpy import *
@@ -19,122 +20,128 @@ dao[
 v.a_trt_b, # 刚导入的变量
 
 each(i)[1:3].
-  do[write(i)],
+  do[prin(i)],
   
 each(i,j)[1:3][1:3].
-  do[write(i, j)],
+  do[prin(i, j)],
   
 label.a % 
 each(i,j)[1:10][1:10].
-  do[write(i, j)],
+  do[prin(i, j)],
   
 each(i,j)[zip(range(5), range(5))].
-  do [write(i,j)],
+  do [prin(i,j)],
 
 case(1).
-  of(1)[write(1)].
-  of(2)[write(2)],
-fun. a== at(x)  [write('sdgsgd')],
+  of(1)[prin(1)].
+  of(2)[prin(2)],
+fun. a== at(x)  [prin('sdgsgd')],
 a(1),
 
-loop(3)[write(1)],
+loop(3)[prin(1)],
 
-i << 0, write(i), ++i , write(i), --i, write(i),
+i << 0, prin(i), ++i , prin(i), --i, prin(i),
 
 block.block1[
   loop[
-    write(1),
+    prin(1),
 ##    next.loop,
 ##    exit,
-    write(2),
+    prin(2),
     exit >>3,
   ]
 ],
 
-loop(3) [write(1)],
+loop(3) [prin(1)],
 
-loop(2) [write(3), write(4)],
-loop[ write(1), write(2), exit ], # 无限循环
-put.i.j.z==(0,1,2), 
+loop(2) [prin(3), prin(4)],
+loop[ prin(1), prin(2), exit ], # 无限循环
+put.i.j.z==(0, 1, 2), 
 
 i << 0,
 label.a %
 loop[
   -- i,
-  write(i), 
+  prin(i), 
   ++ i,
   ++ i,
   i << i+10,
-  write(i), 
+  prin(i), 
   iff (i==1) [next], 
-  write(i), 
+  prin(i), 
   iff (i>20) [exit], 
   iff (i==1) [next.loop], #再一次执行label为a的块
 ##  iff(eq(i,3)) [exit], #从block a退出，返回None
 ##  iff(eq(i,3)) [exit >>12], #从block a退出，返回12
 ##  iff(eq(i,3)) [exit.loop1 >>12], #从block a退出，返回12
-          ], 
+], 
 
 i << 0,
-do[ i << i+1, write(i)].when(i==3),
+do[ i << i+1, prin(i)].when(i==3),
+
 i << 0,
-do[ ++i, write(i)].until(i==3),
+do[ ++i, prin(i)].until(i==3),
+
 '''block comment''',  
 "block comment",
 
 let (a << 1, 
      b << 2) 
-  .do[write(v.a, v.b)],
+  .do[prin(v.a, v.b)],
+  
 ##let (a << b << c << 1) #serial let is waiting to implemented.
-##  .do[write(v.a, v.b)],
-let( a/ b/ c << range(3)) 
-  .do[write(v.a, v.b, v.c)],
-write('adafa'),
+##  .do[prin(v.a, v.b)],
 
-fun. a(x)== [write(1)], #覆盖与a(x)匹配的整个定义
-fun. a == at(x)  [write(x)], #覆盖a的整个定义
-fun. a(1) <= [write(1)], #在前面插入定义
-fun. a(3) >= [write(3)], #在后面附加定义
+let( a/ b/ c << range(3)) 
+  .do[prin(v.a, v.b, v.c)],
+  
+prin('adafa'),
+
+fun. a(x)== [prin(1)], #覆盖与a(x)匹配的整个定义
+fun. a == at(x)  [prin(x)], #覆盖a的整个定义
+fun. a(1) <= [prin(1)], #在前面插入定义
+fun. a(3) >= [prin(3)], #在后面附加定义
 fun (x)[1]
     (y)[y],
 fun [1],
 fun(x)[1][2],
-##macro. a(x,[y],{a:1}) >= (write(2)), #可选参数，关键字参数
+##macro. a(x,[y],{a:1}) >= (prin(2)), #可选参数，关键字参数
 ##fun. a (x) == [], #删除函数a中与(x)一致的定义
 ##fun. a == [], # 删除函数a的整个定义
 a(1),
 - fun.a/3,
 - fun.a(x),
+
 a('affd'),
 
-##  rule. r1 == at(1) [write(1)],
-##  rules. rs1 == at(1) [write(1)],
+##  rule. r1 == at(1) [prin(1)],
+##  rules. rs1 == at(1) [prin(1)],
 ##  fun. a - rule.r1, #从函数a中删除匹配规则r1的规则
 ##  fun. a - rules.rs1, #从函数a中删除匹配规则集rs1的规则
 
 each(i)[1:10].
-  do[write(i)],
+  do[prin(i)],
   
-##label.a % 
+label.a % 
 each(i,j)[1:10][1:10].
-  do[write(i, j)],
+  do[prin(i, j)],
   
 each(i,j)[zip(range(5), range(5))].
-  do [write(i,j)],
+  do [prin(i,j)],
 
 case(1)
-  .of(1)[write(1)]
-  .of(2)[write(2)],
+  .of(1)[prin(1)]
+  .of(2)[prin(2)],
 
 ##on(f1==open('readme.txt'),
 ##    f2==open('out.txt', 'w')).
-##  do [write(f1, 'hello')],
+##  do [prin(f1, 'hello')],
 
 ##loop(10)[char(x)[10]],  
 
 v.command << open,
 v.command('readme.txt'),
-py(open, 'readme.txt'), 
+pycall(open, 'readme.txt'), 
 
 ##char(x)[10][10],
 ##char(x)[10][:],
