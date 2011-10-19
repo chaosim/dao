@@ -1,6 +1,6 @@
 Credits
 -------
-²ÜÐÇÃ÷(Simeon Chaos, simeon.chaos@gmail.com), the writer of oad, will give thanks to:
+²ÜÐÇÃ÷(Simeon Chaos, simeon.chaos@gmail.com), the writer of dao, will give thanks to:
   Guido van Rossum and Python Software Foundation for Python.
   Riaan Booysen, for Boa Constructor, the IDE I used for long time.
   WingIDE, the best IDE for python I used, especially thank its powerful test and debug features.  

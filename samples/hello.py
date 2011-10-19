@@ -1,4 +1,4 @@
-from oad import word
+from dao import word
 from samplevars import x
 
 def parse(grammar_element, text):
