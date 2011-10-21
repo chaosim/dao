@@ -10,7 +10,8 @@ class CutException(Exception): pass
 class DaoStopIteration(Exception): pass
 
 class DaoUncaughtThrow(Exception):
-  def __init__(self, tag): self.tag = tag
+  def __init__(self, tag): 
+    self.tag = tag
 
 class  DaoSyntaxError(Exception):
   pass
@@ -21,6 +22,22 @@ def mycont(cont):
     return fun
   return mycont_tagger
  
+def tag_lookup(fun):
+  def lookup_tagger(tagged_fun):
+    tagged_fun.lookup = fun
+    return tagged_fun
+  return lookup_tagger
+
+def done_lookup(cont, tag, stop_cont, solver): 
+  raise DaoUncaughtThrow(tag)
+
+from dao.env import unwind
+def done_lookup(cont, tag, stop_cont, solver): 
+  @mycont(cont)
+  def loopkup_fail_cont(value, solver):
+    raise  DaoUncaughtThrow(tag)
+  return unwind(stop_cont, None, tag, loopkup_fail_cont, solver)
+
 def tag_unwind(fun):
   def unwind_tagger(tagged_fun):
     tagged_fun.unwind = fun
@@ -32,6 +49,7 @@ def done_unwind(cont, value, tag, stop_cont_cont, solver, next_cont=None):
     return cont if next_cont is None else next_cont
   raise DaoUncaughtThrow(tag)
 
+@tag_lookup(done_lookup)
 @tag_unwind(done_unwind)
 @mycont(None)
 def done(value, solver): yield done, value

@@ -320,8 +320,8 @@ class Apply:
     from dao.special import begin
     return begin(self, other)
   def __or__(self, other):
-    from dao.builtins.control import or_
-    return or_(self, other)
+    from dao.builtins.control import or_p
+    return or_p(self, other)
   
   def __eq__(self, other): 
     return self.__class__==other.__class__ and self.operator==other.operator and self.operand==other.operand

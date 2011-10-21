@@ -22,7 +22,7 @@ __all__ = ['element', 'preparse', 'lead',
   'pos', 'neg', 'invert', 'abs', 'pow', 
   'getattr', 'call', 'getitem', 'iterator', 
   'attr_item', 'attr_call', 'word', 'words', 'getitem_to_list',
-  'DinpySyntaxError']
+  'DinpySyntaxError', 'syntax_error']
 
 from dao.solve import run_mode, interactive
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
@@ -84,6 +84,12 @@ def _lead_element_class(klass):
     else: attrs[a] = value
   return type('Lead'+klass.__name__, klass.__bases__, attrs)
 
+@matcher('syntax_error')
+def syntax_error(solver, cont):
+  raise DinpySyntaxError
+
+syntax_error = syntax_error()
+
 (__lt__, __le__, __eq__, __ne__, __gt__, __ge__, 
 __getattr__, __call__, __getitem__, __iter__, 
 __add__, __sub__, __mul__, __floordiv__, __div__, __truediv__, 
@@ -98,7 +104,7 @@ names = (
 class FormTraveller(object):
   def __init__(self, name, grammar):
     self.__form_name__ = name
-    self.__form_grammar__ = preparse(grammar)
+    self.__form_grammar__ = preparse(grammar|syntax_error)
     self.__operator_data__ = []
   def __lt__(self, other): 
     self.__operator_data__.append((__lt__, other)); return self

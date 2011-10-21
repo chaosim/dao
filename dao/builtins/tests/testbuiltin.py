@@ -15,6 +15,9 @@ from dao.builtins.io import write
 from dao.builtins.term import ground
 from dao.builtins.term import isvar, nonvar, is_
 
+from dao.solve import set_run_mode, noninteractive
+set_run_mode(noninteractive)
+
 class TestControl:
   def test_fail(self):
     eq_(eval(let([(f,function([[1], fail], [[x], succeed]))], f(x))), True)

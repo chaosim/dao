@@ -1,0 +1,7 @@
+[setuptools]
+index-servers = pypi
+
+[pypi]
+repository: <repository-url>
+username: chaosim
+password: xm0626

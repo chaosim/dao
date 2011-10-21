@@ -216,8 +216,14 @@ class _pow(_Binary):
 
 def _get_assign_vars_chain(exp):
   if isinstance(exp, _VarSymbol): return (varcache(exp.name),)
-  if not isinstance(exp, _lshift): raise DinpySyntaxError
-  return _get_assign_vars_chain(exp.x)+(varcache(exp.y.name),)
+  elif isinstance(exp, _lshift): 
+    return _get_assign_vars_chain(exp.x)+(varcache(exp.y.name),)
+  else: raise DinpySyntaxError   
+def _get_assign_vars_list(exp):
+  if isinstance(exp, _VarSymbol): return (varcache(exp.name),)
+  elif isinstance(exp, _div): 
+    return _get_assign_vars_list(exp.x)+(varcache(exp.y.name),)
+  else: raise DinpySyntaxError
   
 class _lshift(_Binary): 
   operator = arith.lshift
@@ -226,21 +232,21 @@ class _lshift(_Binary):
     y = parser.parse(self.y)
     if isinstance(self.x, _VarSymbol):
       return special.set(varcache(self.x.name), y)
-##    vars = None
-    if isinstance(self.x, tuple) or isinstance(self.x, list):
-##      for x in self.x:
-##        if not(isinstance, _VarSymbol): raise DinpySyntaxError
-##      vars.append(varcache(x,name))
-      # don't use [i.j] << (1,2), use put.i.j << (1,2)
-      raise DinpySyntaxError
-    else: 
+    if isinstance(self.x, _lshift): 
       vars = _get_assign_vars_chain(self.x)
-    i = len(vars)-1
-    set_stmts = [special.set(vars[i], y)]
-    while i>0:
-      i -= 1
-      set_stmts.append(special.set(vars[i], vars[i+1]))
-    return special.begin(*set_stmts)
+      i = len(vars)-1
+      set_stmts = [special.set(vars[i], y)]
+      while i>0:
+        i -= 1
+        set_stmts.append(special.set(vars[i], vars[i+1]))
+      return special.begin(*set_stmts)
+    elif isinstance(self.x, tuple) or isinstance(self.x, list):
+      vars = self.x
+    elif isinstance(self.x, _div):
+      vars = _get_assign_vars_list(self.x)
+    else: raise DinpySyntaxError
+    return special.set_list(vars, y)
+    
 
 class _rshift(_Binary): 
   operator = arith.rshift  

@@ -1,2 +1,5 @@
 *.pyc
-pypysmalltalk
+*.*~
+*.*#
+*.wpu
+document/_build

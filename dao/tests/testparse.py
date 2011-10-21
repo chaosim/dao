@@ -8,7 +8,7 @@ from dao.term import cons
 from dao.solve import eval
 from dao.solve import set_run_mode, noninteractive
 set_run_mode(noninteractive)
-from dao.special import quote, set, begin, if_, lambda_, let, letrec, eval_
+from dao.special import quote, set, begin, if_, lambda_, let, letr, eval_
 from dao.special import function, macro, block, exit_block, continue_block
 from dao.special import catch, throw
 from dao.special import unwind_protect, module, from_
@@ -20,6 +20,9 @@ from dao.builtins.arith import eq, sub, mul, add, div
 from dao.builtins.term import define
 
 from dao.util import *
+
+from dao.solve import set_run_mode, noninteractive
+set_run_mode(noninteractive)
 
 class TestSimple:
   def testInteger(self):

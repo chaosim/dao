@@ -4,9 +4,7 @@ from nose.tools import eq_, ok_, assert_raises
 
 from dao.term import cons
 from dao.solve import eval, tag_loop_label
-from dao.solve import set_run_mode, noninteractive
-set_run_mode(noninteractive)
-from dao.special import quote, set, begin, if_, iff, lambda_, let, letrec, eval_
+from dao.special import quote, set, begin, if_, iff, lambda_, let, letr, eval_
 from dao.special import function, macro
 from dao.special import block, exit_block, continue_block, catch, throw
 from dao.special import unwind_protect, module, from_, CaseForm
@@ -111,28 +109,28 @@ class TestFunction:
     eq_(eval(let([(f, function([[x], x+x]))], f(1))), 2) 
     eq_(eval(let([(f, function([[x], x+x]))], f(f(1)))), 4) 
     
-class Test_letrec:
+class Test_letr:
   def testembedvar1(self):
     e, e2, f, g, h = Var('e'), Var('e2'), Var('f'), Var('g'), Var('h')
-    eq_(eval(letrec([(f, function([[1], 1]))],
+    eq_(eval(letr([(f, function([[1], 1]))],
                 f(e), e)), 1)
   def testembedvar2(self):
     e, e2, f, g, h = Var('e'), Var('e2'), Var('f'), Var('g'), Var('h')
-    eq_(eval(letrec([(f, macro([[cons(1, e2)], g(e2)])),
+    eq_(eval(letr([(f, macro([[cons(1, e2)], g(e2)])),
                      (g, function([[e], h(e)])),
                      (h, function([[1], True]))],
                 f(e), e)), cons(1, 1))
-  def testletrec(self):
-    eq_(eval(letrec([(f, function([[1], 1],[[x],f(x-1)]))], f(1))), 1)
-    eq_(eval(letrec([(f, function([[1], 1],[[x],f(x-1)]))], f(2))), 1) 
-  def testletrec(self):
-    eq_(eval(letrec([(f, lambda_([n], if_(eq(n, 1), 1, f(sub(n, 1)))))],
+  def testletr(self):
+    eq_(eval(letr([(f, function([[1], 1],[[x],f(x-1)]))], f(1))), 1)
+    eq_(eval(letr([(f, function([[1], 1],[[x],f(x-1)]))], f(2))), 1) 
+  def testletr(self):
+    eq_(eval(letr([(f, lambda_([n], if_(eq(n, 1), 1, f(sub(n, 1)))))],
                   f(2))), 1)
-  def testletrecfac(self):
-    eq_(eval(letrec([(fac, lambda_([n], if_(eq(n,1), 1, mul(n, fac(sub(n, 1))))))],
+  def testletrfac(self):
+    eq_(eval(letr([(fac, lambda_([n], if_(eq(n,1), 1, mul(n, fac(sub(n, 1))))))],
                   fac(3))), 6)
-  def testletrecoddeven(self):
-    eq_(eval(letrec([(odd, lambda_([n], if_(eq(n,0), 0, even(sub(n,1))))),
+  def testletroddeven(self):
+    eq_(eval(letr([(odd, lambda_([n], if_(eq(n,0), 0, even(sub(n,1))))),
                     (even, lambda_([n], if_(eq(n,0), 1, odd(sub(n, 1)))))],
                   odd(3))), 1)
 
@@ -140,7 +138,7 @@ class TestCut:
   #http://en.wikibooks.org/wiki/Prolog/Cuts_and_Negatio
   def testCut1(self):
     a, b, c, x = Var('a'), Var('b'), Var('c'), Var('x'), 
-    eq_(eval(letrec([(a, function([[x], b(x)&cut&c(x)])), #[cut] = cut = cut() 
+    eq_(eval(letr([(a, function([[x], b(x)&cut&c(x)])), #[cut] = cut = cut() 
                      (b, function([[1], True],
                                  [[2], True],
                                  [[3], True])),
@@ -148,7 +146,7 @@ class TestCut:
              a(x), x)), (1)) 
   def test_cut2(self):
     a, b, c, x = Var('a'), Var('b'), Var('c'), Var('x'), 
-    eq_(eval(letrec([(a, function([[x], b(x)&cut&c(x)])),
+    eq_(eval(letr([(a, function([[x], b(x)&cut&c(x)])),
                      (b, function([[1], True],
                                     [[2], True],
                                     [[3], True])),
@@ -156,7 +154,7 @@ class TestCut:
              a(x), x)), None)
   def test_cut2_no_Cut(self):
     a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x'), 
-    eq_(eval(letrec([(a, function([[x], b(x)&c(x)],
+    eq_(eval(letr([(a, function([[x], b(x)&c(x)],
                                  [[x], d(x)])),
                      (b, function([[1], True],
                                  [[4], True])),
@@ -165,7 +163,7 @@ class TestCut:
              a(x), x)), 4) 
   def testCut4(self):
     a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x'), 
-    eq_(eval(letrec([(a, function([[x], b(x)&cut&c(x)],
+    eq_(eval(letr([(a, function([[x], b(x)&cut&c(x)],
                           [[x], d(x)])),
                      (b, function([[1], True],
                                  [[4], True])),

@@ -8,6 +8,9 @@ from dao.pysyntax import FormTraveller, lead_class
 from dao.builtins.terminal import eos
 from dao.util import x, y
 
+from dao.solve import set_run_mode, noninteractive
+set_run_mode(noninteractive)
+
 class Test_Traveller:
   def test1(self):
     do = lead_class(FormTraveller)('do', None)

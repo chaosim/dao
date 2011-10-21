@@ -90,7 +90,7 @@ class set_list(SpecialForm):
       if len(values)!=len(self.vars): raise ValueError(values)
       for _ in apply_generators([assign_var(var, v, solver.env) 
                                  for var, v in zip(self.vars, values)]):
-        yield cont, True
+        yield cont, None
 
     return solver.cont(self.exp, set_cont)
   def __eq__(self, other): return self.vars==other.vars and self.exp==other.exp
@@ -280,7 +280,7 @@ class LoopTimesForm(RepeatForm):
     return 'Loop(%s)[%s%s]'%(self.times, label, body)
 
 class WhenLoopForm(RepeatForm):
-  def __init__(self, body, condition, label=None):
+  def __init__(self, condition, body, label=None):
     self.body, self.condition, self.label = body, condition, label
   def ___parse___(self, parser): return self
   def tag_loop_label(self, tagger):
@@ -293,7 +293,7 @@ class WhenLoopForm(RepeatForm):
   def __eq__(self, other):
     return self.body==other.body and self.condition==other.condition
   def __repr__(self):
-    return 'WhenLoopForm(%s,%s)'%(self.body, self.condition)
+    return 'WhenLoopForm(%s,%s)'%(self.condition, self.body)
   
 class LoopWhenForm(RepeatForm):
   def __init__(self, body, condition, label=None):
@@ -460,7 +460,7 @@ class FunctionForm(SpecialForm):
 
 function = FunctionForm
 
-def letrec(bindings, *body):
+def letr(bindings, *body):
   if isinstance(bindings, dict): raise Error
   vars = tuple(b[0] for b in bindings)
   values = tuple(b[1] for b in bindings)
@@ -618,18 +618,16 @@ def lookup(cont, tag, stop_cont, solver):
   except AttributeError: 
     return lookup(cont.cont, tag, stop_cont, solver)
   
+from dao.solve import tag_lookup
 from dao.env import unwind
-def have_lookup(fun):
-  def lookup(cont, tag, stop_cont, solver): 
-    if tag==cont.tag:
-      @mycont(cont)
-      def throwing_cont(value, solver): 
-        yield unwind(cont, value, tag, cont, solver), value
-      solver.env = cont.env
-      return solver.cont(stop_cont.form, throwing_cont)
-    else: return lookup(cont, tag, stop_cont, solver)
-  fun.lookup = lookup
-  return fun
+def label_cont_lookup(cont, tag, stop_cont, solver): 
+  if tag==cont.tag:
+    @mycont(cont)
+    def throwing_cont(value, solver): 
+      yield unwind(stop_cont, value, tag, cont, solver), value
+    solver.env = cont.env
+    return solver.cont(stop_cont.form, throwing_cont)
+  else: return lookup(cont, tag, stop_cont, solver)
 
 class catch(SpecialForm):
   def __init__(self, tag, *body):
@@ -643,11 +641,11 @@ class catch(SpecialForm):
     self.body = tagger.tag_loop_label(self.body)
     return self
   def cont(self, cont, solver):
-    env = solver.env
+    env = solver.env # not necessary?
     @mycont(cont)
     def catch_cont(tag, solver):
-      solver.env = env
-      @have_lookup
+      solver.env = env # not necessary?
+      @tag_lookup(label_cont_lookup)
       @mycont(cont)
       def label_cont(value, solver): yield cont, value
       label_cont.tag, label_cont.env = tag, env
@@ -673,22 +671,7 @@ class throw(SpecialForm):
       yield lookup(throw_cont, tag, throw_cont, solver), True
     throw_cont.form, throw_cont.env = self.form, solver.env
     return solver.cont(self.tag, throw_cont)
-
-##class unwind_protect_cont:
-##  def __init__(self, cont, env):
-##    self.cont, self.env = cont, env
-##  def __call__(self, value, solver):
-##    @mycont(self.cont)
-##    def protect_return_cont(_, solver): yield self.cont, value
-##    solver.env = self.env
-##    yield solver.exps_cont(self.cleanup, protect_return_cont), True
-##  def unwind_protect_cont_unwind(cont, tag, stop_cont, solver, next_cont):
-##    solver.env = self.env
-##    @mycont(self.cont)
-##    def unwind_cont(value, solver):
-##      yield unwind(cont0, tag, stop_cont, solver, next_cont), value
-##    return solver.exps_cont(self.cleanup, unwind_cont)
-    
+  def __repr__(self): return 'throw(%s,%s)'%(repr(self.tag),repr(self.form))
 class unwind_protect(SpecialForm):
   #[unwind-protect form cleanup]
   def __init__(self, form, *cleanup):

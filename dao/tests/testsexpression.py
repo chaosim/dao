@@ -43,12 +43,12 @@ class TestParse:
     eq_(parse(grammar, '((if 0 + -) 1 1)'), L(('if',0, add, sub),1,1))
   def testsexprlist2(self):
     eq_(parse(grammar2, 'if 0 2 3'), L(Symbol('if'), 0, 2, 3))
-  def testletrec(self):
+  def testletr(self):
     odd, even, n = var('odd?'), var('even?'), var('n')
-    eq_(parse(grammar2, '''(letrec ((odd? (lambda (n) (if (== n 0) 0 (even? (- n 1)))))
+    eq_(parse(grammar2, '''(letr ((odd? (lambda (n) (if (== n 0) 0 (even? (- n 1)))))
                     (even? (lambda (n) (if (== n 0) 1 (odd? (- n 1))))))
                   (odd? 3))'''),  
-          L(('letrec',
+          L(('letr',
                                ((odd,('lambda',[n],('if',(eq,n,0),0,(even,(sub,n,1))))),
                               (even,('lambda',[n],('if',(eq,n,0),1,(odd,(sub,n,1)))))),
                                (odd,3))))
@@ -92,12 +92,12 @@ class Test_eval_by_parse:
     eq_(parse(grammar3, '((lambda (x y) (+ x y)) 1 1)'), Integer(2))
   def testlambda2(self):
     eq_(parse(grammar3, '((lambda (x) x) 2)'), Integer(2))
-  def testletrec(self):
+  def testletr(self):
     eq_(parse(grammar3, 
-        '''(letrec ((fac (lambda (n) (if (== n 1) 1 (* n (fac (- n 1)))))))
+        '''(letr ((fac (lambda (n) (if (== n 1) 1 (* n (fac (- n 1)))))))
                   (fac 3))'''), Integer(6))
-  def testletrec2(self):
-    eq_(parse(grammar3, '''(letrec ((odd? (lambda (n) (if (== n 0) 0 (even? (- n 1)))))
+  def testletr2(self):
+    eq_(parse(grammar3, '''(letr ((odd? (lambda (n) (if (== n 0) 0 (even? (- n 1)))))
                     (even? (lambda (n) (if (== n 0) 1 (odd? (- n 1))))))
                   (odd? 3))'''), Integer(1))
   def testcallcc(self):
@@ -132,12 +132,12 @@ class Testeval:
   def testlambda(self):
     eq_(eval(grammar, '((lambda (x) x) 2)'), Integer(2))
     eq_(eval(grammar, '((lambda (x y) (+ x y)) 1 1)'), Integer(2))
-  def testletrec(self):
+  def testletr(self):
     eq_(eval(grammar, 
-        '''(letrec ((fac (lambda (n) (if (== n 1) 1 (* n (fac (- n 1)))))))
+        '''(letr ((fac (lambda (n) (if (== n 1) 1 (* n (fac (- n 1)))))))
                   (fac 3))'''), Integer(6))
-  def testletrec2(self):
-    eq_(eval(grammar, '''(letrec ((odd? (lambda (n) (if (== n 0) 0 (even? (- n 1)))))
+  def testletr2(self):
+    eq_(eval(grammar, '''(letr ((odd? (lambda (n) (if (== n 0) 0 (even? (- n 1)))))
                     (even? (lambda (n) (if (== n 0) 1 (odd? (- n 1))))))
                   (odd? 3))'''), Integer(1))
   def testcallcc(self):

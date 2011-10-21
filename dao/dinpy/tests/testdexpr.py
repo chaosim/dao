@@ -9,6 +9,9 @@ from dao.dinpy.dexpr import _VarSymbol
 from dao.dinpy.dinpy import *
 from dao import special
 
+from dao.solve import set_run_mode, noninteractive
+set_run_mode(noninteractive)
+
 a, b, c = var.a.b.c
 a, b, c = [a, b, c]
 i, j = [v.i, v.j]

@@ -1,6 +1,8 @@
 from dao import builtin
 from dao.term import Var, ClosureVar, deref, getvalue, Apply
 import operator
+from dao.solve import run_mode, interactive
+from dao.solve import interactive_solver, interactive_tagger, interactive_parser
 
 class OperatorApply(Apply): pass
 
@@ -25,12 +27,22 @@ def _operator_repr(oprand, operator):
 
 class ApplyBinary(OperatorApply): 
   def __repr__(self):
+    if run_mode() is interactive:
+      code = interactive_parser().parse(self)
+      code = interactive_tagger().tag_loop_label(code)
+      result = interactive_solver().eval(code)
+      return repr(result) if result is not None else ''
     x = _operator_repr(self.operand[0], self.operator)
     y = _operator_repr(self.operand[1], self.operator)
     return '%s%s%s'%(x, _op_str[self.operator.name], y)
 
 class ApplyUnary(OperatorApply): 
   def __repr__(self):
+    if run_mode() is interactive:
+      code = interactive_parser().parse(self)
+      code = interactive_tagger().tag_loop_label(code)
+      result = interactive_solver().eval(code)
+      return repr(result) if result is not None else ''
     x = _operator_repr(self.operand[0], self.operator)
     return '%s%s'%(_op_str[self.operator.name], x)
 

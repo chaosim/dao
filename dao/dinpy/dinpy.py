@@ -19,8 +19,9 @@ __all__ = [
   '_', 'v', 'var', 'put', #, 'vars', 'dummies'
   
   # control structure
-  'iff', 'let', 'case', 'els',  'on', 'block','label',
+  'iff', 'let', 'letr', 'case', 'els',  'on', 'block','label',
   'do', 'loop', 'each', 'when', 'exit', 'next',
+  'catch', 'throw', 'protect',
   
   # function and macro definition
   'fun', 'macro', 'at',
@@ -165,7 +166,14 @@ put = element('put',
         +pycall(special.set_list, vv.vars, pycall(preparse,vv.value))
   )
 
-_do, _of, _at = words('do, of, at')
+@builtin.function('make_begin')
+def make_begin(body):
+  return special.begin(*preparse(body))
+
+do = element('do',
+  getitem_to_list(vv.body)+eos+make_begin(vv.body))
+
+_do, _of, _at, _loop, _always = words('do, of, at, loop, always')
 
 def get_let_vars(binary, klass):
   if not isinstance(binary.y, _VarSymbol): raise DinpySyntaxError
@@ -174,8 +182,8 @@ def get_let_vars(binary, klass):
     return get_let_vars(binary.x, klass)+(binary.y,)
   raise DinpySyntaxError
 
-@builtin.function('getvar')
-def make_let(args, body): 
+@builtin.function('make_let')
+def make_let(args, body, function): 
   bindings = []
   for b in args:
     if not isinstance(b, dexpr._lshift): raise DinpySyntaxError
@@ -197,15 +205,22 @@ def make_let(args, body):
                          in zip(get_let_vars(vars, dexpr._div), value)]
       else: raise DinpySyntaxError
   body = preparse(body)
-  if isinstance(body, tuple): return special.let(bindings, *body)
-  else: return special.let(bindings, body)
-  
+  if isinstance(body, tuple): return function(bindings, *body)
+  else: return function(bindings, body)
+
+def let_grammar(function):
+  return (call(vv.bindings)+_do+getitem(vv.body)+eos
+    +make_let(vv.bindings, vv.body, function))
+    
 # let (var==value).do[...]
 # let (v==v==value).do[...]
 # let ([v,v]==value).do[...]
-let = element('let',
-  call(vv.bindings)+_do+getitem(vv.body)+eos
-    +make_let(vv.bindings, vv.body))
+let = element('let',let_grammar(special.let))
+
+# letr (var << value).do[...]
+# letr (v1 << v2 << value).do[...]
+# letr ([v1,v2]<<value).do[...]
+letr = element('letr',let_grammar(special.letr))
 
 @builtin.function('make_iff')
 def make_iff(test, clause, clauses, els_clause):
@@ -220,11 +235,13 @@ _test, _test2, _body =  dummies('_test, _test2, _body')
 
 # iff(1).then[2], iff(1).then[2]  .elsif(3).then[4] .els[5]
 iff = element('iff',
-              call(vv.test)+getitem(vv.clause)
-              +any(_elsif+call(_test)+getitem(_body)+is_(_test2, first(_test)), 
+              (call(vv.test)+_do+getitem(vv.clause)
+              +any(_elsif+call(_test)+_do+getitem(_body)+is_(_test2, first(_test)), 
                    (_test2, _body), vv.clauses)
               +may(_els+getitem(vv.els_clause))+eos
               +make_iff(vv.test, vv.clause, vv.clauses, vv.els_clause))
+              )
+              
 
 class CASE_ELS: pass
 CASE_ELS = CASE_ELS()
@@ -255,42 +272,52 @@ case = element('case',
   ))
 els = CASE_ELS
 
-@builtin.function('make_do_loop')
-def make_do_loop(klass, body, test):
-  return klass(preparse(body), preparse(test))
+@builtin.function('make_loop')
+def make_loop(body): 
+  return special.LoopForm(preparse(body))
 
-# when(x>1).do[write(1)
-when = element('when',
-  call(vv.test)+_do+getitem_to_list(vv.body)+eos+
-  make_do_loop(special.WhenLoopForm, vv.body, first(vv.test)))
+@builtin.function('make_loop_times')
+def make_loop_times(body, times):
+  return special.LoopTimesForm(preparse(times[0]), preparse(body))
+
+@builtin.function('make_loop_when')
+def make_loop_when(body, test):
+  return special.LoopWhenForm(preparse(body), preparse(test[0]))
+
+@builtin.function('make_loop_until')
+def make_loop_until(body, test):
+  return special.LoopUntilForm(preparse(body), preparse(test[0]))
 
 when_fun = attr_call('when')
 until_fun = attr_call('until')
 
-# do.write(1).until(1), do.write(1).when(1)
-do = element('do',
-  getitem_to_list(vv.body)+(
-  # .when(1)
-    when_fun(vv.test)+eos
-    +make_do_loop(special.LoopWhenForm, vv.body, first(vv.test))
-  #.until(1)
-  | until_fun(vv.test)+eos
-    +make_do_loop(special.LoopUntilForm, vv.body, first(vv.test))
-  ))
-
-@builtin.function('make_loop')
-def make_loop(body, times):
-  if times is None: return special.LoopForm(preparse(body))
-  else: return special.LoopTimesForm(preparse(times[0]), preparse(body))
-
 # loop[write(1)], loop(1)[write(1)]
+# loop [write(1)].until(1), loop[write(1)].when(1)
 loop = element('loop',
-  (# loop[write(1)]
-    getitem_to_list(vv.body)+eos
-  # loop(1)[write(1)]
-  | call(vv.times)+getitem_to_list(vv.body))
-    +eos+make_loop(vv.body, ground_value(vv.times))
-  )
+  (  # loop(1)[write(1)]
+    (call(vv.times)+getitem_to_list(vv.body)+eos
+      +make_loop_times(vv.body, ground_value(vv.times)))
+    # loop[...], loop[...].when(), loop[...].until() 
+  | ( getitem_to_list(vv.body)+
+      ( # loop [...] # infinite loop
+        ( eos+make_loop(vv.body))
+        # loop[...].when(), loop[...].until() 
+      | ( # .when(1)
+          ( when_fun(vv.test)+eos
+              +make_loop_when(vv.body, vv.test))
+          #.until(1)
+         |( until_fun(vv.test)+eos
+              +make_loop_until(vv.body, vv.test) ) )  
+  ) ) ) ) 
+
+@builtin.function('make_when_loop')
+def make_when_loop(test, body):
+  return special.WhenLoopForm(preparse(test[0]), preparse(body))
+
+# when(x>1).loop[write(1)]
+when = element('when',
+  call(vv.test)+_loop+getitem_to_list(vv.body)+eos+
+  make_when_loop(vv.test, vv.body))
 
 @builtin.function('make_each1')
 def make_each(vars, iterators, body):
@@ -334,7 +361,7 @@ def make_each(vars, iterators, body):
 # each(i,j)[range(5)][range(5)]. do [write(i,j)],
 each = element('each',
     call(vv.vars)+some(getitem(__.iterator), __.iterator, vv.iterators)
-               +_do+getitem_to_list(vv.body)+eos
+               +_loop+getitem_to_list(vv.body)+eos
     +make_each(vv.vars, vv.iterators, vv.body))
 
 @builtin.function('make_exit')
@@ -379,6 +406,34 @@ def make_block(name, body):
 block = element('block', getattr(vv.name)+getitem_to_list(vv.body)+eos
                 +make_block(vv.name, vv.body))
 
+@builtin.function('make_catch')
+def make_catch(tag, body):
+  if len(tag)!=1:  raise DinpySyntaxError
+  return special.catch(preparse(tag[0]), *preparse(body))
+
+catch = element('catch', call(vv.tag)+_do+getitem_to_list(vv.body)+eos
+                  +make_catch(vv.tag, vv.body))
+                  
+@builtin.function('make_throw')
+def make_throw(tag, form):
+  if len(tag)!=1:  raise DinpySyntaxError
+  if len(form)!=1:  form = special.begin(*preparse(form))
+  else: form = preparse(form[0])
+  return special.throw(preparse(tag[0]), form)
+
+throw = element('throw', call(vv.tag)+_do+getitem_to_list(vv.form)+eos
+                  +make_throw(vv.tag, vv.form))
+                  
+@builtin.function('make_protect')
+def make_protect(form, cleanup):
+  if len(form)!=1:  form = special.begin(*preparse(form))
+  else: form = preparse(form[0])
+  return special.unwind_protect(form, *preparse(cleanup))
+
+protect = element('protect', getitem_to_list(vv.form)+
+                  _always+getitem_to_list(vv.cleanup)+eos
+                  +make_protect(vv.form, vv.cleanup))
+                  
 @builtin.function('make_pycall')
 def make_pycall(args):
   args = tuple(preparse(x) for x in args)
@@ -510,7 +565,9 @@ def make_fun7(clauses, klass):
   rules = []
   for head, bodies in clauses:
     if head is None: head = ()
-    for body in bodies: rules.append((preparse(head), preparse(body)))
+    for body in bodies: 
+      body = preparse(body)
+      rules.append((preparse(head),)+tuple(body))
   return klass(*rules)
   
 #  - fun.a(x),
