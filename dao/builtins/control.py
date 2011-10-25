@@ -1,8 +1,8 @@
-from dao.term import Var, deref, Apply, getvalue
+from dao.term import Var, deref, CommandCall, getvalue
 from dao import builtin
 from dao.solve import CutException
 from dao.builtin import Builtin, Function
-from dao.term import Apply
+from dao.term import CommandCall
 
 # control predicates
 
@@ -15,7 +15,7 @@ class ContinuationFunction(Builtin, Function):
 @builtin.macro()
 def callcc(solver, cont, fun):
   ''' call with current continuation '''
-  yield solver.cont(Apply(fun, ContinuationFunction(cont)), cont), fun
+  yield solver.cont(CommandCall(fun, ContinuationFunction(cont)), cont), fun
 
 # finding all solutions to a goal
 
@@ -85,7 +85,7 @@ def and_p(solver, cont, *calls):
 def or_p(solver, cont, call1, call2):
   call1 = deref(call1, solver.env)
   call2 = deref(call2, solver.env)
-  if isinstance(call1, Apply) and call1.operator==if_p: # A -> B; C
+  if isinstance(call1, CommandCall) and call1.operator==if_p: # A -> B; C
     if_clause = deref(call1.operand[0], solver.env)
     then_clause = deref(call1.operand[1], solver.env)
     call1 = if_clause&cut&then_clause

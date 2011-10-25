@@ -4,6 +4,10 @@ from dao.solve import value_cont, mycont
 from dao.solve import run_mode, interactive
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
 
+class Command: pass
+
+class Symbol: pass
+
 def apply_generators(generators): # one shot generators, such as unify, set/restore
   length = len(generators)
   if length==0: 
@@ -34,9 +38,18 @@ def unify(x, y, env, occurs_check=False):
   try: x_unify = x.unify
   except AttributeError: 
     try: y_unify = y.unify 
-    except AttributeError: return (True,) if x==y else ()
-    return y_unify(x, env, occurs_check)
-  return x_unify(y, env, occurs_check)    
+    except AttributeError: 
+      if (isinstance(x, list) or isinstance(x, tuple))\
+          and (isinstance(y, list) or isinstance(y, tuple)):
+        for _ in unify_list(x, y, env, occurs_check):
+          yield True
+      elif x==y: yield True
+      return
+    for _ in y_unify(x, env, occurs_check):
+      yield True
+    return
+  for _ in x_unify(y, env, occurs_check):
+    yield True
 
 def unify_list_rule_head(values, args, env, subst):
   if len(values)==0: yield True
@@ -144,7 +157,7 @@ class Var:
     self.name = name
     self.index = index
     
-  def __call__(self, *exps): return Apply(self, *exps)
+  def __call__(self, *exps): return CommandCall(self, *exps)
   
   def apply(self, solver, *exps):
     return self.getvalue(solver.env).apply(solver, *exps)
@@ -284,7 +297,7 @@ class ClosureVar(Var):
   def __repr__(self): return '(%s:%s)'%(self.var, self.value)
   def __eq__(self, other): return self.var is other
 
-class Apply:
+class CommandCall:
   def __init__(self, operator, *operand):
     self.operator = operator
     self.operand = operand
@@ -304,7 +317,7 @@ class Apply:
     return self
 
   def closure(self, env):
-    return Apply(self.operator, *[closure(x, env) for x in self.operand])
+    return CommandCall(self.operator, *[closure(x, env) for x in self.operand])
   def __repr__(self): 
     if run_mode() is interactive:
       code = interactive_parser().parse(self)
@@ -326,7 +339,7 @@ class Apply:
   def __eq__(self, other): 
     return self.__class__==other.__class__ and self.operator==other.operator and self.operand==other.operand
   
-class Function: 
+class Function(Command): 
   def evaluate_cont(self, exps, cont, solver):
     def evaluate_arguments(exps, cont):
         if len(exps)==0: return cont([], solver)
@@ -343,7 +356,7 @@ class Function:
       return self.apply(solver, values, cont)
     return evaluate_arguments(exps,apply_cont)
 
-class Macro: 
+class Macro(Command): 
   def evaluate_cont(self, exps, cont, solver):
     exps1 = [(closure(exp, solver.env)) for exp in exps]
     return self.apply(solver, exps1, cont)

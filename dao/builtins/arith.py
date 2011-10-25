@@ -1,10 +1,10 @@
 from dao import builtin
-from dao.term import Var, ClosureVar, deref, getvalue, Apply
+from dao.term import Var, ClosureVar, deref, getvalue, CommandCall
 import operator
 from dao.solve import run_mode, interactive
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
 
-class OperatorApply(Apply): pass
+class OperatorCall(CommandCall): pass
 
 _op_str = {'lt':'<', 'le':'<=', 'eq':'==', 'ne':'!=', 'ge':'>=','gt':'>',
            'add':'+', 'sub':'-','mul':'*', 'div':'/',
@@ -20,12 +20,12 @@ _op_precedence = {'lt':10, 'le':10, 'eq':10, 'ne':10, 'ge':10,'gt':10,
            'pos':80,'neg':80,'invert':90}
 
 def _operator_repr(oprand, operator):
-  if isinstance(oprand, OperatorApply):
+  if isinstance(oprand, OperatorCall):
     if _op_precedence[oprand.operator.name]<_op_precedence[operator.name]:
       return '(%s)'%oprand
   return '%s'%oprand
 
-class ApplyBinary(OperatorApply): 
+class BinaryCall(OperatorCall): 
   def __repr__(self):
     if run_mode() is interactive:
       code = interactive_parser().parse(self)
@@ -36,7 +36,7 @@ class ApplyBinary(OperatorApply):
     y = _operator_repr(self.operand[1], self.operator)
     return '%s%s%s'%(x, _op_str[self.operator.name], y)
 
-class ApplyUnary(OperatorApply): 
+class UnaryCall(OperatorCall): 
   def __repr__(self):
     if run_mode() is interactive:
       code = interactive_parser().parse(self)
@@ -47,10 +47,10 @@ class ApplyUnary(OperatorApply):
     return '%s%s'%(_op_str[self.operator.name], x)
 
 class BuiltinBinary(builtin.BuiltinFunction):
-  def __call__(self, x, y): return ApplyBinary(self, x, y)
+  def __call__(self, x, y): return BinaryCall(self, x, y)
 
 class BuiltinUnary(builtin.BuiltinFunction):
-  def __call__(self, x): return ApplyUnary(self, x)
+  def __call__(self, x): return UnaryCall(self, x)
 
 binary = builtin.builtin(BuiltinBinary)
 unary = builtin.builtin(BuiltinUnary)

@@ -1,3 +1,6 @@
+syntax based on python operator
+*******************************
+
 idea.
 
 let(a,1), (b,2)), write(1)),

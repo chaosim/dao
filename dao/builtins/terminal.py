@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 '''terminal used for parsing
- solver.stream should have an interface similar to Stream in parser.py.
- LineStream in line_parser.py is comatible with Stream.'''
+ solver.parse_state should have an interface similar to parse_state in parser.py.
+ Lineparse_state in line_parser.py is comatible with parse_state.'''
 
 from dao.term import deref, unify, Var
 from dao import builtin
@@ -11,18 +11,18 @@ from dao.builtins.matcher import matcher
 @matcher()
 def char(solver, cont, argument): 
   argument = deref(argument, solver.env)
-  text, pos = solver.stream
+  text, pos = solver.parse_state
   if pos==len(text): 
     return
   for _ in unify(argument, text[pos], solver.env):
-    solver.stream = text, pos+1
+    solver.parse_state = text, pos+1
     yield cont,  text[pos]
-    solver.stream = text, pos
+    solver.parse_state = text, pos
 
 @matcher()
 def eos(solver, cont):
-  '''end of stream'''
-  if solver.stream[1]>=len(solver.stream[0]): 
+  '''end of parse_state'''
+  if solver.parse_state[1]>=len(solver.parse_state[0]): 
     yield cont,  True
 eos = eos()
 
@@ -30,69 +30,69 @@ eos = eos()
 def lead_chars(solver, cont, chars):
   chars = deref(chars, solver.env)
   if isinstance(chars, str):
-    if solver.stream[0][solver.stream[1]] not in chars.name: return
+    if solver.parse_state[0][solver.parse_state[1]] not in chars.name: return
     yield cont,  True
   elif isinstance(chars, Var): 
     for _ in unify(chars, char, solver.env): yield cont,  True
   else: throw_type_error('Var or String', chars)
 
 @matcher()
-def not_plead_chars(solver, cont, chars):
+def not_lead_chars(solver, cont, chars):
   chars = deref(chars, solver.env)
   assert isinstance(chars, str)
-  if solver.stream[0][solver.stream[1]] in chars.name: return
+  if solver.parse_state[0][solver.parse_state[1]] in chars.name: return
   yield cont,  True
 
 @matcher()
 def follow_chars(solver, cont, chars):
   chars = chars.deref(solver.env)
   assert isinstance(chars, String)
-  if not solver.stream.eos() and solver.stream.next() not in chars.name: 
+  if not solver.parse_state.eos() and solver.parse_state.next() not in chars.name: 
     return
   yield cont,  True
 
 @matcher()
-def not_pfollow_chars(solver, cont, chars):
+def not_follow_chars(solver, cont, chars):
   chars = chars.deref(solver.env)
   assert isinstance(chars, String)
-  if not solver.stream.eos() and solver.stream.next() in chars.name: 
+  if not solver.parse_state.eos() and solver.parse_state.next() in chars.name: 
     return
   solver.value = True  
 
 def lead_string(solver, cont, strArgument):
   strArgument = strArgument.deref(solver.env)
   assert isinstance(strArgument, String)
-  if not solver.stream.parsed().endwith(strArgument.name): raise UnifyFail
+  if not solver.parse_state.parsed().endwith(strArgument.name): raise UnifyFail
   solver.value = True
 
 @matcher()
-def not_plead_string(solver, cont, string):
+def not_lead_string(solver, cont, string):
   string = string.deref(solver.env)
-  if solver.stream.parsed().endwith(string.name): return
+  if solver.parse_state.parsed().endwith(string.name): return
   solver.value = True  
 
 def follow_string(solver, cont, strArgument):
   strArgument = strArgument.deref(solver.env)
   assert isinstance(strArgument, String)
-  if not solver.stream.left().startswith(strArgument.name): raise UnifyFail
+  if not solver.parse_state.left().startswith(strArgument.name): raise UnifyFail
   solver.value = True
 
 @matcher()
-def not_pfollow_string(solver, cont, string):
+def not_follow_string(solver, cont, string):
   string = string.deref(solver.env)
-  if solver.stream.left().startswith(string.name): return
+  if solver.parse_state.left().startswith(string.name): return
   solver.value = True  
 
 def char_on_test(test, name=''):
   def func(solver, cont, arg0):
     #assert isinstance(arg0, Var) and arg0.free(solver.env)
-    text, pos = solver.stream
+    text, pos = solver.parse_state
     c = text[pos]
     if not test(c): return
     for _ in unify(arg0, c, solver.env):
-      solver.stream = text, pos+1
+      solver.parse_state = text, pos+1
       yield cont,  True
-      solver.stream = text, pos
+      solver.parse_state = text, pos
   if name=='': name = test.__name
   return matcher(name)(func)
 
@@ -114,7 +114,7 @@ space = char_in(space_string, repr_string='spacesChar')
 def string_on_test(test, name='', onceMore=True):
   def func(solver, cont,  arg):
     #assert isinstance(arg, Var) and arg.free(solver.env)
-    text, pos = solver.stream
+    text, pos = solver.parse_state
     string = ''
     i = 0
     while pos+i<len(text):         
@@ -124,9 +124,9 @@ def string_on_test(test, name='', onceMore=True):
       i += 1
     if onceMore and string=='': return
     for _ in unify(arg, string, solver.env):
-      solver.stream = text, pos+i
+      solver.parse_state = text, pos+i
       yield cont,  True
-      solver.stream = text, pos
+      solver.parse_state = text, pos
   if name=='': name = test.__name
   return matcher(name)(func)
 def string_between(lower, upper, once_more=True):
@@ -147,7 +147,7 @@ spaces = string_in(space_string, repr_string='spaces')
 def quote_string(quote, name):
   def func(solver, cont,  arg0):
     #assert isinstance(arg0, Var) and arg0.free(solver.env)
-    text, pos = solver.stream
+    text, pos = solver.parse_state
     if pos>=len(text): return
     if text[pos]!=quote: return
     p = pos+1
@@ -160,16 +160,16 @@ def quote_string(quote, name):
         break
     else: return
     for _ in unify(arg0, string, solver.env): 
-      solver.stream = text, p
+      solver.parse_state = text, p
       yield cont,  True
-      solver.stream = text, pos
+      solver.parse_state = text, pos
   return matcher(name)(func)
 dqstring = quote_string('"', 'doublequotestring')
 sqstring = quote_string("'", 'singlequotestring')
 
 @matcher()
 def number(solver, cont,  arg0): 
-  text, pos = solver.stream
+  text, pos = solver.parse_state
   length = len(text)
   if pos>=length: return
   if not '0'<=text[pos]<='9': return
@@ -180,40 +180,20 @@ def number(solver, cont,  arg0):
     p += 1
   val = eval(text[pos:p])
   for _ in unify(arg0, val, solver.env):
-    solver.stream = text, p
+    solver.parse_state = text, p
     yield cont,  True
-    solver.stream = text, pos
+    solver.parse_state = text, pos
 
-@matcher()
-def symbol(solver, cont,  arg0):
-  from dao.solve import _specialforms
-  SYMBOL_FORBID_CHARS = '\'", \r\n\t[]{}()`'
-  text, pos = solver.stream
-  if pos>=len(text): return
-  char = text[pos]
-  if char in SYMBOL_FORBID_CHARS or '0'<=char<='9': return
-  p = pos
-  while p<len(text): 
-    if text[p] in SYMBOL_FORBID_CHARS: break 
-    else: p += 1
-  sym = text[pos:p]
-  if sym in _specialforms: sym = Symbol(sym)
-  else: sym = var(sym)
-  for _ in unify(arg0, sym, solver.env):
-    solver.stream = text, p
-    yield cont,  True
-    solver.stream = text, pos
-  
 @matcher()
 def literal(solver, cont,  arg0):
   arg0 = deref(arg0, solver.env)
   assert isinstance(arg0, str)
-  text, pos = solver.stream
+  text, pos = solver.parse_state
   p = pos
   for char in arg0:
     if p>=len(text): return
     if char!=text[p]: return
     p += 1
-  solver.stream = text, p
+  solver.parse_state = text, p
   yield cont,  True
-  solver.stream = text, pos
+  solver.parse_state = text, pos

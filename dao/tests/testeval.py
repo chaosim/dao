@@ -3,7 +3,7 @@
 from nose.tools import eq_, ok_, assert_raises
 
 from dao.term import cons
-from dao.solve import eval, tag_loop_label
+from dao.solve import eval, tag_loop_label, NoSolutionFound
 from dao.special import quote, set, begin, if_, iff, lambda_, let, letr, eval_
 from dao.special import function, macro
 from dao.special import block, exit_block, continue_block, catch, throw
@@ -146,12 +146,12 @@ class TestCut:
              a(x), x)), (1)) 
   def test_cut2(self):
     a, b, c, x = Var('a'), Var('b'), Var('c'), Var('x'), 
-    eq_(eval(letr([(a, function([[x], b(x)&cut&c(x)])),
+    assert_raises(NoSolutionFound, eval, letr([(a, function([[x], b(x)&cut&c(x)])),
                      (b, function([[1], True],
                                     [[2], True],
                                     [[3], True])),
                      (c, function([[2], True]))],
-             a(x), x)), None)
+             a(x), x))
   def test_cut2_no_Cut(self):
     a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x'), 
     eq_(eval(letr([(a, function([[x], b(x)&c(x)],

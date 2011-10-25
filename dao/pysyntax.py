@@ -27,16 +27,21 @@ __all__ = ['element', 'preparse', 'lead',
 from dao.solve import run_mode, interactive
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
 from dao.term import deref, unify, DummyVar
-from dao.solve import eval, preparse
+from dao.solve import eval, preparse, dao_repr
 from dao import special
 from dao.builtins.matcher import matcher
-from dao.builtins.parser import parse as dao_parse
+from dao.builtins.parser import parse_sequence
 from dao.builtins.term import to_list
 from dao.builtins.control import and_p
 
 ##from dao.dinpy.dexpr import DinpySyntaxError
 
-class DinpySyntaxError(Exception): pass
+_current_form = None
+
+class DinpySyntaxError(Exception): 
+  def __init__(self): pass
+  def __repr__(self): 
+    return 'DinpySyntaxError: '+dao_repr(_current_form)
 
 def element(name, grammar):
   ''' name = element(grammar)'''
@@ -86,7 +91,8 @@ def _lead_element_class(klass):
 
 @matcher('syntax_error')
 def syntax_error(solver, cont):
-  raise DinpySyntaxError
+  print dao_repr(_current_form)
+  raise DinpySyntaxError()
 
 syntax_error = syntax_error()
 
@@ -104,7 +110,10 @@ names = (
 class FormTraveller(object):
   def __init__(self, name, grammar):
     self.__form_name__ = name
-    self.__form_grammar__ = preparse(grammar|syntax_error)
+    if grammar is None:
+      self.__form_grammar__ = None
+    else:
+      self.__form_grammar__ = preparse(grammar|syntax_error)
     self.__operator_data__ = []
   def __lt__(self, other): 
     self.__operator_data__.append((__lt__, other)); return self
@@ -167,7 +176,9 @@ class FormTraveller(object):
   def __invert__(self): 
     self.__operator_data__.append(__invert__); return self 
   def ___parse___(self, parser):
-    return eval(dao_parse(self.__form_grammar__, self.__operator_data__))
+    global _current_form
+    _current_form = self
+    return eval(parse_sequence(self.__form_grammar__, self.__operator_data__))
   def __nonzero__(self): return False
   
   # prevent __getattr__
@@ -181,35 +192,37 @@ class FormTraveller(object):
       code = interactive_tagger().tag_loop_label(code)
       result = interactive_solver().eval(code)
       return repr(result) if result is not None else ''
+    else: return self.____repr____()
+  def ____repr____(self): 
     result = self.__form_name__
     for x in self.__operator_data__:
       if x== __neg__: result = '-%s'%result
       elif x== __pos__: result = '+%s'%result
       elif x== __abs__: result = 'abs(%s)'%result
       elif x== __invert__: result = '~%s'%result
-      elif x[0]==__lt__: result += '<%s'%str(x[1])
-      elif x[0]==__le__: result += '<=%s'%str(x[1])
-      elif x[0]==__eq__: result += '==%s'%str(x[1])
-      elif x[0]== __ne__: result += '!=%s'%str(x[1])
-      elif x[0]== __gt__: result += '>%s'%str(x[1])
-      elif x[0]== __ge__: result += '>=%s'%str(x[1])
-      elif x[0]== __getattr__: result += '.%s'%str(x[1])
-      elif x[0]== __call__: result += '(%s)'%str(x[1])
-      elif x[0]== __getitem__: result += '[%s]'%str(x[1])
+      elif x[0]==__lt__: result += '<%s'%dao_repr(x[1])
+      elif x[0]==__le__: result += '<=%s'%dao_repr(x[1])
+      elif x[0]==__eq__: result += '==%s'%dao_repr(x[1])
+      elif x[0]== __ne__: result += '!=%s'%dao_repr(x[1])
+      elif x[0]== __gt__: result += '>%s'%dao_repr(x[1])
+      elif x[0]== __ge__: result += '>=%s'%dao_repr(x[1])
+      elif x[0]== __getattr__: result += '.%s'%dao_repr(x[1])
+      elif x[0]== __call__: result += '(%s)'%dao_repr(x[1])
+      elif x[0]== __getitem__: result += '[%s]'%dao_repr(x[1])
       elif x[0]==  __iter__: result = 'iter(%s)'%result
-      elif x[0]== __add__: result += '+%s'%str(x[1])
-      elif x[0]== __sub__: result += '-%s'%str(x[1])
-      elif x[0]== __mul__: result += '*%s'%str(x[1])
-      elif x[0]== __floordiv__: result += '//%s'%str(x[1])
-      elif x[0]== __div__: result += '/%s'%str(x[1])
-      elif x[0]== __truediv__: result += '/%s'%str(x[1])
-      elif x[0]== __mod__: result += '%%%s'%str(x[1])
-      elif x[0]== __pow__: result += '**%s'%str(x[1])
-      elif x[0]== __lshift__: result += '<<%s'%str(x[1])
-      elif x[0]== __rshift__: result += '>>%s'%str(x[1])
-      elif x[0]==  __and__: result += '&%s'%str(x[1])
-      elif x[0]== __xor__: result += '^%s'%str(x[1])
-      elif x[0]== __or__: result += '|%s'%str(x[1])
+      elif x[0]== __add__: result += '+%s'%dao_repr(x[1])
+      elif x[0]== __sub__: result += '-%s'%dao_repr(x[1])
+      elif x[0]== __mul__: result += '*%s'%dao_repr(x[1])
+      elif x[0]== __floordiv__: result += '//%s'%dao_repr(x[1])
+      elif x[0]== __div__: result += '/%s'%dao_repr(x[1])
+      elif x[0]== __truediv__: result += '/%s'%dao_repr(x[1])
+      elif x[0]== __mod__: result += '%%%s'%dao_repr(x[1])
+      elif x[0]== __pow__: result += '**%s'%dao_repr(x[1])
+      elif x[0]== __lshift__: result += '<<%s'%dao_repr(x[1])
+      elif x[0]== __rshift__: result += '>>%s'%dao_repr(x[1])
+      elif x[0]==  __and__: result += '&%s'%dao_repr(x[1])
+      elif x[0]== __xor__: result += '^%s'%dao_repr(x[1])
+      elif x[0]== __or__: result += '|%s'%dao_repr(x[1])
     return result
 
 
@@ -217,7 +230,7 @@ def binary(attr):
   @matcher(names[attr])
   def func(solver, cont, argument=None): 
     argument = deref(argument, solver.env)
-    syntax_result, pos = solver.stream
+    syntax_result, pos = solver.parse_state
 ##    print  syntax_result, syntax_result[pos][1]
     if pos==len(syntax_result): return
     try: 
@@ -225,19 +238,19 @@ def binary(attr):
     except: return
     if argument is not None:
       for _ in unify(argument, syntax_result[pos][1], solver.env):
-        solver.stream = syntax_result, pos+1
+        solver.parse_state = syntax_result, pos+1
         yield cont,  True
     else: 
-      solver.stream = syntax_result, pos+1
+      solver.parse_state = syntax_result, pos+1
       yield cont, True
-    solver.stream = syntax_result, pos
+    solver.parse_state = syntax_result, pos
   return func
 
 @matcher('__call__')
 def call(solver, cont, args=None, kwargs=None): 
   args = deref(args, solver.env)
   kwargs = deref(kwargs, solver.env)
-  syntax_result, pos = solver.stream
+  syntax_result, pos = solver.parse_state
   if pos==len(syntax_result): return
   try: 
     if syntax_result[pos][0]!=__call__: return
@@ -246,25 +259,25 @@ def call(solver, cont, args=None, kwargs=None):
     for _ in unify(args, syntax_result[pos][1], solver.env):
       if kwargs is not None:
         for _ in unify(kwargs, syntax_result[pos][2], solver.env):
-          solver.stream = syntax_result, pos+1
+          solver.parse_state = syntax_result, pos+1
           yield cont,  True
       else: 
-        solver.stream = syntax_result, pos+1
+        solver.parse_state = syntax_result, pos+1
         yield cont, True
   else: 
-    solver.stream = syntax_result, pos+1
+    solver.parse_state = syntax_result, pos+1
     yield cont, True
-  solver.stream = syntax_result, pos
+  solver.parse_state = syntax_result, pos
 
 def unary(attr):
   @matcher(names[attr])
   def func(solver, cont): 
-    syntax_result, pos = solver.stream
+    syntax_result, pos = solver.parse_state
     if pos==len(syntax_result): return
     if syntax_result[pos]!=attr: return
-    solver.stream = syntax_result, pos+1
+    solver.parse_state = syntax_result, pos+1
     yield cont,  True
-    solver.stream = syntax_result, pos
+    solver.parse_state = syntax_result, pos
   return func
 
 '''

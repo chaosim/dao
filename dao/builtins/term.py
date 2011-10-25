@@ -121,8 +121,8 @@ def is_pytuple(x):  return isinstance(x, tuple)
 def pycall(fun, *args):  
   return fun(*args)
 
-@builtin.function('py_apply')
-def py_apply(fun, args):  
+@builtin.function('py_CommandCall')
+def py_CommandCall(fun, args):  
   return fun(*args)
 
 @builtin.function('head_list')

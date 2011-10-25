@@ -1,67 +1,109 @@
 from dao import builtin
 from dao.solve import mycont
+from dao.term import unify
 from dao.builtins.matcher import matcher
 
-# set and manipulate stream for parsing 
+# set and manipulate parse_state for parsing 
 
-# Solver.stream: tuple(text, position)
+@matcher()
+def set_parse_state(solver, cont, parse_state):
+  old_parse_state = solver.parse_state
+  solver.parse_state = parse_state  
+  yield cont, solver.parse_state
+  solver.parse_state = old_parse_state
+  
+@matcher()
+def set_sequence(solver, cont, text):
+  parse_state = solver.parse_state
+  solver.parse_state = text, 0  #text, 0
+  yield cont, solver.parse_state
+  solver.parse_state = parse_state
+
+set_text = set_sequence
 
 @builtin.macro()
-def parse(solver, cont, pred, text):
-  stream = solver.stream
-  solver.stream = text, 0 #text, start position
+def parse(solver, cont, predicate, parse_state):
+  old_parse_state = solver.parse_state
+  solver.parse_state = parse_state
+  @mycont(cont)
+  def parser_cont(value, solver):
+    solver.parse_state = old_parse_state
+    yield cont, value 
+  yield solver.cont(predicate, parser_cont), parse_state
+  solver.parse_state = old_parse_state
+
+@builtin.macro()
+def parse_sequence(solver, cont, pred, sequence):
+  parse_state = solver.parse_state
+  solver.parse_state = sequence, 0 #sequence, start position
   @mycont(cont)
   def parser_cont(value, solver):
     yield cont, value 
-  yield solver.cont(pred, parser_cont), solver.stream
-  solver.stream = stream
+  yield solver.cont(pred, parser_cont), solver.parse_state
+  solver.parse_state = parse_state
 
-@matcher()
-def settext(solver, cont, text):
-  stream = solver.stream
-  solver.stream = text, 0  #text, start position
-  yield cont, solver.stream
-  solver.stream = stream
+parse_text = parse_sequence
   
-# Theses primitive can be used with Stream or compatible class with same interface.
-# LineStream in line_parser.py is an sample.
+@matcher()
+def get_parse_state(solver, cont):
+  yield cont, solver.parse_state
 
 @matcher()
-def step(solver, cont, size=1): # return current char before step
-  text, pos = solver.stream
-  solver.stream = text, pos+size
+def unify_parse_state(solver, cont, parse_state):
+  for _ in unify(parse_state, solver.parse_state, solver.env):
+    yield cont, solver.parse_state
+
+@matcher()
+def get_parse_sequence(solver, cont):
+  yield cont, solver.parse_state[0]
+
+get_parse_text = get_parse_sequence
+
+@matcher()
+def unify_parse_sequence(solver, cont, sequence):
+  for _ in unify(sequence, solver.parse_state[0], solver.env):
+    yield cont, solver.parse_state[0]
+unify_parse_text = unify_parse_sequence
+    
+@matcher()
+def step(solver, cont, n=1): # return current element before step
+  text, pos = solver.parse_state
+  solver.parse_state = text, pos+n
   yield cont, text[pos]
-  solver.stream = text, pos
+  solver.parse_state = text, pos
 
 @matcher()
-def skip(solver, cont, size=1): # return char after skip
-  text, pos = solver.stream
-  solver.stream = text, pos+size
-  if pos+size<len(text): yield cont, text[pos+size]
+def skip(solver, cont, n=1): # return element after skip
+  text, pos = solver.parse_state
+  solver.parse_state = text, pos+n
+  if pos+n<len(text): yield cont, text[pos+n]
   else: yield cont, ''
-  solver.stream = text, pos
+  solver.parse_state = text, pos
 
 @matcher()
 def left(solver, cont):
-  text, pos = solver.stream
+  text, pos = solver.parse_state
   yield cont, text[pos:]
 
 @matcher()
-def nextchar(solver, cont): 
-  text, pos = solver.stream
+def next_element(solver, cont): 
+  text, pos = solver.parse_state
   yield cont, text[pos]
+next_char = next_element
 
 @matcher()
 def position(solver, cont): 
-  yield cont, solver.stream[1]
+  yield cont, solver.parse_state[1]
 
 @matcher()
-def subtext(solver, cont, start, end): 
-  yield cont, solver.stream[0][start:end]
+def sub_sequence(solver, cont, start, end): 
+  yield cont, solver.parse_state[0][start:end]
+
+subtext = sub_sequence
 
 @matcher()
 def goto(solver, cont, position):
-  text, pos = solver.stream
-  solver.stream = text, position
+  text, pos = solver.parse_state
+  solver.parse_state = text, position
   yield cont, text[position:]
-  solver.stream = text, pos
+  solver.parse_state = text, pos

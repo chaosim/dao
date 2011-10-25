@@ -33,17 +33,18 @@ __all__ = [
 from dao.pysyntax import *
 from dao.dinpy import dexpr
 from dao.dinpy.dexpr import _VarSymbol, _DummyVarSymbol
-from dao.term import Var, DummyVar, Apply, conslist as L, vars, dummies
+from dao.term import Var, DummyVar, CommandCall, conslist as L, vars, dummies
 from dao import builtin
 from dao import special
 from dao.special import set as assign
 from dao.builtins.matcher import some, any, may
 from dao.builtins.terminal import eos
-from dao.builtins.term import pytuple, pycall, py_apply, head_list, list_tail
+from dao.builtins.term import pytuple, pycall, py_CommandCall, head_list, list_tail
 from dao.builtins.term import items, first, left
 from dao.builtins.term import getvalue, ground_value, is_
 from dao.builtins.arith import ne_p
 from dao.solve import eval as oad_eval, solve, tag_loop_label
+from dao.solve import set_run_mode, noninteractive, DaoUncaughtThrow
 
 def eval(code):
   code = preparse(code)
@@ -79,6 +80,7 @@ class Dao(object):
       return self
     else: return object.__setattr__(self, attr, value)
   def __getitem__(self, code):
+    set_run_mode(noninteractive)
     if isinstance(code, tuple): self.code +=  list(code)
     else: self.code += [code]
     return self
@@ -176,17 +178,17 @@ do = element('do',
 _do, _of, _at, _loop, _always = words('do, of, at, loop, always')
 
 def get_let_vars(binary, klass):
-  if not isinstance(binary.y, _VarSymbol): raise DinpySyntaxError
+  if not isinstance(binary.y, _VarSymbol): raise DinpySyntaxError()
   if isinstance(binary.x, _VarSymbol): return (binary.x, binary.y)
   if isinstance(binary.x, klass): 
     return get_let_vars(binary.x, klass)+(binary.y,)
-  raise DinpySyntaxError
+  raise DinpySyntaxError()
 
 @builtin.function('make_let')
 def make_let(args, body, function): 
   bindings = []
   for b in args:
-    if not isinstance(b, dexpr._lshift): raise DinpySyntaxError
+    if not isinstance(b, dexpr._lshift): raise DinpySyntaxError()
     vars, value = b.x, preparse(b.y)
     if isinstance(vars, _VarSymbol): bindings.append((preparse(vars), value))
     else: 
@@ -203,7 +205,7 @@ def make_let(args, body, function):
       elif isinstance(vars, dexpr._div): 
         bindings += [(varcache(v.name), value) for v, value 
                          in zip(get_let_vars(vars, dexpr._div), value)]
-      else: raise DinpySyntaxError
+      else: raise DinpySyntaxError()
   body = preparse(body)
   if isinstance(body, tuple): return function(bindings, *body)
   else: return function(bindings, body)
@@ -329,23 +331,19 @@ def make_each(vars, iterators, body):
       iterator = range(start, stop, 1 if step is None else step)
     else: iterator = preparse(iterator)
     return iterator
-  if len(vars)==0: raise DinpySyntaxError
+  if len(vars)==0: raise DinpySyntaxError()
   for x in vars: 
-    if not isinstance(x, _VarSymbol): raise DinpySyntaxError
+    if not isinstance(x, _VarSymbol): raise DinpySyntaxError()
   vars = preparse(vars)
   if len(vars)==1: 
-    if len(iterators)!=1: raise DinpySyntaxError
+    if len(iterators)!=1: raise DinpySyntaxError()
     if not isinstance(iterators[0], slice) and len(iterators[0])!=1: 
-      raise DinpySyntaxError
+      raise DinpySyntaxError()
     iterator = tran_iterator(iterators[0]) 
     return special.EachForm(vars[0], iterator, preparse(body))
   else:
     if len(iterators)==1:
       return special.EachForm(vars, iterators[0], preparse(body))
-##      if len(iterators[0])==1:
-##        iterator = tran_iterator(iterators[0]) 
-##        return special.EachForm(vars, iterator, preparse(body))
-##      else: iterators = iterators[0]
     iterators1 = []
     for iterator in iterators:
       if isinstance(iterator, slice):
@@ -391,7 +389,7 @@ next = element('next',
 @builtin.function('set_loop_label')
 def set_loop_label(label, body):
   body = preparse(body)
-  if not isinstance(body, special.RepeatForm): raise DinpySyntaxError
+  if not isinstance(body, special.RepeatForm): raise DinpySyntaxError()
   body.label = label
   return body
 
@@ -408,7 +406,7 @@ block = element('block', getattr(vv.name)+getitem_to_list(vv.body)+eos
 
 @builtin.function('make_catch')
 def make_catch(tag, body):
-  if len(tag)!=1:  raise DinpySyntaxError
+  if len(tag)!=1:  raise DinpySyntaxError()
   return special.catch(preparse(tag[0]), *preparse(body))
 
 catch = element('catch', call(vv.tag)+_do+getitem_to_list(vv.body)+eos
@@ -416,7 +414,7 @@ catch = element('catch', call(vv.tag)+_do+getitem_to_list(vv.body)+eos
                   
 @builtin.function('make_throw')
 def make_throw(tag, form):
-  if len(tag)!=1:  raise DinpySyntaxError
+  if len(tag)!=1:  raise DinpySyntaxError()
   if len(form)!=1:  form = special.begin(*preparse(form))
   else: form = preparse(form[0])
   return special.throw(preparse(tag[0]), form)
@@ -484,8 +482,8 @@ def make_fun1(name, args, body, klass):
   body = preparse(body)
   if isinstance(body, AtForm): 
     body = body.clauses
-    if len(body)>1: raise DinpySyntaxError # should not be (args)[body]...(args)[body]
-    if body[0][0] is not None: raise DinpySyntaxError # should not be (args)[body]
+    if len(body)>1: raise DinpySyntaxError() # should not be (args)[body]...(args)[body]
+    if body[0][0] is not None: raise DinpySyntaxError() # should not be (args)[body]
     return replace_def(fun, head, body[0][1])
   else: return replace_def(fun, head, [body])
   
@@ -497,8 +495,8 @@ def make_fun2(name, args, body, klass):
   body = preparse(body)
   if isinstance(body, AtForm): 
     body = body.clauses
-    if len(body)>1: raise DinpySyntaxError
-    if body[0][0] is not None: raise DinpySyntaxError
+    if len(body)>1: raise DinpySyntaxError()
+    if body[0][0] is not None: raise DinpySyntaxError()
     return append_def(fun, head,  body[0][1], klass)
   else: return append_def(fun, head, [body], klass)
   
@@ -510,8 +508,8 @@ def make_fun3(name, args, body, klass):
   body = preparse(body)
   if isinstance(body, AtForm): 
     body = body.clauses
-    if len(body)>1: raise DinpySyntaxError
-    if body[0][0] is not None: raise DinpySyntaxError
+    if len(body)>1: raise DinpySyntaxError()
+    if body[0][0] is not None: raise DinpySyntaxError()
     return insert_def(fun, head,  body[0][1], klass)
   else: return insert_def(fun, head, [body], klass)
     
@@ -529,7 +527,7 @@ def make_fun4(name, rules, klass):
     return assign(fun, klass(*rules1))
   elif isinstance(rules, list):
     return assign(fun, klass(((), rules)))
-  else: raise DinpySyntaxError
+  else: raise DinpySyntaxError()
   
 #  fun. a>= [...]
 @builtin.function('make_fun5')
@@ -543,7 +541,7 @@ def make_fun5(name, rules, klass):
                          for head, bodies in clauses])
   elif isinstance(rules, list):
     return append_def(fun, head, [rules], klass) 
-  else: raise DinpySyntaxError
+  else: raise DinpySyntaxError()
   
 #  fun. a<= [...]
 @builtin.function('make_fun6')
@@ -557,7 +555,7 @@ def make_fun6(name, rules, klass):
                          for head, bodies in clauses])
   elif isinstance(rules, list):
     return insert_def(fun, head, [rules], klass) 
-  else: raise DinpySyntaxError
+  else: raise DinpySyntaxError()
   
 #  fun[...]
 @builtin.function('make_fun7')

@@ -6,12 +6,12 @@
 
 from dao.builtins import arith
 from dao import special
-from dao.solve import run_mode, interactive
+from dao.solve import run_mode, interactive, dao_repr
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
 
 all = ['DinpySyntaxError']
 
-class _Expression: 
+class _SymbolExpression: 
   def __lt__(self, other): return  _lt(self, other)
   def __rlt__(self, other): return  _lt(other, self)
   def __le__(self, other): return  _le(self, other)
@@ -61,6 +61,13 @@ class _Expression:
   def __abs__(self): return  _abs(self)
   def __invert__(self): return  _invert(self)
   def __nonzero__(self): return False
+  def __repr__(self): 
+    if run_mode() is interactive:
+      code = interactive_parser().parse(self)
+      code = interactive_tagger().tag_loop_label(code)
+      result = interactive_solver().eval(code)
+      return repr(result) if result is not None else ''
+    else: return self.____repr____()
   
 from dao.term import Var, DummyVar
 
@@ -68,7 +75,7 @@ _var_cache = {}
 def varcache(name, klass=Var):
   return _var_cache.setdefault(klass, {}).setdefault(name, klass(name))
 
-class _Builtin(_Expression):
+class _BuiltinSymbol(_SymbolExpression):
   def __init__(self, builtin): self.builtin = builtin
   def ___parse___(self, parser): return self.builtin
 ##  def __lt__(self, other): return  _lt(self, other)
@@ -119,67 +126,60 @@ class _Builtin(_Expression):
 ##  def __abs__(self): return  _abs(self)
 ##  def __invert__(self): return  _invert(self)
   def __nonzero__(self): return False
-  def __repr__(self): 
-    if run_mode() is interactive:
-      code = interactive_parser().parse(self)
-      code = interactive_tagger().tag_loop_label(code)
-      result = interactive_solver().eval(code)
-      return repr(result) if result is not None else ''
-    return repr(self.builtin)
+  def ____repr____(self): return repr(self.builtin)
   
 def symbols(text):
   return tuple(_VarSymbol(x.strip()) for x in text.split(','))
 
-class _VarSymbol(_Expression): 
+##def symbols(text):
+##  result = []
+##  globls = globals()
+##  for x in text.split(','):
+##    x = x.strip()
+##    symbol = globls[x] = _VarSymbol(x)
+##    result.append(symbol)
+##  return result
+
+class _VarSymbol(_SymbolExpression): 
   def __init__(self, name): 
     self.name = name
-##  def __hash__(self): return hash(self.name)
-# because this can not be done, so let({var:value}) can not be used.
-# a better form can be used, see sampe.py.
-##  def __eq__(self, other): 
-##    return self.__class__==other.__class__ and self.name==other.name
   def ___parse___(self, parser): 
     return varcache(self.name, Var)
-  def __repr__(self): 
-    if run_mode() is interactive:
-      code = interactive_parser().parse(self)
-      result = interactive_solver().eval(code)
-      return repr(result) if result is not None else ''
-    return 'Symbol(%s)'%self.name
+  def ____repr____(self): return 'Symbol(%s)'%self.name
 
 def dummies(text):
   return tuple(_DummyVarSymbol(x.strip()) for x in text.split(','))
+
+##def dummies(text):
+##  result = []
+##  globls = globals()
+##  for x in text.split(','):
+##    x = x.strip()
+##    symbol = globls[x] = _DummyVarSymbol(x)
+##    result.append(symbol)
+##  return result
+##
 
 class _DummyVarSymbol(_VarSymbol): 
   def ___parse___(self, parser): 
     return varcache(self.name, DummyVar)
   def __repr__(self): return 'DummySymbol(%s)'%self.name
 
-class _Binary(_Expression): 
+class _Binary(_SymbolExpression): 
   def __init__(self, x, y): 
     self.x, self.y = x, y
   def ___parse___(self, parser): 
     return self.operator(parser.parse(self.x), parser.parse(self.y))
   def __repr__(self): 
-    if run_mode() is interactive:
-      code = interactive_parser().parse(self)
-      code = interactive_tagger().tag_loop_label(code)
-      result = interactive_solver().eval(code)
-      return repr(result) if result is not None else ''
-    return '%s(%s, %s)'%(self.operator, self.x, self.y)
+    return '%s(%s, %s)'%(dao_repr(self.operator), dao_repr(self.x), dao_repr(self.y))
 
-class _Unary(_Expression): 
+class _Unary(_SymbolExpression): 
   def __init__(self, x): 
     self.x = x
   def ___parse___(self, parser): 
     return self.operator(parser.parse(self.x))
   def __repr__(self): 
-    if run_mode() is interactive:
-      code = interactive_parser().parse(self)
-      code = interactive_tagger().tag_loop_label(code)
-      result = interactive_solver().eval(code)
-      return repr(result) if result is not None else ''
-    return '%s(%s)'%(self.__class__.__name__, self.x)
+    return '%s(%s)'%(dao_repr(self.operator), dao_repr(self.x))
 
 class _lt(_Binary): 
   operator = arith.lt  
@@ -218,12 +218,12 @@ def _get_assign_vars_chain(exp):
   if isinstance(exp, _VarSymbol): return (varcache(exp.name),)
   elif isinstance(exp, _lshift): 
     return _get_assign_vars_chain(exp.x)+(varcache(exp.y.name),)
-  else: raise DinpySyntaxError   
+  else: raise DinpySyntaxError()  
 def _get_assign_vars_list(exp):
   if isinstance(exp, _VarSymbol): return (varcache(exp.name),)
   elif isinstance(exp, _div): 
     return _get_assign_vars_list(exp.x)+(varcache(exp.y.name),)
-  else: raise DinpySyntaxError
+  else: raise DinpySyntaxError()
   
 class _lshift(_Binary): 
   operator = arith.lshift
@@ -244,7 +244,7 @@ class _lshift(_Binary):
       vars = self.x
     elif isinstance(self.x, _div):
       vars = _get_assign_vars_list(self.x)
-    else: raise DinpySyntaxError
+    else: raise DinpySyntaxError()
     return special.set_list(vars, y)
     
 
@@ -274,18 +274,14 @@ class _abs(_Unary):
 class invert__(_Unary): 
   operator = arith.invert
 
-class _call(_Expression):
+class _call(_SymbolExpression):
   def __init__(self, caller, args, kwargs): 
     self.caller, self.args, self.kwargs = caller, args, kwargs
   def ___parse___(self, parser):
     caller = parser.parse(self.caller)
     return caller(*parser.parse(self.args), **parser.parse(self.kwargs))
   def __repr__(self): 
-    if run_mode() is interactive:
-      code = interactive_parser().parse(self)
-      code = interactive_tagger().tag_loop_label(code)
-      result = interactive_solver().eval(code)
-      return repr(result) if result is not None else ''
-    return '%s(%s,%s)'%(','.join([repr(a) for a in self.args]),
-                        ', '+','.join(['%s=%s' for k, a in self.kwargs]) 
+    return '%s(%s,%s)'%(','.join([dao_repr(a) for a in self.args]),
+                        ', '+','.join(['%s=%s' %(dao_reprk, dao_repr(a)) 
+                                       for k, a in self.kwargs]) 
                             if self.kwargs else '')

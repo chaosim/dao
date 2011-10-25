@@ -2,7 +2,7 @@
 
 # env: environment
 # cont: continution 
-# stream: stream such as text used by the matchers which do parsing
+# parse_state: parse_state such as text used by the matchers which do parsing
 
 from dao.env import GlobalEnvironment
 
@@ -15,6 +15,11 @@ class DaoUncaughtThrow(Exception):
 
 class  DaoSyntaxError(Exception):
   pass
+
+class NoSolutionFound(Exception):
+   def __init__(self, exp): 
+    self.exp = exp
+class NoMoreSolution(Exception): pass
 
 def mycont(cont):
   def mycont_tagger(fun):
@@ -111,11 +116,30 @@ class LoopExitNextTagger:
 def tag_loop_label(exp): 
   return LoopExitNextTagger().tag_loop_label(exp)
 
+def dao_repr(exp):
+    try: exp_____repr____ = exp.____repr____
+    except: 
+      if isinstance(exp, list) or isinstance(exp, tuple):
+        return ','.join([dao_repr(e) for e in exp])
+      else: return repr(exp)
+    try: return exp_____repr____()
+    except TypeError: return repr(exp)
+
 def eval(exp):
   return Solver().eval(exp)
 
+class Solutions:
+  def __init__(self, solutions):
+    self.solutions = solutions
+  def next(self):
+    try:
+      return self.solutioins.next()
+    except StopIteration:
+      return 'No more solutions!'
+##      raise NoMoreSolution
+    
 def solve(exp): 
-  return Solver.solve(exp)
+  return Solutions(Solver.solve(exp))
 
 interactive, noninteractive = 1, 0
 _run_mode = interactive
@@ -151,11 +175,11 @@ class Solver:
   # exp: expression 
   # exps: expression list
   
-  def __init__(self, env=None, stream=None, stop_cont=None):
+  def __init__(self, env=None, parse_state=None, stop_cont=None):
     if env is None: env = GlobalEnvironment()
     self.env = env
     self.stop_cont = stop_cont
-    self.stream = stream
+    self.parse_state = parse_state
     self.solved = False
   
   def eval(self, exp):
@@ -163,6 +187,7 @@ class Solver:
       from dao.special import begin
       exp = begin(*exp)
     for x in self.solve(exp): return x
+    raise NoSolutionFound(exp)
     
   def solve(self, exp, stop_cont=done):
     for _, result in self.exp_run_cont(exp, stop_cont):
@@ -188,7 +213,7 @@ class Solver:
   
   def run_cont(self, cont, stop_cont, value=None):
     self1 = self
-    self = Solver(self.env, self.stream, stop_cont)
+    self = Solver(self.env, self.parse_state, stop_cont)
     stop_cont = self.stop_cont 
     root = cont_gen = cont(value, self)
     cut_gen = {}
@@ -198,10 +223,10 @@ class Solver:
       try: 
         c, v  = cont_gen.next()
         if self.solved or c is stop_cont: 
-          env, stream = self1.env, self1.stream
-          self1.env, self1.stream = self.env, self.stream
+          env, parse_state = self1.env, self1.parse_state
+          self1.env, self1.parse_state = self.env, self.parse_state
           yield c, v
-          self1.env, self1.stream = env, stream
+          self1.env, self1.parse_state = env, parse_state
         else:
           cg = c(v, self)
           cut_gen[cg] = cut(c)
@@ -229,12 +254,12 @@ class Solver:
         del parent[cg]
       except GeneratorExit: raise
 ##      except: 
-##        self1.env, self1.stream = env, stream
+##        self1.env, self1.parse_state = env, parse_state
 ##        raise
   def cont(self, exp, cont):    
-    try: to_cont = exp.cont
+    try: exp_cont = exp.cont
     except: return value_cont(exp, cont)
-    try: return to_cont(cont, self)
+    try: return exp_cont(cont, self)
     except TypeError: return value_cont(exp, cont)
 
   def exps_cont(self, exps, cont):

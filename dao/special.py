@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from dao.term import Apply, Function, Macro, closure, Var, ClosureVar
+from dao.term import CommandCall, Function, Macro, closure, Var, ClosureVar, Command
 from dao.term import apply_generators
 from dao.rule import Rule, RuleList
 from dao.solve import value_cont, mycont, tag_unwind, DaoSyntaxError
@@ -16,9 +16,9 @@ from dao.solve import interactive_parser, interactive_tagger
 class ParserForm: 
   def ___parse___(self, parser): return self
 
-class SpecialForm(ParserForm):
+class SpecialForm(Command, ParserForm):
   # 具体的特殊式各自定义自己的__init__, __repr__与cont
-  def __call__(self, *exps): return Apply(self, *exps)
+  def __call__(self, *exps): return CommandCall(self, *exps)
   def __add__(self, other): return begin(self, other)
   def __or__(self, other): 
     from dao.builtins.control import or_p
@@ -39,7 +39,6 @@ class quote(SpecialForm):
     else: 
       return "'%s"%self.exp
     
-
 def assign_var(var, value, env):
   env0 = env
   while env is not None:

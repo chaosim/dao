@@ -4,7 +4,7 @@ from dao import builtin
 # analysing and construction strings
 
 @builtin.macro()
-def char_in(solver, cont, in_, whole): 
+def contain_char(solver, cont, whole, in_): 
   in_ = getvalue(in_, solver.env)
   whole = getvalue(whole, solver.env)
   if isinstance(in_, Var):

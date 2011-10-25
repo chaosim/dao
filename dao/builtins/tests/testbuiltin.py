@@ -4,11 +4,11 @@ from dao.util import *
 from dao.special import *
 
 from dao.term import Var, conslist as L
-from dao.solve import eval
+from dao.solve import eval, NoSolutionFound
 from dao.builtins.arith import eq, sub, mul, add, div
 from dao.builtins.control import succeed, fail, or_p, and_p, not_p, repeat
 from dao.builtins.control import findall, call, once
-from dao.builtins.parser import settext
+from dao.builtins.parser import set_text
 from dao.builtins.terminal import char
 from dao.builtins.term import unify, notunify
 from dao.builtins.io import write
@@ -30,29 +30,29 @@ class TestControl:
     
   def test_and(self):
     eq_(eval(succeed&succeed), True)
-    eq_(eval(succeed&fail), None)
+    assert_raises(NoSolutionFound, eval, succeed&fail)
     
   def test_not_p(self):
     eq_(eval(not_p(fail)), True)
-    eq_(eval(not_p(succeed)), None)
+    assert_raises(NoSolutionFound, eval, not_p(succeed))
     
   def test_repeat(self):
     return
-    # the code below loops for ever, after modifie the behaviour of solver.stream and terminals.
-    eq_(eval(and_p(settext('123'), repeat, char(x), unify(x, '3'))), True)
+    # the code below loops for ever, after modifie the behaviour of solver.parse_state and terminals.
+    eq_(eval(and_p(set_text('123'), repeat, char(x), unify(x, '3'))), True)
   def test_repeat2(self):
     return
     # the code below loops for ever.
-    eq_(eval(and_p(settext('123'), repeat, char(x), unify(x, '4'))), True) 
+    eq_(eval(and_p(set_text('123'), repeat, char(x), unify(x, '4'))), True) 
     
   def test_if(self):
     from dao.builtins.control import if_p
     eq_(eval(if_p(succeed, succeed)), True)
-    eq_(eval(if_p(succeed, fail)), None)
+    assert_raises(NoSolutionFound, eval, if_p(succeed, fail))
     # This below unusual semantics is part of the ISO and all de-facto Prolog standards.
     # see SWI-Prolog help.
-    eq_(eval(if_p(fail, succeed)), None)
-    eq_(eval(if_p(fail, fail)), None)
+    assert_raises(NoSolutionFound, eval, if_p(fail, succeed))
+    assert_raises(NoSolutionFound, eval, if_p(fail, fail))
 
 class TestArithpred:
   def test_is(self):
@@ -75,9 +75,9 @@ class TestTypePredicate:
     eq_(eval(nonvar(1)), True)
     eq_(eval(nonvar(L(1))), True)
     eq_(eval(isvar(x)), True)
-    eq_(eval(isvar(1)), None)
-    eq_(eval(isvar(L(1))), None)
-    eq_(eval(nonvar(x)), None)
+    assert_raises(NoSolutionFound, eval, isvar(1))
+    assert_raises(NoSolutionFound, eval, isvar(L(1)))
+    assert_raises(NoSolutionFound, eval, nonvar(x))
     
 class Testunify:
   def test1(self):
@@ -117,14 +117,14 @@ class TestRule:
                replace(f, [2], 3), f(2))), 3)
     
         
-from dao.builtins.string import length, concat, char_in, substring
+from dao.builtins.string import length, concat, contain_char, substring
 class TestStringConstruct:
   def test_string_length(self):
     eq_(eval(length("abc", x)), True)
   def test_string_length2(self):
     eq_(eval(begin(length("abc", x), x)), 3)
   def test_char_in(self):
-    eq_(eval(begin(char_in(x, "abc"), x)), 'a')
+    eq_(eval(begin(contain_char('abc', x), x)), 'a')
   def test_string_concat(self):
     eq_(eval(concat("abc", "def", "abcdef")), True)
     eq_(eval(begin(concat("abc", "def", x), x)), "abcdef")

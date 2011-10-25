@@ -72,8 +72,8 @@ class TestLet:
 
 class TestIff:
   def test_iff1(self):
-    eq_(preparse(iff(v.i==1).do[2]), special.iff([(arith.eq(i,1), 2)]))
     assert_raises(DinpySyntaxError, preparse, iff(v.i==1)[2])
+    eq_(preparse(iff(v.i==1).do[2]), special.iff([(arith.eq(i,1), 2)]))
   def test_iff2(self):
     eq_(preparse(iff(1) .do[2]
               .elsif(3) .do[4].
@@ -232,7 +232,7 @@ class TestFun:
   def test8(self):
     eq_(preparse(-fun. a(x)), remove(a,(x,), special.UserFunction))
   def test9(self):
-    eq_(preparse(fun()[prin(1)]), special.FunctionForm(((), [prin(1)])))
+    eq_(preparse(fun()[prin(1)]), special.FunctionForm(((), prin(1))))
   def test_eval_letr_fun(self):
     eq_(eval(letr (v.f2 << fun(v.x)[ iff(v.x<1).do[v.x].els[v.f2(v.x-1)]]).do[v.f2(2)]), 0) 
     

@@ -1,6 +1,6 @@
 from dao import builtin
 from dao.builtin import Builtin, Function
-from dao.term import Apply
+from dao.term import CommandCall
 
 # quasiquote and backquote
 

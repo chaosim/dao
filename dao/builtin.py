@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from dao.term import Var, Function, Macro, Apply
+from dao.term import Var, Function, Macro, CommandCall, Command
 
 builtins = []
 
@@ -16,19 +16,19 @@ class Builtin:
 
 class BuiltinFunction(Builtin, Function):
   def __call__(self, *exps):
-    return Apply(self, *exps)
+    return CommandCall(self, *exps)
   def apply(self, solver, values, cont):
     yield cont, self.function(*values)
     
 class BuiltinFunction2(Builtin, Function):
   def __call__(self, *exps):
-    return Apply(self, *exps)
+    return CommandCall(self, *exps)
   def apply(self, solver, values, cont):
     return self.function(solver, cont, *values)
   
 class BuiltinMacro(Builtin, Macro):
   def __call__(self, *exps):
-    return Apply(self, *exps)
+    return CommandCall(self, *exps)
   def apply(self, solver, exps, cont):
     return self.function(solver, cont, *exps)
   

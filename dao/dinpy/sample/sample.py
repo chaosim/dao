@@ -20,17 +20,17 @@ dao[
 v.a_trt_b, # 刚导入的变量
 
 each(i)[1:3].
-  do[prin(i)],
-  
+  loop[prin(i)],
+
 each(i,j)[1:3][1:3].
-  do[prin(i, j)],
+  loop[prin(i, j)],
   
 label.a % 
 each(i,j)[1:10][1:10].
-  do[prin(i, j)],
+  loop[prin(i, j)],
   
 each(i,j)[zip(range(5), range(5))].
-  do [prin(i,j)],
+  loop [prin(i,j)],
 
 case(1).
   of(1)[prin(1)].
@@ -56,7 +56,7 @@ loop(3) [prin(1)],
 
 loop(2) [prin(3), prin(4)],
 loop[ prin(1), prin(2), exit ], # 无限循环
-put.i.j.z==(0, 1, 2), 
+put.i.j.z << (0, 1, 2), 
 
 i << 0,
 label.a %
@@ -67,20 +67,20 @@ loop[
   ++ i,
   i << i+10,
   prin(i), 
-  iff (i==1) [next], 
+  iff (i==1) .do[next], 
   prin(i), 
-  iff (i>20) [exit], 
-  iff (i==1) [next.loop], #再一次执行label为a的块
-##  iff(eq(i,3)) [exit], #从block a退出，返回None
-##  iff(eq(i,3)) [exit >>12], #从block a退出，返回12
-##  iff(eq(i,3)) [exit.loop1 >>12], #从block a退出，返回12
+  iff (i>20) .do[exit], 
+  iff (i==1) .do[next.loop], #再一次执行label为a的块
+##  iff(eq(i,3)) .do[exit], #从block a退出，返回None
+##  iff(eq(i,3)) .do[exit >>12], #从block a退出，返回12
+##  iff(eq(i,3)) .do[exit.loop1 >>12], #从block a退出，返回12
 ], 
 
 i << 0,
-do[ i << i+1, prin(i)].when(i==3),
+loop[ i << i+1, prin(i)].when(i==3),
 
 i << 0,
-do[ ++i, prin(i)].until(i==3),
+loop[ ++i, prin(i)].until(i==3),
 
 '''block comment''',  
 "block comment",
@@ -112,7 +112,7 @@ a(1),
 - fun.a/3,
 - fun.a(x),
 
-a('affd'),
+##a('affd'), # NoSolutionFound
 
 ##  rule. r1 == at(1) [prin(1)],
 ##  rules. rs1 == at(1) [prin(1)],
@@ -120,14 +120,14 @@ a('affd'),
 ##  fun. a - rules.rs1, #从函数a中删除匹配规则集rs1的规则
 
 each(i)[1:10].
-  do[prin(i)],
+  loop[prin(i)],
   
 label.a % 
 each(i,j)[1:10][1:10].
-  do[prin(i, j)],
+  loop[prin(i, j)],
   
 each(i,j)[zip(range(5), range(5))].
-  do [prin(i,j)],
+  loop [prin(i,j)],
 
 case(1)
   .of(1)[prin(1)]
@@ -140,34 +140,35 @@ case(1)
 ##loop(10)[char(x)[10]],  
 
 v.command << open,
-v.command('readme.txt'),
-pycall(open, 'readme.txt'), 
-
+##v.command('readme.txt'),
+##pycall(open, 'readme.txt'), 
 ##char(x)[10][10],
 ##char(x)[10][:],
-
+set_text('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
 x-1,          
 -char(x),               # 非贪婪可选
 +char(x),               # 贪婪可选
 char(x)[:],             # 非贪婪char(x)重复任意次（包括0次）
 +char(x)[1:],           # 贪婪char(x)重复任意次（不包括0次）
--char(x)[1:],           # 懒惰char(x)重复任意次（不包括0次）
-char(x)[:]/char(' '),   # 空格分隔的列表
-char(x)[5],             # char(x)重复5次
-char(x)[5]/char(','),   # 空格分隔的char(x)列表，重复5次
-char(x)[:]/' '%(x,y)*a, #任意项char(x)以模板x,y收集到a
-char(x)[:5],            # char(x)不大于五次
-char(x)[5:],            # char(x)至少五次
-char(x)[5:8],           # char(x)至少五次
+##-char(x)[1:],           # 懒惰char(x)重复任意次（不包括0次）
+##char(x)[:]/char(' '),   # 空格分隔的列表
+##char(x)[5],             # char(x)重复5次
+##char(x)[5]/char(','),   # 空格分隔的char(x)列表，重复5次
+##char(x)[:]/' '%(x,y)*a, #任意项char(x)以模板x,y收集到a
+##char(x)[:5],            # char(x)不大于五次
+##char(x)[5:],            # char(x)至少五次
+##char(x)[5:8],           # char(x)至少五次
 ]
 
 X, Expr, Expr2, ExprList, Result, Y, sexpression = symbols(
 'X, Expr, Expr2, ExprList, Result, Y, sexpression') 
 stringExpression, bracketExpression, puncExpression, sexpressionList, condSpace = symbols(
   'stringExpression, bracketExpression, puncExpression, sexpressionList, condSpace')
+##symbols('X, Expr, Expr2, ExprList, Result, Y, sexpression' 
+##  'stringExpression, bracketExpression, puncExpression, sexpressionList, condSpace')
 
 dao[
-fun. evalRule(Result) == sexpression(Expr2)+eos+is_(Result, eval_<getvalue<Expr2),
+fun. evalRule(Result) == [sexpression(Expr2)+eos+is_(Result, eval_<getvalue<Expr2)],
 
 fun. sexpression == at
   (Result)
@@ -193,7 +194,7 @@ fun. sexpression == at
     [bracketExpression(Expr)]
     [puncExpression(Expr)],
     
-fun. stringExpression(X) == at [number(X)] [dqstring(X)] [symbol(X)],
+fun. stringExpression(X) == at [number(X)] [dqstring(X)] [uLetterdigitString(X)],
 
 fun. bracketExpression (ExprList) == at
     [char('(')+spaces0(_)+sexpressionList(ExprList)+spaces0(_)+char(')')]
@@ -209,10 +210,10 @@ fun. sexpressionList == at
   (Expr, ExprList) [sexpression(Expr)+condSpace+sexpressionList(ExprList)]
   (nil) [nullword],
   
-fun. sexpression1(Expr) >= [spaces0(_)+sexpressionList(Expr)+spaces0(_)],
+fun. sexpression1(Expr) == [spaces0(_)+sexpressionList(Expr)+spaces0(_)],
 
-fun. condSpace() >=  
-  [ if_p(not_p(lead_chars('([])'))+not_pfollow_chars('([])')
+fun. condSpace() ==  
+  [ if_p(not_p(lead_chars('([])'))+not_follow_chars('([])')
         +not_p(eos))+spaces(_)+spaces0(_)
   ]
 ]

@@ -33,7 +33,7 @@ class TestParse:
   def test2(self):
     g = element('g',getattr('a')&eos)
     g1 = g.a.b
-    eq_(preparse(g1), None)
+    assert_raises(DinpySyntaxError, preparse, g1)
   def test3(self):
     g = element('g',attr_call('a')(x, y)&eos)
     g1 = g.a(1)
