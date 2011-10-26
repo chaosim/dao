@@ -1,0 +1,375 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Dao系统及Dinpy语言起步 &mdash; the dao to programming 0.7.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.7.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="the dao to programming 0.7.0 documentation" href="../index.html" />
+    <link rel="up" title="欢迎使用“编程之道”文档!" href="index.html" />
+    <link rel="next" title="控制语句" href="control.html" />
+    <link rel="prev" title="致谢" href="acknowledge.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="control.html" title="控制语句"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="acknowledge.html" title="致谢"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">the dao to programming 0.7.0 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">欢迎使用“编程之道”文档!</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="daodinpy">
+<h1>Dao系统及Dinpy语言起步<a class="headerlink" href="#daodinpy" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="id1">
+<h2>下载、解压和安装<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
+<p>看到本文，说明你很可能已经下载了dao语言。如果没有，你可以用以下方法从pypi下载。</p>
+<ul>
+<li><p class="first">你可以进入python的pypi，找到存放daot的位置，下载daot的压缩包，然后将下载的压缩包解压到一个单独的文件夹，进入该文件夹，在系统终端输入如下shell命令:</p>
+<p>python setup.py install</p>
+</li>
+<li><p class="first">使用easy_install直接连网安装，在系统终端输入如下shell命令:</p>
+<p>easy_install dao</p>
+</li>
+<li><p class="first">使用pip直接连网安装，在系统终端输入如下shell命令:</p>
+<p>pip install dao</p>
+</li>
+</ul>
+</div>
+<div class="section" id="dinpy">
+<h2>交互方式执行Dinpy<a class="headerlink" href="#dinpy" title="Permalink to this headline">¶</a></h2>
+<p>安装成功后，就可以使用dinpy了。dinpy可以在程序中调用，也可以交互方式执行。我们先来介绍交互方式。</p>
+<p>dinpy是嵌入在python内部的，所以我们先进入python的交互模式。在系统终端输入如下shell命令:</p>
+<div class="highlight-python"><pre>$ python</pre>
+</div>
+<p>然后导入与dinpy相关的定义:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">dao.dinpy</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="go">&gt;&gt;&gt;</span>
+</pre></div>
+</div>
+<p>python没有报告异常。恭喜你，你已经在python的libsite-packages目录成功安装了dinpy的程序包。现在我们就来体验它！</p>
+<p>首先，看看名声卓著的Hello world！</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">prin</span><span class="p">(</span><span class="s">&quot;Hello world&quot;</span><span class="p">)</span>
+<span class="go">Hello world!</span>
+</pre></div>
+</div>
+<p>OK！欢迎进入Dinpy的世界，一个镶嵌在python内部的奇异小宇宙。</p>
+<p>prin是dinpy的打印语句。没有print最后的一个字母t。原谅我，Guido van Rossum不会允许我用他喜欢的关键字。</p>
+<div class="section" id="id2">
+<h3>赋值<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<p>万物皆有其名。我们来为dinpy小宇宙中的物体命名吧。</p>
+<p>在dinpy中赋值，要用dinpy的赋值符号&lt;&lt;，而不能直接用python的赋值符号。</p>
+<p>如果我们这样写：</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">i</span> <span class="o">=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>那么i只是一个python的变量，不是dinpy的变量。dinpy见到它和见到1没有区别。</p>
+<p>我们要这样写：</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">i</span> <span class="o">&lt;&lt;</span> <span class="mi">1</span>
+<span class="go">1</span>
+</pre></div>
+</div>
+<p>这样写dinpy才知道i是它的变量，而且现在这个变量在dinpy中已经和1这个值绑定在一起。我们以后会进一步介绍dinpy中变量和绑定的概念。</p>
+<p>我们要有一个概念：dinpy的所有语句实际上都是python的表达式，它们可以作为python的list的元素，或者是函数参数。只有这样，你才可以开始理解dinpy在python中的执行原理。</p>
+<p>但是为什么不用==呢？本来是可以用==的，不过我发现如果用==有些不便之处。比如，受python限制，没办法象这样通过i=j==1表示级联赋值。实话实说，搞明白这一点还费了我不少周折。</p>
+<p>如下语句是dinpy中级联赋值的例子：</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">i</span> <span class="o">&lt;&lt;</span> <span class="n">j</span> <span class="o">&lt;&lt;</span> <span class="mi">1</span>
+<span class="go">1</span>
+</pre></div>
+</div>
+<p>也可以同时给多个变量赋值：</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">i</span><span class="o">/</span><span class="n">j</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">i</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">j</span>
+<span class="go">2</span>
+</pre></div>
+</div>
+<p>OMG！为什么不是i,j &lt;&lt; 1,2? 或者是(i,j) &lt;&lt; (i,2) ？相信我，我曾经试验过，但是这些试验始终在依照Guido的愿望，而不是依照我的想象工作。这让我明白：在Guido的地盘上，我必须遵守他的法则。也许以后我能找到一个更漂亮的妥协方案。</p>
+<p>还有一种方式，你可以这样写：</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">put</span><span class="o">.</span><span class="n">i</span><span class="o">.</span><span class="n">j</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>本来我曾经实现了形如put.i==1, put.i.j==(1,2)赋值的形式。有了put在前面，甚至可以级联。但是，如果每次赋值都必须加个put未免太不方便。考虑到形式的一致以其诸多其它因素，我最终放弃了使用==的方案。也许你还可以在代码仓库中找出废弃的实现代码。</p>
+</div>
+<div class="section" id="id3">
+<h3>算术运算<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="mi">1</span><span class="o">+</span><span class="mi">2</span>
+<span class="go">3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="mi">3</span><span class="o">*</span><span class="mi">4</span><span class="o">+</span><span class="mi">5</span>
+<span class="go">17</span>
+</pre></div>
+</div>
+<p>如果你能明白，上面两次计算和dinpy没有任何关系，说明你已经开始理解dinpy。我们在和dinpy交互的时候，随时都可以执行任何python的命令。</p>
+<p>但是，下面的语句就不一样了：</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">j</span><span class="o">*</span><span class="mi">2</span>
+<span class="go">4</span>
+</pre></div>
+</div>
+<p>前面我们给j赋值为2，因此j*2的结果是4。因为j是dinpy的变量，所以这次计算才进入了dinpy的领地。</p>
+<ul class="simple">
+<li>左移运算</li>
+</ul>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">lshift</span><span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="go">8</span>
+</pre></div>
+</div>
+<p>左移的运算符已经被用作dinpy的赋值符，因此，就只能直接调用内建左移函数进行左移计算了。</p>
+<ul class="simple">
+<li>++和&#8211;</li>
+</ul>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">i</span> <span class="o">&lt;&lt;</span> <span class="mi">0</span>      <span class="c"># 给i赋值0</span>
+<span class="go">i</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="o">++</span><span class="n">i</span>         <span class="c"># 增一</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">i</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="o">--</span><span class="n">i</span>         <span class="c"># 减一</span>
+<span class="go">0</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">i</span>
+<span class="go">0</span>
+</pre></div>
+</div>
+<p>C和C++语言中，++和&#8212;运算符一直是我的最爱，我觉得这两个运算符体现了C语言的精髓：指针运算，效率，简洁，紧致。</p>
+<p>我在编python程序时，经常会怀念这两个运算符，有时候不由自主的把 i += 1 写成 i++。因此，能够在dinpy中实现++和&#8212;，我觉得非常愉快。</p>
+<p>当然，因为dinpy是在python之中，永远不会有i++或i&#8212;这样的算式。</p>
+<p>不过，在dinpy中，我无法阻止你把++i 写成 + +i，甚至+(+i), 语法上都没有错，而且结果都和++i一样。毕竟，dinpy还是在python的地盘上。</p>
+</div>
+<div class="section" id="quote">
+<h3>用quote表示引用值<a class="headerlink" href="#quote" title="Permalink to this headline">¶</a></h3>
+<p>lisp爱好者都知道quote的用法和意义。根据lisp的sexpression的记法, quote的作用是阻止对其参数进行求值，因此(quote x)总是直接返回x自身。不管x是数，变量，或者是个列表。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">quote</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+<span class="go">i</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">quote</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="n">j</span><span class="p">)</span>
+<span class="go">i+j</span>
+</pre></div>
+</div>
+<p>依据dinpy的规则，quote(x)应该直接返回x自身。如果x是变量，返回的是变量本身而不是变量的值，如果是表达式，返回的就是表达式本身，而不是表达式的计算值。或者是其它任何对象。</p>
+<p>真是这样吗？Guido说：No! 再看看下面的例子:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">quote</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>3</p>
+<p>哇！怎么回事？不是1+2？对不起，请不要忘了，dinpy是在python中运行的。python提前已经计算了1+2，dinpy能见到的只有python的计算结果。</p>
+<p>以Guido的名义，让python的归于python，dinpy的归于dinpy！</p>
+</div>
+<div class="section" id="id4">
+<h3>dinpy的变量<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h3>
+<p>我们要回过头来看一看关于dinpy的变量。我们没有用到python的赋值语句，那么我们上面用到的变量是从哪里来的呢？注意最开始的这条语句：</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">oad.dinpy</span> <span class="kn">import</span> <span class="o">*</span>
+</pre></div>
+</div>
+<p>这条命令导入你需要用到的dinpy中的一切内容。为了方便，dinpy预先也为你定义了很多形如i, j, x, y, A1, b2, _1, _a的变量。如果你不希望导入如此多的变量，你可以只导入其中的一部分。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">oad.dinpy.vars.lower</span> <span class="kn">import</span> <span class="o">*</span>
+</pre></div>
+</div>
+<p>上述语句导入所有小写字母变量。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">oad.dinpy.vars.lower</span> <span class="kn">import</span> <span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">,</span><span class="n">k</span>
+</pre></div>
+</div>
+<p>上述语句导入变量i,j,k。</p>
+<p>你可以看看子包dao.dinpy.vars是如何组织这些变量的，这会给你的理解和应用带来帮助。</p>
+<p>除此以外，你也可以不通过导入，而是直接以v.name的形式直接使用单个变量，或者是var.name1.name2的形式使用多个变量。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">v</span><span class="o">.</span><span class="n">name1</span> <span class="o">&lt;&lt;</span> <span class="mi">1</span>
+<span class="go">1</span>
+</pre></div>
+</div>
+<p>或者这样：</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">name1</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">name1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">name1</span> <span class="o">&lt;&lt;</span> <span class="mi">1</span>
+<span class="go">1</span>
+</pre></div>
+</div>
+<p>这样你可以在后面的使用中省略前缀v.name1的前缀v.喽。</p>
+<p>定义多个变量还有另外的方式：</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span> <span class="o">=</span> <span class="n">var</span><span class="o">.</span><span class="n">i</span><span class="o">.</span><span class="n">j</span><span class="o">.</span><span class="n">k</span>
+</pre></div>
+</div>
+<p>或者：</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span> <span class="o">=</span> <span class="n">symbols</span><span class="p">(</span><span class="s">&#39;i, j, k&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="letletr">
+<h3>let和letr语句<a class="headerlink" href="#letletr" title="Permalink to this headline">¶</a></h3>
+<p>可以用let语句和letr语句扩展语句的求值环境并绑定变量。环境是函数式编程语言的重要概念。我们将在后面的章节进行专门的讨论。现在我们先通过例子来体验一下它们的用法。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">let</span><span class="p">(</span><span class="n">i</span><span class="o">&lt;&lt;</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">do</span><span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="p">]</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">let</span><span class="p">(</span><span class="n">i</span><span class="o">&lt;&lt;</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">do</span><span class="p">[</span><span class="n">let</span><span class="p">(</span><span class="n">i</span><span class="o">&lt;&lt;</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">do</span><span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="p">],</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span>
+<span class="go">2 1</span>
+</pre></div>
+</div>
+<p>我们看到利用了let语句，我们可以控制访问变量的层次。求值器总是按照由内到外的层次查找环境。因此，第二个例子中，内层的let语句do块中的prin语句打印的是内层let给i绑定的值，而第二个prin语句，也就是外层let语句的do块的第二条语句，打印的是外层let给i绑定的值。因此，上述代码先打印2，然后打印1。</p>
+<p>熟悉lisp的程序员必然也熟悉letrec，letr基本上类似于letrec。letr语句可以用来进行递归定义，特别是可以用来定义递归函数。函数和递归函数的概念，是函数式编程语言的基础。后面的章节会作重点地介绍。</p>
+</div>
+<div class="section" id="id5">
+<h3>控制语句<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h3>
+<p>实际的程序很少会始终以一条直线执行下去。因此控制语句总是编程语言不可或缺的成分。我们来看看dinpy中的控制语句。</p>
+<ul class="simple">
+<li>分支语句</li>
+</ul>
+<p>可以用iff语句先测试条件决定执行不同分支。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">i</span> <span class="o">&lt;&lt;</span> <span class="mi">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">iff</span><span class="p">(</span><span class="n">i</span><span class="o">==</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">do</span><span class="p">[</span><span class="n">prin</span><span class="p">(</span><span class="s">&#39;i is 1.&#39;</span><span class="p">)]</span><span class="o">.</span><span class="n">els</span><span class="p">[</span><span class="n">prin</span><span class="p">(</span><span class="s">&#39;i is not 1.&#39;</span>
+<span class="go">i is 1.</span>
+</pre></div>
+</div>
+<p>也可以用case语句根据表达式的值选择执行分支。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">case</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="n">prin</span><span class="p">(</span><span class="s">&#39;i is 1.&#39;</span><span class="p">)]</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="mi">2</span><span class="p">)[</span><span class="n">prin</span><span class="p">(</span><span class="s">&#39;i is 2.&#39;</span><span class="p">)]</span><span class="o">.</span><span class="n">els</span><span class="p">[</span><span class="n">prin</span><span class="p">(</span><span class="s">&#39;i is not 1, 2.&#39;</span><span class="p">)]</span>
+<span class="go">i is 1.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">i</span> <span class="o">&lt;&lt;</span> <span class="mi">3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">case</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="n">prin</span><span class="p">(</span><span class="s">&#39;i is 1.&#39;</span><span class="p">)]</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="mi">2</span><span class="p">)[</span><span class="n">prin</span><span class="p">(</span><span class="s">&#39;i is 2.&#39;</span><span class="p">)]</span><span class="o">.</span><span class="n">els</span><span class="p">[</span><span class="n">prin</span><span class="p">(</span><span class="s">&#39;i is not 1, 2.&#39;</span><span class="p">)]</span>
+<span class="go">i is not 1, 2.</span>
+</pre></div>
+</div>
+<p>在控制语句一章中，我们将对循环语句作更加详细的介绍。</p>
+<ul class="simple">
+<li>循环语句</li>
+</ul>
+<p>dinpy提供了几种循环语句。看看例子：</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">loop</span><span class="p">(</span><span class="mi">3</span><span class="p">)[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">++</span><span class="n">i</span> <span class="p">]</span>
+<span class="go">0 1 2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loop</span> <span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">--</span><span class="n">i</span><span class="p">]</span><span class="o">.</span> <span class="n">until</span><span class="p">(</span><span class="n">i</span><span class="o">==</span><span class="mi">0</span><span class="p">)</span>
+<span class="go">3 2 1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loop</span> <span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">++</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">i</span><span class="o">&lt;</span><span class="mi">3</span><span class="p">)</span>
+<span class="go">0 1 2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">when</span><span class="p">(</span><span class="n">i</span><span class="o">!=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">loop</span><span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">--</span><span class="n">i</span><span class="p">]</span>
+<span class="go">3 2 1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loop</span> <span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">++</span><span class="n">i</span><span class="p">,</span> <span class="n">iff</span><span class="p">(</span><span class="n">i</span><span class="o">==</span><span class="mi">3</span><span class="p">)</span> <span class="o">.</span><span class="n">do</span><span class="p">[</span><span class="nb">exit</span><span class="p">]</span> <span class="p">]</span>
+<span class="go">0 1 2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">each</span><span class="p">(</span><span class="n">i</span><span class="p">)[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">loop</span><span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="p">]</span>
+<span class="go">0 1 2</span>
+</pre></div>
+</div>
+<p>在控制语句一章中，我们将对循环语句作更加详细的介绍。</p>
+</div>
+<div class="section" id="id6">
+<h3>函数和宏<a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h3>
+<p>在dinpy中，程序员可以自由的使用内建的函数和宏，也可以自己定义新的的函数和宏。函数和宏都是dinpy的一级对象。也就是说，它们和其它类型的数据一样，可以作为参数，操作数，也可以作为返回值，如此等等。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">fun</span><span class="o">.</span><span class="n">f1</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="p">[</span><span class="n">x</span><span class="o">+</span><span class="n">x</span><span class="p">]</span>
+<span class="go">f1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f1</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="go">4</span>
+</pre></div>
+</div>
+<p>如“let和letr语句”一节所述，可以用letr定义递归函数。我们看一个实例：</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">letr</span><span class="p">(</span><span class="n">f2</span> <span class="o">&lt;&lt;</span> <span class="n">fun</span><span class="p">(</span><span class="n">x</span><span class="p">)[</span> <span class="n">iff</span><span class="p">(</span><span class="n">x</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">)</span> <span class="o">.</span><span class="n">do</span><span class="p">[</span> <span class="n">x</span> <span class="p">]</span> <span class="o">.</span><span class="n">els</span><span class="p">[</span> <span class="n">f2</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">]</span>  <span class="p">])</span> <span class="o">.</span><span class="n">do</span> <span class="p">[</span><span class="n">f2</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+<span class="go">0</span>
+</pre></div>
+</div>
+<p>上述语句用letr定义了函数f2。因为函数体中又调用了f2，所以它是一个递归函数。递归函数必须用letr定义。</p>
+<p>现在我们已经简单地介绍了dinpy的一些基本用法。在后续章节中我们将详细讨论dinpy的各种功能特性。下一章将介绍dinpy控制结构。</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Dao系统及Dinpy语言起步</a><ul>
+<li><a class="reference internal" href="#id1">下载、解压和安装</a></li>
+<li><a class="reference internal" href="#dinpy">交互方式执行Dinpy</a><ul>
+<li><a class="reference internal" href="#id2">赋值</a></li>
+<li><a class="reference internal" href="#id3">算术运算</a></li>
+<li><a class="reference internal" href="#quote">用quote表示引用值</a></li>
+<li><a class="reference internal" href="#id4">dinpy的变量</a></li>
+<li><a class="reference internal" href="#letletr">let和letr语句</a></li>
+<li><a class="reference internal" href="#id5">控制语句</a></li>
+<li><a class="reference internal" href="#id6">函数和宏</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="acknowledge.html"
+                        title="previous chapter">致谢</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="control.html"
+                        title="next chapter">控制语句</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/zh/getstart.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="control.html" title="控制语句"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="acknowledge.html" title="致谢"
+             >previous</a> |</li>
+        <li><a href="../index.html">the dao to programming 0.7.0 documentation</a> &raquo;</li>
+          <li><a href="index.html" >欢迎使用“编程之道”文档!</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Simeon Chaos.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.
+    </div>
+  </body>
+</html>

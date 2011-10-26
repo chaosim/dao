@@ -171,13 +171,13 @@ class TestEach:
     
 class TestExitNext:
   def test_exit1(self):
-    eq_(preparse(exit.loop), special.exit(None, 'loop')) 
+    eq_(preparse(exit/'loop'), special.exit(None, 'loop')) 
   def test_exit2(self):
-    eq_(preparse(exit.loop/2>>v.i), special.exit(i, 'loop', 2)) 
+    eq_(preparse(exit/'loop'*2>>v.i), special.exit(i, 'loop', 2)) 
   def test_next1(self):
-    eq_(preparse(next.loop), special.next('loop')) 
+    eq_(preparse(next/'loop'), special.next('loop')) 
   def test_next2(self):
-    eq_(preparse(next.loop/2), special.next('loop', 2)) 
+    eq_(preparse(next/'loop'*2), special.next('loop', 2)) 
     
 class TestBlockLabel:
   def test_label(self):

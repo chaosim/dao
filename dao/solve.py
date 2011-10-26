@@ -16,9 +16,11 @@ class DaoUncaughtThrow(Exception):
 class  DaoSyntaxError(Exception):
   pass
 
-class NoSolutionFound(Exception):
-   def __init__(self, exp): 
+class NoSolutionFound:
+  def __init__(self, exp): 
     self.exp = exp
+  def __repr__(self): return 'exit!'
+  
 class NoMoreSolution(Exception): pass
 
 def mycont(cont):

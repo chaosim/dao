@@ -1,0 +1,234 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>合一和回溯 &mdash; the dao to programming 0.7.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.7.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="the dao to programming 0.7.0 documentation" href="../index.html" />
+    <link rel="up" title="欢迎使用“编程之道”文档!" href="index.html" />
+    <link rel="next" title="逻辑命令" href="logic.html" />
+    <link rel="prev" title="控制语句" href="control.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="logic.html" title="逻辑命令"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="control.html" title="控制语句"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">the dao to programming 0.7.0 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">欢迎使用“编程之道”文档!</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="id1">
+<h1>合一和回溯<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h1>
+<p>合一和回溯是prolog用来实现逻辑程序语言的两大主要手段。合一管理程序的数据流，回溯管理程序的控制流。二者密切配合，使得声明式风格的程序得以正常运行。</p>
+<div class="section" id="id2">
+<h2>合一<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<p>过程式程序语言主要依靠赋值及函数参数在变量间传递数据，函数式程序语言主要依靠函数调用时的参数绑定在变量间传递数据，而逻辑式程序语言主要依靠合一在变量间传递数据。因此，合一是逻辑程序设计系统的主要机制之一。合一的基本思想如下：</p>
+<ul>
+<li><p class="first">合一变量</p>
+<p>一个变量可以和任何对象合一，称作该对象被绑定到此变量。没有绑定到非变量的变量叫做自由变量，自由变量可以多次绑定其它变量，形成一条绑定链。如果绑定链最终绑定了非变量，这个变量就变成了一个非自由变量。非自由变量与其它对象合一是否成功取决于其最终绑定值与该对象的合一。</p>
+</li>
+</ul>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">dao.dinpy</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">x</span>
+<span class="go">x</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">free</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">unify</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">x</span>
+<span class="go">y</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y</span>
+<span class="go">y</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">unify</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">x</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">free</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="go">False</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">free</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+<span class="go">False</span>
+</pre></div>
+</div>
+<ul>
+<li><p class="first">合一原子对象</p>
+<p>如果二者相等，则合一成功，否则合一失败。</p>
+</li>
+</ul>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">unify</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+<span class="go">False</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">unify</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<ul>
+<li><p class="first">合一复合对象</p>
+<p>如果二者所有成员都能分别合一，则合一成功，否则合一失败。对于列表或元组，依次合一所有元素。对于Cons，分别合一其head和tail。</p>
+</li>
+</ul>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">unify</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">unify</span><span class="p">((</span><span class="n">x</span><span class="p">,</span><span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;e:\dao\dao\dinpy\term.py&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+    <span class="kn">from</span> <span class="nn">dao.builtins.term</span> <span class="kn">import</span> <span class="o">*</span>
+  File <span class="nb">&quot;e:\dao\dao\term.py&quot;</span>, line <span class="m">325</span>, in <span class="n">__repr__</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">interactive_solver</span><span class="p">()</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+  File <span class="nb">&quot;e:\dao\dao\solve.py&quot;</span>, line <span class="m">190</span>, in <span class="n">eval</span>
+    <span class="k">raise</span> <span class="n">NoSolutionFound</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+<span class="gr">dao.solve.NoSolutionFound</span>: <span class="n">exit!</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">unify</span><span class="p">((</span><span class="n">x</span><span class="p">,</span><span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id3">
+<h2>回溯<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+<p>所谓回溯，是指当求解某一目标失败的时候，系统回退通过其它路径求解。系统按照从上到下，从左到右的顺序调用命令，求解目标。系统先选择第一条路径进行求解，一旦遇到某一目标求解失败，如果该目标有多种求解方案，比如内置命令or_p，repeat，any，some，定义了多个函数体的用户函数或宏命令等等，系统将回退一步，选择该目标的下一求解方案进行求解。如果当前目标所有求解方案都失败，则回退到前一目标。如果当前层次的所有目标（比如函数能够匹配的所有不同定义）的所有求解路径都已经失败，则回退到上一层，比如上一级调用函数。直到所有层次所有目标的所有求解路径都已经失败，根目标才最终失败。系统总是依照求解顺序相反的次序，即从右到左，从下到上的次序进行回溯。</p>
+<p>当系统回退经过每一目标时将根据需要恢复状态，比如合一操作进行的变量绑定，解析状态，赋值等等。</p>
+<p>dao系统当前对目标产生多个解决方案和进行回溯的机制借助了python语言的yield语句，提高了运行速度。</p>
+<p>如果目标有多个解，系统将能够根据需要进行回溯。。但是，即使目标没有多个解，也可以用repeat和fail命令的配合来实现回溯。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">dao.dinpy</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">random</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">do</span> <span class="p">[</span> <span class="n">unify</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">pycall</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span><span class="mi">10</span><span class="p">)),</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="n">iff</span><span class="p">(</span><span class="n">i</span><span class="o">!=</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">do</span> <span class="p">[</span><span class="n">fail</span><span class="p">]]</span>
+<span class="go">0</span>
+<span class="go">dao.solve.NoSolutionFound: exit!</span>
+</pre></div>
+</div>
+<p>上述代码只有一条求解路径，因为执行fail命令而失败了。</p>
+<p>借助repeat命令，我们可以产生无限的求解路径。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">do</span><span class="p">[</span> <span class="n">repeat</span><span class="p">,</span> <span class="n">i</span> <span class="o">&lt;&lt;</span> <span class="n">pycall</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span><span class="mi">10</span><span class="p">),</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="n">iff</span><span class="p">(</span><span class="n">i</span><span class="o">!=</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">do</span> <span class="p">[</span><span class="n">fail</span><span class="p">]</span> <span class="p">]</span>
+<span class="go">6 4 1 5 10 5 7 2 10 8 5 0 0 4 8 9 9 5 9 3</span>
+</pre></div>
+</div>
+<p>当赋值给i的随机数不是3的时候，会因为执行fail而导致该次求解失败，从而引起回溯。在按相反次序回溯的途中，依次遇到的是打印命令prin(i)， 赋值命令i &lt;&lt; pycall(random.randint, 0,10)，它们都没有其它求解方法，因此回溯到达repeat命令。</p>
+<p>在prolog中，repeat是在用户程序中这样定义的:</p>
+<div class="highlight-python"><pre>repeat.
+repeat:- repeat.</pre>
+</div>
+<p>在dao系统中，repeat是个内建命令，但是它和prolog中的repeat所起的作用是一致的：产生无数求解路径。因此当系统遇到repeat，就开始新的求解路径再次前进。直到遇到随机数3，iff语句不再执行其的do块，从而成功得到整个目标的第一个解。</p>
+<p>dinpy默认只执行求解目标的第一个解。利用findall命令，或者用solve(exp)的方式，可以求解目标的所有解。</p>
+<ul class="simple">
+<li>使用findalll</li>
+</ul>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">findall</span><span class="p">(</span><span class="n">do</span><span class="p">[</span> <span class="n">repeat</span><span class="p">,</span> <span class="n">i</span> <span class="o">&lt;&lt;</span> <span class="n">pycall</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span><span class="mi">10</span><span class="p">),</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">)],</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="go">0 0 10 10 9 10 9 10 1 3 2 4 7 5 5 8 0 1 8 4 6 0 8 5 10 4 5 8 1 5 7 9 7 9 7 1 6 2 8 3 1 2 9 8 10 8 9 5 10 6 10 8 9 6 9 3 0 9 1 2 8 8 4 10 7 9 1 6 5 0 1 5 9 0 2 5 6 6 4 7 8 6 1 7 2 ......</span>
+</pre></div>
+</div>
+<p>由于findall命令的作用，将导致上述命令无限执行下去。</p>
+<ul class="simple">
+<li>使用solve</li>
+</ul>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">solutions</span> <span class="o">=</span> <span class="n">solve</span><span class="p">(</span><span class="n">do</span><span class="p">[</span> <span class="n">repeat</span><span class="p">,</span> <span class="n">i</span> <span class="o">&lt;&lt;</span> <span class="n">pycall</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span><span class="mi">10</span><span class="p">),</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="n">iff</span><span class="p">(</span><span class="n">i</span><span class="o">!=</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">do</span> <span class="p">[</span><span class="n">fail</span><span class="p">]</span> <span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">solutions</span><span class="o">.</span><span class="n">next</span><span class="p">()</span>
+<span class="go">8 4 7 2 2 0 0 3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">solutions</span><span class="o">.</span><span class="n">next</span><span class="p">()</span>
+<span class="go"> 0 1 0 9 5 3</span>
+</pre></div>
+</div>
+<p>对于上述代码，其解集是无限的。对于解集有限的问题，我们可以用solutions.next()逐一查看所有的解。</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">合一和回溯</a><ul>
+<li><a class="reference internal" href="#id2">合一</a></li>
+<li><a class="reference internal" href="#id3">回溯</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="control.html"
+                        title="previous chapter">控制语句</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="logic.html"
+                        title="next chapter">逻辑命令</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/zh/unifymatch.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="logic.html" title="逻辑命令"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="control.html" title="控制语句"
+             >previous</a> |</li>
+        <li><a href="../index.html">the dao to programming 0.7.0 documentation</a> &raquo;</li>
+          <li><a href="index.html" >欢迎使用“编程之道”文档!</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Simeon Chaos.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.
+    </div>
+  </body>
+</html>

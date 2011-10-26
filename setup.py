@@ -11,8 +11,10 @@ setup(
 ##  install_requires = ['docutils>=0.3'],
 
   package_data = {
-      '': ['*.txt', '*.rst'] #,
-##      'dao':['*.pdf']
+##      '': ['*.txt', '*.rst'] #,
+      r'document\_build\html':['*.*'],
+      r'document\zh':['*.rst', '*.html', '*.js'],
+      r'document\en':['*.rst', '*.html', '*.js']
   },
 
   author='Cao Xingming(Simeon.Chaos)',
@@ -23,10 +25,7 @@ setup(
   keywords = "dao dinpy lisp prolog dsl",
 
   description='the dao to programming',
-  long_description='dao: the new generation programming language '
-                   'implemented by a functional logic evaluator, '
-                   'unifying code with data, grammar with program, '
-                   'logic with functional, compiling with running.',
+  long_description=open('readme').read(),
   
   platforms='Posix; MacOS X; Windows',
   classifiers = ['Development Status :: 3 - Alpha',

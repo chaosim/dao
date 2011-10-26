@@ -39,7 +39,8 @@ def copy_term(solver, cont, item, copy):
 
 @builtin.macro('unify')
 def unify(solver, cont, v0, v1):
-  for _ in term.unify(v0, v1, solver.env): yield cont, True
+  for _ in term.unify(v0, v1, solver.env): 
+    yield cont, True
 
 @builtin.macro('unify_with_occurs_check')
 def unify_with_occurs_check(solver, cont, v0, v1):
@@ -60,14 +61,18 @@ def isvar(solver, cont, arg):
 @builtin.macro('nonvar')
 def nonvar(solver, cont, arg):  
   if not isinstance(arg, Var): yield cont, True
+
+def is_free(var, env):
+  if isinstance(var, ClosureVar): var = var.var
+  return isinstance(deref(var, env), Var)
   
 @builtin.macro('free')
 def free(solver, cont, arg):
-  if isinstance(deref(arg, solver.env), Var): yield cont, True
+  yield cont, is_free(arg, solver.env)
 
 @builtin.macro('bound')
 def bound(solver, cont, arg):
-  if not isinstance(arg.deref(solver.env), Var): yield cont, True
+  yield cont, not(is_free(arg, solver.env))
 
 def isinteger(solver, cont, arg):
   if isinstance(deref(arg, solver.env), int): yield cont, True

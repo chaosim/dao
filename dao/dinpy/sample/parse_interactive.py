@@ -1,5 +1,8 @@
 from dao.dinpy import *
 
+print free(x)
+print unify(x,1)
+print free(x)
 print set_parse_state(('abc', 0))
 print unify_parse_state(('abc', x))
 print x

@@ -1,1 +1,8 @@
 #summary What's new in dao 0.7.0?
+
+*Release date:  2011-10-26
+
+    the code is rewriten completely by the improved techinque which is used by yieldprolog(http://yieldprolog.sourceforge.net). Yield statement is used to implement unify and backctracking of logic engine, besides, all continuations become functions, by remove class definition. So dao have a great speed up in its run now, and I believe that it can be used in real project. 
+    A language dinpy that uses dao's solver as the core is implemented. Dinpy is embeded in python, and dinpy have the features that both lisp and prolog provided.
+    Some documents about dao and dinpy are written. #summary What's new in dao 0.7.0?
+

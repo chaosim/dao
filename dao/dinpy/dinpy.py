@@ -13,7 +13,7 @@
 # solve, eval
 
 __all__ = [
-  'dao', 'preparse', 'eval',
+  'dao', 'preparse', 'eval', 'solve',
   
   # declaration and variable
   '_', 'v', 'var', 'put', #, 'vars', 'dummies'
@@ -45,6 +45,8 @@ from dao.builtins.term import getvalue, ground_value, is_
 from dao.builtins.arith import ne_p
 from dao.solve import eval as oad_eval, solve, tag_loop_label
 from dao.solve import set_run_mode, noninteractive, DaoUncaughtThrow
+from dao.solve import interactive_parser, interactive_tagger, interactive_solver
+
 
 def eval(code):
   code = preparse(code)
@@ -101,6 +103,11 @@ class Dao(object):
     
 dao = Dao()
 
+def solve(exp):
+  code = interactive_parser().parse(exp)
+  code = interactive_tagger().tag_loop_label(code)
+  return interactive_solver().solve(code)
+    
 ## vv.a v.a
 def my_single_var(name, klass):
   class VForm(object):
@@ -371,7 +378,7 @@ def make_exit(type, level, label, value):
 
 # exit.loop^2 >> 3,  eixt/a>>3
 exit = element('exit', 
-         may((getattr(vv.type)+may(div(vv.level)))|may(div(vv.label)))
+         ((may(div(vv.type))+may(mul(vv.level)))|may(getattr(vv.label)))
              +may(rshift(vv.value))+eos
              +make_exit(vv.type, vv.level, vv.label, ground_value(vv.value)))
 
@@ -383,7 +390,7 @@ def make_next(type, level, label):
   return special.next(type, level, label)
 
 next = element('next', 
-        may(getattr(vv.type)+may(div(vv.level))|may(div(vv.label)))+eos
+        ((may(div(vv.type))+may(mul(vv.level)))|may(getattr(vv.label)))+eos
         +make_next(vv.type, vv.level, vv.label))
 
 @builtin.function('set_loop_label')

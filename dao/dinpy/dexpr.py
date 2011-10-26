@@ -246,7 +246,13 @@ class _lshift(_Binary):
       vars = _get_assign_vars_list(self.x)
     else: raise DinpySyntaxError()
     return special.set_list(vars, y)
-    
+  def __repr__(self): 
+    if run_mode() is interactive:
+      code = interactive_parser().parse(self)
+      code = interactive_tagger().tag_loop_label(code)
+      result = interactive_solver().eval(code)
+      return repr(result) if result is not None else ''
+    else: return self.____repr____()
 
 class _rshift(_Binary): 
   operator = arith.rshift  
@@ -280,7 +286,7 @@ class _call(_SymbolExpression):
   def ___parse___(self, parser):
     caller = parser.parse(self.caller)
     return caller(*parser.parse(self.args), **parser.parse(self.kwargs))
-  def __repr__(self): 
+  def ____repr____(self): 
     return '%s(%s,%s)'%(','.join([dao_repr(a) for a in self.args]),
                         ', '+','.join(['%s=%s' %(dao_reprk, dao_repr(a)) 
                                        for k, a in self.kwargs]) 

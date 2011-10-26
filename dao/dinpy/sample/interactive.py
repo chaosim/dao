@@ -1,5 +1,41 @@
 from dao.dinpy import *
 
+import random
+
+result = solve(do[ repeat, i << pycall(random.randint, 0,10), prin(i), iff(i!=3).do [fail] ])
+
+print result.next()
+
+print result.next()
+
+print do[ repeat, i << pycall(random.randint, 0,10), prin(i), iff(i!=3).do [fail] ] #
+
+print findall(do[ repeat, i << pycall(random.randint, 0,10), prin(i)], x, y) #
+
+print i << 0
+
+print label.outer%loop[
+  println('outer loop'),
+  label.inner%loop[
+    prin('inner loop: '),
+    println(i),
+    ++i,
+    iff(i==3).do[ exit*2 >> 'exit from inner' ]
+  ]
+]
+
+print i << 0
+
+print label.outer%loop[
+  println('outer loop'),
+  label.inner%loop[
+    prin('inner loop: '),
+    println(i),
+    ++i,
+    iff(i==3).do[ exit.outer >> 'exit from inner' ]
+  ]
+]
+
 print letr (f2 << fun(x)[ iff(x<1).do[x].els[f2(x-1)]]) .do [f2(3)]
 print i<<0
 print lshift(i, 1)

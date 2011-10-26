@@ -117,7 +117,7 @@ def make_if_cont(then, els, cont):
   def if_cont(value, solver):
     if value: yield solver.cont(then, cont), value
     elif els is not None: yield solver.cont(els, cont), value
-    else: yield cont, value
+    else: yield cont, None
   return if_cont
 
 class if_(SpecialForm):
@@ -357,7 +357,7 @@ class exit(ParserForm):
     if self.label is None:
       try: 
         labels = tagger.labels[self.type]
-        return exit_block(labels[len(labels)-1-self.level], self.value)
+        return exit_block(labels[-self.level], self.value)
       except: raise DaoSyntaxError(self)
     else:
       return exit_block(self.label, self.value)
@@ -378,7 +378,7 @@ class next(ParserForm):
     if self.label is None:
       try: 
         labels = tagger.labels[self.type]
-        return continue_block(labels[len(labels)-1-self.level])
+        return continue_block(labels[-self.level])
       except: raise DaoSyntaxError
     else:
       return continue_block(self.label)

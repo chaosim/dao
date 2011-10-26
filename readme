@@ -1,6 +1,78 @@
 This is Dao version 0.7.0
 ============================
 
+what would happen when lisp meets prolog in python?  
+
+Dinpy arises!
+
+Dao is the new generation programming system implemented by a functional logic solver, 
+unifying code with data, grammar with program, logic with functional, compiling with running.
+
+What's new in this release?
+---------------------------
+
+See the file "news.txt" for what's new in all releases.
+
+Download and install
+----------------------
+  You need python 2.6 or higher version to install and run dao. Dao is not tested with python 3.x.
+
+  You can download and install dao from pypi with these method:
+
+* find the place of daot from pypi, download the tarball of daot from (http://code.google.com/p/daot)£¬unextract it to a single folder, enter the folder in the shell and execute the command::
+
+  python setup.py install
+
+* install by easy_install through the internet directly, with the shell command::
+
+  easy_install dao
+
+* install by easy_install through the internet directly,  with the shell command::
+
+  pip install dao
+
+How to use Dao?
+------------------
+
+See the "get start" in the http://code.google.com/p/daot/w/list to get started with dao and dinpy.
+Download the document and for more completly information about dao and dinpy. 
+See the tests, and you'll get some information about the interface and user cases.
+
+Documentation
+-------------
+
+The document of dao can be download from (http://code.google.com/p/daot).
+
+Testing
+-------
+
+dao use the nose test framework, the code in dao is tested with many tests.
+
+
+Web sites
+---------
+
+New dao releases, documents and related stuffs are published at
+http://code.google.com/p/daot. 
+
+the project's repository is on github (https://github.com/chaosim/dao). You can get the source code that is in continuous development.
+
+Come to visit us!
+
+Bug reports
+-----------
+
+To report or search for bugs, please use the wiki at 
+http://code.google.com/p/daot, or email to simeon.chaos@gmail.com
+
+Platform notes
+--------------
+
+dao is developed and tested on Windows XP, Python 2.6.6.
+
+License information
+-------------------
+
 copyright (c) 2011-2013 ²ÜÐÇÃ÷(Simeon Chaos, email: simeon.chaos@gmail.com)
 
 This program is free software: you can redistribute it and/or modify
@@ -19,111 +91,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 This software is released under GNU General Public License version 3. 
 see license.txt
 
-dao releases, documents, bugs reports is hosted in http://code.google.com/p/dao.  
-Come visit us!
-
-What is Dao anyway?
-----------------------
-Dao means "Oops! Another dao!"
-
-What's new in this release?
----------------------------
-
-See the file "news.txt" for what's new in all releases.
-
-How to use Dao?
-------------------
-See the tests, and you'll get it.
-
-License information
--------------------
-
 See the file "license.txt" for information on the history of this
 software, terms & conditions for usage, and a DISCLAIMER OF ALL
 WARRANTIES.
 
 This dao distribution contains GNU General Public Licensed (GPLed) code.
 
-All trademarks referenced herein are property of their respective holders.
+All trademarks referenced herein are property of their respective holders. 
 
-
-Installing
-----------
-
-Requirement: python 2.6
-To install dao, just extract the tarbar into any folder in the pythonpath.
-
-Testing
--------
-dao use the nose test framework.
-
-Documentation
--------------
-
-Web sites
----------
-
-New dao releases and related technologies are published at
-http://code.google.com/p/dao.  Come to visit us!
-
-Bug reports
------------
-
-To report or search for bugs, please use the wiki at 
-http://code.google.com/p/dao, or email to simeon.chaos@gmail.com
-
-Platform notes
---------------
-
-dao is developed and tested on Windows XP, Python 2.6.6.
-
-Distribution structure
-----------------------
-
-dao/            all of the codes
-   builtins/		some builtins can be used in eval expression.
-   tests/       code of tests
-license.txt		  licensing information
-readme.txt      the file you're reading now
 
 That's all, folks!
-------------------
-.. include globals.rst
 
-.. an_example_pypi_project documentation master file, created by
-   sphinx-quickstart on Thu Nov 05 22:55:49 2009.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Welcome to an_example_pypi_project's documentation!
-***************************************************
-
-Introduction: This Package is a Tutorial
-========================================
-
-This is just a demonstration vehicle used to take you through the process 
--- start to finish -- of creating a Python project that can be:
-
-	1. UplDaoed to
-	2. Distributed from 
-
-	and 
-
-	3. Documented on
-	
-the Python Package Index (aka pypi or the cheeseshop) at http://pypi.python.org/pypi. 
-This project uses setuptools, sphinx, and the Sphinx-PyPI-uplDao
-(http://pypi.python.org/pypi/Sphinx-PyPI-uplDao/0.2.1). 
-
-This demonstration is not meant to be complete nor authoritative. It's just a 
-recording of the steps I took to get some projects onto pypi and 
-hopefully it might save someone some time from googling around.  To be sure, 
-this is simply just *one* way to make a project, document it, and get it 
-on pypi. 
-
-NOTE: This was originally given as a talk to the Minnesota Python Users Group 
-http://groups.google.com/group/pymntos/ and was developed for a 
-spoken presentation format.  
-   
-
--- ²ÜÐÇÃ÷(Simeon Chaos, simeon.chaos@gmail.com http://code.google.com/p/dao)
+              Your Sincerely
+             -- ²ÜÐÇÃ÷(Simeon Chaos, simeon.chaos@gmail.com)
