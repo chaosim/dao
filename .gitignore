@@ -4,3 +4,7 @@ yeanpypa.py
 *.*#
 *.wpu
 document/_build/doctrees
+build
+daot.egg-info
+dist
+*.*#

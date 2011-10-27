@@ -1,7 +1,7 @@
 This is Dao version 0.7.0
 ============================
 
-what would happen when lisp meets prolog in python?  
+What would happen when lisp meet prolog in python?  
 
 Dinpy arises!
 
@@ -15,11 +15,12 @@ See the file "news.txt" for what's new in all releases.
 
 Download and install
 ----------------------
+
   You need python 2.6 or higher version to install and run dao. Dao is not tested with python 3.x.
 
   You can download and install dao from pypi with these method:
 
-* find the place of daot from pypi, download the tarball of daot from (http://code.google.com/p/daot)£¬unextract it to a single folder, enter the folder in the shell and execute the command::
+* find the place of daot from pypi, download the tarball of daot from (http://code.google.com/p/daot),unextract it to a single folder, enter the folder in the shell and execute the command::
 
   python setup.py install
 
@@ -38,7 +39,7 @@ See the "get start" in the http://code.google.com/p/daot/w/list to get started w
 Download the document and for more completly information about dao and dinpy. 
 See the tests, and you'll get some information about the interface and user cases.
 
-Have a look at running Dinpy in interactive mode in the python shell below:
+Have a look at running Dinpy in interactive mode in the python shell below::
 
 >>> from dao.dinpy import *
 
@@ -138,7 +139,7 @@ dao is developed and tested on Windows XP, Python 2.6.6.
 License information
 -------------------
 
-copyright (c) 2011-2013 ²ÜÐÇÃ÷(Simeon Chaos, email: simeon.chaos@gmail.com)
+copyright (c) 2011-2013 Caoxingming(Simeon Chaos, email: simeon.chaos@gmail.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as
@@ -168,4 +169,4 @@ All trademarks referenced herein are property of their respective holders.
 That's all, folks!
 
               Your Sincerely
-             -- ²ÜÐÇÃ÷(Simeon Chaos, simeon.chaos@gmail.com)
+             -- Caoxingming(Simeon Chaos, simeon.chaos@gmail.com)
