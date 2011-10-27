@@ -1,6 +1,7 @@
 from dao.term import Var, unify, deref, Cons, ClosureVar
 import dao.term as term
 from dao import builtin
+from dao.solve import mycont
 
 # analysing and construction terms
 
@@ -9,26 +10,69 @@ def getvalue(solver, cont, item):
   yield cont, term.getvalue(item, solver.env)
   
 @builtin.macro()
-def ground_value(solver, cont, item, default=None):
-  v = term.getvalue(item, solver.env)
-  if isinstance(v, Var): v = default #deref(default, solver.env)
-  yield cont, v
+def getvalue_default(solver, cont, item, default=None):
+  value = term.getvalue(item, solver.env)
+  if isinstance(value, Var): value = default
+  yield cont, value
+  
+def is_ground(term):
+  if isinstance(term, Var): return False
+  if isinstance(term, Cons): 
+    if not is_ground(term.head): return False
+    if not is_ground(term.tail): return False
+  return True
+  
+@builtin.macro('ground_p')
+def ground(solver, cont, term):
+  yield cont, is_ground(getvalue(term, solver.env))
+  
+@builtin.macro('ground_p')
+def ground_p(solver, cont, term):
+  if is_ground(getvalue(term, solver.env)): yield cont, True
   
 @builtin.macro()
 def setvalue(solver, cont, var, value):
+  if isinstance(var, ClosureVar): var = var.var
   var = deref(var, solver.env)
-  value = deref(value, solver.env)
+  assert isinstance(var, Var)
   @mycont(cont)
   def setvalue_cont(value, solver):
-    var = var.var
-    if var in solver.env.bindings:
-      v = solver.env.bindings[var]
-      if isinstance(v, Var): var = v
     old = var.getvalue(solver.env)
     var.setvalue(value, solver.env)
     yield cont, True
     var.setvalue(old, solver.env)
   yield solver.cont(value, set_cont), True
+
+@builtin.macro('is')
+def is_(solver, cont, var, func):
+  @mycont(cont)
+  def is_cont(value, solver):
+    for _ in var.unify(value, solver.env):
+      yield cont, True
+  yield solver.cont(func, is_cont), True
+
+def define_var(var, value, env):
+  env0 = env
+  while env is not None:
+    try: 
+      old = env.bindings[var]
+      env.bindings[var] = value
+      yield True
+      env.bindings[var] = old
+      return
+    except KeyError: env = env.outer
+  env0.bindings[var] = value
+  yield True
+  del env0.bindings[var]
+
+@builtin.macro()
+def define(solver, cont, var, value):
+  if isinstance(var, ClosureVar): var = var.var
+  value = deref(value, solver.env)
+  def define_cont(value, solver):
+    for _ in define_var(var, value, solver.env):
+      yield cont, value
+  yield solver.cont(value, define_cont), True
 
 @builtin.macro()
 def copy_term(solver, cont, item, copy):
@@ -44,7 +88,8 @@ def unify(solver, cont, v0, v1):
 
 @builtin.macro('unify_with_occurs_check')
 def unify_with_occurs_check(solver, cont, v0, v1):
-  for _ in term.unify(v0, v1, solver.env, occurs_check=True): yield cont, True
+  for _ in term.unify(v0, v1, solver.env, occurs_check=True): 
+    yield cont, True
 
 @builtin.macro('notunify')
 def notunify(solver, cont, var0, var1):
@@ -56,10 +101,18 @@ def notunify(solver, cont, var0, var1):
 
 @builtin.macro('var')
 def isvar(solver, cont, arg):
+  yield cont, isinstance(arg, Var)
+
+@builtin.macro('var')
+def isvar_p(solver, cont, arg):
   if isinstance(arg, Var): yield cont, True
 
 @builtin.macro('nonvar')
 def nonvar(solver, cont, arg):  
+  yield cont, not isinstance(arg, Var)
+
+@builtin.macro('nonvar')
+def nonvar_p(solver, cont, arg):  
   if not isinstance(arg, Var): yield cont, True
 
 def is_free(var, env):
@@ -71,9 +124,27 @@ def free(solver, cont, arg):
   yield cont, is_free(arg, solver.env)
 
 @builtin.macro('bound')
-def bound(solver, cont, arg):
-  yield cont, not(is_free(arg, solver.env))
-
+def bound(solver, cont, var):
+  assert(isinstance(var, Var))
+  if isinstance(var, ClosureVar): var = var.var
+  yield cont, solver.env[var] is not var
+  
+@builtin.macro('unbind')
+def unbind(solver, cont, arg):
+  if isinstance(var, ClosureVar): var = var.var
+  env0 = solver.env
+  bindings = []
+  while env is not None:
+    try: 
+      bindings.append((env.bindings, env.bindings[var]))
+    except: pass
+    env = env.outer
+  for b, _ in bindings:
+    del b[var]
+  yield cont, True
+  for b, v in bindings:
+    b[var] = v
+  
 def isinteger(solver, cont, arg):
   if isinstance(deref(arg, solver.env), int): yield cont, True
 
@@ -95,17 +166,6 @@ def iscons(solver, cont, arg):
 def is_cons(x): return isinstance(x, Cons)
 
 
-def is_ground(term):
-  if isinstance(term, Var): return False
-  if isinstance(term, Cons): 
-    if not is_ground(term.head): return False
-    if not is_ground(term.tail): return False
-  return True
-  
-@builtin.macro('ground')
-def ground(solver, cont, term):
-  if is_ground(getvalue(term, solver.env)): yield cont, True
-  
 @builtin.function('conslist')
 def conslist(*arguments): return conslist(arguments)
 
@@ -181,19 +241,4 @@ def to_list(item):
 @builtin.function('items')
 def items(dict):
   return dict.items()
-
-@builtin.macro('is')
-def is_(solver, cont, var, func):
-  func = deref(func, solver.env)
-  yield solver.cont(func, lambda value, solver:
-    ((cont, True) for _ in var.unify(value, solver.env))), True
-
-@builtin.macro()
-def define(solver, cont, var, value):
-  value = deref(value, solver.env)
-  if isinstance(var, ClosureVar): var = var.var
-  def define_cont(value, solver):
-    solver.env[var] = value
-    yield cont, value
-  yield solver.cont(value, define_cont), True
 

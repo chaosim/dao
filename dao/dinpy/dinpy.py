@@ -41,7 +41,7 @@ from dao.builtins.matcher import some, any, may
 from dao.builtins.terminal import eos
 from dao.builtins.term import pytuple, pycall, py_CommandCall, head_list, list_tail
 from dao.builtins.term import items, first, left
-from dao.builtins.term import getvalue, ground_value, is_
+from dao.builtins.term import getvalue, getvalue_default, is_
 from dao.builtins.arith import ne_p
 from dao.solve import eval as oad_eval, solve, tag_loop_label
 from dao.solve import set_run_mode, noninteractive, DaoUncaughtThrow
@@ -275,7 +275,7 @@ case = element('case',
   #.of(1)[write(1)].of(2,3)[write(4)].els[write(5)]
     (some(of_fun(__.values)+getitem_to_list(__.clause),(__.values,__.clause), vv.clauses)
      +may(_els+getitem_to_list(vv.els))+eos
-    +make_case(vv.test, list_tail(vv.clauses, pytuple(CASE_ELS, ground_value(vv.els)))))
+    +make_case(vv.test, list_tail(vv.clauses, pytuple(CASE_ELS, getvalue_default(vv.els)))))
   #/{1:[write(1)],2:[write(4)],3:[write(4)], els:[write(5)]}
 ##  | div(vv.clauses)+eos+make_case(vv.test, items(vv.clauses))
   ))
@@ -305,7 +305,7 @@ until_fun = attr_call('until')
 loop = element('loop',
   (  # loop(1)[write(1)]
     (call(vv.times)+getitem_to_list(vv.body)+eos
-      +make_loop_times(vv.body, ground_value(vv.times)))
+      +make_loop_times(vv.body, getvalue_default(vv.times)))
     # loop[...], loop[...].when(), loop[...].until() 
   | ( getitem_to_list(vv.body)+
       ( # loop [...] # infinite loop
@@ -380,7 +380,7 @@ def make_exit(type, level, label, value):
 exit = element('exit', 
          ((may(div(vv.type))+may(mul(vv.level)))|may(getattr(vv.label)))
              +may(rshift(vv.value))+eos
-             +make_exit(vv.type, vv.level, vv.label, ground_value(vv.value)))
+             +make_exit(vv.type, vv.level, vv.label, getvalue_default(vv.value)))
 
 @builtin.function('make_next')
 def make_next(type, level, label):
@@ -473,7 +473,7 @@ def make_AtForm(args_bodies):
 # at(*args)[...](*args)[...][...]
 # at[...][...]
 at = element('at',
-  some(may(call(__.args))+assign(__.args, ground_value(__.args))
+  some(may(call(__.args))+assign(__.args, getvalue_default(__.args))
        +some(getitem_to_list(__.body), __.body, __.bodies), 
         (__.args, __.bodies), vv.args_bodies)+eos
         +make_AtForm(vv.args_bodies))
@@ -608,7 +608,7 @@ def fun_macro_grammar(klass1, klass2):
   #  fun. a<= at(..)[...]
   | (getattr(vv.name)+le(vv.rules)+eos+make_fun6(vv.name,vv.rules, klass2))
   #  fun(args) [...](args)[...][...]
-  | (some(may(call(__.args)) +assign(__.args, ground_value(__.args))
+  | (some(may(call(__.args)) +assign(__.args, getvalue_default(__.args))
           + some(getitem_to_list(__.body), __.body, __.bodies), 
           (__.args, __.bodies), vv.rules)
         +eos+make_fun7(vv.rules, klass1))

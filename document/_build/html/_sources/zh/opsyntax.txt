@@ -74,7 +74,7 @@ Dao系统一直是我所追求的梦想，而Dinpy和算符文法则完全来自
   loop = element('loop',
     (  # loop(1)[write(1)]
       (call(vv.times)+getitem_to_list(vv.body)+eos
-        +make_loop_times(vv.body, ground_value(vv.times)))
+        +make_loop_times(vv.body, getvalue_default(vv.times)))
       # loop[...], loop[...].when(), loop[...].until() 
     | ( getitem_to_list(vv.body)+
         ( # loop [...] # infinite loop

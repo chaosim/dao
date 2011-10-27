@@ -28,7 +28,7 @@
     <link rel="top" title="the dao to programming 0.7.0 documentation" href="../index.html" />
     <link rel="up" title="欢迎使用“编程之道”文档!" href="index.html" />
     <link rel="next" title="函数" href="function.html" />
-    <link rel="prev" title="合一与匹配" href="unifymatch.html" /> 
+    <link rel="prev" title="合一和回溯" href="unifymatch.html" /> 
   </head>
   <body>
     <div class="related">
@@ -41,7 +41,7 @@
           <a href="function.html" title="函数"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="unifymatch.html" title="合一与匹配"
+          <a href="unifymatch.html" title="合一和回溯"
              accesskey="P">previous</a> |</li>
         <li><a href="../index.html">the dao to programming 0.7.0 documentation</a> &raquo;</li>
           <li><a href="index.html" accesskey="U">欢迎使用“编程之道”文档!</a> &raquo;</li> 
@@ -55,15 +55,153 @@
             
   <div class="section" id="id1">
 <h1>逻辑命令<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h1>
-<p>ifp</p>
-<p>and_p</p>
-<p>not_p</p>
-<p>succeed</p>
-<p>fail</p>
-<p>findall</p>
-<p>call</p>
-<p>once</p>
-<p>repeat</p>
+<div class="section" id="id2">
+<h2>逻辑控制<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p class="first">and_p: 与谓词</p>
+<p>格式: and_p(call1, call2)</p>
+<p>如果call1与call2都成功，则and_p(call1， call2)成功。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">and_p</span><span class="p">(</span><span class="n">succeed</span><span class="p">,</span> <span class="n">succeed</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">and_p</span><span class="p">(</span><span class="n">succeed</span><span class="p">,</span> <span class="n">fail</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;e:\dao\dao\dinpy\term.py&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+    <span class="kn">from</span> <span class="nn">dao.builtins.term</span> <span class="kn">import</span> <span class="o">*</span>
+  File <span class="nb">&quot;e:\dao\dao\term.py&quot;</span>, line <span class="m">325</span>, in <span class="n">__repr__</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">interactive_solver</span><span class="p">()</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+  File <span class="nb">&quot;e:\dao\dao\solve.py&quot;</span>, line <span class="m">192</span>, in <span class="n">eval</span>
+    <span class="k">raise</span> <span class="n">NoSolutionFound</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+<span class="gr">dao.solve.NoSolutionFound</span>: <span class="n">exit!</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">or_p: 或谓词</p>
+<p>格式: or_p(call1， call2)
+如果call1与call2有一个成功，则or_p(call1， call2)成功。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">or_p</span><span class="p">(</span><span class="n">succeed</span><span class="p">,</span> <span class="n">fail</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">or_p</span><span class="p">(</span><span class="n">fail</span><span class="p">,</span> <span class="n">fail</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;e:\dao\dao\dinpy\term.py&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+    <span class="kn">from</span> <span class="nn">dao.builtins.term</span> <span class="kn">import</span> <span class="o">*</span>
+  File <span class="nb">&quot;e:\dao\dao\term.py&quot;</span>, line <span class="m">325</span>, in <span class="n">__repr__</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">interactive_solver</span><span class="p">()</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+  File <span class="nb">&quot;e:\dao\dao\solve.py&quot;</span>, line <span class="m">192</span>, in <span class="n">eval</span>
+    <span class="k">raise</span> <span class="n">NoSolutionFound</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+<span class="gr">dao.solve.NoSolutionFound</span>: <span class="n">exit!</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">if_p: 条件谓词</p>
+<p>格式: if_p(condition, conclusion)</p>
+<p>如果condition成功并且conclusion成功，则if_p(condition, conclusion)成功，否则失败。</p>
+<p>if_p的上述语义是依据 Prolog的ISO的标准，也是各个prolog实现的事实标准。请参考prolog的有关文档。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">if_p</span><span class="p">(</span><span class="n">succeed</span><span class="p">,</span> <span class="n">succeed</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">if_p</span><span class="p">(</span><span class="n">succeed</span><span class="p">,</span> <span class="n">fail</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;e:\dao\dao\dinpy\term.py&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+    <span class="kn">from</span> <span class="nn">dao.builtins.term</span> <span class="kn">import</span> <span class="o">*</span>
+  File <span class="nb">&quot;e:\dao\dao\term.py&quot;</span>, line <span class="m">325</span>, in <span class="n">__repr__</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">interactive_solver</span><span class="p">()</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+  File <span class="nb">&quot;e:\dao\dao\solve.py&quot;</span>, line <span class="m">192</span>, in <span class="n">eval</span>
+    <span class="k">raise</span> <span class="n">NoSolutionFound</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+<span class="gr">dao.solve.NoSolutionFound</span>: <span class="n">exit!</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">if_p</span><span class="p">(</span><span class="n">fail</span><span class="p">,</span> <span class="n">succeed</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;e:\dao\dao\dinpy\term.py&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+    <span class="kn">from</span> <span class="nn">dao.builtins.term</span> <span class="kn">import</span> <span class="o">*</span>
+  File <span class="nb">&quot;e:\dao\dao\term.py&quot;</span>, line <span class="m">325</span>, in <span class="n">__repr__</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">interactive_solver</span><span class="p">()</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+  File <span class="nb">&quot;e:\dao\dao\solve.py&quot;</span>, line <span class="m">192</span>, in <span class="n">eval</span>
+    <span class="k">raise</span> <span class="n">NoSolutionFound</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+<span class="gr">dao.solve.NoSolutionFound</span>: <span class="n">exit!</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">if_p</span><span class="p">(</span><span class="n">fail</span><span class="p">,</span> <span class="n">fail</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;e:\dao\dao\dinpy\term.py&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+    <span class="kn">from</span> <span class="nn">dao.builtins.term</span> <span class="kn">import</span> <span class="o">*</span>
+  File <span class="nb">&quot;e:\dao\dao\term.py&quot;</span>, line <span class="m">325</span>, in <span class="n">__repr__</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">interactive_solver</span><span class="p">()</span><span class="o">.</span><span class="n">eval</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+  File <span class="nb">&quot;e:\dao\dao\solve.py&quot;</span>, line <span class="m">192</span>, in <span class="n">eval</span>
+    <span class="k">raise</span> <span class="n">NoSolutionFound</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+<span class="gr">dao.solve.NoSolutionFound</span>: <span class="n">exit!</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">not_p: 否定谓词</p>
+<p>格式: not_p(goal)</p>
+<p>如果goal失败，则not_p(goal)成功，否则not_p(goal)失败。</p>
+</li>
+<li><p class="first">succeed: 成功谓词</p>
+<p>格式: succeed</p>
+</li>
+<li><p class="first">fail: 失败谓词</p>
+<p>格式: fail</p>
+</li>
+<li><p class="first">findall: 求所有解</p>
+<p>格式: findall(call, template, result)</p>
+</li>
+<li><p class="first">call: 求解谓词</p>
+<p>格式: call(goal)</p>
+</li>
+<li><p class="first">once: 一次求解谓词</p>
+<p>格式: once(goal)</p>
+</li>
+<li><p class="first">重复求解谓词(repeat)</p>
+<p>格式: repeat</p>
+</li>
+<li><p class="first">cut: 截断谓词
+格式： cut</p>
+</li>
+</ul>
+</div>
+<div class="section" id="id3">
+<h2>变量和项<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p class="first">unify: 合一谓词</p>
+<p>格式: unify(condition, conclusion)</p>
+</li>
+<li><p class="first"><a href="#id4"><span class="problematic" id="id5">is_</span></a>: 变量与求得的值合一</p>
+<p>格式: is_(condition, conclusion)</p>
+</li>
+<li><p class="first">setvalue: 变量设值</p>
+<p>格式: setvalue(var, value)</p>
+</li>
+<li><p class="first">getvalue: 取值</p>
+<p>格式: getvalue(item)</p>
+</li>
+<li><p class="first">free: 是自由变量？</p>
+<p>格式: free(var)</p>
+</li>
+<li><p class="first">free_p: 是自由变量？</p>
+<p>格式: free_p(var)</p>
+</li>
+<li><p class="first">bound: 是绑定变量？</p>
+<p>格式: bound(var)</p>
+<p>如果var被绑定到其它对象，包括被绑定到变量，则返回True，否则返回失败。</p>
+</li>
+<li><p class="first">bound_p: 是绑定变量？</p>
+<p>格式: bound(var)</p>
+<p>如果var被绑定到其它对象，包括被绑定到变量，则成功并返回True。否则失败。</p>
+</li>
+<li><p class="first">ground: 是否实值</p>
+<p>格式: ground(item)</p>
+</li>
+<li><p class="first">ground_p: 是否实值</p>
+<p>格式: ground_p(item)</p>
+</li>
+<li><p class="first">unbind: 去除变量绑定</p>
+<p>格式: unbind(var)</p>
+<p>去除变量绑定，使得var成为自由变量</p>
+</li>
+<li><p class="first">isvar: 是变量？</p>
+<p>格式: isvar(item)</p>
+</li>
+<li><p class="first">nonvar: 不是变量？</p>
+<p>格式: nonvar(item)</p>
+</li>
+</ul>
+</div>
 </div>
 
 
@@ -72,9 +210,18 @@
       </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">逻辑命令</a><ul>
+<li><a class="reference internal" href="#id2">逻辑控制</a></li>
+<li><a class="reference internal" href="#id3">变量和项</a></li>
+</ul>
+</li>
+</ul>
+
   <h4>Previous topic</h4>
   <p class="topless"><a href="unifymatch.html"
-                        title="previous chapter">合一与匹配</a></p>
+                        title="previous chapter">合一和回溯</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="function.html"
                         title="next chapter">函数</a></p>
@@ -110,7 +257,7 @@
           <a href="function.html" title="函数"
              >next</a> |</li>
         <li class="right" >
-          <a href="unifymatch.html" title="合一与匹配"
+          <a href="unifymatch.html" title="合一和回溯"
              >previous</a> |</li>
         <li><a href="../index.html">the dao to programming 0.7.0 documentation</a> &raquo;</li>
           <li><a href="index.html" >欢迎使用“编程之道”文档!</a> &raquo;</li> 

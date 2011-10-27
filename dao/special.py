@@ -38,20 +38,23 @@ class quote(SpecialForm):
       return result
     else: 
       return "'%s"%self.exp
-    
+
+# do not restore the value of var in assign
+# if need to restore, use define instead.
+
 def assign_var(var, value, env):
   env0 = env
   while env is not None:
     try: 
-      old = env.bindings[var]
+##      old = env.bindings[var]
       env.bindings[var] = value
       yield True
-      env.bindings[var] = old
+##      env.bindings[var] = old
       return
     except KeyError: env = env.outer
   env0.bindings[var] = value
   yield True
-  del env0.bindings[var]
+##  del env0.bindings[var]
   
 class set(SpecialForm):
   def __init__(self, var, exp):

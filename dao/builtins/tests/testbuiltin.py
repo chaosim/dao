@@ -12,8 +12,8 @@ from dao.builtins.parser import set_text
 from dao.builtins.terminal import char
 from dao.builtins.term import unify, notunify
 from dao.builtins.io import write
-from dao.builtins.term import ground
-from dao.builtins.term import isvar, nonvar, is_
+from dao.builtins.term import ground_p
+from dao.builtins.term import isvar, nonvar, is_, nonvar_p, isvar_p
 
 from dao.solve import set_run_mode, noninteractive
 set_run_mode(noninteractive)
@@ -69,15 +69,20 @@ class TestArithpred:
 
 class TestTypePredicate:
   def test_ground(self):
-    eq_(eval(ground(1)), True)
-    eq(eval(ground(Var(''))), None)
+    eq_(eval(ground_p(1)), True)
+    eq(eval(ground_p(Var(''))), None)
   def test_var(self):
+    eq_(eval(isvar(1)), False)
+    eq_(eval(isvar(L(1))), False)
     eq_(eval(nonvar(1)), True)
     eq_(eval(nonvar(L(1))), True)
     eq_(eval(isvar(x)), True)
-    assert_raises(NoSolutionFound, eval, isvar(1))
-    assert_raises(NoSolutionFound, eval, isvar(L(1)))
-    assert_raises(NoSolutionFound, eval, nonvar(x))
+    eq_(eval(nonvar_p(1)), True)
+    eq_(eval(nonvar_p(L(1))), True)
+    eq_(eval(isvar_p(x)), True)
+    assert_raises(NoSolutionFound, eval, isvar_p(1))
+    assert_raises(NoSolutionFound, eval, isvar_p(L(1)))
+    assert_raises(NoSolutionFound, eval, nonvar_p(x))
     
 class Testunify:
   def test1(self):
