@@ -162,6 +162,10 @@ class TestCut:
                      (d, function([[3], 'd3']))],
              a(x), x)), 4) 
   def test_cut2_no_Cut2_and_(self):
+    # test_cut2_no_Cut_and_p work correct.
+    # but this test and test_cut2_no_Cut3_begin work wrong because the bug below:
+    # bug in Var.getvalue/Var.setvalue: 
+    # dont't restore the longer chain of bindings after shorten it.
     a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x')
     from dao.builtins.arith import and_
     eq_(eval(letr([(a, function([[x], and_(b(x),c(x))],

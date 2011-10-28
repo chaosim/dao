@@ -202,26 +202,17 @@ class Var:
     if next is None: return envValue
     if next is self: return next
     result = deref(next, env)
-##    if result is not next: self.setvalue(result, env)
+    if result is not next: self.setvalue(result, env)
     return result
   def getvalue(self, env):
     result = self.deref(env)
     if not isinstance(result, Var): 
       result = getvalue(result, env)
-##      self.setvalue(result, env)
+      self.setvalue(result, env)
     return result
 
   def setvalue(self, value, env):
     env.bindings[self] = value
-##    try: 
-##      old = env.bindings[self]
-##      env.bindings[self] = value
-##      yield True
-##      env.bindings[self] = old
-##    except:
-##      env.bindings[self] = value
-##      yield True
-##      del env.bindings[self]
 
   def copy(self, memo):
     try: return memo[self]
@@ -246,7 +237,15 @@ class Var:
     else: return ClosureVar(self, value)
   
   def cont(self, cont, solver):
-    return value_cont(self.getvalue(solver.env), cont)
+    @mycont(cont)
+    def var_cont(value, solver):
+      try:
+        old = solver.env[self]
+        yield cont, self.getvalue(solver.env)
+        solver.env[self] = old
+      except:
+        yield cont, self
+    return var_cont
     
   def __add__(self, other): 
     from dao.builtins.arith import add
