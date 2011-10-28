@@ -202,17 +202,26 @@ class Var:
     if next is None: return envValue
     if next is self: return next
     result = deref(next, env)
-    if result is not next: self.setvalue(result, env)
+##    if result is not next: self.setvalue(result, env)
     return result
   def getvalue(self, env):
     result = self.deref(env)
     if not isinstance(result, Var): 
       result = getvalue(result, env)
-      self.setvalue(result, env)
+##      self.setvalue(result, env)
     return result
 
   def setvalue(self, value, env):
-    if value is not self: env.bindings[self] = value
+    env.bindings[self] = value
+##    try: 
+##      old = env.bindings[self]
+##      env.bindings[self] = value
+##      yield True
+##      env.bindings[self] = old
+##    except:
+##      env.bindings[self] = value
+##      yield True
+##      del env.bindings[self]
 
   def copy(self, memo):
     try: return memo[self]
@@ -342,7 +351,8 @@ class CommandCall:
 class Function(Command): 
   def evaluate_cont(self, exps, cont, solver):
     def evaluate_arguments(exps, cont):
-        if len(exps)==0: return cont([], solver)
+        if len(exps)==0: 
+          return cont([], solver)
         else:
           @mycont(cont)
           def argument_cont(value, solver):
@@ -354,7 +364,7 @@ class Function(Command):
     @mycont(cont)
     def apply_cont(values, solver): 
       return self.apply(solver, values, cont)
-    return evaluate_arguments(exps,apply_cont)
+    return evaluate_arguments(exps, apply_cont)
 
 class Macro(Command): 
   def evaluate_cont(self, exps, cont, solver):

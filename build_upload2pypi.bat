@@ -1,3 +1,4 @@
+rem http://packages.python.org/an_example_pypi_project/oneclickscript.html
 rem set HOME=C:\Users\Owner\
 cd E:\dao
 rem d:\Python24\python.exe setup.py register

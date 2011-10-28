@@ -17,6 +17,19 @@ dao[
 ##use.a/'a*',
 ##use.a/'test_*1',
 
+letr( a << fun(x) [ and_p(b(x),c(x)) ]
+                  [ d(x) ],
+      b << fun(1) ['b1']
+              (4) ['b4'],
+      c << fun(4) ['c4'], 
+      d << fun(3) ['d3'], 
+     ).do[ 
+     a(x), prin(x) ],
+]
+dao.eval()
+
+dao[
+
 v.a_trt_b, # 刚导入的变量
 
 each(i)[1:3].

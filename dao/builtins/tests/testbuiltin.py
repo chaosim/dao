@@ -45,7 +45,7 @@ class TestControl:
     # the code below loops for ever.
     eq_(eval(and_p(set_text('123'), repeat, char(x), unify(x, '4'))), True) 
     
-  def test_if(self):
+  def test_if_p(self):
     from dao.builtins.control import if_p
     eq_(eval(if_p(succeed, succeed)), True)
     assert_raises(NoSolutionFound, eval, if_p(succeed, fail))

@@ -152,14 +152,33 @@ class TestCut:
                                     [[3], True])),
                      (c, function([[2], True]))],
              a(x), x))
-  def test_cut2_no_Cut(self):
+  def test_cut2_no_Cut_and_p(self):
     a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x'), 
     eq_(eval(letr([(a, function([[x], b(x)&c(x)],
                                  [[x], d(x)])),
+                     (b, function([[1], 'b1'],
+                                 [[4], 'b4'])),
+                     (c, function([[4], 'c4'])),
+                     (d, function([[3], 'd3']))],
+             a(x), x)), 4) 
+  def test_cut2_no_Cut2_and_(self):
+    a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x')
+    from dao.builtins.arith import and_
+    eq_(eval(letr([(a, function([[x], and_(b(x),c(x))],
+                                 [[x], d(x)])),
                      (b, function([[1], True],
                                  [[4], True])),
-                     (c, function([[3], True])),
-                     (d, function([[4], True]))],
+                     (c, function([[4], True])),
+                     (d, function([[3], True]))],
+             a(x), x)), 4) 
+  def test_cut2_no_Cut3_begin(self):
+    a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x')
+    eq_(eval(letr([(a, function([[x], begin(b(x),c(x))],
+                                 [[x], d(x)])),
+                     (b, function([[1], 'b1'],
+                                 [[4], 'b4'])),
+                     (c, function([[4], 'c4'])),
+                     (d, function([[3], 'd3']))],
              a(x), x)), 4) 
   def testCut4(self):
     a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x'), 
@@ -167,7 +186,7 @@ class TestCut:
                           [[x], d(x)])),
                      (b, function([[1], True],
                                  [[4], True])),
-                     (c, function([[3], True])),
+                     (c, function([[4], True])),
                      (d, function([[3], True]))],
              a(x), x)), 3)
     

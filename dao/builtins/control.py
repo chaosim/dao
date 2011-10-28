@@ -1,6 +1,6 @@
 from dao.term import Var, deref, CommandCall, getvalue
 from dao import builtin
-from dao.solve import CutException
+from dao.solve import CutException, mycont
 from dao.builtin import Builtin, Function
 from dao.term import CommandCall
 
@@ -20,18 +20,24 @@ def callcc(solver, cont, fun):
 # finding all solutions to a goal
 
 @builtin.macro()
-def findall(solver, cont, goal, template, bag):
+def findall(solver, cont, goal, template=None, bag=None):
   goal = deref(goal, solver.env)
-  result = []
-  for c, x in solver.exp_run_cont(goal, cont):
-    result.append(getvalue(template, solver.env))
-  for x in bag.unify(result, solver.env):
+  if bag is not None:
+    result = []
+    for c, x in solver.exp_run_cont(goal, cont):
+      result.append(getvalue(template, solver.env))
+    for x in bag.unify(result, solver.env):
+      yield cont, True
+  else:
+    for c, x in solver.exp_run_cont(goal, cont):
+      pass
     yield cont, True
     
 # meta call predicates
 
 @builtin.macro()
-def call(solver, cont, pred): yield solver.cont(deref(pred, solver.env), cont), True
+def call(solver, cont, pred): 
+  yield solver.cont(deref(pred, solver.env), cont), True
 
 @builtin.macro()
 def once(solver, cont, pred):
@@ -67,44 +73,43 @@ cut = cut()
 
 @builtin.macro('and_p')
 def and_p(solver, cont, *calls):
+  if len(calls)==0:  
+    yield value_cont(None, cont), True
   if len(calls)==1:
-    call = deref(calls[0], solver.env)
-    yield solver.cont(call, cont), True
-  elif len(calls)==2:
-    call1 = deref(calls[0], solver.env)
-    call2 = deref(calls[1], solver.env)
-    def and_cont(value, solver): yield solver.cont(call2, cont), value
-    yield solver.cont(call1, and_cont), True
-  else: 
-    call1 = deref(calls[:-1], solver.env)
-    call2 = deref(calls[-1], solver.env)
-    def and_cont(value, solver): yield solver.cont(call2, cont), value
-    yield solver.cont(and_p(*call1), and_cont), True
+    yield solver.cont(call[0], cont), True
+  else:
+    @mycont(cont)
+    def and_cont(value, solver): 
+      yield solver.cont(calls[-1], cont), value
+    if len(calls)==2: 
+      yield solver.cont(calls[0], and_cont), True
+    else: 
+      yield solver.exps_cont(calls[:-1], and_cont), True
     
 @builtin.macro('or_p')
-def or_p(solver, cont, call1, call2):
-  call1 = deref(call1, solver.env)
-  call2 = deref(call2, solver.env)
-  if isinstance(call1, CommandCall) and call1.operator==if_p: # A -> B; C
+def or_p(solver, cont, *calls):
+  if len(calls)==0:  
+    yield value_cont(None, cont), True
+  call0 = deref(calls[0], solver.env)
+  if isinstance(call0, CommandCall) and call0.operator==if_p: # A -> B; C
     if_clause = deref(call1.operand[0], solver.env)
     then_clause = deref(call1.operand[1], solver.env)
-    call1 = if_clause&cut&then_clause
+    calls[0] = if_clause&cut&then_clause
+  @mycont(cont)
   def or_cont(value, solver):
-    yield solver.cont(call1, cont), True
-    yield solver.cont(call2, cont), True
+    for call in calls:
+      yield solver.cont(call, cont), True
 ##  or_cont.cut = True
   yield or_cont, True
 
 @builtin.macro('first_p')
-def first_p(solver, cont, call1, call2):
-  call1 = deref(call1, solver.env)
+def first_p(solver, cont, *calls):
   solved = False
-  for c, value in solver.exp_run_cont(call1, cont):
-    solved = True
-    yield c, value
-  if solved: return
-  call2 = deref(call2, solver.env)
-  yield solver.cont(call2, cont), True
+  for call in calls:
+    for c, value in solver.exp_run_cont(call, cont):
+      solved = True
+      yield c, value
+    if solved: return
 
 @builtin.macro('->')  
 def if_p(solver, cont, if_clause, then_clause):
@@ -113,7 +118,7 @@ def if_p(solver, cont, if_clause, then_clause):
   if_clause = deref(if_clause, solver.env)
   then_clause = deref(then_clause, solver.env)
   def if_p_cont(value, solver):
-    if not value: return
+##    if not value: return # important! logic predicate if_p decide whether to continue by the fail or succeed of the condition.
     yield solver.cont(then_clause, cont), True
   yield solver.cont(if_clause, if_p_cont), True
 

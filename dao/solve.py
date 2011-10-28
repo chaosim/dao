@@ -265,10 +265,11 @@ class Solver:
     except TypeError: return value_cont(exp, cont)
 
   def exps_cont(self, exps, cont):
-      if len(exps)==0: return value_cont(True, cont)
-      elif len(exps)==1: return self.cont(exps[0], cont)
+      if len(exps)==0: return value_cont(None, cont)
+      elif len(exps)==1: 
+        return self.cont(exps[0], cont)
       else:
         @mycont(cont)
-        def exps_cont(value, solver):
-          yield solver.exps_cont(exps[1:], cont), value
-        return self.cont(exps[0], exps_cont)
+        def last_cont(value, solver):
+          yield solver.cont(exps[-1], cont), value
+        return self.exps_cont(exps[:-1], last_cont)

@@ -1,0 +1,262 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>This is Dao version 0.7.0 &mdash; the dao to programming 0.7.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.7.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="the dao to programming 0.7.0 documentation" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li><a href="../index.html">the dao to programming 0.7.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="this-is-dao-version-0-7-0">
+<h1>This is Dao version 0.7.0<a class="headerlink" href="#this-is-dao-version-0-7-0" title="Permalink to this headline">¶</a></h1>
+<p>what would happen when lisp meets prolog in python?</p>
+<p>Dinpy arises!</p>
+<p>Dao is the new generation programming system implemented by a functional logic solver,
+unifying code with data, grammar with program, logic with functional, compiling with running.</p>
+<div class="section" id="what-s-new-in-this-release">
+<h2>What&#8217;s new in this release?<a class="headerlink" href="#what-s-new-in-this-release" title="Permalink to this headline">¶</a></h2>
+<p>See the file &#8220;news.txt&#8221; for what&#8217;s new in all releases.</p>
+</div>
+<div class="section" id="download-and-install">
+<h2>Download and install<a class="headerlink" href="#download-and-install" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><p>You need python 2.6 or higher version to install and run dao. Dao is not tested with python 3.x.</p>
+<p>You can download and install dao from pypi with these method:</p>
+</div></blockquote>
+<ul>
+<li><p class="first">find the place of daot from pypi, download the tarball of daot from (<a class="reference external" href="http://code.google.com/p/daot">http://code.google.com/p/daot</a>)，unextract it to a single folder, enter the folder in the shell and execute the command:</p>
+<p>python setup.py install</p>
+</li>
+<li><p class="first">install by easy_install through the internet directly, with the shell command:</p>
+<p>easy_install dao</p>
+</li>
+<li><p class="first">install by easy_install through the internet directly,  with the shell command:</p>
+<p>pip install dao</p>
+</li>
+</ul>
+</div>
+<div class="section" id="how-to-use-dao">
+<h2>How to use Dao?<a class="headerlink" href="#how-to-use-dao" title="Permalink to this headline">¶</a></h2>
+<p>See the &#8220;get start&#8221; in the <a class="reference external" href="http://code.google.com/p/daot/w/list">http://code.google.com/p/daot/w/list</a> to get started with dao and dinpy.
+Download the document and for more completly information about dao and dinpy.
+See the tests, and you&#8217;ll get some information about the interface and user cases.</p>
+<p>Have a look at running Dinpy in interactive mode in the python shell below:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">dao.dinpy</span> <span class="kn">import</span> <span class="o">*</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">i</span><span class="o">&lt;&lt;</span><span class="mi">0</span>
+<span class="go">0</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">lshift</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="go">0</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">quote</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+<span class="go">i</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">quote</span><span class="p">(</span><span class="n">i</span><span class="o">/</span><span class="n">i</span><span class="o">+</span><span class="n">i</span><span class="o">*</span><span class="mi">1</span><span class="p">)</span>
+<span class="go">i/i+i*1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">quote</span><span class="p">((</span><span class="n">i</span><span class="o">+</span><span class="n">i</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
+<span class="go">(i+i)*(i+1)</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">let</span><span class="p">(</span><span class="n">i</span><span class="o">&lt;&lt;</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">do</span><span class="p">[</span><span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">let</span><span class="p">(</span><span class="n">i</span><span class="o">&lt;&lt;</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">do</span><span class="p">[</span><span class="n">let</span><span class="p">(</span><span class="n">i</span><span class="o">&lt;&lt;</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">do</span><span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="p">],</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span>
+<span class="go">2 1</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">loop</span><span class="p">(</span><span class="mi">3</span><span class="p">)[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">++</span><span class="n">i</span> <span class="p">]</span>
+<span class="go">0 1 2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loop</span> <span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">--</span><span class="n">i</span><span class="p">]</span><span class="o">.</span> <span class="n">until</span><span class="p">(</span><span class="n">i</span><span class="o">==</span><span class="mi">0</span><span class="p">)</span>
+<span class="go">3 2 1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loop</span> <span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">++</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">i</span><span class="o">&lt;</span><span class="mi">3</span><span class="p">)</span>
+<span class="go">0 1 2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">when</span><span class="p">(</span><span class="n">i</span><span class="o">!=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">loop</span><span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">--</span><span class="n">i</span><span class="p">]</span>
+<span class="go">3 2 1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loop</span> <span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">++</span><span class="n">i</span><span class="p">,</span> <span class="n">iff</span><span class="p">(</span><span class="n">i</span><span class="o">==</span><span class="mi">3</span><span class="p">)</span> <span class="o">.</span><span class="n">do</span><span class="p">[</span><span class="nb">exit</span><span class="p">]</span> <span class="p">]</span>
+<span class="go">0 1 2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">each</span><span class="p">(</span><span class="n">i</span><span class="p">)[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">loop</span><span class="p">[</span><span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span>
+<span class="go">0 1 2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">i</span> <span class="o">&lt;&lt;</span> <span class="mi">0</span>
+<span class="go">0</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">label</span><span class="o">.</span><span class="n">outer</span><span class="o">%</span><span class="n">loop</span><span class="p">[</span> <span class="n">println</span><span class="p">(</span><span class="s">&#39;outer loop&#39;</span><span class="p">),</span> <span class="n">label</span><span class="o">.</span><span class="n">inner</span><span class="o">%</span><span class="n">loop</span><span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="s">&#39;inner loop: &#39;</span><span class="p">),</span> <span class="n">println</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">++</span><span class="n">i</span><span class="p">,</span> <span class="n">iff</span><span class="p">(</span><span class="n">i</span><span class="o">==</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">do</span><span class="p">[</span> <span class="nb">exit</span><span class="o">*</span><span class="mi">2</span> <span class="o">&gt;&gt;</span> <span class="s">&#39;exit from inner&#39;</span> <span class="p">]</span> <span class="p">]</span> <span class="p">]</span>
+<span class="go">outer loop</span>
+<span class="go">inner loop:  0</span>
+<span class="go">inner loop:  1</span>
+<span class="go">inner loop:  2</span>
+<span class="go">&#39;exit from inner&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">i</span> <span class="o">&lt;&lt;</span> <span class="mi">0</span>
+<span class="go">0</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">label</span><span class="o">.</span><span class="n">outer</span><span class="o">%</span><span class="n">loop</span><span class="p">[</span> <span class="n">println</span><span class="p">(</span><span class="s">&#39;outer loop&#39;</span><span class="p">),</span> <span class="n">label</span><span class="o">.</span><span class="n">inner</span><span class="o">%</span><span class="n">loop</span><span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="s">&#39;inner loop: &#39;</span><span class="p">),</span> <span class="n">println</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">++</span><span class="n">i</span><span class="p">,</span> <span class="n">iff</span><span class="p">(</span><span class="n">i</span><span class="o">==</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">do</span><span class="p">[</span> <span class="nb">exit</span><span class="o">.</span><span class="n">outer</span> <span class="o">&gt;&gt;</span> <span class="s">&#39;exit from inner&#39;</span> <span class="p">]</span> <span class="p">]</span> <span class="p">]</span>
+<span class="go">outer loop</span>
+<span class="go">inner loop:  0</span>
+<span class="go">inner loop:  1</span>
+<span class="go">inner loop:  2</span>
+<span class="go">&#39;exit from inner&#39;</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">fun</span><span class="o">.</span><span class="n">f1</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="p">[</span><span class="n">x</span><span class="o">+</span><span class="n">x</span><span class="p">]</span>
+<span class="go">f1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f1</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="go">4</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">letr</span> <span class="p">(</span><span class="n">f2</span> <span class="o">&lt;&lt;</span> <span class="n">fun</span><span class="p">(</span><span class="n">x</span><span class="p">)[</span> <span class="n">iff</span><span class="p">(</span><span class="n">x</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">do</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">els</span><span class="p">[</span><span class="n">f2</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">1</span><span class="p">)]])</span> <span class="o">.</span><span class="n">do</span> <span class="p">[</span><span class="n">f2</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+<span class="go">0</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">fun</span><span class="o">.</span><span class="n">f</span><span class="p">()</span><span class="o">==</span><span class="p">[</span><span class="n">prin</span><span class="p">(</span><span class="s">&#39;f():&#39;</span><span class="p">),</span> <span class="n">prin</span><span class="p">(</span><span class="mi">4</span><span class="p">)]</span>
+<span class="go">f</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="p">()</span>
+<span class="go">f(): 4</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="documentation">
+<h2>Documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h2>
+<p>The document of dao can be download from (<a class="reference external" href="http://code.google.com/p/daot">http://code.google.com/p/daot</a>).
+See <a class="reference external" href="https://github.com/chaosim/dao/wiki">https://github.com/chaosim/dao/wiki</a> for online document.</p>
+</div>
+<div class="section" id="testing">
+<h2>Testing<a class="headerlink" href="#testing" title="Permalink to this headline">¶</a></h2>
+<p>dao use the nose test framework, the code in dao is tested with many tests.</p>
+</div>
+<div class="section" id="web-sites">
+<h2>Web sites<a class="headerlink" href="#web-sites" title="Permalink to this headline">¶</a></h2>
+<p>New dao releases, documents and related stuffs are published at
+<a class="reference external" href="http://code.google.com/p/daot">http://code.google.com/p/daot</a>.</p>
+<p>the project&#8217;s repository is on github (<a class="reference external" href="https://github.com/chaosim/dao">https://github.com/chaosim/dao</a>). You can get the source code that is in continuous development.</p>
+<p>Come to visit us!</p>
+</div>
+<div class="section" id="bug-reports">
+<h2>Bug reports<a class="headerlink" href="#bug-reports" title="Permalink to this headline">¶</a></h2>
+<p>To report or search for bugs, please use the wiki at
+<a class="reference external" href="http://code.google.com/p/daot">http://code.google.com/p/daot</a>, or email to <a class="reference external" href="mailto:simeon&#46;chaos&#37;&#52;&#48;gmail&#46;com">simeon<span>&#46;</span>chaos<span>&#64;</span>gmail<span>&#46;</span>com</a></p>
+</div>
+<div class="section" id="platform-notes">
+<h2>Platform notes<a class="headerlink" href="#platform-notes" title="Permalink to this headline">¶</a></h2>
+<p>dao is developed and tested on Windows XP, Python 2.6.6.</p>
+</div>
+<div class="section" id="license-information">
+<h2>License information<a class="headerlink" href="#license-information" title="Permalink to this headline">¶</a></h2>
+<p>copyright (c) 2011-2013 曹星明(Simeon Chaos, email: <a class="reference external" href="mailto:simeon&#46;chaos&#37;&#52;&#48;gmail&#46;com">simeon<span>&#46;</span>chaos<span>&#64;</span>gmail<span>&#46;</span>com</a>)</p>
+<p>This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.</p>
+<p>This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.</p>
+<p>You should have received a copy of the GNU General Public License
+along with this program.  If not, see &lt;<a class="reference external" href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>&gt;.</p>
+<p>This software is released under GNU General Public License version 3.
+see license.txt</p>
+<p>See the file &#8220;license.txt&#8221; for information on the history of this
+software, terms &amp; conditions for usage, and a DISCLAIMER OF ALL
+WARRANTIES.</p>
+<p>This dao distribution contains GNU General Public Licensed (GPLed) code.</p>
+<p>All trademarks referenced herein are property of their respective holders.</p>
+<p>That&#8217;s all, folks!</p>
+<blockquote>
+<div><blockquote>
+<div>Your Sincerely</div></blockquote>
+<p>&#8211; 曹星明(Simeon Chaos, <a class="reference external" href="mailto:simeon&#46;chaos&#37;&#52;&#48;gmail&#46;com">simeon<span>&#46;</span>chaos<span>&#64;</span>gmail<span>&#46;</span>com</a>)</p>
+</div></blockquote>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">This is Dao version 0.7.0</a><ul>
+<li><a class="reference internal" href="#what-s-new-in-this-release">What&#8217;s new in this release?</a></li>
+<li><a class="reference internal" href="#download-and-install">Download and install</a></li>
+<li><a class="reference internal" href="#how-to-use-dao">How to use Dao?</a></li>
+<li><a class="reference internal" href="#documentation">Documentation</a></li>
+<li><a class="reference internal" href="#testing">Testing</a></li>
+<li><a class="reference internal" href="#web-sites">Web sites</a></li>
+<li><a class="reference internal" href="#bug-reports">Bug reports</a></li>
+<li><a class="reference internal" href="#platform-notes">Platform notes</a></li>
+<li><a class="reference internal" href="#license-information">License information</a></li>
+</ul>
+</li>
+</ul>
+
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/en/readme.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li><a href="../index.html">the dao to programming 0.7.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Simeon Chaos.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.
+    </div>
+  </body>
+</html>

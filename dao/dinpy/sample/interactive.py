@@ -2,6 +2,42 @@ from dao.dinpy import *
 
 import random
 
+fun(1)[2], c<<fun(1)[True]
+
+print letr( a << fun(x) [ b(x)&c(x) ]
+                        [ d(x) ],
+            b << fun(1) [True]
+                    (4) [True],
+            c << fun(4) [True], 
+            d << fun(3) [True], 
+           ).do[ 
+           a(x), x ]
+
+print letr( a << fun(x) [ b(x)&cut&c(x) ]
+                        [ d(x) ],
+            b << fun(1) [True]
+                    (4) [True],
+            c << fun(4) [True], 
+            d << fun(3) [True], 
+           ).do[ 
+           a(x), x ]
+
+
+print letr( a << fun(x) [ b(x)&cut&c(x) ],
+            b << fun(1) [True]
+                    (2) [True]
+                    (3) [True],
+            c << fun(2) [True] 
+          ).do[ 
+          a(x), x ]
+
+print letr( a << fun(x) [ b(x)&cut&c(x) ],
+            b << fun(1) [True]
+                    (2) [True]
+                    (3) [True],
+            c << fun(1) [True] 
+           ).do[ 
+           a(x), x ]
 result = solve(do[ repeat, i << pycall(random.randint, 0,10), prin(i), iff(i!=3).do [fail] ])
 
 print result.next()
