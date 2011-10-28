@@ -17,6 +17,13 @@ dao[
 ##use.a/'a*',
 ##use.a/'test_*1',
 
+let( i<<0 ). do[ repeat, prin(i), ++i, iff(i<3).do[fail] ],
+
+]
+dao.eval()
+
+dao[
+
 letr( a << fun(x) [ and_p(b(x),c(x)) ]
                   [ d(x) ],
       b << fun(1) ['b1']
@@ -25,10 +32,6 @@ letr( a << fun(x) [ and_p(b(x),c(x)) ]
       d << fun(3) ['d3'], 
      ).do[ 
      a(x), prin(x) ],
-]
-dao.eval()
-
-dao[
 
 v.a_trt_b, # 刚导入的变量
 

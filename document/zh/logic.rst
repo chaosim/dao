@@ -224,6 +224,9 @@
       File "e:\dao\dao\solve.py", line 192, in eval
 	raise NoSolutionFound(exp)
     dao.solve.NoSolutionFound: exit!
+
+  看下面两段代码，因为截断谓词的作用，因为冻结了b(x)的求解分支，不再回溯它的另一分支，导致第一段代码的唯一结果为3，后一段代码第一遍求解的结果为4。
+
     >>> letr( a << fun(x) [ b(x)&cut&c(x) ]
                         [ d(x) ],
             b << fun(1) [True]
@@ -242,6 +245,7 @@
            ).do[ 
            a(x), x ]
     4
+
 变量和项
 ------------
 

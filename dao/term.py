@@ -151,11 +151,9 @@ def closure(exp, env):
     else: return exp
   return exp_closure(env)
 
-var_index = 1
 class Var:
-  def __init__(self, name, index=0): 
+  def __init__(self, name): 
     self.name = name
-    self.index = index
     
   def __call__(self, *exps): return CommandCall(self, *exps)
   
@@ -192,7 +190,7 @@ class Var:
   def copy_rule_head(self, env):
     try: return env.bindings[self]
     except KeyError:
-      env.bindings[self] = self.new()
+      env.bindings[self] = RuleHeadCopyVar(self)
       return env.bindings[self]
     
   def deref(self, env):
@@ -202,13 +200,13 @@ class Var:
     if next is None: return envValue
     if next is self: return next
     result = deref(next, env)
-    if result is not next: self.setvalue(result, env)
+    if result is not envValue and not isinstance(envValue, RuleHeadCopyVar): 
+      self.setvalue(result, env)
     return result
   def getvalue(self, env):
     result = self.deref(env)
     if not isinstance(result, Var): 
       result = getvalue(result, env)
-      self.setvalue(result, env)
     return result
 
   def setvalue(self, value, env):
@@ -221,13 +219,11 @@ class Var:
       return newvar
     
   def new(self): 
-    global var_index
-    var_index += 1
-    return self.__class__(self.name, var_index)
+    return self.__class__(self.name)
   
   def free(self, env): return isinstance(self.deref(env), Var)
   
-  def __repr__(self): return '%s%s'%(self.name, '_%s'%self.index if self.index!=0 else '')
+  def __repr__(self): return '%s'%self.name
   def __eq__(self, other): return self is other
   def __hash__(self): return hash(id(self))
   
@@ -237,15 +233,16 @@ class Var:
     else: return ClosureVar(self, value)
   
   def cont(self, cont, solver):
-    @mycont(cont)
-    def var_cont(value, solver):
-      try:
-        old = solver.env[self]
-        yield cont, self.getvalue(solver.env)
-        solver.env[self] = old
-      except:
-        yield cont, self
-    return var_cont
+##    @mycont(cont)
+##    def var_cont(value, solver):
+##      try:
+##        old = solver.env[self]
+##        yield cont, self.getvalue(solver.env)
+##        solver.env[self] = old
+##      except KeyError:
+##        yield cont, self
+##    return var_cont
+    return value_cont(self.getvalue(solver.env), cont)
     
   def __add__(self, other): 
     from dao.builtins.arith import add
@@ -260,6 +257,14 @@ class Var:
     from dao.builtins.arith import sub
     return sub(other, self)
 
+class RuleHeadCopyVar(Var):
+  var2index = {}
+  def __init__(self, var):
+    self.name = var.name
+    self.index = self.var2index.get(var, 0)
+    self.var2index[var] = self.index+1
+  def __repr__(self): return '$%s_%s'%(self.name, self.index)
+  
 class DummyVar(Var):
   def __init__(self, name='_v', index=0): Var.__init__(self, name)
   def unify_rule_head(self, other, callee_env, caller_env, varset): 
