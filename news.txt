@@ -1,4 +1,30 @@
-#summary What's new in dao 0.7.0?
+ What's new in dao 0.7.2?
+
+*Release date:  2011-10-27
+
+* new in code:
+  * refactor findall, call, once
+  * fix a bug that prevent some backtracking in optional
+  * fix the bug caused by getvalue/setvalue.
+     the bug masks the internal generated variable for function argumnet when return and causes error in some situations.
+
+* chinese document is almost finished: 
+  * new chapter: function, macro
+  * more about logic command in document(zh)
+
+--------------------------------------------
+
+What's new in dao 0.7.1
+
+*Release date:  2011-10-28
+
+fix bugs
+  * a big bug in 0.7.0 in assign when dinpy run in interactive mode is fixed
+some new builtins in builtins/term.py
+
+-------------------------------------------
+
+ What's new in dao 0.7.0?
 
 *Release date:  2011-10-26
 
@@ -6,9 +32,13 @@
     A language dinpy that uses dao's solver as the core is implemented. Dinpy is embeded in python, and dinpy have the features that both lisp and prolog provided.
     Some documents about dao and dinpy are written.
 
+-------------------------------------------
+
 What's new in dao 0.6.2? 
 
 environment(env), substition(subst) and trail play together(which was called heap before). module was reimplemented by ModuleEnvironment?. new builtin: setvalue, catch, throw in lisp style, old catch and throw become try, raise. block and return-from, unwind-protect.
+
+------------------------------------------------
 
 What's new in dao 0.6.1? 
 
@@ -20,6 +50,8 @@ add some absent builtins: repeat(control.py), throw, catch(in exception.py), sta
 
 terminals aware of line can be write based on the class LineStream in builins\lineparserpy.
 If needed, other streams and terminals can be added. some tests(dao\tests\testsexpression\Test_eval_while_parsing) is added to demo the power of the dynamics of the parsing.
+
+---------------------------------------------
 
 What's new in dao 0.6.0? 
 
@@ -46,7 +78,12 @@ arithmetic operation
 callcc
 module
 
-What's new in 0.1.3 
+-------------------------------
+
+# What's new in 0.1.3 
+
+# Released date: 2007.6
+
 
 1 precedence of the elements and rules is processed correctly.
 
@@ -56,6 +93,7 @@ What's new in 0.1.3
 
 4 Multiply,Division and Cons are added to termlib.py.
 
+------------------------------------
 
 What's new in 0.1.2? 
 
@@ -65,6 +103,7 @@ Many things is cut from the source, like ascenders, augmentGrammar, but the pars
 
 Precedency is processed and pass all tests.
 
+---------------------------------------
 
 What's new in 0.1.1?
 

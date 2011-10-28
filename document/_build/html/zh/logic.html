@@ -248,6 +248,11 @@ dao.solve.NoSolutionFound: exit!</pre>
 </li>
 <li><p class="first">call: 求解谓词</p>
 <p>格式: call(goal)</p>
+<p>先取得goal的值（注意，使用getvalue命令取值，不是求解），然后对取得的值求解。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">is_</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">quote</span><span class="p">(</span><span class="n">prin</span><span class="p">(</span><span class="mi">1</span><span class="p">)))</span><span class="o">&amp;</span><span class="n">call</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="go">1</span>
+</pre></div>
+</div>
 </li>
 <li><p class="first">once: 一次求解谓词</p>
 <p>格式: once(goal)</p>

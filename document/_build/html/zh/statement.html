@@ -1,0 +1,347 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>常用语句 &mdash; the dao to programming 0.7.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.7.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="the dao to programming 0.7.0 documentation" href="../index.html" />
+    <link rel="up" title="欢迎使用“编程之道”文档!" href="index.html" />
+    <link rel="next" title="数据类型" href="datastruct.html" />
+    <link rel="prev" title="Dao系统及Dinpy语言起步" href="getstart.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="datastruct.html" title="数据类型"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="getstart.html" title="Dao系统及Dinpy语言起步"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">the dao to programming 0.7.0 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">欢迎使用“编程之道”文档!</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="id1">
+<h1>常用语句<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h1>
+<blockquote>
+<div><p>Dinpy提供了丰富的语句，有些语句是传统语言常见的，比如iff, when_loop, each_loop等（为避免与python关键字冲突，语句关键字有所不同）。有些语句是lisp系列语言所独有的。比如block/exit, catch/throw，protect/always等。本章将介绍如何使用这些语句。</p>
+<p>后面的文字中，为了说明语句的格式，引入一些约定：</p>
+<dl class="docutils">
+<dt>{{  }}</dt>
+<dd>表示分组。</dd>
+<dt>&lt;&lt;  &gt;&gt;</dt>
+<dd>表示其中的内容是可选的，可以出现一次或者不出现。</dd>
+</dl>
+<dl class="docutils">
+<dt>...</dt>
+<dd>表示前面的项可以重复任意次，包括0次。</dd>
+<dt>!...</dt>
+<dd>表示前面的项重复一次以上。</dd>
+</dl>
+<p>例如，语句...  表示逗号分隔的语句列表。</p>
+</div></blockquote>
+<div class="section" id="id2">
+<h2>简单语句<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p class="first">顺序执行语句(do语句)。</p>
+<p>格式: do[ 语句... ]</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">do</span><span class="p">[</span><span class="n">i</span><span class="o">&lt;&lt;</span><span class="mi">0</span><span class="p">,</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="n">prin</span><span class="p">(</span><span class="s">&#39; &#39;</span><span class="p">),</span> <span class="o">++</span><span class="n">i</span><span class="p">]</span>
+<span class="go">0 1</span>
+</pre></div>
+</div>
+<p>do 后面跟随一组语句序列，用中括号括起来，形成顺序执行语句。依据python分隔表达式的要求，语句和语句之间以逗号隔开。</p>
+</li>
+<li><p class="first">变量绑定语句(let语句)。
+格式: let ( {{变量&lt;&lt;值}}... ) . do[ 语句... ]</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">let</span><span class="p">(</span><span class="n">i</span> <span class="o">&lt;&lt;</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">do</span><span class="p">[</span> <span class="n">i</span> <span class="p">]</span>
+<span class="go">1</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">递归绑定语句(letr语句)。
+格式: letr ( {{变量&lt;&lt;值}}... ) . do[ 语句... ]</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">letr</span><span class="p">(</span><span class="n">f</span> <span class="o">&lt;&lt;</span> <span class="n">fun</span><span class="p">(</span><span class="n">x</span><span class="p">)[</span> <span class="n">iff</span><span class="p">(</span><span class="n">x</span><span class="o">==</span><span class="mi">1</span><span class="p">)</span> <span class="o">.</span><span class="n">do</span><span class="p">[</span> <span class="mi">1</span> <span class="p">]</span> <span class="o">.</span><span class="n">els</span><span class="p">[</span> <span class="n">x</span><span class="o">+</span><span class="n">f</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">]</span>  <span class="p">])</span> <span class="o">.</span><span class="n">do</span> <span class="p">[</span><span class="n">f</span><span class="p">(</span><span class="mi">4</span><span class="p">)]</span>
+<span class="go">10</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</div>
+<div class="section" id="id3">
+<h2>分支语句<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p class="first">条件分支语句(iff语句)</p>
+<p>格式: iff(条件).do[ 语句... ] {{ .elsif(条件).do[ 语句... ] }}...  &lt;&lt; .els[ 语句... ] &gt;&gt;</p>
+<p>从iff开始，依次测试iff和每个elsif分支的条件，如果条件为真，则执行随后对应的do块，如果所有的条件都为假，并且存在els块，则执行els块中的语句。</p>
+<p>可以看到，dinpy选用的都是不与python的if-elif-else冲突的关键字。</p>
+<p>上述格式说明中，为了方便，{{}}表示分组，... 表示前面的内容可以重复任意次，包括0次。 &lt;&lt; ... &gt;&gt;&gt;表示其中的内容是可选项，可以出现，也可以不出现。后面对此不知一一说明。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">iff</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">do</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">.</span><span class="n">elsif</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">do</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">.</span><span class="n">els</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+<span class="go">2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">iff</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">do</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">.</span><span class="n">elsif</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">do</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">.</span><span class="n">els</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+<span class="go">3</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">分情况语句(case语句)。</p>
+<p>格式: case(表达式) {{.of(值...)[ 语句... ]}}... &lt;&lt; .els[ 语句... ] &gt;&gt;</p>
+<p>先对case后的表达式求值，看值包含在哪一个of后面的值列表之中，选择执行对应的语句列表。如果表达式的值不包含在任何一个of后的值列表中，则执行els后面的语句列表。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">x</span>
+<span class="go">x</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">case</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="n">prin</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">)[</span><span class="n">prin</span><span class="p">(</span><span class="mi">4</span><span class="p">)]</span><span class="o">.</span><span class="n">els</span><span class="p">[</span><span class="n">prin</span><span class="p">(</span><span class="mi">5</span><span class="p">)]</span>
+<span class="go">5</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">x</span><span class="o">&lt;&lt;</span><span class="mi">3</span>
+<span class="go">3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">case</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">x</span><span class="p">)[</span><span class="n">prin</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="mi">2</span><span class="p">)[</span><span class="n">prin</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">els</span><span class="p">[</span><span class="n">prin</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="mi">3</span><span class="p">]]</span>
+<span class="go">3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">case</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="n">prin</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="mi">2</span><span class="p">)[</span><span class="n">prin</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">els</span><span class="p">[</span><span class="n">prin</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="mi">3</span><span class="p">]]</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">x</span><span class="o">&lt;&lt;</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+<span class="go">(1, 2)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">case</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">of</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">))[</span><span class="n">prin</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">),(</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">))]</span><span class="o">.</span><span class="n">of</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">))[</span><span class="n">prin</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">))]</span><span class="o">.</span><span class="n">els</span><span class="p">[</span><span class="n">prin</span><span class="p">(</span><span class="s">&#39;others&#39;</span><span class="p">)]</span>
+<span class="go">(1, 2) (3, 4)</span>
+</pre></div>
+</div>
+<p>我们看到，最后一个例子的case表达式是个元组。case表达式可以是整数以外类型的数据。只要表达式的值可以作为python dict的键，就可以用在case语句中。</p>
+</li>
+</ul>
+</div>
+<div class="section" id="id4">
+<h2>块结构<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p class="first">块语句(block语句)。格式：block.name[语句...]</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">block</span><span class="o">.</span><span class="n">name</span><span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">prin</span><span class="p">(</span><span class="mi">2</span><span class="p">)]</span>
+<span class="go">1 2</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">退出语句(exit语句)。</p>
+<p>格式：exit {{ &lt;&lt;.label&gt;&gt; | {{ &lt;&lt; /type &gt;&gt; &lt;&lt; <a href="#id5"><span class="problematic" id="id6">*</span></a>level &gt;&gt; }} }}  &lt;&lt; &#8216;&gt;&gt;&#8217; 返回值 &gt;&gt;</p>
+<p>退出块语句或循环语句。可以用exit.type*level的格式指定从哪种循环退出，要退出几层。type是&#8217;when&#8217;，&#8217;times&#8217;, &#8216;until&#8217;或者&#8217;each&#8217;等。如果level省略，则只退出包含该exit语句的最内层循环。也可以用exit.label的格式指定所要退出的块语句或循环语句的标号。如果type和label都省略，则退出所有类型循环的指定层或最内层语句块。exit &gt;&gt; value 表达式将指定返回的值。如果省略，默认返回None。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">block</span><span class="o">.</span><span class="n">a</span><span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="nb">exit</span><span class="o">.</span><span class="n">a</span><span class="p">,</span> <span class="n">prin</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="p">]</span>
+<span class="go">1</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">重做语句(next语句)。</p>
+<p>格式：next &lt;&lt; .label &gt;&gt; | {{ &lt;&lt; /type &gt;&gt; &lt;&lt; <a href="#id7"><span class="problematic" id="id8">*</span></a>level &gt;&gt;}}</p>
+<p>重做块语句或循环语句。可以用next.type*level的格式指定从哪种循环退出，要退出几层。type是&#8217;loop&#8217;（无限循环)，&#8217;when&#8217;（when-loop或loop-when循环），&#8217;times&#8217;(loop-times循环), &#8216;until&#8217;(loop-until循环)或者&#8217;each&#8217;(each循环)等。如果level省略，则只重做包含该next语句的最内层循环。也可以用next.label的格式指定所要重做的块语句或循环语句的标号。如果type和label都省略，则重做所有类型循环的指导层或最内层语句块。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">do</span> <span class="p">[</span><span class="n">i</span><span class="o">&lt;&lt;</span><span class="mi">0</span><span class="p">,</span> <span class="n">block</span><span class="o">.</span><span class="n">a</span><span class="p">[</span> <span class="o">++</span><span class="n">i</span><span class="p">,</span> <span class="n">iff</span><span class="p">(</span><span class="n">i</span><span class="o">&lt;</span><span class="mi">3</span><span class="p">)</span> <span class="o">.</span><span class="n">do</span> <span class="p">[</span><span class="nb">next</span><span class="o">.</span><span class="n">a</span><span class="p">]</span> <span class="p">],</span> <span class="n">i</span> <span class="p">]</span>
+<span class="go">3</span>
+</pre></div>
+</div>
+<p>上面的例子说明，利用block, exit 和next语句可以构成循环。下一节将要介绍循环语句，而这些循环语句实际上正是利用block语句以及与exit和next对应的底层命令exit_block和continue_block构造的。</p>
+</li>
+</ul>
+</div>
+<div class="section" id="id9">
+<h2>循环<a class="headerlink" href="#id9" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p class="first">无限循环语句(loop语句)。</p>
+<p>格式：loop[ 语句... ]</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">i</span> <span class="o">&lt;&lt;</span> <span class="mi">0</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loop</span> <span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">++</span><span class="n">i</span><span class="p">,</span> <span class="n">iff</span><span class="p">(</span><span class="n">i</span><span class="o">==</span><span class="mi">3</span><span class="p">)</span> <span class="o">.</span><span class="n">do</span><span class="p">[</span><span class="nb">exit</span><span class="p">]</span> <span class="p">]</span>
+<span class="go">0 1 2</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">定数循环语句(loop-times语句)。</p>
+<p>格式：loop(次数) [ 语句... ]</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">loop</span><span class="p">(</span><span class="mi">3</span><span class="p">)[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">--</span><span class="n">i</span> <span class="p">]</span>
+<span class="go">3 2 1</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">前置条件循环语句(when-loop语句)。</p>
+<p>格式：when(条件).loop[ 语句... ]</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">when</span><span class="p">(</span><span class="n">i</span><span class="o">!=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">loop</span><span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">++</span><span class="n">i</span><span class="p">]</span>
+<span class="go">0 1 2</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">后置条件循环语句(loop-when语句)。</p>
+<p>格式：loop[ 语句... ].when(条件)</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">loop</span> <span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">++</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">i</span><span class="o">&lt;</span><span class="mi">3</span><span class="p">)</span>
+<span class="go">0 1 2</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">直到型循环语句(loop-until语句)。</p>
+<p>格式: loop[ 语句... ].until(条件)</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">do</span><span class="p">[</span> <span class="n">i</span><span class="o">&lt;&lt;</span><span class="mi">3</span><span class="p">,</span> <span class="n">loop</span> <span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="o">--</span><span class="n">i</span> <span class="p">]</span><span class="o">.</span> <span class="n">until</span><span class="p">(</span><span class="n">i</span><span class="o">==</span><span class="mi">0</span><span class="p">)</span>
+<span class="go">3 2 1</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">遍历循环语句(each语句)。</p>
+<p>格式：each(变量!...){{[表达式]!...}}.loop[ 语句... ]</p>
+<p>将变量列表依次与所有范围组合成的元组列表中的每一项绑定。循环执行语句列表。表达式可以是slice类型的值，将转换为range。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">each</span><span class="p">(</span><span class="n">i</span><span class="p">)[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">loop</span><span class="p">[</span> <span class="n">prin</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="p">]</span>
+<span class="go">0 1 2</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">循环标号语句(label语句)。</p>
+<p>格式: label.name%loop语句</p>
+<p>利用label语句，可以给上述循环语句设置标号。exit语句和next语句可以引用这个标号。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">label</span><span class="o">.</span><span class="n">outer</span><span class="o">%</span><span class="n">loop</span><span class="p">[</span>
+<span class="go">      println(&#39;outer loop&#39;),</span>
+<span class="go">      i &lt;&lt; 0,</span>
+<span class="go">      label.inner%loop[</span>
+<span class="go">        prin(&#39;inner loop: &#39;),</span>
+<span class="go">        println(i),</span>
+<span class="go">        ++i,</span>
+<span class="go">        iff(i==3).do[ exit.outer &gt;&gt; &#39;exit from inner&#39; ] ] ]</span>
+<span class="go">outer loop</span>
+<span class="go">inner loop:  0</span>
+<span class="go">inner loop:  1</span>
+<span class="go">inner loop:  2</span>
+<span class="go">&#39;exit from inner&#39;</span>
+</pre></div>
+</div>
+<p>这段程序利用exit.outer语句直接跳出外层循环, 并带回返回值&#8217;exit from inner&#8217;。</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">loop</span><span class="p">[</span>
+<span class="go">      println(&#39;outer loop&#39;),</span>
+<span class="go">      i &lt;&lt; 0,</span>
+<span class="go">      loop[</span>
+<span class="go">        prin(&#39;inner loop: &#39;),</span>
+<span class="go">        println(i),</span>
+<span class="go">        ++i,</span>
+<span class="go">        iff(i==3).do[ exit*2 &gt;&gt; &#39;exit from inner&#39; ] ] ]</span>
+<span class="go">outer loop</span>
+<span class="go">inner loop:  0</span>
+<span class="go">inner loop:  1</span>
+<span class="go">inner loop:  2</span>
+<span class="go">&#39;exit from inner&#39;</span>
+</pre></div>
+</div>
+<p>这段程序利用exit*2语句直接跳出两层循环, 并带回返回值&#8217;exit from inner&#8217;。</p>
+</li>
+</ul>
+</div>
+<div class="section" id="id10">
+<h2>异常处理<a class="headerlink" href="#id10" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p class="first">限定执行语句(on语句)。
+格式：on( {变量&lt;&lt;表达式}!... ) .do [ 语句...]</p>
+</li>
+<li><p class="first">catch 与 throw</p>
+<ul>
+<li><p class="first">捕获语句(catch语句)。</p>
+<p>格式：catch(标记).do[语句...]</p>
+</li>
+<li><p class="first">抛掷语句(throw语句)。</p>
+<p>格式: throw(标记).do[语句...]</p>
+</li>
+</ul>
+</li>
+<li><p class="first">保护执行语句(protect语句)。</p>
+<p>格式：protect[语句...].always[语句...]</p>
+</li>
+<li><p class="first">python 异常语句(pytry语句)。# 尚未实现</p>
+<p>格式：pytry[语句...].on(ExceptioinClass, e).do[语句...].final[语句...]</p>
+<p>用pytry实现each-loop语句。</p>
+</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">常用语句</a><ul>
+<li><a class="reference internal" href="#id2">简单语句</a></li>
+<li><a class="reference internal" href="#id3">分支语句</a></li>
+<li><a class="reference internal" href="#id4">块结构</a></li>
+<li><a class="reference internal" href="#id9">循环</a></li>
+<li><a class="reference internal" href="#id10">异常处理</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="getstart.html"
+                        title="previous chapter">Dao系统及Dinpy语言起步</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="datastruct.html"
+                        title="next chapter">数据类型</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/zh/statement.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="datastruct.html" title="数据类型"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="getstart.html" title="Dao系统及Dinpy语言起步"
+             >previous</a> |</li>
+        <li><a href="../index.html">the dao to programming 0.7.0 documentation</a> &raquo;</li>
+          <li><a href="index.html" >欢迎使用“编程之道”文档!</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Simeon Chaos.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.
+    </div>
+  </body>
+</html>

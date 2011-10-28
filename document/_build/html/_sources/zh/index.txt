@@ -10,7 +10,8 @@
    preface
    acknowledge
    getstart
-   control
+   statement
+   datastruct
    unifymatch
    logic
    function
@@ -19,6 +20,7 @@
    eval
    opsyntax
    extension
+   makelang
    postscript
    appendix_1
    appendix_2

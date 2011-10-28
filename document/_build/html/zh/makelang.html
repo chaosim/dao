@@ -1,0 +1,215 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>利用dao和dinpy创建新语言 &mdash; the dao to programming 0.7.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.7.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="the dao to programming 0.7.0 documentation" href="../index.html" />
+    <link rel="up" title="欢迎使用“编程之道”文档!" href="index.html" />
+    <link rel="next" title="后记" href="postscript.html" />
+    <link rel="prev" title="扩展Dao和Dinpy" href="extension.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="postscript.html" title="后记"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="extension.html" title="扩展Dao和Dinpy"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">the dao to programming 0.7.0 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">欢迎使用“编程之道”文档!</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="daodinpy">
+<h1>利用dao和dinpy创建新语言<a class="headerlink" href="#daodinpy" title="Permalink to this headline">¶</a></h1>
+<p>利用dao的强大功能，可以轻松创造新的语言。而且，在这个新的语言里，你还可以给它赋予动态的语法，使得程序员可以魔法般地控制代码的写法。</p>
+</div>
+<div class="section" id="id1">
+<h1>动态语法<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h1>
+<p>程序员自主定义语法</p>
+<p>rebol的方言</p>
+<p>dao的能力使得创造新语法比rebol更加容易。</p>
+<p><a class="reference external" href="http://lambda-the-ultimate.org/node/3281#comment-48286">http://lambda-the-ultimate.org/node/3281#comment-48286</a></p>
+<p><a class="reference external" href="http://logix-language.sourceforge.net/tutorial/contents.html">http://logix-language.sourceforge.net/tutorial/contents.html</a></p>
+<p><a class="reference external" href="http://c2.com/cgi/wiki?LogixLanguage">http://c2.com/cgi/wiki?LogixLanguage</a></p>
+<p><a class="reference external" href="http://www.nongnu.org/l-lang/">http://www.nongnu.org/l-lang/</a>
+parse_macro while &#8216;(&#8216; &#64;(Expression(Bool) condition) &#8216;)&#8217; &#64;(Statement body)
+{</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>Statement {</dt>
+<dd><dl class="first last docutils">
+<dt>loop { if(!($condition))</dt>
+<dd><blockquote class="first">
+<div>break;</div></blockquote>
+<p class="last">$body }}</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</div></blockquote>
+<p>}</p>
+<p><a class="reference external" href="http://metalua.luaforge.net/">http://metalua.luaforge.net/</a>
+<a class="reference external" href="http://metalua.luaforge.net/src/samples/pythonic.lua.html">http://metalua.luaforge.net/src/samples/pythonic.lua.html</a>
+pysample.lua
+$SUBTITLE$</p>
+<p>&#8211; This file requires an alternative lexer, therefore it must be
+&#8211; compiled that way:
+&#8211;
+&#8211; &gt; mlc -x pythonic.lua pysample.lua
+&#8211;
+&#8211; Or, if you want to execute it right away:
+&#8211;
+&#8211; &gt; mlc -x pythonic.lua -x pysample.lua
+&#8211;
+&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;-</p>
+<p>print &#8220;Eratosthenes&#8217; Sieve, in pythonic Metalua:&#8221;</p>
+<dl class="docutils">
+<dt>function print_sieve (limit):</dt>
+<dd><p class="first">local sieve, i = { }, 2
+while i&lt;limit:</p>
+<blockquote class="last">
+<div><dl class="docutils">
+<dt>while sieve[i]:</dt>
+<dd>i=i+1</dd>
+</dl>
+<p>print(i)
+for j = i*i, limit, i:</p>
+<blockquote>
+<div>sieve[j] = true</div></blockquote>
+<p>i=i+1</p>
+</div></blockquote>
+</dd>
+</dl>
+<p>print_sieve(100)</p>
+<blockquote>
+<div><p>mlp.lexer:add{ &#8220;let&#8221;, &#8220;in&#8221; }</p>
+<p>&#8211; Extend the expression parser; code generation is
+&#8211; delegated to the function let_in_builder() below.
+&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;
+mlp.expr:add{</p>
+<blockquote>
+<div>&#8220;let&#8221;, mlp.id, &#8220;=&#8221;, mlp.expr, &#8220;in&#8221;, mlp.expr,
+builder = let_in_builder }</div></blockquote>
+<p>&#8211; This creates the code returned by the macro.
+&#8211; Notice the holes-in-quote-in-splice.
+&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;&#8212;
+local function let_in_builder (x)</p>
+<blockquote>
+<div><p>local variable, value, expr = unpack (x)
+return +{</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>function (-{variable})</dt>
+<dd>return -{expr}</dd>
+</dl>
+<p>end (-{value}) }</p>
+</div></blockquote>
+</div></blockquote>
+<p>end</p>
+</div></blockquote>
+<p>} &#8211; back to &#8220;normal&#8221; code</p>
+<p>a, b, c = 1, 1, -2
+roots = let sqrt_delta = (b^2-4*a*c)^0.5 in</p>
+<blockquote>
+<div>{ (sqrt_delta-b)/(2*a), (-sqrt_delta-b)/(2*a) }</div></blockquote>
+<p><a class="reference external" href="http://felix-lang.org/">http://felix-lang.org/</a></p>
+<p>Katahdin Converge
+<a class="reference external" href="http://www.chrisseaton.com/katahdin/">http://www.chrisseaton.com/katahdin/</a></p>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">利用dao和dinpy创建新语言</a></li>
+<li><a class="reference internal" href="#id1">动态语法</a></li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="extension.html"
+                        title="previous chapter">扩展Dao和Dinpy</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="postscript.html"
+                        title="next chapter">后记</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/zh/makelang.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="postscript.html" title="后记"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="extension.html" title="扩展Dao和Dinpy"
+             >previous</a> |</li>
+        <li><a href="../index.html">the dao to programming 0.7.0 documentation</a> &raquo;</li>
+          <li><a href="index.html" >欢迎使用“编程之道”文档!</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Simeon Chaos.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.
+    </div>
+  </body>
+</html>

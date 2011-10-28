@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>扩展Dao和Dinpy &mdash; the dao to programming 0.7.0 documentation</title>
+    <title>数据类型 &mdash; the dao to programming 0.7.0 documentation</title>
     
     <link rel="stylesheet" href="../_static/default.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -27,8 +27,8 @@
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="top" title="the dao to programming 0.7.0 documentation" href="../index.html" />
     <link rel="up" title="欢迎使用“编程之道”文档!" href="index.html" />
-    <link rel="next" title="利用dao和dinpy创建新语言" href="makelang.html" />
-    <link rel="prev" title="运算符文法" href="opsyntax.html" /> 
+    <link rel="next" title="合一和回溯" href="unifymatch.html" />
+    <link rel="prev" title="常用语句" href="statement.html" /> 
   </head>
   <body>
     <div class="related">
@@ -38,10 +38,10 @@
           <a href="../genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="makelang.html" title="利用dao和dinpy创建新语言"
+          <a href="unifymatch.html" title="合一和回溯"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="opsyntax.html" title="运算符文法"
+          <a href="statement.html" title="常用语句"
              accesskey="P">previous</a> |</li>
         <li><a href="../index.html">the dao to programming 0.7.0 documentation</a> &raquo;</li>
           <li><a href="index.html" accesskey="U">欢迎使用“编程之道”文档!</a> &raquo;</li> 
@@ -53,68 +53,15 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="daodinpy">
-<h1>扩展Dao和Dinpy<a class="headerlink" href="#daodinpy" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="dao">
-<h2>Dao内核介绍<a class="headerlink" href="#dao" title="Permalink to this headline">¶</a></h2>
-<ul>
-<li><p class="first">后续传递型程序(CPS,  continuation passing style)</p>
-<p>利用后续实现lisp</p>
-<p>利用双后续实现prolog</p>
-<ul class="simple">
-<li>跳床技术<ul>
-<li>跳床技术在dao中的运用和改进</li>
-</ul>
-</li>
-</ul>
-</li>
-<li><p class="first">yield 语句与python产生器</p>
-<ul class="simple">
-<li>Yield Prolog采用的技术<ul>
-<li>yield prolog技术在dao中的运用和改进</li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-</div>
-<div class="section" id="id1">
-<h2>为dao增加内置函数<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
-<p>builtin.function</p>
-<p>&#64;builtin.function
-def function_name(arg...):</p>
+  <div class="section" id="id1">
+<h1>数据类型<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h1>
 <blockquote>
-<div>...</div></blockquote>
-<p>builtin.function2:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="nd">@builtin.function</span>
-<span class="k">def</span> <span class="nf">function_name</span><span class="p">(</span><span class="n">solver</span><span class="p">,</span> <span class="n">cont</span><span class="p">,</span> <span class="n">arg</span><span class="o">...</span><span class="p">):</span>
-   <span class="o">...</span>
-</pre></div>
-</div>
-</div>
-<div class="section" id="id2">
-<h2>为dao增加内置宏定义<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
-<p>builtin.macro</p>
-<blockquote>
-<div><p>&#64;builtin.macro
-def macro_name(solver, cont, arg...):</p>
-<blockquote>
-<div>...</div></blockquote>
+<div><p>python 数据类型</p>
+<p>表的操作</p>
+<p>元组的操作</p>
+<p>简单类型</p>
+<p>Cons</p>
 </div></blockquote>
-<dl class="docutils">
-<dt>builtin.matcher</dt>
-<dd><p class="first">&#64;builtin.matcher
-def macro_name(solver, cont, arg...):</p>
-<blockquote class="last">
-<div>...</div></blockquote>
-</dd>
-</dl>
-</div>
-<div class="section" id="id3">
-<h2>为dao增加特殊式<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
-<p>SpecialForm</p>
-<p>增加或修改Dinpy的语法</p>
-</div>
 </div>
 
 
@@ -123,26 +70,15 @@ def macro_name(solver, cont, arg...):</p>
       </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
-  <h3><a href="../index.html">Table Of Contents</a></h3>
-  <ul>
-<li><a class="reference internal" href="#">扩展Dao和Dinpy</a><ul>
-<li><a class="reference internal" href="#dao">Dao内核介绍</a></li>
-<li><a class="reference internal" href="#id1">为dao增加内置函数</a></li>
-<li><a class="reference internal" href="#id2">为dao增加内置宏定义</a></li>
-<li><a class="reference internal" href="#id3">为dao增加特殊式</a></li>
-</ul>
-</li>
-</ul>
-
   <h4>Previous topic</h4>
-  <p class="topless"><a href="opsyntax.html"
-                        title="previous chapter">运算符文法</a></p>
+  <p class="topless"><a href="statement.html"
+                        title="previous chapter">常用语句</a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="makelang.html"
-                        title="next chapter">利用dao和dinpy创建新语言</a></p>
+  <p class="topless"><a href="unifymatch.html"
+                        title="next chapter">合一和回溯</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
-    <li><a href="../_sources/zh/extension.txt"
+    <li><a href="../_sources/zh/datastruct.txt"
            rel="nofollow">Show Source</a></li>
   </ul>
 <div id="searchbox" style="display: none">
@@ -169,10 +105,10 @@ def macro_name(solver, cont, arg...):</p>
           <a href="../genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="makelang.html" title="利用dao和dinpy创建新语言"
+          <a href="unifymatch.html" title="合一和回溯"
              >next</a> |</li>
         <li class="right" >
-          <a href="opsyntax.html" title="运算符文法"
+          <a href="statement.html" title="常用语句"
              >previous</a> |</li>
         <li><a href="../index.html">the dao to programming 0.7.0 documentation</a> &raquo;</li>
           <li><a href="index.html" >欢迎使用“编程之道”文档!</a> &raquo;</li> 

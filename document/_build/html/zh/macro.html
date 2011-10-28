@@ -55,6 +55,74 @@
             
   <div class="section" id="id1">
 <h1>宏<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="id2">
+<h2>定义、修改和删除宏定义<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><p>宏头格式： 参数...</p>
+<p>宏体格式:  语句！...</p>
+<p>以下宏头指的是包含在一对<strong>()</strong>中的参数序列，可以是零个，一个或多个，中间用逗号隔开。宏体指的是包含在一对<strong>[]</strong>中的语句序列，可以是一个或多个，中间用逗号隔开。</p>
+<p>由于python语言的限制，不得不在多重定义前面添加<strong>at</strong>关键字。</p>
+</div></blockquote>
+<ul>
+<li><p class="first">覆盖宏头定义:</p>
+<div class="highlight-python"><pre>fun. 宏名 {{ ( 宏头 ) [ 宏体 ] }} ...</pre>
+</div>
+</li>
+<li><p class="first">补充宏头定义</p>
+<ul>
+<li><p class="first">从尾部补充宏头定义:</p>
+<div class="highlight-python"><pre>fun. 宏名( 宏头 ) &gt;= [ 宏体 ]
+fun. 宏名( 宏头 ) &gt;= at [ 宏体 ]...</pre>
+</div>
+<p>在宏规则列表后面附加宏定义</p>
+</li>
+<li><p class="first">从头部补充宏头定义:</p>
+<div class="highlight-python"><pre>fun. 宏名( 宏头 ) &lt;= [ 宏体 ]
+fun. 宏名( 宏头 ) &lt;= at [ 宏体 ]...</pre>
+</div>
+<p>在宏规则列表前面面插入宏定义</p>
+</li>
+</ul>
+</li>
+<li><p class="first">覆盖全宏定义:</p>
+<div class="highlight-python"><pre>fun. 宏名 == [ 宏体 ]
+fun. 宏名 == at {{ &lt;&lt; ( 宏头 ) &gt;&gt; [ 宏体 ] }}...</pre>
+</div>
+</li>
+<li><p class="first">补充全宏定义</p>
+<ul>
+<li><p class="first">从尾部补充全宏定义:</p>
+<div class="highlight-python"><pre>fun. 宏名 &gt;= [ 宏体... ]
+fun. 宏名 &gt;= a {{ &lt;&lt; ( 宏头 ) &gt;&gt; [ 宏体 ] }}...</pre>
+</div>
+</li>
+<li><p class="first">从头部补充全宏定义:</p>
+<div class="highlight-python"><pre>fun. 宏名 &lt;= [ 宏体... ]
+fun. 宏名 &lt;= a {{ &lt;&lt; ( 宏头 ) &gt;&gt; [ 宏体 ] }}...</pre>
+</div>
+</li>
+</ul>
+</li>
+<li><p class="first">删除宏定义</p>
+<ul>
+<li><p class="first">删除定元宏定义:</p>
+<div class="highlight-python"><pre>- fun.宏名 / 元数</pre>
+</div>
+</li>
+<li><p class="first">删除匹配宏头定义:</p>
+<div class="highlight-python"><pre>- fun. ( 宏头 )</pre>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="letletr">
+<h2>let和letr语句<a class="headerlink" href="#letletr" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="id3">
+<h2>递归宏<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+</div>
 </div>
 
 
@@ -63,6 +131,16 @@
       </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">宏</a><ul>
+<li><a class="reference internal" href="#id2">定义、修改和删除宏定义</a></li>
+<li><a class="reference internal" href="#letletr">let和letr语句</a></li>
+<li><a class="reference internal" href="#id3">递归宏</a></li>
+</ul>
+</li>
+</ul>
+
   <h4>Previous topic</h4>
   <p class="topless"><a href="function.html"
                         title="previous chapter">函数</a></p>
