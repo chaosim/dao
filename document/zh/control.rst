@@ -1,7 +1,7 @@
-控制语句
+常用语句
 *********
 
-  Dinpy提供了丰富的控制语句，有些语句是传统语言常见的，比如iff, when_loop, each_loop等（为避免与python关键字冲突，语句关键字有所不同）。有些语句是lisp系列语言所独有的。比如block/exit, catch/throw，protect/always等。本章将介绍如何使用这些语句。
+  Dinpy提供了丰富的语句，有些语句是传统语言常见的，比如iff, when_loop, each_loop等（为避免与python关键字冲突，语句关键字有所不同）。有些语句是lisp系列语言所独有的。比如block/exit, catch/throw，protect/always等。本章将介绍如何使用这些语句。
 
   后面的文字中，为了说明语句的格式，引入一些约定：
   
@@ -44,7 +44,7 @@
 分支语句
 --------
 
-* 条件分支语句(iff语句)。
+* 条件分支语句(iff语句)
 
   格式: iff(条件).do[ 语句... ] {{ .elsif(条件).do[ 语句... ] }}...  << .els[ 语句... ] >>
 

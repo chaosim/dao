@@ -16,13 +16,14 @@ dao[
 ##use.a.b.all,
 ##use.a/'a*',
 ##use.a/'test_*1',
-
-let( i<<0 ). do[ repeat, prin(i), ++i, iff(i<3).do[fail] ],
-
+let( f << fun()[2][3] ) 
+  .do[ findall(is_(x, f()), x, y), prin(y) ]
 ]
 dao.eval()
 
 dao[
+let( i<<0 ). do[ repeat, prin(i), ++i, iff(i<3).do[fail] ],
+
 
 letr( a << fun(x) [ and_p(b(x),c(x)) ]
                   [ d(x) ],

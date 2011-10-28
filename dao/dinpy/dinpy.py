@@ -481,20 +481,22 @@ at = element('at',
 from dao.builtins.rule import replace_def, remove, append_def, insert_def, \
      abolish, retractall, retract
 
-# fun. a(x)== [...]
+# fun. a(x)[...]
 @builtin.function('make_fun1')
-def make_fun1(name, args, body, klass): 
+def make_fun1(name, rules, klass):
   fun = varcache(name)
-  head = preparse(args)
-  body = preparse(body)
-  if isinstance(body, AtForm): 
-    body = body.clauses
-    if len(body)>1: raise DinpySyntaxError() # should not be (args)[body]...(args)[body]
-    if body[0][0] is not None: raise DinpySyntaxError() # should not be (args)[body]
-    return replace_def(fun, head, body[0][1])
-  else: return replace_def(fun, head, [body])
-  
-# fun. a(x) >= [...]
+  if len(rules)==0:
+    return replace_def(fun, (), [])
+  if len(rules)==1:
+    return replace_def(fun, preparse(rules[0][0]), preparse(rules[0][1]), klass)
+  replaces = []
+  for head, bodies in rules:
+    head = preparse(head)
+    bodies = preparse(bodies)
+    replaces .append(replace_def(fun, head, bodies, klass))
+  return special.begin(*replaces)  
+
+# fun. a(x) >= [...], fun.a(x) >= at[...]...
 @builtin.function('make_fun2')
 def make_fun2(name, args, body, klass): 
   fun = varcache(name)
@@ -582,8 +584,8 @@ def make_fun8(name, args, klass): # remove
   args = preparse(args)
   return remove(fun, args, klass)
   
-## fun. a(x)== [...],  fun. a(x) <= at[...][...], 覆盖与a(x)匹配的整个定义
-## fun. a(x) >= [...],  fun. a(x) <= at[...][...], 对参数组附加定义
+## fun. a(x) [...][...], 覆盖与a(x)匹配的整个定义
+## fun. a(x) >= [...],  fun. a(x) >= at[...][...], 对参数组附加定义
 ## fun. a(x) <= [...],  fun. a(x) <= at[...][...]，对参数组前补定义
 ## fun. a== at(..)[...](..)[...][...]，重定义
 ## fun. a>= at(..)[...](..)[...][...]，附加定义
@@ -591,9 +593,12 @@ def make_fun8(name, args, klass): # remove
 ## fun(..)[...](..)[...][...]
 def fun_macro_grammar(klass1, klass2):
   return (
-  # fun. a(x)== [...],  fun. a(x) <= at[...][...]
-    (getattr(vv.name)+call(vv.args)+eq(vv.body)+eos
-      +make_fun1(vv.name,vv.args, vv.body, klass2))
+  # fun. a(x)[...],  fun. a(x) <= at[...][...]
+    (getattr(vv.name)+
+     any(may(call(__.args)) +assign(__.args, getvalue_default(__.args, ()))
+          + some(getitem_to_list(__.body), __.body, __.bodies), 
+          (__.args, __.bodies), vv.rules)
+        +eos+make_fun1(vv.name, vv.rules, klass2))
   # fun. a(x) >= [...],  fun. a(x) <= at[...][...]
   | (getattr(vv.name)+call(vv.args)+ge(vv.body)+eos
      +make_fun2(vv.name,vv.args, vv.body, klass2))

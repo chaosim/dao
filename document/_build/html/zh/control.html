@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>控制语句 &mdash; the dao to programming 0.7.0 documentation</title>
+    <title>常用语句 &mdash; the dao to programming 0.7.0 documentation</title>
     
     <link rel="stylesheet" href="../_static/default.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -54,9 +54,9 @@
           <div class="body">
             
   <div class="section" id="id1">
-<h1>控制语句<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h1>
+<h1>常用语句<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h1>
 <blockquote>
-<div><p>Dinpy提供了丰富的控制语句，有些语句是传统语言常见的，比如iff, when_loop, each_loop等（为避免与python关键字冲突，语句关键字有所不同）。有些语句是lisp系列语言所独有的。比如block/exit, catch/throw，protect/always等。本章将介绍如何使用这些语句。</p>
+<div><p>Dinpy提供了丰富的语句，有些语句是传统语言常见的，比如iff, when_loop, each_loop等（为避免与python关键字冲突，语句关键字有所不同）。有些语句是lisp系列语言所独有的。比如block/exit, catch/throw，protect/always等。本章将介绍如何使用这些语句。</p>
 <p>后面的文字中，为了说明语句的格式，引入一些约定：</p>
 <dl class="docutils">
 <dt>{{  }}</dt>
@@ -102,7 +102,7 @@
 <div class="section" id="id3">
 <h2>分支语句<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
 <ul>
-<li><p class="first">条件分支语句(iff语句)。</p>
+<li><p class="first">条件分支语句(iff语句)</p>
 <p>格式: iff(条件).do[ 语句... ] {{ .elsif(条件).do[ 语句... ] }}...  &lt;&lt; .els[ 语句... ] &gt;&gt;</p>
 <p>从iff开始，依次测试iff和每个elsif分支的条件，如果条件为真，则执行随后对应的do块，如果所有的条件都为假，并且存在els块，则执行els块中的语句。</p>
 <p>可以看到，dinpy选用的都是不与python的if-elif-else冲突的关键字。</p>
@@ -285,7 +285,7 @@
         <div class="sphinxsidebarwrapper">
   <h3><a href="../index.html">Table Of Contents</a></h3>
   <ul>
-<li><a class="reference internal" href="#">控制语句</a><ul>
+<li><a class="reference internal" href="#">常用语句</a><ul>
 <li><a class="reference internal" href="#id2">简单语句</a></li>
 <li><a class="reference internal" href="#id3">分支语句</a></li>
 <li><a class="reference internal" href="#id4">块结构</a></li>

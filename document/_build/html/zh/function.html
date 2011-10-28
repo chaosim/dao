@@ -55,22 +55,79 @@
             
   <div class="section" id="id1">
 <h1>函数<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h1>
-<dl class="docutils">
-<dt>概念</dt>
-<dd>函数
-宏</dd>
-</dl>
-<p>fun
-macro
-let
-letr</p>
-<dl class="docutils">
-<dt>todo</dt>
-<dd>letm
-letrm
-rule
-rules</dd>
-</dl>
+<p>函数是高级语言必不可少的组成部件，dao也不例外。不过，dao的函数既不同于C，java之类过程式语言的函数，也不同于lisp，haskell，erlang之类函数式语言的函数。erlang语言可以为函数定义多个分支，通过模式匹配选择选择函数体，在这一点上与dao比较接近。但是，erlang是纯函数式的语言，不具备逻辑式语言的特征。prolog语言是逻辑式语言的代表，其声明性的程序风格为编程带来了很多便利，但是它不具备函数式语言的特征，无法表达高阶函数和高阶谓词，表达能力有一定的局限。dao系统同时具备函数式语言和逻辑式语言的特点，同时也允许赋值等副作用的存在。这些都使得dao系统更为灵活，通用，表达能力更加强大。dinpy语言的函数也充分体现了dao的这些特点。</p>
+<p>dinpy语言用<strong>fun</strong>关键字定义、修改和删除函数。通过不同格式的语句，dinpy提供了非常灵活的定义函数的方法。</p>
+<div class="section" id="id2">
+<h2>定义、修改和删除函数定义<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><p>函数头格式： 参数...</p>
+<p>函数体格式:  语句！...</p>
+<p>以下函数头指的是包含在一对<strong>()</strong>中的参数序列，可以是零个，一个或多个，中间用逗号隔开。函数体指的是包含在一对<strong>[]</strong>中的语句序列，可以是一个或多个，中间用逗号隔开。</p>
+<p>由于python语言的限制，不得不在多重定义前面添加<strong>at</strong>关键字。</p>
+</div></blockquote>
+<ul>
+<li><p class="first">覆盖函数头定义:</p>
+<div class="highlight-python"><pre>fun. 函数名(函数头) == [ 函数体 ]
+fun. 函数名(函数头) == at [ 函数体 ][ ... ]</pre>
+</div>
+</li>
+<li><p class="first">补充函数头定义</p>
+<ul>
+<li><p class="first">尾部补充函数头定义:</p>
+<div class="highlight-python"><pre>fun. 函数名(函数头) &gt;= [ 函数体 ]
+fun. 函数名(函数头) &gt;= at [ 函数体 ]...</pre>
+</div>
+<p>在函数规则列表后面附加函数定义</p>
+</li>
+<li><p class="first">头部补充函数头定义:</p>
+<div class="highlight-python"><pre>fun. 函数名(函数头) &lt;= [ 函数体 ]
+fun. 函数名(函数头) &lt;= at [ 函数体 ]...</pre>
+</div>
+<p>在函数规则列表前面面插入函数定义</p>
+</li>
+</ul>
+</li>
+<li><p class="first">覆盖全函数定义:</p>
+<div class="highlight-python"><pre>fun. 函数名 == [函数体...]
+fun. 函数名 == at {{ &lt;&lt; ( 函数头 ) &gt;&gt; [函数体...] }}...</pre>
+</div>
+</li>
+<li><p class="first">补充全函数定义</p>
+<ul>
+<li><p class="first">尾部补充全函数定义:</p>
+<div class="highlight-python"><pre>fun. 函数名 &gt;= [函数体...]
+fun. 函数名 &gt;= a {{ &lt;&lt; ( 函数头 ) &gt;&gt; [函数体...] }}...</pre>
+</div>
+</li>
+<li><p class="first">头部补充全函数定义:</p>
+<div class="highlight-python"><pre>fun. 函数名 &lt;= [函数体...]
+fun. 函数名 &lt;= a {{ &lt;&lt; ( 函数头 ) &gt;&gt; [函数体...] }}...</pre>
+</div>
+</li>
+</ul>
+</li>
+<li><p class="first">删除函数定义</p>
+</li>
+</ul>
+<blockquote>
+<div><ul>
+<li><p class="first">删除定元函数定义:</p>
+<div class="highlight-python"><pre>- fun.函数名 / n</pre>
+</div>
+</li>
+<li><p class="first">删除匹配函数头定义:</p>
+<div class="highlight-python"><pre>- fun. ( 函数头 )</pre>
+</div>
+</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="letletr">
+<h2>let和letr语句<a class="headerlink" href="#letletr" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="id3">
+<h2>递归函数<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+</div>
 </div>
 
 
@@ -79,6 +136,16 @@ rules</dd>
       </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">函数</a><ul>
+<li><a class="reference internal" href="#id2">定义、修改和删除函数定义</a></li>
+<li><a class="reference internal" href="#letletr">let和letr语句</a></li>
+<li><a class="reference internal" href="#id3">递归函数</a></li>
+</ul>
+</li>
+</ul>
+
   <h4>Previous topic</h4>
   <p class="topless"><a href="logic.html"
                         title="previous chapter">逻辑命令</a></p>

@@ -14,6 +14,7 @@ from dao.builtins.rule import replace_def, remove, append_def, insert_def, \
 from dao.dinpy.dinpy import AtForm, varcache
 from dao.builtins import arith
 
+from dao.special import UserFunction
 from dao.solve import set_run_mode, noninteractive, DaoUncaughtThrow
 set_run_mode(noninteractive)
 
@@ -195,17 +196,17 @@ class TestFun:
   def test_at2(self):
     eq_(preparse(at[prin(1)]), AtForm([(None,[[prin(1)]])]))
   def test1(self):
-    eq_(preparse(fun. a(x)== [prin(1)]), replace_def(a, (x,), [(prin(1),)]))
+    eq_(preparse(fun. a(x)[prin(1)]), replace_def(a, (x,), [[prin(1)]], UserFunction))
   def test_eval_a_x(self):
-    eq_(eval([fun. a(x)== [prin(x), x], a(1)]), 1)
+    eq_(eval([fun. a(x)[prin(x), x], a(1)]), 1)
   def test2(self):
-    eq_(preparse(fun. a(x)== at[prin(1)]), replace_def(a, (x,), [[prin(1)]]))
+    eq_(preparse(fun. a(x)[prin(1)]), replace_def(a, (x,), [[prin(1)]], UserFunction))
   def test_eval_a_x2(self):
     x = v.x
-    eq_(eval([fun. a(x)== at[prin(x), x], a(1),
-              fun. a(x)== at[prin(-x), -x], a(1)]), -1)
-    eq_(eval([fun. a(x)== at[prin(x), x], a(1),
-              fun. a(x, i)== at[prin(-x, i), -x], a(3), a(1, 2)]), -1)
+    eq_(eval([fun. a(x)[prin(x), x], a(1),
+              fun. a(x)[prin(-x), -x], a(1)]), -1)
+    eq_(eval([fun. a(x)[prin(x), x], a(1),
+              fun. a(x, i)[prin(-x, i), -x], a(3), a(1, 2)]), -1)
   def test3(self):
     eq_(preparse(fun. a(x)>= [prin(1)]), 
         append_def(a, (x,), [(prin(1),)], special.UserFunction))

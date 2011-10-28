@@ -23,7 +23,7 @@ class Rule(object):
     for _ in unify_list_rule_head(values, self.head, solver.env, subst):
       @mycont(cont)
       def rule_done_cont(value, solver):
-        self.body
+##        self.body
         env_values = tuple(getvalue(v, solver.env) for v in subst.values())
         generators = tuple(set_bindings(caller_env.bindings, k, v) 
                            for k, v in zip(subst.keys(), env_values))
