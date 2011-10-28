@@ -12,7 +12,7 @@ class Builtin:
     self.symbol = symbol if symbol else name
   def copy(self): return self.__class__(self.function, self.name)
   def __eq__(self, other): 
-    return self.__class__==other.__class__ and self.function==other.function
+    return isinstance(other, self.__class__) and self.function==other.function
   def __repr__(self): return '<%s>'%(self.name)
 
 class BuiltinFunction(Builtin, Function):

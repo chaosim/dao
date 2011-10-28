@@ -4,7 +4,9 @@ from dao.solve import value_cont, mycont
 from dao.solve import run_mode, interactive
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
 
-class Command: pass
+class Command: 
+  def __call__(self, *args):
+    return CommandCall(self, *args)
 
 class Symbol: pass
 
@@ -151,12 +153,10 @@ def closure(exp, env):
     else: return exp
   return exp_closure(env)
 
-class Var:
+class Var(Command):
   def __init__(self, name): 
     self.name = name
     
-  def __call__(self, *exps): return CommandCall(self, *exps)
-  
   def apply(self, solver, *exps):
     return self.getvalue(solver.env).apply(solver, *exps)
   
@@ -310,11 +310,11 @@ class ClosureVar(Var):
   def __repr__(self): return '(%s:%s)'%(self.var, self.value)
   def __eq__(self, other): return self.var is other
 
-class CommandCall:
+class CommandCall(Command):
   def __init__(self, operator, *operand):
     self.operator = operator
     self.operand = operand
-
+    
   def cont(self, cont, solver):
     @mycont(cont)
     def evaluate_cont(op, solver): 
@@ -350,7 +350,7 @@ class CommandCall:
     return or_p(self, other)
   
   def __eq__(self, other): 
-    return self.__class__==other.__class__ and self.operator==other.operator and self.operand==other.operand
+    return isinstance(other, self.__class__) and self.operator==other.operator and self.operand==other.operand
   
 class Function(Command): 
   def evaluate_cont(self, exps, cont, solver):
@@ -440,6 +440,9 @@ class Cons:
 cons = Cons
 
 class Nil: 
+  def __len__(self): return 0
+  def __iter__(self): 
+    if 0: yield
   def __repr__(self): return 'nil'
 
 nil = Nil()
@@ -450,6 +453,8 @@ def conslist(*elements):
   return result
 
 def cons2tuple(item):
-  if not isinstance(item, Cons): return item
+  if not isinstance(item, Cons) and not isinstance(item, list) \
+     and not isinstance(item, tuple): 
+    return item
   return tuple(cons2tuple(x) for x in item)
 

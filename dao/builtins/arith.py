@@ -77,7 +77,7 @@ def sub(x, y): return operator.sub(x, y)
 @binary('mul', '*')
 def mul(x, y): return operator.mul(x, y)  
 @binary('floordiv', '/')
-def floordiv(x, y): return operator.floordiv  
+def floordiv(x, y): return operator.floordiv(x,y)  
 @binary('div', '/')
 def div(x, y): return operator.div(x, y)  
 @binary('truediv', '//')

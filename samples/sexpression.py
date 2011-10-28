@@ -1,7 +1,7 @@
 from dao.rule import Rule
 
 from dao import term
-from dao.term import nil, Cons, conslist, cons2tuple
+from dao.term import nil, Cons, conslist as L, cons2tuple
 from dao.term import Var, DummyVar, Command, CommandCall
 from dao.solve import Solver, set_run_mode, noninteractive
 from dao import builtin
@@ -19,25 +19,31 @@ from dao.builtins.term import *
 
 set_run_mode(noninteractive)
 
-builtins = {}
+class Grammar:
+  def __init__(self, start, rules, result):
+    self.rules, self.start, self.result = rules, start, result
+
+_builtins = {}
 
 def collocet_builtins():
   def is_subclass(sub, sup):
-    try: return sup in sub.__bases__
+    try: 
+      if sup in sub.__bases__: return True
     except: return False
+    for klass in sub.__bases__:
+      if is_subclass(klass, sup): return True
     
   for name, obj in globals().items():
-    if isinstance(obj, Command)  or isinstance(obj, CommandCall) \
-       or is_subclass(obj, SpecialForm):
+    if isinstance(obj, Command) or is_subclass(obj, SpecialForm):
       try: symbol = obj.symbol
       except AttributeError:
         try: symbol = obj.name
         except AttributeError: symbol = name
-      builtins[symbol] = obj
+      _builtins[symbol] = obj
 
 collocet_builtins()
-builtins['let'] = let
-builtins['letrec'] = letr
+
+_builtins.update({'let':let, 'letr':letr, 'lambda':lambda_})
 
 _SYMBOL_FORBID_CHARS = '\'", \r\n\t[]{}()`'
 _var_cache = {}
@@ -58,30 +64,29 @@ def symbol(solver, cont, result):
     if text[p] in _SYMBOL_FORBID_CHARS: break 
     else: p += 1
   name = text[pos:p]
-  sym = builtins.get(name, var(name))
+  sym = _builtins.get(name, var(name))
   for _ in term.unify(result, sym, solver.env):
     solver.parse_state = text, p
     yield cont, True
   solver.parse_state = text, pos
 
-
-class Grammar:
-  def __init__(self, start, rules, result):
-    self.rules, self.start, self.result = rules, start, result
-
-def parse(grammar, text):
-  solver = Solver()
-  exp = letr(grammar.rules, set_text(text), 
-                 and_p(grammar.start, eoi), grammar.result)
-  result = solver.eval(exp)
-  return cons2tuple(solver.eval(result)) 
-
-def eval(grammar, text): #don't need any more!!!
-  solver = Solver()
-  exp = letr(grammar.rules, set_text(text), 
-                 and_p(grammar.start, eoi), grammar.result)
-  parsedExp = solver.eval(exp)
-  return solver.eval(parsedExp) #, prelude=False
+def sexpression2dao_exp(item):
+  if isinstance(item, Cons):
+    head = sexpression2dao_exp(item.head)
+    if head==let or head==letr:
+      bindings = tuple((var, sexpression2dao_exp(exp)) for var, exp in item.tail.head)
+      body = tuple(sexpression2dao_exp(x) for x in item.tail.tail)
+      return head(bindings, *body)
+    elif head==lambda_:
+      vars = tuple(item.tail.head)
+      body = tuple(sexpression2dao_exp(x) for x in item.tail.tail)
+      return head(vars, *body)
+    elif head==FunctionForm or head==MacroForm:
+      return head(*tuple((cons2tuple(rule.head),)+tuple(sexpression2dao_exp(stmt)
+                                              for stmt in rule.tail) 
+                    for rule in item.tail)) 
+    return head(*tuple(sexpression2dao_exp(x) for x in item.tail))
+  else: return item
 
 (sexpression1, sexpression, bracketExpression, puncExpression, sexpressionList, 
  stringExpression, condSpace, evalRule) = (Var(name) for name in (
@@ -93,13 +98,6 @@ X, Expr, ExprList, Result, Y = Var('X'), Var('Expr'), Var('ExprList'), Var('Resu
 Expr2 = Var('Expr2')
 
 functions = [
-  (evalRule, function(
-    ([Result], and_p(sexpression(Expr2), eoi, is_(Result, eval_(getvalue(Expr2))))))),
-  (sexpression, function(
-    ([Result], and_p(char('{'), sexpression(Expr2), char('}'), setvalue(Result, eval_(getvalue(Expr2))))),
-    ([Expr], stringExpression(Expr)),
-    ([Expr], bracketExpression(Expr)),
-    ([Expr], puncExpression(Expr)))),
   (stringExpression, function(
     ([X], number(X)),
     ([X], dqstring(X)),
@@ -109,7 +107,7 @@ functions = [
     ([ExprList], and_p(char('('), spaces0(_), sexpressionList(ExprList), spaces0(_), char(')'))),
     ([ExprList], and_p(char('['), spaces0(_), sexpressionList(ExprList), spaces0(_), char(']'))))),
   (puncExpression, function(
-    ([('quote', Expr)], and_p(char("'"), sexpression(Expr))),
+    ([L(quote, Expr)], and_p(char("'"), sexpression(Expr))),
     ([('quasiquote', Expr)], and_p(char("`"), sexpression(Expr))),
     ([('unquote-splicing', Expr)], and_p(literal(",@"), sexpression(Expr))),
     ([('unquote', Expr)], and_p(char(","), sexpression(Expr))))),
@@ -121,9 +119,39 @@ functions = [
   (condSpace, function(
     ([], or_p(if_p(and_p(not_lead_chars('([])'), not_follow_chars('([])'), not_p(eoi)),
                    spaces(_)),
-          spaces0(_)))
-    ))
+          spaces0(_) ) ) ) ),
+  
+  (sexpression, function(
+     # dynamic grammar arises!
+    ([Result], and_p(char('{'), sexpression(Expr2), char('}'), 
+                     setvalue(Result, eval_(pycall(sexpression2dao_exp, Expr2))))),
+
+    ([Expr], stringExpression(Expr)),
+    ([Expr], bracketExpression(Expr)),
+    ([Expr], puncExpression(Expr))),
+   ),
+  
+  # the kernel of dynamic grammar  
+  (evalRule, function(
+    ([Result], and_p(sexpression(Expr2), eoi, 
+          is_(Result, eval_(pycall(sexpression2dao_exp, Expr2))))))),
+  
   ]
+
+def parse(grammar, text):
+  solver = Solver()
+  exp = letr(grammar.rules, set_text(text), 
+                 and_p(grammar.start, eoi), grammar.result)
+  result = solver.eval(exp)
+  return cons2tuple(result) 
+
+def eval(grammar, text):
+  solver = Solver()
+  exp = letr(grammar.rules, set_text(text), 
+                 and_p(grammar.start, eoi), grammar.result)
+  exp = solver.eval(exp)
+  exp = sexpression2dao_exp(exp)
+  return solver.eval(exp)
 
 grammar = Grammar(sexpression(Expr), functions, Expr)
 

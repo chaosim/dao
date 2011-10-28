@@ -1,6 +1,5 @@
 from nose.tools import eq_, ok_, assert_raises
 from samples.sexpression import *
-from dao.term import conslist as L
 from dao.solve import NoSolutionFound
 
 class TestParse:
@@ -10,7 +9,7 @@ class TestParse:
     
   def testgrammar2_sexprlist(self):
     assert_raises(NoSolutionFound, parse, grammar2, '1a')
-    eq_(parse(grammar2, '1 a'), L(1, var('a')))
+    eq_(parse(grammar2, '1 a'), (1, var('a')))
     eq_(parse(grammar2, ''), nil)
     
   def testDigitSexpression(self):
@@ -22,53 +21,53 @@ class TestParse:
   def testSymbol(self):
     eq_(parse(grammar, '!@#'), var('!@#'))
   def testquote(self):
-    eq_(parse(grammar, "'@"), L(quote, var('@')))
+    eq_(parse(grammar, "'@"), (quote, var('@')))
   def testquasi(self):
-    eq_(parse(grammar, "`a"), L('quasiquote', var('a')))
-    eq_(parse(grammar, ",@a"), L('unquote-splicing', var('a')))
-    eq_(parse(grammar, "`(1 2)"), L('quasiquote', (1, 2)))
-    eq_(parse(grammar, "(1 3 (a) () `(1 2))"), L(1,3,[var('a')], NIL,('quasiquote', (1,2))))
+    eq_(parse(grammar, "`(1 2)"), ('quasiquote', (1, 2)))
+    eq_(parse(grammar, "`a"), ('quasiquote', var('a')))
+    eq_(parse(grammar, ",@a"), ('unquote-splicing', var('a')))
+    eq_(parse(grammar, "(1 3 (a) () `(1 2))"), (1,3,(var('a'),), nil,('quasiquote', (1,2))))
   def testslist(self):
-    eq_(parse(grammar, '(1)'), L((1)))
-    eq_(parse(grammar, '("12")'), L(('12')))
+    eq_(parse(grammar, '(1)'), (1,))
+    eq_(parse(grammar, '("12")'), ('12',))
   def testif(self):
-    eq_(parse(grammar, '((if 0 + -) 1 1)'), L(L(if_,0, add, sub),1,1))
+    eq_(parse(grammar, '((if 0 + -) 1 1)'), ((if_,0, add, sub),1,1))
   def testsexprlist2(self):
-    eq_(parse(grammar2, 'if 0 2 3'), L(if_, 0, 2, 3))
+    eq_(parse(grammar2, 'if 0 2 3'), (if_, 0, 2, 3))
   def testletr(self):
     odd, even, n = var('odd?'), var('even?'), var('n')
-    eq_(parse(grammar2, '''(letrec ((odd? (lambda (n) (if (== n 0) 0 (even? (- n 1)))))
+    eq_(parse(grammar2, '''(letr ((odd? (lambda (n) (if (== n 0) 0 (even? (- n 1)))))
                     (even? (lambda (n) (if (== n 0) 1 (odd? (- n 1))))))
                   (odd? 3))'''),  
-          L(('letr',
-                               ((odd,('lambda',[n],('if',(eq,n,0),0,(even,(sub,n,1))))),
-                              (even,('lambda',[n],('if',(eq,n,0),1,(odd,(sub,n,1)))))),
-                               (odd,3))))
+          ((letr,
+                               ((odd,(lambda_,(n,),(if_,(eq,n,0),0,(even,(sub,n,1))))),
+                              (even,(lambda_,(n,),(if_,(eq,n,0),1,(odd,(sub,n,1)))))),
+                               (odd,3)),))
 
 class Test_eval_while_parsing:
   def testDigitSexpression2(self):
-    eq_(parse(grammar, '{1}'), (1))
+    eq_(parse(grammar, '{1}'), 1)
   def testif(self):
-    eq_(parse(grammar, '{((if 0 + -) 1 1)}'), (0))
+    eq_(parse(grammar, '{((if 0 + -) 1 1)}'), 0)
   def testlet(self):
-    eq_(parse(grammar, '{(let ((a 1)) a)}'), (1))
-    #eq_(parse(grammar, '{(let ((a 1)) {(+ a 1)})}'), (2))
+    eq_(parse(grammar, '{(let ((a 1)) a)}'), 1)
+    eq_(parse(grammar, '{(let ((a 1)) {(+ a 1)})}'), 2)
   def testbegin(self):
-    eq_(parse(grammar, '({begin} 1)'), L('begin', 1))
-    eq_(parse(grammar, '({begin} {(+ 1 1)})'), L('begin', 2))
+    eq_(parse(grammar, '({begin} 1)'), (begin, 1))
+    eq_(parse(grammar, '({begin} {(+ 1 1)})'), (begin, 2))
   def testchar(self):
-    eq_(parse(grammar, '{(char "a")}a'), True) # beautiful, so cool, eureka!
-  def testlet_char_rule(self):
-    eq_(parse(grammar, '{(let ((f (lambda () (char x)))) (f))}a'), True) 
-  def testlet_char_rule(self):
-    eq_(parse(grammar, '{(let ((f (macro ((x) (char x))))) (f x) x)}a'), Symbol('a')) 
+    eq_(parse(grammar, '{(char "a")}a'), 'a') # beautiful, so cool, eureka!
+  def testlet_char_rule1(self):
+    eq_(parse(grammar, '{(let ((f (lambda () (char x)))) (f))}a'), 'a') 
+  def testlet_char_rule2(self):
+    eq_(parse(grammar, '{(let ((f (macro ((x) (char x))))) (f x) x)}a'), 'a') 
 
 class Test_eval_by_parse:
   def testString(self):
-    eq_(parse(grammar3, '1'), (1))
-    eq_(parse(grammar3, '12'), (12))
-    eq_(parse(grammar3, '"12"'), ("12"))
-    eq_(parse(grammar3, '"1"'), ("1"))
+    eq_(parse(grammar3, '1'), 1)
+    eq_(parse(grammar3, '12'), 12)
+    eq_(parse(grammar3, '"12"'), "12")
+    eq_(parse(grammar3, '"1"'), "1")
   def testArithmetic(self):
     eq_(parse(grammar3, '(+ 1 1)'), (2))
     eq_(parse(grammar3, '(- 1 1)'), (0))
@@ -104,25 +103,27 @@ class Test_eval_by_parse:
     
 class Testeval:
   def testString(self):
-    eq_(eval(grammar, '"1"'), ("1"))
-    eq_(eval(grammar, '1'), (1))
-    eq_(eval(grammar, '12'), (12))
-    eq_(eval(grammar, '"12"'), ("12"))
+    eq_(eval(grammar, '"1"'), "1")
+    eq_(eval(grammar, '1'), 1)
+    eq_(eval(grammar, '12'), 12)
+    eq_(eval(grammar, '"12"'), "12")
+  def testArithmetic(self):
+    eq_(eval(grammar, '(/ 2 2)'), 1)
+    eq_(eval(grammar, '(+ 1 1)'), 2)
+    eq_(eval(grammar, '(- 1 1)'), 0)
+    eq_(eval(grammar, '(* 2 2)'), 4)
   def testbegin(self):
     eq_(eval(grammar, '(begin 1 2 3 4 5)'), (5))
   def testset(self):
     eq_(eval(grammar, '(let ((a 1)) (begin (set a 2) a))'), (2))
-  def testArithmetic(self):
-    eq_(eval(grammar, '(+ 1 1)'), (2))
-    eq_(eval(grammar, '(- 1 1)'), (0))
-    eq_(eval(grammar, '(* 2 2)'), (4))
-    eq_(eval(grammar, '(/ 2 2)'), (1))
   def testspecialForm(self):
     eq_(eval(grammar, '(let ((x 1) (y 2)) (+ x y))'), (3))
+  def testspecialForm2(self):
     eq_(eval(grammar, '((if 0 + -) 1 1)'), (0))
     eq_(eval(grammar, '((if 1 + -) 1 1)'), (2))
-  def testlambda(self):
+  def testlambda1(self):
     eq_(eval(grammar, '((lambda (x) x) 2)'), (2))
+  def testlambda2(self):
     eq_(eval(grammar, '((lambda (x y) (+ x y)) 1 1)'), (2))
   def testletr(self):
     eq_(eval(grammar, 
@@ -141,12 +142,13 @@ class Testeval:
   def testcatch(self):
     eq_(eval(grammar, '(catch 1 2)'), (2))
     eq_(eval(grammar, '(catch 1 (throw 1 2))'), (2))
-  def testblock(self):
+  def testblock1(self):
+    eq_(eval(grammar, "(block a (return-from a 2) 3)"), (2))
+  def testblock2(self):
     eq_(eval(grammar, "(block foo (let ((f (lambda () (return-from foo  1)))) (* 2 (block foo (f)))))"), 
         (1))
-    eq_(eval(grammar, "(block a (return-from a 2) 3)"), (2))
   def test_unwind_protect(self):
-    eq_(eval(grammar, "(block foo (unwind-protect (return-from foo 2) 2))"), (2))
+    eq_(eval(grammar, "(block foo (unwind-protect (return-from foo 2) 2))"), 2)
   def testeval(self):
-    eq_(eval(grammar, "(eval '1)"), (1))
+    eq_(eval(grammar, "(eval '1)"), 1)
     eq_(eval(grammar, "(eval '(+ 1 1))"), (2))

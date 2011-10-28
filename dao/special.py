@@ -60,8 +60,8 @@ def assign_var(var, value, env):
 ##  del env0.bindings[var]
   
 class set(SpecialForm):
-  name = 'setq'
-  symbol = "="
+  name = 'set'
+  symbol = "set"
   def __init__(self, var, exp):
     self.var, self.exp = var, exp
   def ___parse___(self, parser):
@@ -447,6 +447,7 @@ def make_rules(rules):
   return result
 
 class FunctionForm(SpecialForm):
+  symbol = 'function'
   def __init__(self, *rules):
     self.arity2rules = make_rules(rules)
   def ___parse___(self, parser):
@@ -461,7 +462,7 @@ class FunctionForm(SpecialForm):
     func = UserFunction(self.arity2rules, solver.env, recursive=False)
     return value_cont(func, cont)
   def __eq__(self, other):
-    return self.arity2rules==other.arity2rules
+    return isinstance(other, FunctionForm) and self.arity2rules==other.arity2rules
   def __repr__(self):
     result = 'func('
     for rules in self.arity2rules.values():
@@ -473,7 +474,7 @@ function = FunctionForm
 
 def letr(bindings, *body):
   name = 'letr'
-  symbol = 'letrec'
+  symbol = 'letr'
   if isinstance(bindings, dict): raise Error
   vars = tuple(b[0] for b in bindings)
   values = tuple(b[1] for b in bindings)
@@ -493,6 +494,7 @@ class RecursiveFunctionForm(FunctionForm):
     return result
   
 class MacroForm(FunctionForm):
+  symbol = 'macro'
   def __init__(self, *rules):
     self.arity2rules = self.arity2rules = make_rules(rules)
   def cont(self, cont, solver):
@@ -527,20 +529,29 @@ class UserMacro(Rules,  Macro):
     return self.rules[len(exps)].apply(solver, self.env, cont, self.recursive, exps)
   def __repr__(self): return 'macro(%s)'%repr(self.rules)
   
-class eval_(SpecialForm):
-  def __init__(self, exp):
-    self.exp = exp
-  def ___parse___(self, parser):
-    self.exp = parser.parse(self.exp)
-    return self
-  def tag_loop_label(self, tagger):
-    self.exp = tagger.tag_loop_label(self.exp)
-    return self
-  def cont(self, cont, solver):
-    @mycont(cont)
-    def eval_cont(value, solver): return solver.cont(value, cont)(value, solver)
-    return solver.cont(self.exp, eval_cont)
-  def __repr__(self): return 'eval(%s)'%self.exp
+#class eval_(SpecialForm):
+  #symbol = 'eval'
+  #def __init__(self, exp):
+    #self.exp = exp
+  #def ___parse___(self, parser):
+    #self.exp = parser.parse(self.exp)
+    #return self
+  #def tag_loop_label(self, tagger):
+    #self.exp = tagger.tag_loop_label(self.exp)
+    #return self
+  #def cont(self, cont, solver):
+    #@mycont(cont)
+    #def eval_cont(value, solver): return solver.cont(value, cont)(value, solver)
+    #return solver.cont(self.exp, eval_cont)
+  #def __repr__(self): return 'eval(%s)'%self.exp
+  
+@builtin.function2('eval')
+def eval_(solver, cont, exp):
+  @mycont(cont)
+  def eval_cont(value, solver): 
+    yield solver.cont(value, cont), value
+  yield solver.cont(exp, eval_cont), True
+  
 
 from dao.env import ModuleEnvironment  
 class module(SpecialForm):

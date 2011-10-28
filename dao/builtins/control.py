@@ -12,7 +12,7 @@ class ContinuationFunction(Builtin, Function):
   def apply(self, solver, values, cont):
     return self.function(values[0], solver)
       
-@builtin.macro()
+@builtin.macro('callcc', 'call/cc')
 def callcc(solver, cont, fun):
   ''' call with current continuation '''
   yield solver.cont(CommandCall(fun, ContinuationFunction(cont)), cont), fun
