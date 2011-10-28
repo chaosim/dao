@@ -2,6 +2,10 @@ from dao.dinpy import *
 
 import random
 
+print fun.f()
+
+print f()
+
 fun(1)[2], c<<fun(1)[True]
 
 print letr( a << fun(x) [ b(x)&c(x) ]

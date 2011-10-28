@@ -447,7 +447,7 @@ def make_pycall(args):
 py = element('py', 
        ( getattr(vv.func)+assign(vv.func, getvar(vv.func))+eos
            +pycall(vv.func, vv.args))
-       | + call(vv.args)+eos+make_pycall(vv.args))
+       | ~call(vv.args)+eos+make_pycall(vv.args))
 
 @builtin.function('make_on_form')
 def make_on_form(form, body):
@@ -486,7 +486,7 @@ from dao.builtins.rule import replace_def, remove, append_def, insert_def, \
 def make_fun1(name, rules, klass):
   fun = varcache(name)
   if len(rules)==0:
-    return replace_def(fun, (), [])
+    return replace_def(fun, (), [[]], klass)
   if len(rules)==1:
     return replace_def(fun, preparse(rules[0][0]), preparse(rules[0][1]), klass)
   replaces = []
@@ -571,7 +571,6 @@ def make_fun6(name, rules, klass):
 def make_fun7(clauses, klass): 
   rules = []
   for head, bodies in clauses:
-    if head is None: head = ()
     for body in bodies: 
       body = preparse(body)
       rules.append((preparse(head),)+tuple(body))
@@ -595,7 +594,7 @@ def fun_macro_grammar(klass1, klass2):
   return (
   # fun. a(x)[...],  fun. a(x) <= at[...][...]
     (getattr(vv.name)+
-     any(may(call(__.args)) +assign(__.args, getvalue_default(__.args, ()))
+     any(~call(__.args) +assign(__.args, getvalue_default(__.args, ()))
           + some(getitem_to_list(__.body), __.body, __.bodies), 
           (__.args, __.bodies), vv.rules)
         +eos+make_fun1(vv.name, vv.rules, klass2))
@@ -613,7 +612,7 @@ def fun_macro_grammar(klass1, klass2):
   #  fun. a<= at(..)[...]
   | (getattr(vv.name)+le(vv.rules)+eos+make_fun6(vv.name,vv.rules, klass2))
   #  fun(args) [...](args)[...][...]
-  | (some(may(call(__.args)) +assign(__.args, getvalue_default(__.args))
+  | (some(may(call(__.args)) +assign(__.args, getvalue_default(__.args, ()))
           + some(getitem_to_list(__.body), __.body, __.bodies), 
           (__.args, __.bodies), vv.rules)
         +eos+make_fun7(vv.rules, klass1))

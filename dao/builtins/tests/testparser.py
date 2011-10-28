@@ -163,20 +163,27 @@ class TestOr:
 class TestOptional:
   def test_optional(self):
     x = Var('x')
-    assert_raises(NoSolutionFound, eval, preparse(parse_text(optional(char(x))+char('1'), '1')))
+    assert_raises(NoSolutionFound, eval, preparse(parse_text(~char(x)+char('1'), '1')))
     eq_(eval(parse_text(optional(char(x)), '1')), '1')
     eq_(eval(parse_text(optional(char(x)), '')), True)
 
   def testoptionalRule(self):
     x, s = Var('x'), Var('s')
-    ruleList =[(s, function( ((x,), and_p(optional(char('a')),char(x)))))]
+    ruleList =[(s, function( ((x,), and_p(~char('a'),char(x)))))]
     assert_raises(NoSolutionFound, eval, let(ruleList, parse_text(s(x), 'a'), x))
+    eq_(eval(let(ruleList, parse_text(s(x),  'aa'), x)), 'a')         
+    eq_(eval(let(ruleList, parse_text(s(x),  'b'), x)), 'b')
+    
+  def test_nongreedy_optional(self):
+    x, s = Var('x'), Var('s')
+    ruleList =[(s, function( ((x,), and_p(-char('a'),char(x)))))]
+    eq_(eval(let(ruleList, parse_text(s(x), 'a'), x)), 'a')
     eq_(eval(let(ruleList, parse_text(s(x),  'aa'), x)), 'a')         
     eq_(eval(let(ruleList, parse_text(s(x),  'b'), x)), 'b')
     
   def testoptionalcut(self):
     x, s = Var('x'), Var('s')
-    ruleList = [(s, function( ((x,), and_p(optional(char('a')), cut, char(x)))))]
+    ruleList = [(s, function( ((x,), and_p(-char('a'), cut, char(x)))))]
     eq_(eval(let(ruleList, parse_text(s(x),  'aa'), x)), 'a')         
     eq_(eval(let(ruleList, parse_text(s(x),  'b'), x)), 'b') 
     assert_raises(NoSolutionFound, eval, let(ruleList, parse_text(s(x), 'a'), x))
@@ -184,7 +191,7 @@ class TestOptional:
 class TestParallel:
   def test_parallel(self):
     x = Var('x')
-    eq_(eval(parse_text(parallel(letter(x), char(x)), 'a')), True)
+    eq_(eval(parse_text(parallel(letter(x), char(x)), 'a')), 'a')
     assert_raises(NoSolutionFound, eval, parse_text(parallel(number(x), char('3')), '2'))
     
   def testparallelRule(self):

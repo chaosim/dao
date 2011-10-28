@@ -10,6 +10,13 @@ dao.version = '0.1.0'
 
 dao[
 
+parse_text(char('a')+any(~char('b')+some(char('c')))+eos, 'ab'),
+##fun.f()
+
+]
+dao.eval()
+
+dao[
 ##use.a.b.c,
 ##use [_.a, _.x.y._.b],  # import name  
 ##use.a.b/[_.a, _.b >> x], #重命名
@@ -17,11 +24,7 @@ dao[
 ##use.a/'a*',
 ##use.a/'test_*1',
 let( f << fun()[2][3] ) 
-  .do[ findall(is_(x, f()), x, y), prin(y) ]
-]
-dao.eval()
-
-dao[
+  .do[ findall(is_(x, f()), x, y), prin(y) ],
 let( i<<0 ). do[ repeat, prin(i), ++i, iff(i<3).do[fail] ],
 
 
@@ -114,7 +117,7 @@ let( a/ b/ c << range(3))
   
 prin('adafa'),
 
-fun. a(x)== [prin(1)], #覆盖与a(x)匹配的整个定义
+fun. a(x)[prin(1)], #覆盖与a(x)匹配的整个定义
 fun. a == at(x)  [prin(x)], #覆盖a的整个定义
 fun. a(1) <= [prin(1)], #在前面插入定义
 fun. a(3) >= [prin(3)], #在后面附加定义
@@ -185,7 +188,7 @@ stringExpression, bracketExpression, puncExpression, sexpressionList, condSpace 
 ##  'stringExpression, bracketExpression, puncExpression, sexpressionList, condSpace')
 
 dao[
-fun. evalRule(Result) == [sexpression(Expr2)+eos+is_(Result, eval_<getvalue<Expr2)],
+fun. evalRule(Result) [sexpression(Expr2)+eos+is_(Result, eval_<getvalue<Expr2)],
 
 fun. sexpression == at
   (Result)
@@ -211,9 +214,9 @@ fun. sexpression == at
     [bracketExpression(Expr)]
     [puncExpression(Expr)],
     
-fun. stringExpression(X) == at [number(X)] [dqstring(X)] [uLetterdigitString(X)],
+fun. stringExpression(X) [number(X)] [dqstring(X)] [uLetterdigitString(X)],
 
-fun. bracketExpression (ExprList) == at
+fun. bracketExpression (ExprList)
     [char('(')+spaces0(_)+sexpressionList(ExprList)+spaces0(_)+char(')')]
     [char('[')+spaces0(_)+sexpressionList(ExprList)+spaces0(_)+char(']')],
     
@@ -227,9 +230,9 @@ fun. sexpressionList == at
   (Expr, ExprList) [sexpression(Expr)+condSpace+sexpressionList(ExprList)]
   (nil) [nullword],
   
-fun. sexpression1(Expr) == [spaces0(_)+sexpressionList(Expr)+spaces0(_)],
+fun. sexpression1(Expr) [spaces0(_)+sexpressionList(Expr)+spaces0(_)],
 
-fun. condSpace() ==  
+fun. condSpace() 
   [ if_p(not_p(lead_chars('([])'))+not_follow_chars('([])')
         +not_p(eos))+spaces(_)+spaces0(_)
   ]
