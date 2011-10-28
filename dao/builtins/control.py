@@ -37,11 +37,11 @@ def findall(solver, cont, goal, template=None, bag=None):
 
 @builtin.macro()
 def call(solver, cont, pred): 
-  yield solver.cont(deref(pred, solver.env), cont), True
+  yield solver.cont(getvalue(pred, solver.env), cont), True
 
 @builtin.macro()
 def once(solver, cont, pred):
-  for c, x in solver.exp_run_cont(deref(pred, solver.env), cont):
+  for c, x in solver.exp_run_cont(getvalue(pred, solver.env), cont):
     yield c, x
     return
 

@@ -11,7 +11,7 @@ from dao.builtins.control import findall, call, once
 from dao.builtins.parser import set_text
 from dao.builtins.terminal import char
 from dao.builtins.term import unify, notunify
-from dao.builtins.io import write
+from dao.builtins.io import prin #write, 
 from dao.builtins.term import ground_p
 from dao.builtins.term import isvar, nonvar, is_, nonvar_p, isvar_p
 
@@ -95,8 +95,9 @@ class Testunify:
 class TestMetacall:
   def testcall(self):
     eq_(eval(call(unify(x, 1))), True)
+    eq_(eval(is_(x, quote(prin(1)))&call(x)), None)
   def testonce(self):
-    eq_(eval(once(unify(x, 1))), True)
+    eq_(eval(findall(once(prin('1, ')|prin('2, ')))), True)
     
 class Testfindall:
   def test_findall(self):

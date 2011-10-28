@@ -217,6 +217,9 @@
 
   格式: once(goal)
 
+  >>> findall(once(prin('1, ')|prin('2, ')))
+  1, True
+
 * 重复求解谓词(repeat)
 
   格式: repeat

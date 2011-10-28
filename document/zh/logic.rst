@@ -213,9 +213,17 @@
 
   格式: call(goal)
 
+  先取得goal的值（注意，使用getvalue命令取值，不是求解），然后对取得的值求解。
+
+    >>> is_(x, quote(prin(1)))&call(x)
+    1
+
 * once: 一次求解谓词
 
   格式: once(goal)
+
+  >>> findall(once(prin('1, ')|prin('2, ')))
+  1, True
 
 * 重复求解谓词(repeat)
 

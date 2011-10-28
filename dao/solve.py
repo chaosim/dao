@@ -254,12 +254,12 @@ class Solver:
         cg = cont_gen
         cont_gen = parent[cont_gen]
         del parent[cg]
-      except GeneratorExit: 
-        if cont_gen is root: return
-        else: 
-          cg = cont_gen
-          cont_gen = parent[cont_gen]
-          del parent[cg]
+##      except GeneratorExit: 
+##        if cont_gen is root: return
+##        else: 
+##          cg = cont_gen
+##          cont_gen = parent[cont_gen]
+##          del parent[cg]
 ##      except: 
 ##        self1.env, self1.parse_state = env, parse_state
 ##        raise

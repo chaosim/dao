@@ -67,52 +67,48 @@
 </div></blockquote>
 <ul>
 <li><p class="first">覆盖函数头定义:</p>
-<div class="highlight-python"><pre>fun. 函数名(函数头) == [ 函数体 ]
-fun. 函数名(函数头) == at [ 函数体 ][ ... ]</pre>
+<div class="highlight-python"><pre>fun. 函数名 {{ ( 函数头 ) [ 函数体 ] }} ...</pre>
 </div>
 </li>
 <li><p class="first">补充函数头定义</p>
 <ul>
-<li><p class="first">尾部补充函数头定义:</p>
-<div class="highlight-python"><pre>fun. 函数名(函数头) &gt;= [ 函数体 ]
-fun. 函数名(函数头) &gt;= at [ 函数体 ]...</pre>
+<li><p class="first">从尾部补充函数头定义:</p>
+<div class="highlight-python"><pre>fun. 函数名( 函数头 ) &gt;= [ 函数体 ]
+fun. 函数名( 函数头 ) &gt;= at [ 函数体 ]...</pre>
 </div>
 <p>在函数规则列表后面附加函数定义</p>
 </li>
-<li><p class="first">头部补充函数头定义:</p>
-<div class="highlight-python"><pre>fun. 函数名(函数头) &lt;= [ 函数体 ]
-fun. 函数名(函数头) &lt;= at [ 函数体 ]...</pre>
+<li><p class="first">从头部补充函数头定义:</p>
+<div class="highlight-python"><pre>fun. 函数名( 函数头 ) &lt;= [ 函数体 ]
+fun. 函数名( 函数头 ) &lt;= at [ 函数体 ]...</pre>
 </div>
 <p>在函数规则列表前面面插入函数定义</p>
 </li>
 </ul>
 </li>
 <li><p class="first">覆盖全函数定义:</p>
-<div class="highlight-python"><pre>fun. 函数名 == [函数体...]
-fun. 函数名 == at {{ &lt;&lt; ( 函数头 ) &gt;&gt; [函数体...] }}...</pre>
+<div class="highlight-python"><pre>fun. 函数名 == [ 函数体 ]
+fun. 函数名 == at {{ &lt;&lt; ( 函数头 ) &gt;&gt; [ 函数体 ] }}...</pre>
 </div>
 </li>
 <li><p class="first">补充全函数定义</p>
 <ul>
-<li><p class="first">尾部补充全函数定义:</p>
-<div class="highlight-python"><pre>fun. 函数名 &gt;= [函数体...]
-fun. 函数名 &gt;= a {{ &lt;&lt; ( 函数头 ) &gt;&gt; [函数体...] }}...</pre>
+<li><p class="first">从尾部补充全函数定义:</p>
+<div class="highlight-python"><pre>fun. 函数名 &gt;= [ 函数体... ]
+fun. 函数名 &gt;= a {{ &lt;&lt; ( 函数头 ) &gt;&gt; [ 函数体 ] }}...</pre>
 </div>
 </li>
-<li><p class="first">头部补充全函数定义:</p>
-<div class="highlight-python"><pre>fun. 函数名 &lt;= [函数体...]
-fun. 函数名 &lt;= a {{ &lt;&lt; ( 函数头 ) &gt;&gt; [函数体...] }}...</pre>
+<li><p class="first">从头部补充全函数定义:</p>
+<div class="highlight-python"><pre>fun. 函数名 &lt;= [ 函数体... ]
+fun. 函数名 &lt;= a {{ &lt;&lt; ( 函数头 ) &gt;&gt; [ 函数体 ] }}...</pre>
 </div>
 </li>
 </ul>
 </li>
 <li><p class="first">删除函数定义</p>
-</li>
-</ul>
-<blockquote>
-<div><ul>
+<ul>
 <li><p class="first">删除定元函数定义:</p>
-<div class="highlight-python"><pre>- fun.函数名 / n</pre>
+<div class="highlight-python"><pre>- fun.函数名 / 元数</pre>
 </div>
 </li>
 <li><p class="first">删除匹配函数头定义:</p>
@@ -120,7 +116,8 @@ fun. 函数名 &lt;= a {{ &lt;&lt; ( 函数头 ) &gt;&gt; [函数体...] }}...</
 </div>
 </li>
 </ul>
-</div></blockquote>
+</li>
+</ul>
 </div>
 <div class="section" id="letletr">
 <h2>let和letr语句<a class="headerlink" href="#letletr" title="Permalink to this headline">¶</a></h2>

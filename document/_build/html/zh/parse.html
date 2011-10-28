@@ -146,7 +146,8 @@
 或匹配符。可以利用运算符|产生或匹配符，我们通常写a|b，而不是写MatcerSequence(a, b)。先匹配a，如果a成功则a|b成功，否则再从匹配a <strong>之前</strong> 的位置开始匹配b，如果b成功，则a|b匹配才成功。只要a， b中间任何一个匹配成功，a|b就成功，只有a，b两者都匹配失败，a|b才匹配失败。</p>
 </li>
 <li><p class="first">optional(item, mode=nongreedy):
-可选匹配符。也可写成may(item, item)。有贪婪和非贪婪两种工作模式。贪婪模式下，item匹配成功后不会may(item, mode)命令不会回溯。非贪婪模式下，可以回溯，当发生回溯时，may(item, nongreedy)的作用等同于空字符nullword。</p>
+可选匹配符。也可写成may(item, item)。有贪婪和非贪婪两种工作模式。贪婪模式下，item匹配成功后optional(item, mode)命令不会回溯。非贪婪模式下，可以回溯，当发生回溯时，may(item, nongreedy)的作用等同于空字符nullword。</p>
+<p>~item产生贪婪可选，-item产生非贪婪可选。</p>
 </li>
 <li><p class="first">parallel(a,b):
 平行匹配符。如果a,b能够都能匹配从解析位置开始的一段等长字符，则parallel(a,b)匹配成功。</p>
@@ -154,8 +155,8 @@
 <li><p class="first">Repeater(item, separator=None, min=None, max=None, template=None, result=None, mode=nongreedy)
 重复匹配符，它能产生包括optional, any, some, times, times_more, times_less, seplist, seplist_more, seplist_less，follow在内的各种重复组合。可以利用item[min:max]/separator%template*result的格式产生重复匹配符，并且可以通过前置一元运算符+或-指示重复匹配符的工作模式：贪婪，非贪婪和懒惰模式。</p>
 <ul class="simple">
-<li>非贪婪模式(nongreedy): matcher[:]/separator%template*result，默认的工作模式，先尽量多匹配字符，如果后续命令失败，则发生回溯，减少重复次数，回退解析位置，然后重新执行后续命令。</li>
-<li>贪婪模式(greedy): +matcher[:]/separator%template*result，尽量多匹配字符，即是后续命令失败，也不会这个重复匹配符上发生回溯，不会回退解析位置。</li>
+<li>非贪婪模式(nongreedy): matcher[:]/separator%template*result，默认工作模式，先尽量多匹配字符，如果后续命令失败，则发生回溯，减少重复次数，回退解析位置，然后重新执行后续命令。</li>
+<li>贪婪模式(greedy): ~matcher[:]/separator%template*result，尽量多匹配字符，即使后续命令失败，也不会在这个重复匹配符发生回溯，不会回退解析位置。</li>
 <li>懒惰模式(lazy): -matcher[:]/separator%template*result，先尽量少地匹配字符（相当于从空字(nullword)开始匹配），如果后续命令失败，可以发生回溯，则增加重复次数，推进解析位置，然后重新执行后续命令。</li>
 </ul>
 <p>如果出现了/separator部件，则匹配一个以separator分隔的item的列表，即形如item+separator+item+...+separator+item的列表。</p>
