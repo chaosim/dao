@@ -9,7 +9,7 @@ from dao.solve import mycont
 def getvalue(solver, cont, item):
   yield cont, term.getvalue(item, solver.env)
   
-@builtin.macro()
+@builtin.macro('getvalue_default', 'getvalue@')
 def getvalue_default(solver, cont, item, default=None):
   value = term.getvalue(item, solver.env)
   if isinstance(value, Var): value = default
@@ -22,11 +22,11 @@ def is_ground(term):
     if not is_ground(term.tail): return False
   return True
   
-@builtin.macro('ground_p')
+@builtin.macro('ground')
 def ground(solver, cont, term):
   yield cont, is_ground(getvalue(term, solver.env))
   
-@builtin.macro('ground_p')
+@builtin.macro('ground_p', 'ground!')
 def ground_p(solver, cont, term):
   if is_ground(getvalue(term, solver.env)): yield cont, True
   
@@ -41,9 +41,9 @@ def setvalue(solver, cont, var, value):
     var.setvalue(value, solver.env)
     yield cont, True
     var.setvalue(old, solver.env)
-  yield solver.cont(value, set_cont), True
+  yield solver.cont(value, setvalue_cont), True
 
-@builtin.macro('is')
+@builtin.macro('is', '<-')
 def is_(solver, cont, var, func):
   @mycont(cont)
   def is_cont(value, solver):
@@ -81,7 +81,7 @@ def copy_term(solver, cont, item, copy):
  
 # comparison and unification of terms
 
-@builtin.macro('unify')
+@builtin.macro('unify', '=:=')
 def unify(solver, cont, v0, v1):
   for _ in term.unify(v0, v1, solver.env): 
     yield cont, True
@@ -91,7 +91,7 @@ def unify_with_occurs_check(solver, cont, v0, v1):
   for _ in term.unify(v0, v1, solver.env, occurs_check=True): 
     yield cont, True
 
-@builtin.macro('notunify')
+@builtin.macro('notunify', '=\=')
 def notunify(solver, cont, var0, var1):
   for _ in term.unify(var0, var1, solver.env): 
     return
@@ -103,7 +103,7 @@ def notunify(solver, cont, var0, var1):
 def isvar(solver, cont, arg):
   yield cont, isinstance(arg, Var)
 
-@builtin.macro('var')
+@builtin.macro('var', 'var!')
 def isvar_p(solver, cont, arg):
   if isinstance(arg, Var): yield cont, True
 
@@ -111,7 +111,7 @@ def isvar_p(solver, cont, arg):
 def nonvar(solver, cont, arg):  
   yield cont, not isinstance(arg, Var)
 
-@builtin.macro('nonvar')
+@builtin.macro('nonvar', 'nonvar!')
 def nonvar_p(solver, cont, arg):  
   if not isinstance(arg, Var): yield cont, True
 
@@ -123,11 +123,23 @@ def is_free(var, env):
 def free(solver, cont, arg):
   yield cont, is_free(arg, solver.env)
 
+@builtin.macro('free_p', 'free!')
+def free_p(solver, cont, arg):
+  if is_free(arg, solver.env):
+    yield cont, True
+
 @builtin.macro('bound')
 def bound(solver, cont, var):
   assert(isinstance(var, Var))
   if isinstance(var, ClosureVar): var = var.var
   yield cont, solver.env[var] is not var
+  
+@builtin.macro('bound_p', 'bound!')
+def bound_p(solver, cont, var):
+  assert(isinstance(var, Var))
+  if isinstance(var, ClosureVar): var = var.var
+  if solver.env[var] is not var:
+    yield cont, True
   
 @builtin.macro('unbind')
 def unbind(solver, cont, arg):
@@ -145,26 +157,43 @@ def unbind(solver, cont, arg):
   for b, v in bindings:
     b[var] = v
   
+@builtin.macro('isinteger', 'isinteger!')
 def isinteger(solver, cont, arg):
-  if isinstance(deref(arg, solver.env), int): yield cont, True
+  yield cont, isinstance(getvalue(arg, env), int)
 
-@builtin.macro('float')
+@builtin.macro('isinteger_p', 'isinteger!')
+def isinteger_p(solver, cont, arg):
+  if isinstance(getvalue(arg, env), int): yield cont, True
+
+@builtin.macro('isfloat', 'isfloat')
 def isfloat(solver, cont, arg):
-  if isinstance(deref(arg, solver.env), float): yield cont, True
+  yield cont, isinstance(getvalue(arg, env), float)
 
-@builtin.macro('isnumber')
+@builtin.macro('isfloat_p', 'isfloat!')
+def isfloat_p(solver, cont, arg):
+  if isinstance(getvalue(arg, env), float): yield cont, True
+
+@builtin.macro('isnumber', 'isnumber')
 def isnumber(solver, cont, arg):
-  if isinstance(deref(arg, solver.env), int) \
-     or isinstance(deref(arg, solver.env), float): 
+  yield cont, isinstance(getvalue(arg, env), int) \
+              or isinstance(getvalue(arg, env), float)
+
+@builtin.macro('isnumber_p', 'isnumber!')
+def isnumber_p(solver, cont, arg):
+  if isinstance(getvalue(arg, env), int) \
+     or isinstance(getvalue(arg, env), float): 
     yield cont, True
 
 @builtin.macro('iscons')
 def iscons(solver, cont, arg):
-  if isinstance(deref(arg, solver.env), Cons): yield cont, True
+  if isinstance(getvalue(arg, env), Cons): yield cont, True
 
-@builtin.function('cons?')
+@builtin.macro('iscons_p', 'iscons!')
+def iscons_p(solver, cont, arg):
+  if isinstance(getvalue(arg, env), Cons): yield cont, True
+
+@builtin.function('cons_f', 'iscons?')
 def is_cons(x): return isinstance(x, Cons)
-
 
 @builtin.function('conslist')
 def conslist(*arguments): return conslist(arguments)
@@ -186,8 +215,8 @@ def is_pytuple(x):  return isinstance(x, tuple)
 def pycall(fun, *args):  
   return fun(*args)
 
-@builtin.function('py_CommandCall')
-def py_CommandCall(fun, args):  
+@builtin.function('py_apply')
+def py_apply(fun, args):  
   return fun(*args)
 
 @builtin.function('head_list')

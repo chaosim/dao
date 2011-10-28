@@ -2,7 +2,7 @@
 This is Dao version 0.7.2
 ============================
 
-What would happen when lisp meet prolog in python?  
+What would happen when lisp meets prolog in python?  
 
 Dinpy arises!
 
@@ -13,7 +13,10 @@ unifying code with data, grammar with program, logic with functional, compiling 
 How to use Dao?
 ------------------
 
-!!! This readme in ReStructureText format does not works in pypi. What's wrong with this(see dao\readme and dao\setup.py)? I don't find the reason even after reading pypi tutorial, google and trying a lot ways. If any one know please show me how to fix it (simeon.chaos@gmail.com) and thanks a lot.
+!!! This readme in ReStructureText format does not works in pypi. 
+    What's wrong with this(see dao\readme and dao\setup.py)?
+    I don't find the reason even after reading pypi tutorial, google and trying a lot ways. 
+    If any one know please show me how to fix it (simeon.chaos@gmail.com) and thanks a lot.
 
 See the "get start" in the <http://code.google.com/p/daot/w/list> to get started with dao and dinpy.
 See <http://packages.python.org/daot> for document about dao and dinpy. 

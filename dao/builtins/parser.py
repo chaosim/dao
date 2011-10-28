@@ -64,7 +64,30 @@ def unify_parse_sequence(solver, cont, sequence):
   for _ in unify(sequence, solver.parse_state[0], solver.env):
     yield cont, solver.parse_state[0]
 unify_parse_text = unify_parse_sequence
-    
+
+def eoi_(parse_state):
+  return parse_state[1]>=len(parse_state[0])
+
+def boi_(parse_state):
+  return parse_state[1]==0
+
+def next_char_(parse_state):
+  assert not eoi_(parse_state), 'reached end of input.'
+  return parse_state[0][parse_state[1]]
+
+def last_char_(parse_state):
+  assert not boi_(parse_state), 'reached begin of input.'
+  return parse_state[0][parse_state[1]-1]
+
+def left_(parse_state):
+  return parse_state[0][parse_state[1]:]
+
+def parsed_(parse_state):
+  return parse_state[0][:parse_state[1]]
+
+def pos_(parse_state):
+  return parse_state[1]
+
 @matcher()
 def step(solver, cont, n=1): # return current element before step
   text, pos = solver.parse_state

@@ -65,13 +65,13 @@ def repeat(solver, cont):
 
 repeat = repeat()
   
-@builtin.macro('!')
+@builtin.macro('cut', '!')
 def cut(solver, cont):
   yield cont, True
   raise CutException
 cut = cut()
 
-@builtin.macro('and_p')
+@builtin.macro('and_p', '&!')
 def and_p(solver, cont, *calls):
   if len(calls)==0:  
     yield value_cont(None, cont), True
@@ -86,23 +86,25 @@ def and_p(solver, cont, *calls):
     else: 
       yield solver.exps_cont(calls[:-1], and_cont), True
     
-@builtin.macro('or_p')
+@builtin.macro('or_p', '|!')
 def or_p(solver, cont, *calls):
   if len(calls)==0:  
     yield value_cont(None, cont), True
   call0 = deref(calls[0], solver.env)
   if isinstance(call0, CommandCall) and call0.operator==if_p: # A -> B; C
-    if_clause = deref(call1.operand[0], solver.env)
-    then_clause = deref(call1.operand[1], solver.env)
-    calls[0] = if_clause&cut&then_clause
-  @mycont(cont)
-  def or_cont(value, solver):
-    for call in calls:
-      yield solver.cont(call, cont), True
-##  or_cont.cut = True
-  yield or_cont, True
+    if_clause = deref(call0.operand[0], solver.env)
+    then_clause = deref(call0.operand[1], solver.env)
+    calls = (and_p(if_clause, cut, then_clause),)+calls[1:]
+  for call in calls:
+    yield solver.cont(call, cont), True
+  #@mycont(cont)
+  #def or_cont(value, solver):
+    #for call in calls:
+      #yield solver.cont(call, cont), True
+  #or_cont.cut = True
+  #yield or_cont, True
 
-@builtin.macro('first_p')
+@builtin.macro('first_p', 'first!')
 def first_p(solver, cont, *calls):
   solved = False
   for call in calls:
@@ -111,7 +113,7 @@ def first_p(solver, cont, *calls):
       yield c, value
     if solved: return
 
-@builtin.macro('->')  
+@builtin.macro('if_p', '->')  
 def if_p(solver, cont, if_clause, then_clause):
   # This unusual semantics is part of the ISO and all de-facto Prolog standards.
   # see SWI-Prolog help.
@@ -122,7 +124,7 @@ def if_p(solver, cont, if_clause, then_clause):
     yield solver.cont(then_clause, cont), True
   yield solver.cont(if_clause, if_p_cont), True
 
-@builtin.macro('not')  
+@builtin.macro('not', 'not!')  
 def not_p(solver, cont, call):
   call = deref(call, solver.env)
   for c, x in solver.exp_run_cont(call, cont):

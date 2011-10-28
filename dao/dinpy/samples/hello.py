@@ -4,8 +4,8 @@
 
 from dao.dinpy import *
 
-dao.version = '0.7.0'
+dinpy.version = '0.7.0'
 
-dao[ prin('hello world!') ]
+dinpy[ prin('hello world!') ]
 
-dao.eval()
+dinpy.eval()

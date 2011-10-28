@@ -7,11 +7,11 @@ see dinpy.py for a real sample.
 >>> from dao.solve import set_run_mode, noninteractive
 >>> set_run_mode(noninteractive)
 >>> from dao.term import Var
->>> from dao.builtins.terminal import eos
+>>> from dao.builtins.terminal import eoi
 >>> from dao.builtins.term import pytuple, first
 >>> bindings, body = Var('bindings'), Var('body')
 >>> do = word('do')
->>> let = element('let', call(bindings)+do+getitem(body)+eos+pytuple(first(bindings), body))
+>>> let = element('let', call(bindings)+do+getitem(body)+eoi+pytuple(first(bindings), body))
 >>> preparse(let({'x':1}).do[1,2])
 ({'x': 1}, (1, 2))
 '''

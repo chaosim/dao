@@ -5,10 +5,11 @@ from dao.term import Var, Function, Macro, CommandCall, Command
 builtins = []
 
 class Builtin: 
-  def __init__(self, function, name=None):
+  def __init__(self, function, name=None, symbol=None):
     if name is None: name = function.__name__
     self.function = function
     self.name = name
+    self.symbol = symbol if symbol else name
   def copy(self): return self.__class__(self.function, self.name)
   def __eq__(self, other): 
     return self.__class__==other.__class__ and self.function==other.function
@@ -33,11 +34,11 @@ class BuiltinMacro(Builtin, Macro):
     return self.function(solver, cont, *exps)
   
 def builtin(klass):
-  def builtin(name=None):
+  def builtin(name=None, symbol=None):
     def makeBuiltin(func):
       if name is None: name1 = func.__name__
       else: name1 = name
-      b = klass(func, name1)
+      b = klass(func, name1, symbol)
       builtins.append(b)
       return b
     return makeBuiltin

@@ -448,3 +448,8 @@ def conslist(*elements):
   result = nil
   for term in reversed(elements): result = Cons(term, result)
   return result
+
+def cons2tuple(item):
+  if not isinstance(item, Cons): return item
+  return tuple(cons2tuple(x) for x in item)
+

@@ -20,11 +20,11 @@ setup(
   author='Cao Xingming(Simeon.Chaos)',
   author_email='simeon.chaos@gmail.com',
   license='GPL',
-  url='http://code.google.com/p/daot',
-  download_url='http://code.google.com/p/daot',
+  url='https://github.com/chaosim/dao',
+  download_url='http://pypi.python.org/pypi/daot',
   keywords = "dao dinpy lisp prolog dsl",
 
-  description='the dao to programming',
+  description='the dao to programming, lisp meets prolog in python.',
   long_description=open('readme').read(),
   
   platforms='Posix; MacOS X; Windows',

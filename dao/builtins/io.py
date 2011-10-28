@@ -15,7 +15,7 @@ def read(file):
 def read(file):
   return file.readlines()
 
-@builtin.function()
+@builtin.function('prin', 'print')
 def prin(*args):
   for arg in args: print arg,
 

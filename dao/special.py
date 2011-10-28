@@ -17,6 +17,7 @@ class ParserForm:
   def ___parse___(self, parser): return self
 
 class SpecialForm(Command, ParserForm):
+  #symbol = None
   # 具体的特殊式各自定义自己的__init__, __repr__与cont
   def __call__(self, *exps): return CommandCall(self, *exps)
   def __add__(self, other): return begin(self, other)
@@ -25,6 +26,8 @@ class SpecialForm(Command, ParserForm):
     return or_p(self, other)
 
 class quote(SpecialForm):
+  name = 'quote'
+  symbol = "'"
   def __init__(self, exp): self.exp = exp
   def cont(self, cont, solver): return value_cont(self.exp, cont)
   def __eq__(self, other): return self.exp==other.exp
@@ -57,6 +60,8 @@ def assign_var(var, value, env):
 ##  del env0.bindings[var]
   
 class set(SpecialForm):
+  name = 'setq'
+  symbol = "="
   def __init__(self, var, exp):
     self.var, self.exp = var, exp
   def ___parse___(self, parser):
@@ -100,6 +105,7 @@ class set_list(SpecialForm):
 assign = set
 
 class begin(SpecialForm):
+  name = 'begin'
   def __init__(self, *exps):
     self.exps = exps
   def cont(self, cont, solver): 
@@ -124,6 +130,7 @@ def make_if_cont(then, els, cont):
   return if_cont
 
 class if_(SpecialForm):
+  symbol = 'if'
   def __init__(self, test, exp1, exp2=None):
     self.test, self.exp1, self.exp2 = test, exp1, exp2
   def ___parse___(self, parser): 
@@ -152,6 +159,8 @@ def make_iff_cont(then, clauses, els, cont):
   return iff_cont
   
 class iff(SpecialForm):
+  name = 'iff'
+  symbol = 'iff'
   def __init__(self, clauses, els=None):
     self.clauses, self.els = clauses, els
   def ___parse___(self, parser): 
@@ -463,6 +472,8 @@ class FunctionForm(SpecialForm):
 function = FunctionForm
 
 def letr(bindings, *body):
+  name = 'letr'
+  symbol = 'letrec'
   if isinstance(bindings, dict): raise Error
   vars = tuple(b[0] for b in bindings)
   values = tuple(b[1] for b in bindings)
@@ -553,6 +564,8 @@ class module(SpecialForm):
 
 @builtin.macro()
 def from_(solver, cont, module, var):
+  name = 'from_'
+  symbol = 'from'
   if isinstance(var, ClosureVar): var = var.var
   @mycont(cont)
   def from_module_cont(module, solver): 
@@ -582,6 +595,8 @@ class block(SpecialForm):
     return '[%s%s]'%(label, body)
 
 class exit_block(SpecialForm):
+  name = 'exit_block'
+  symbol = 'return-from'
   def __init__(self, label, form=None):
     self.label, self.form = label, form
   def ___parse___(self, parser):
@@ -675,6 +690,8 @@ class throw(SpecialForm):
     return solver.cont(self.tag, throw_cont)
   def __repr__(self): return 'throw(%s,%s)'%(repr(self.tag),repr(self.form))
 class unwind_protect(SpecialForm):
+  name = 'unwind_protect'
+  symbol = 'unwind-protect'
   #[unwind-protect form cleanup]
   def __init__(self, form, *cleanup):
     self.form, self.cleanup = form, cleanup

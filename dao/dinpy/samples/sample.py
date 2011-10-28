@@ -2,21 +2,21 @@
 
 # when lisp meets prolog in python
 
-# dao program samples
+# dinpy program samples
 
 from dao.dinpy import *
 
-dao.version = '0.1.0'
+dinpy.version = '0.7.2'
 
-dao[
+##dinpy[
+##
+##parse_text(char('a')+any(~char('b')+some(char('c')))+eoi, 'ab'),
+####fun.f()
+##
+##]
+##dinpy.eval()
 
-parse_text(char('a')+any(~char('b')+some(char('c')))+eos, 'ab'),
-##fun.f()
-
-]
-dao.eval()
-
-dao[
+dinpy[
 ##use.a.b.c,
 ##use [_.a, _.x.y._.b],  # import name  
 ##use.a.b/[_.a, _.b >> x], #重命名
@@ -167,9 +167,9 @@ v.command << open,
 set_text('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
 x-1,          
 -char(x),               # 非贪婪可选
-+char(x),               # 贪婪可选
+~char(x),               # 贪婪可选
 char(x)[:],             # 非贪婪char(x)重复任意次（包括0次）
-+char(x)[1:],           # 贪婪char(x)重复任意次（不包括0次）
+~char(x)[1:],           # 贪婪char(x)重复任意次（不包括0次）
 ##-char(x)[1:],           # 懒惰char(x)重复任意次（不包括0次）
 ##char(x)[:]/char(' '),   # 空格分隔的列表
 ##char(x)[5],             # char(x)重复5次
@@ -187,8 +187,8 @@ stringExpression, bracketExpression, puncExpression, sexpressionList, condSpace 
 ##symbols('X, Expr, Expr2, ExprList, Result, Y, sexpression' 
 ##  'stringExpression, bracketExpression, puncExpression, sexpressionList, condSpace')
 
-dao[
-fun. evalRule(Result) [sexpression(Expr2)+eos+is_(Result, eval_<getvalue<Expr2)],
+dinpy[
+fun. evalRule(Result) [sexpression(Expr2)+eoi+is_(Result, eval_<getvalue<Expr2)],
 
 fun. sexpression == at
   (Result)
@@ -234,8 +234,8 @@ fun. sexpression1(Expr) [spaces0(_)+sexpressionList(Expr)+spaces0(_)],
 
 fun. condSpace() 
   [ if_p(not_p(lead_chars('([])'))+not_follow_chars('([])')
-        +not_p(eos))+spaces(_)+spaces0(_)
+        +not_p(eoi))+spaces(_)+spaces0(_)
   ]
 ]
 
-dao.eval()
+dinpy.eval()
