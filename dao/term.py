@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 
+# depend dao.solve only.
+
 from dao.solve import value_cont, mycont
+
+# below is for dinpy.
 from dao.solve import run_mode, interactive
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
 
-class Command: 
-  def __call__(self, *args):
-    return CommandCall(self, *args)
+# ==============================================
 
-class Symbol: pass
+# important function's definitions
+# unify, deref, getvalue, match, closure, unify_rule_head
+# copy, copy_rule_head, signature
 
-def apply_generators(generators): # one shot generators, such as unify, set/restore
+# one shot generators, such as unify, set/restore
+def apply_generators(generators): 
   length = len(generators)
   if length==0: 
     yield True
@@ -26,7 +31,10 @@ def apply_generators(generators): # one shot generators, such as unify, set/rest
       i -= 1
     except GeneratorExit: raise
 
+# implemented by using apply_generators
 def unify_list(list1, list2, env, occurs_check=False):
+  '''unify list1 with list2 in env.'''
+  
   if len(list1)!=len(list2): return
   if len(list1)==0: yield True
   if len(list1)==1: 
@@ -153,6 +161,27 @@ def closure(exp, env):
     else: return exp
   return exp_closure(env)
 
+def signature(exp):
+  try: exp_signature = exp.signature
+  except AttributeError: 
+    if isinstance(exp, list) or isinstance(exp, tuple): 
+      return tuple(signature(e) for e in exp) 
+    else: return (False, exp)
+  return exp_signature()
+
+# =================================================================
+# low level classes used in dao.
+# Var, ClosureVar, DummyVar, Cons, Nil and nil
+# Command, CommandCall, Function, Macro
+
+class Command:
+  ''' the base class for all the callable object in the dao system.'''
+  
+  def __call__(self, *args):
+    return CommandCall(self, *args)
+
+class Symbol: pass
+
 class Var(Command):
   def __init__(self, name): 
     self.name = name
@@ -233,15 +262,6 @@ class Var(Command):
     else: return ClosureVar(self, value)
   
   def cont(self, cont, solver):
-##    @mycont(cont)
-##    def var_cont(value, solver):
-##      try:
-##        old = solver.env[self]
-##        yield cont, self.getvalue(solver.env)
-##        solver.env[self] = old
-##      except KeyError:
-##        yield cont, self
-##    return var_cont
     return value_cont(self.getvalue(solver.env), cont)
     
   def __add__(self, other): 
@@ -375,6 +395,9 @@ class Macro(Command):
     exps1 = [(closure(exp, solver.env)) for exp in exps]
     return self.apply(solver, exps1, cont)
 
+# ----------------------------------
+# Cons, cons, Nil, nil, conslist, cons2tuple
+
 class Cons: 
   def __init__(self, head, tail):
     self.head, self.tail = head, tail
@@ -436,7 +459,7 @@ class Cons:
         return
   def __len__(self): return len([e for e in self])
   def __repr__(self): return 'L(%s)'%' '.join([repr(e) for e in self])
-  
+
 cons = Cons
 
 class Nil: 

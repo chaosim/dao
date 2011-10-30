@@ -1,6 +1,10 @@
 from nose.tools import eq_, ok_, assert_raises
 from samples.sexpression import *
+from samples import sexpression
 from dao.solve import NoSolutionFound
+
+def parse(grammar, text):
+  return cons2tuple(sexpression.parse(grammar, text))
 
 class TestParse:
   def testgrammar1_Digits(self):

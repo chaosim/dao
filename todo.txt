@@ -1,9 +1,15 @@
-﻿todo: left recursive
-todo: rule signature, for better efficieny in calling function.
-todo: first set for matcher 
-todo: meta syntax in python. 
-todo: more special forms, builtins.
-  todo: each(for/each), if-elsif-else, case/of, until, where, when, loop, do, for/start /end/step
+﻿todo: rule signature, for better efficieny in calling function.
 todo: quasiquote and backquote
+todo: first set for matcher 
+todo: left recursive
+todo: more special forms, builtins.
+  todo: for/start /end/step
+  done: each(for/each), if-elsif-else, case/of, until, where, when, loop, do, 
+
 todo: natural language programming
-todo: 汉语编程, 缀词，冗余词
+  overlook superfluous words 
+todo: 汉语编程
+  过滤 缀词，冗余词
+
+done: meta syntax in python.
+  done: dinpy is born.
