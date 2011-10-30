@@ -161,13 +161,22 @@ def closure(exp, env):
     else: return exp
   return exp_closure(env)
 
-def signature(exp):
-  try: exp_signature = exp.signature
-  except AttributeError: 
-    if isinstance(exp, list) or isinstance(exp, tuple): 
-      return tuple(signature(e) for e in exp) 
-    else: return (False, exp)
-  return exp_signature()
+def signature(x):
+  '''signature return a binary tuple, first value tell whether x is Var,
+second value is a hashable value'''
+  if isinstance(x, Var): return Var
+  elif isinstance(x, list) or isinstance(x, tuple): 
+    return (False, (tuple, len(x)))
+  elif isinstance(x, Cons): 
+    return (False, (Cons, len(x)))
+  else:
+    try: 
+      hash(x)
+      return x
+    except: return type(x)
+
+def rule_head_signature(head):
+  return tuple((i,signature(x)) for i, x in enumerate(head)) 
 
 # =================================================================
 # low level classes used in dao.

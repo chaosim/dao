@@ -1,6 +1,7 @@
 ﻿todo: rule signature, for better efficieny in calling function.
-todo: quasiquote and backquote
 todo: first set for matcher 
+todo: 可以根据历史选择和最近选择优选下一次的规则分支。
+todo: quasiquote and backquote
 todo: left recursive
 todo: more special forms, builtins.
   todo: for/start /end/step

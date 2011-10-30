@@ -98,10 +98,10 @@ class TestFunction:
     f = Var('f')
     eq_(eval(let([(f, lambda_([x], add(x, x)))], f(1))), 2)
   def test1(self):
-    eq_(eval(function([[1], 1],[[2],2])(x)), 1) 
     eq_(eval(function([[1], 1],[[x],x])(2)), 2) 
     eq_(eval(function([[1], 1])(1)), 1) 
     eq_(eval(function([[1], 1],[[2],2])(2)), 2) 
+    eq_(eval(function([[1], 1],[[2],2])(x)), 1) 
   def testdouble(self):
     eq_(eval(function([[x], add(x, x)])(2)), 4) 
   def testdouble2(self):

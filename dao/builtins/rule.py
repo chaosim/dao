@@ -1,5 +1,4 @@
 from dao.term import deref, unify_list_rule_head, conslist, getvalue, match, Var
-##from dao import error
 from dao import builtin
 from dao.rule import Rule, RuleList
 from dao.special import UserFunction, UserMacro, make_rules
@@ -92,7 +91,8 @@ def replace_def(solver, cont, rules, head, bodies, klass=UserFunction):
   rules = getvalue(rules, solver.env)
   if isinstance(rules, Var):
     new_rules = [(head,)+tuple(body) for body in bodies]
-    solver.env[rules] = klass(make_rules(new_rules), solver.env, False)
+    arity2rules, signature2rules = make_rules(new_rules)
+    solver.env[rules] = klass(arity2rules, signature2rules, solver.env, False)
     yield cont, rules
     del solver.env.bindings[rules]
     return

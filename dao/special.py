@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from dao.term import CommandCall, Function, Macro, closure, Var, ClosureVar, Command
-from dao.term import apply_generators
+from dao.term import apply_generators, rule_head_signature
 from dao.rule import Rule, RuleList
 from dao.solve import value_cont, mycont, tag_unwind, DaoSyntaxError
 from dao.env import BlockEnvironment
@@ -11,6 +11,8 @@ from dao import builtin
 
 from dao.solve import run_mode, set_run_mode, interactive, noninteractive
 from dao.solve import interactive_parser, interactive_tagger
+
+pyset = set
 
 # special forms: quote, begin, if, eval, let, lambda, function, macro, module
 class ParserForm: 
@@ -441,15 +443,21 @@ def lambda_(vars, *body):
   return FunctionForm((vars,)+body)
 
 def make_rules(rules):
-  result = {}
-  for rule in rules:
-    result.setdefault(len(rule[0]), RuleList()).append(Rule(rule[0], rule[1:]))
+  result = {}, {}
+  for i, rule in enumerate(rules):
+    head = rule[0]
+    rule = Rule(head, rule[1:])
+    arity = len(head)
+    result[0].setdefault(arity, []).append(rule)
+    if arity==0: continue
+    for signature in rule_head_signature(head):
+      result[1].setdefault((arity, signature), pyset()).add(i)
   return result
 
 class FunctionForm(SpecialForm):
   symbol = 'function'
   def __init__(self, *rules):
-    self.arity2rules = make_rules(rules)
+    self.arity2rules, self.signature2rules = make_rules(rules)
   def ___parse___(self, parser):
     for arity, rule_list in self.arity2rules.items():
       self.arity2rules[arity] = parser.parse(rule_list)
@@ -459,7 +467,7 @@ class FunctionForm(SpecialForm):
       self.arity2rules[arity] = tagger.tag_loop_label(rule_list)
     return self
   def cont(self, cont, solver):
-    func = UserFunction(self.arity2rules, solver.env, recursive=False)
+    func = UserFunction(self.arity2rules, self.signature2rules, solver.env, recursive=False)
     return value_cont(func, cont)
   def __eq__(self, other):
     return isinstance(other, FunctionForm) and self.arity2rules==other.arity2rules
@@ -484,7 +492,7 @@ class RecursiveFunctionForm(FunctionForm):
   def cont(self, cont, solver):
     newEnv = solver.env.extend()
     solver.env = newEnv
-    func = UserFunction(self.arity2rules, newEnv, recursive=True)
+    func = UserFunction(self.arity2rules, self.signature2rules, newEnv, recursive=True)
     return value_cont(func, cont)
   def __repr__(self):
     result = 'recfunc('
@@ -495,10 +503,8 @@ class RecursiveFunctionForm(FunctionForm):
   
 class MacroForm(FunctionForm):
   symbol = 'macro'
-  def __init__(self, *rules):
-    self.arity2rules = self.arity2rules = make_rules(rules)
   def cont(self, cont, solver):
-    macro = UserMacro(self.arity2rules, solver.env, recursive=False)
+    macro = UserMacro(self.arity2rules, self.signature2rules, solver.env, recursive=False)
     return value_cont(macro, cont)
   def __repr__(self):
     result = 'macroform('
@@ -510,40 +516,34 @@ class MacroForm(FunctionForm):
 macro = MacroForm
 
 class Rules:
-  def __init__(self, rules, env, recursive):
-    self.rules = rules
+  def __init__(self, arity2rules, signature2rules, env, recursive): 
+    self.arity2rules, self.signature2rules = arity2rules, signature2rules
     self.env = env
     self.recursive = recursive
-    
-class UserFunction(Rules,  Function): 
   def apply(self, solver, values, cont):
-    if len(values) not in self.rules: 
-      throw_existence_error("procedure", self.get_prolog_signature())
-    return self.rules[len(values)].apply(solver, self.env, cont, self.recursive, values)
+    arity = len(values)
+    if arity==0:
+      rule_list = RuleList(self.arity2rules[0])
+    else:
+      rules = self.arity2rules[arity]
+      rule_inexes = self.signature2rules
+      rule_set = pyset(range(len(rules)))
+      for signature in rule_head_signature(values):
+        if signature==(signature[0], Var): continue
+        else:
+          var_sign = arity,(signature[0], Var)
+          rule_set &= rule_inexes.get(var_sign, pyset())|\
+                       rule_inexes.get((arity,signature), pyset())
+      rule_list = list(rule_set)
+      rule_list.sort()
+      rule_list = RuleList(rules[i] for i in rule_list)
+    return rule_list.apply(solver, self.env, cont, self.recursive, values)
+  
+class UserFunction(Rules,  Function): 
   def __repr__(self):return 'fun(%s)'%repr(self.rules)
   
 class UserMacro(Rules,  Macro): 
-  def apply(self, solver, exps, cont):
-    if len(exps) not in self.rules: 
-      throw_existence_error("procedure", self.get_prolog_signature())
-    return self.rules[len(exps)].apply(solver, self.env, cont, self.recursive, exps)
   def __repr__(self): return 'macro(%s)'%repr(self.rules)
-  
-#class eval_(SpecialForm):
-  #symbol = 'eval'
-  #def __init__(self, exp):
-    #self.exp = exp
-  #def ___parse___(self, parser):
-    #self.exp = parser.parse(self.exp)
-    #return self
-  #def tag_loop_label(self, tagger):
-    #self.exp = tagger.tag_loop_label(self.exp)
-    #return self
-  #def cont(self, cont, solver):
-    #@mycont(cont)
-    #def eval_cont(value, solver): return solver.cont(value, cont)(value, solver)
-    #return solver.cont(self.exp, eval_cont)
-  #def __repr__(self): return 'eval(%s)'%self.exp
   
 @builtin.function2('eval')
 def eval_(solver, cont, exp):
