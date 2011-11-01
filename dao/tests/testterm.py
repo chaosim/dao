@@ -9,19 +9,6 @@ from dao.util import *
 from dao.solve import set_run_mode, noninteractive
 set_run_mode(noninteractive)
 
-
-
-#(a,1)   (1,1)
-#(a,2)
-#(1,a)
-#(2,a)
-#(1,1)
-#(1,2)
-#(2,1)
-#(2,2)
-#(1,3)
-#(2,3)
-
 class TestSimple:
   def testAtom(self):
     eq_(signature(1), 1)

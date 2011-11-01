@@ -120,7 +120,7 @@ class TestRule:
   def test_replace(self):
     from dao.builtins.rule import replace
     eq_(eval(let([(f,function(([1], 1), ([2], 2)))], 
-               replace(f, [2], 3), f(2))), 3)
+               replace(f, [2], [3]), f(2))), 3)
     
         
 from dao.builtins.string import length, concat, contain_char, substring

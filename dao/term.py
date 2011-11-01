@@ -175,7 +175,7 @@ second value is a hashable value'''
       return x
     except: return type(x)
 
-def rule_head_signature(head):
+def rule_head_signatures(head):
   return tuple((i,signature(x)) for i, x in enumerate(head)) 
 
 # =================================================================

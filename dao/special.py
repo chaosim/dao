@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from dao.term import CommandCall, Function, Macro, closure, Var, ClosureVar, Command
-from dao.term import apply_generators, rule_head_signature
+from dao.term import apply_generators, rule_head_signatures
 from dao.rule import Rule, RuleList
 from dao.solve import value_cont, mycont, tag_unwind, DaoSyntaxError
 from dao.env import BlockEnvironment
@@ -450,8 +450,9 @@ def make_rules(rules):
     arity = len(head)
     result[0].setdefault(arity, []).append(rule)
     if arity==0: continue
-    for signature in rule_head_signature(head):
-      result[1].setdefault((arity, signature), pyset()).add(i)
+    for signature in rule_head_signatures(head):
+      arity2signature = result[1].setdefault(arity, {})
+      arity2signature.setdefault(signature, pyset()).add(i)
   return result
 
 class FunctionForm(SpecialForm):
@@ -520,23 +521,24 @@ class Rules:
     self.arity2rules, self.signature2rules = arity2rules, signature2rules
     self.env = env
     self.recursive = recursive
+    
   def apply(self, solver, values, cont):
     arity = len(values)
     if arity==0:
       rule_list = RuleList(self.arity2rules[0])
     else:
-      rules = self.arity2rules[arity]
-      rule_inexes = self.signature2rules
-      rule_set = pyset(range(len(rules)))
-      for signature in rule_head_signature(values):
+      arity2rules = self.arity2rules[arity]
+      sign2index = self.signature2rules[arity]
+      index_set = pyset(range(len(arity2rules)))
+      for signature in rule_head_signatures(values):
         if signature==(signature[0], Var): continue
         else:
-          var_sign = arity,(signature[0], Var)
-          rule_set &= rule_inexes.get(var_sign, pyset())|\
-                       rule_inexes.get((arity,signature), pyset())
-      rule_list = list(rule_set)
+          var_sign = signature[0], Var
+          index_set &= sign2index.get(var_sign, pyset())|\
+                       sign2index.get(signature, pyset())
+      rule_list = list(index_set)
       rule_list.sort()
-      rule_list = RuleList(rules[i] for i in rule_list)
+      rule_list = RuleList(arity2rules[i] for i in rule_list)
     return rule_list.apply(solver, self.env, cont, self.recursive, values)
   
 class UserFunction(Rules,  Function): 
@@ -552,7 +554,6 @@ def eval_(solver, cont, exp):
     yield solver.cont(value, cont), value
   yield solver.cont(exp, eval_cont), True
   
-
 from dao.env import ModuleEnvironment  
 class module(SpecialForm):
   def __init__(self, *body):

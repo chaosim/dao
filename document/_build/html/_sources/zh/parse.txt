@@ -175,7 +175,7 @@ set_position(position)
 
 终结匹配符
 ---------
-  char, eos, lead_chars, not_lead_chars, follow_chars, not_follow_chars, char_in, digit, _1_9, lowcase, uppercase, letter, uletter, _letter_digit_test, u_letter_digit, space, digits, digits0, lowcaseString, uppercaseString, uLetterdigitString, uLetterdigitString0, spaces0, spaces, lead_string, not_lead_string, follow_string, not_follow_string, quote_string, dqstring, sqstring, number, literal
+char, eos, lead_chars, not_lead_chars, follow_chars, not_follow_chars, char_in, digit, _1_9, lowcase, uppercase, letter, uletter, _letter_digit_test, u_letter_digit, space, digits, digits0, lowcaseString, uppercaseString, uLetterdigitString, uLetterdigitString0, spaces0, spaces, lead_string, not_lead_string, follow_string, not_follow_string, quote_string, dqstring, sqstring, number, literal
 number
  
 - 产生终结符的python函数
@@ -369,14 +369,14 @@ dao系统的这种能力，可以帮助我们彻底动态化编程语言的语�
 提高dao系统执行效率的方法
 ---------------------------
 
-Dao目前是完全基于回溯的方法，执行效率受到制约。从易到难，有多种提高dao的执行效率的技术：
+Dao目前采用全回溯的方法，执行效率受到制约。从易到难，有多种提高dao的执行效率的技术：
   
-  #. 利用函数参数的signature选择规则，从而减少需要进行合匹配操作的规则头数量。这一技术在pypy prolog中已经实现，可以比较快捷的融合进来。
+1. 利用函数参数的signature选择规则，从而减少需要进行合一匹配操作的规则头数量。这一技术在pypy prolog中已经实现，可以比较快捷的融合进来。
 
-  #. 利用first集选择规则，依据前探字符减少尝试失败的规则数量，这也不难实现。等有时间我个人就可以完成它们。
+2. 利用first集选择规则，依据前探字符减少尝试失败的规则数量，这也不难实现。
 
-  #. 利用memo机制，避免执行解析原语，有很多这样的参考实现，比如lepl，packrat解析器。重要的是要注意memo方法可能对程序语义带来的影响。
+3. 利用memo机制，避免重复执行解析原语，有很多这样的参考实现，比如lepl，packrat解析器。重要的是要注意memo方法可能对程序语义带来的影响，比如赋值，打印等副作用等。这项优化的决策和实现可以考虑交给用户程序。
 
-  #. 利用pypy项目进行翻译或者是pypy的jit能力提高执行速度。对此需要了解dao的实现代码与pypy的翻译器或jit的兼容性，特别是dao的实现代码对rpython的符合程度，以评估所需的工作量。
+3. 利用pypy项目进行翻译或者是pypy的jit能力提高执行速度。对此需要了解dao的实现代码与pypy的翻译器或jit的兼容性，特别是dao的实现代码对rpython的符合程度，以评估所需的工作量。
 
-  #. 最后，Dao目前的实现是直接解释执行dao原语(Command及其子类的对象实例)，没有翻译为字节码的过程，更没有实现编译为本地码的编译器，因此，如果能实现dao的字节码编译器或本地码编译器，将可以大大的提升dao的执行速度，其解析速度也必能随之大大提高。字节码翻译我曾经实现了部分代码，但是要完整的实现，我个人目前没有时间和资源完成，需要更多的贡献者。因此字节码翻译和解释执行以及本地码编译这两项任务不在计划之内，等待将来看时机而定。
+4. 最后，Dao目前的实现是直接解释执行dao原语(Command及其子类的对象实例)，没有翻译为字节码的过程，更没有实现编译为本地码的编译器，因此，如果能实现dao的字节码编译器或本地码编译器，将可以大大的提升dao的执行速度，其解析速度也必能随之大大提高。字节码翻译我曾经实现了部分代码，但是要完整的实现，我个人目前没有时间和资源完成，需要更多的贡献者。因此字节码翻译和解释执行以及本地码编译这两项任务不在计划之内，等待将来看时机而定。

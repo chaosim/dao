@@ -64,7 +64,6 @@ class RuleList(list):
           yield c, v
     rules_cont.cut = True
     yield rules_cont, values
-  def copy(self):
-    return RuleList([r.copy() for r in self])
+  def copy(self): return RuleList(self[:])
   def __repr__(self): 
     return 'RuleList[%s]'%' '.join([repr(rule) for rule in self])
