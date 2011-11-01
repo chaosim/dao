@@ -2,7 +2,7 @@
 
 from nose.tools import eq_, ok_, assert_raises
 
-from dao.solve import preparse, tag_loop_label
+from dao.base import preparse, tag_loop_label
 
 from dao.term import cons
 from dao.solve import eval

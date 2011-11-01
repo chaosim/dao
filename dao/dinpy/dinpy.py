@@ -43,7 +43,8 @@ from dao.builtins.term import pytuple, pycall, py_apply, head_list, list_tail
 from dao.builtins.term import items, first, left
 from dao.builtins.term import getvalue, getvalue_default, is_
 from dao.builtins.arith import ne_p
-from dao.solve import eval as oad_eval, solve, tag_loop_label
+from dao.base import tag_loop_label
+from dao.solve import eval as oad_eval, solve
 from dao.solve import set_run_mode, noninteractive, DaoUncaughtThrow
 from dao.solve import interactive_parser, interactive_tagger, interactive_solver
 

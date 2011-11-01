@@ -5,10 +5,17 @@
  Lineparse_state in line_parser.py is comatible with parse_state.'''
 
 from dao.term import deref, unify, Var
-from dao import builtin
+from dao import base
+from dao.builtin import first_set
 from dao.builtins.matcher import matcher
 from dao.builtins.parser import next_char_, left_, parsed_, eoi_, last_char_
 
+def char_first_set(self, solver, memo, argument):
+  argument = deref(argument, solver.env)
+  if isinstance(argument, Var): return solver.universal_set
+  else: return set([argument])
+  
+@first_set(char_first_set)
 @matcher()
 def char(solver, cont, argument): 
   argument = deref(argument, solver.env)
@@ -20,6 +27,7 @@ def char(solver, cont, argument):
     yield cont,  text[pos]
     solver.parse_state = text, pos
 
+@first_set(lambda self, solver, memo: set([base.eoi]))
 @matcher()
 def eoi(solver, cont):
   '''end of parse_state'''
@@ -41,6 +49,7 @@ def not_lead_chars(solver, cont, chars):
   if last_char_(solver.parse_state) in chars: return
   yield cont,  True
 
+@first_set(lambda self, solver, memo, chars: set(chars))
 @matcher()
 def follow_chars(solver, cont, chars):
   chars = deref(chars, solver.env)
@@ -50,6 +59,8 @@ def follow_chars(solver, cont, chars):
     return
   yield cont,  True
 
+@first_set(lambda self, solver, memo, chars: 
+           solver.universal_set-set(chars))
 @matcher()
 def not_follow_chars(solver, cont, chars):
   chars = deref(chars, solver.env)
@@ -66,15 +77,16 @@ def lead_string(solver, cont, string):
 
 @matcher()
 def not_lead_string(solver, cont, string):
-  string = string.deref(solver.env)
+  string = deref(string, solver.env)
   if parsed_(solver.parse_state).endwith(string): return
-  solver.value = True  
+  yield cont, True
 
-def follow_string(solver, cont, strArgument):
-  strArgument = strArgument.deref(solver.env)
-  assert isinstance(strArgument, String)
-  if not left_(solver.parse_state).startswith(strArgument.name): raise UnifyFail
-  solver.value = True
+@first_set(lambda self, solver, memo, argument: set([deref(argument, solver.env)[0]]))
+def follow_string(solver, cont, argument):
+  argument = deref(argument, solver.env)
+  assert isinstance(argument, str)
+  if not left_(solver.parse_state).startswith(argument): return
+  yield cont, True
 
 @matcher()
 def not_follow_string(solver, cont, string):
@@ -144,6 +156,8 @@ spaces0 = string_in(space_string, once_more=False, repr_string='spaces0')
 spaces = string_in(space_string, repr_string='spaces')
 
 def quote_string(quote, name):
+  @first_set(lambda self, solver, memo, argument: set([quote[0]]))
+  @matcher(name)
   def func(solver, cont,  arg0):
     #assert isinstance(arg0, Var) and arg0.free(solver.env)
     text, pos = solver.parse_state
@@ -162,10 +176,18 @@ def quote_string(quote, name):
       solver.parse_state = text, p
       yield cont,  True
       solver.parse_state = text, pos
-  return matcher(name)(func)
+  return func
 dqstring = quote_string('"', 'doublequotestring')
 sqstring = quote_string("'", 'singlequotestring')
 
+def number_first_set(self, solver, memo, argument):
+  argument = deref(argument, solver.env)
+  if not isinstance(argument, Var): 
+    try: return set([argument])
+    except: return set()
+  return set('0123456789')
+  
+@first_set(number_first_set)
 @matcher()
 def number(solver, cont,  arg0): 
   text, pos = solver.parse_state
@@ -183,6 +205,7 @@ def number(solver, cont,  arg0):
     yield cont,  True
     solver.parse_state = text, pos
 
+@first_set(lambda self, solver, memo, argument: set([deref(argument, solver.env)[0]]))
 @matcher()
 def literal(solver, cont,  arg0):
   arg0 = deref(arg0, solver.env)

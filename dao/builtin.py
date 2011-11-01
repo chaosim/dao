@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from dao.term import Var, Function, Macro, CommandCall, Command
+from dao.base import uniset
 
 builtins = []
 
@@ -16,20 +17,14 @@ class Builtin:
   def __repr__(self): return '<%s>'%(self.name)
 
 class BuiltinFunction(Builtin, Function):
-  def __call__(self, *exps):
-    return CommandCall(self, *exps)
   def apply(self, solver, values, cont):
     yield cont, self.function(*values)
     
 class BuiltinFunction2(Builtin, Function):
-  def __call__(self, *exps):
-    return CommandCall(self, *exps)
   def apply(self, solver, values, cont):
     return self.function(solver, cont, *values)
   
 class BuiltinMacro(Builtin, Macro):
-  def __call__(self, *exps):
-    return CommandCall(self, *exps)
   def apply(self, solver, exps, cont):
     return self.function(solver, cont, *exps)
   
@@ -43,6 +38,12 @@ def builtin(klass):
       return b
     return makeBuiltin
   return builtin
+
+def first_set(func):
+  def set_builtin(builtin):
+    builtin.first_set_func = func
+    return builtin
+  return set_builtin
 
 function = builtin(BuiltinFunction)
 function2 = builtin(BuiltinFunction2)

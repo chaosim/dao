@@ -6,7 +6,8 @@
 
 from dao.builtins import arith
 from dao import special
-from dao.solve import run_mode, interactive, dao_repr
+from dao.solve import run_mode, interactive
+from dao.base import dao_repr
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
 
 all = ['DinpySyntaxError']

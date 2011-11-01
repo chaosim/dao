@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from dao.solve import CutException, mycont
+from dao.base import next_element, get_first_set
 from dao.term import getvalue, unify_list_rule_head, unify, apply_generators
+from dao import base
 
 class Rule(object):
   def __init__(self, head, body):
@@ -21,6 +23,12 @@ class Rule(object):
       solver.env = env
     subst = {}
     for _ in unify_list_rule_head(values, self.head, solver.env, subst):
+      #body_first_set = get_first_set(self.body, solver, {}) # {}: memo
+      #if solver.parse_state is not None and\
+         #not (next_element(solver.parse_state) in body_first_set
+          #or base.null in body_first_set):
+        #solver.env = caller_env
+        #return
       @mycont(cont)
       def rule_done_cont(value, solver):
         self.body
@@ -30,7 +38,7 @@ class Rule(object):
         for _ in apply_generators(generators):
           solver.env = caller_env
           yield cont, value
-      yield solver.exps_cont(self.body, rule_done_cont), True
+      yield solver.cont(self.body, rule_done_cont), True
     solver.env = caller_env # must outside of for loop!!!
   def copy(self): return Rule(self.head, self.body)
   def __eq__(self, other): 
@@ -38,8 +46,7 @@ class Rule(object):
   def __ne__(self, other): return not self==other
   def __repr__(self):
     head = '(%s)'%' '.join(['%s'%repr(a) for a in self.head])
-    body = '; '.join(['%s'%' '.join(repr(stmt)) for stmt in self.body])
-    return "%s:- %s." % (head, body)
+    return "%s:- %s." % (head, self.body)
 
 def set_bindings(bindings, var, value):
   try:

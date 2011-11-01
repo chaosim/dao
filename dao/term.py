@@ -3,63 +3,14 @@
 # depend dao.solve only.
 
 from dao.solve import value_cont, mycont
+from dao import base
+from dao.base import unify, unify_list, copy_rule_head
+from dao.base import deref, getvalue
+from dao.base import copy, closure, match, match_list, apply_generators
 
 # below is for dinpy.
 from dao.solve import run_mode, interactive
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
-
-# ==============================================
-
-# important function's definitions
-# unify, deref, getvalue, match, closure, unify_rule_head
-# copy, copy_rule_head, signature
-
-# one shot generators, such as unify, set/restore
-def apply_generators(generators): 
-  length = len(generators)
-  if length==0: 
-    yield True
-    return
-  i = 0
-  while i <length:
-    try:
-      generators[i].next()
-      if i==length-1: yield True
-      else: i += 1
-    except StopIteration:
-      if i==0: return
-      i -= 1
-    except GeneratorExit: raise
-
-# implemented by using apply_generators
-def unify_list(list1, list2, env, occurs_check=False):
-  '''unify list1 with list2 in env.'''
-  
-  if len(list1)!=len(list2): return
-  if len(list1)==0: yield True
-  if len(list1)==1: 
-    for _ in unify_list(list1[0], list2[0], env, occurs_check):
-      yield True
-  for _ in apply_generators(tuple(unify(x, y, env, occurs_check) 
-                            for x, y in zip(list1, list2))):
-    yield True
-  
-def unify(x, y, env, occurs_check=False):
-  try: x_unify = x.unify
-  except AttributeError: 
-    try: y_unify = y.unify 
-    except AttributeError: 
-      if (isinstance(x, list) or isinstance(x, tuple))\
-          and (isinstance(y, list) or isinstance(y, tuple)):
-        for _ in unify_list(x, y, env, occurs_check):
-          yield True
-      elif x==y: yield True
-      return
-    for _ in y_unify(x, env, occurs_check):
-      yield True
-    return
-  for _ in x_unify(y, env, occurs_check):
-    yield True
 
 def unify_list_rule_head(values, args, env, subst):
   if len(values)==0: yield True
@@ -98,69 +49,6 @@ def unify_rule_head(value, head, env, subst):
           yield True
       elif value==head: yield True
       
-def deref(x, env):
-  try: x_deref = x.deref
-  except AttributeError: 
-    if isinstance(x, list): return [deref(e, env) for e in x]
-    elif isinstance(x, tuple): return tuple(deref(e, env) for e in x)
-    else: return x
-  return x_deref(env)
-  
-def getvalue(x, env):
-  try: x_getvalue = x.getvalue
-  except AttributeError: 
-    if isinstance(x, list): return [getvalue(e, env) for e in x]
-    elif isinstance(x, tuple): return tuple(getvalue(e, env) for e in x)
-    else: return x
-  return x_getvalue(env)
-
-def copy(x, memo):
-  try: x_copy = x.copy
-  except AttributeError: 
-    if isinstance(x, list): return [getvalue(e, memo) for e in x]
-    elif isinstance(x, tuple): return tuple(getvalue(e, memo) for e in x)
-    else: return x
-  return x_copy(memo)
-
-def copy_rule_head(arg_exp, env):
-  try: arg_exp_copy_rule_head = arg_exp.copy_rule_head
-  except AttributeError: 
-    if isinstance(arg_exp, list): 
-      return [copy_rule_head(e, env) for e in arg_exp]
-    elif isinstance(arg_exp, tuple):
-      return tuple(copy_rule_head(e, env) for e in arg_exp)
-    else: return arg_exp
-  return arg_exp_copy_rule_head(env)
-
-def match_list(list1, list2):
-  if len(list1)!=len(list2): return False
-  for x, y in zip(list1, list2):
-    if not match(x, y): return False
-  return True
-
-# match(var, nonvar): True,
-# match(nonvar, var): False
-def match(x, y):
-  try: x_match = x.match
-  except AttributeError: 
-    if (isinstance(x, list) or isinstance(x, tuple)) or\
-       isinstance(y, list) and isinstance(y, tuple):
-      return match_list(x, y)
-    else: return x==y
-  return x_match(y)
-
-def contain_var(x, y):
-  try: return x.contain_var(x, y)
-  except: return False
-  
-def closure(exp, env):
-  try: exp_closure = exp.closure
-  except AttributeError: 
-    if isinstance(exp, list) or isinstance(exp, tuple): 
-      return tuple(closure(e, env) for e in exp) 
-    else: return exp
-  return exp_closure(env)
-
 def signature(x):
   '''signature return a binary tuple, first value tell whether x is Var,
 second value is a hashable value'''
@@ -185,9 +73,15 @@ def rule_head_signatures(head):
 
 class Command:
   ''' the base class for all the callable object in the dao system.'''
-  
   def __call__(self, *args):
     return CommandCall(self, *args)
+  def first_set(self, solver, memo, *args):
+    self = getvalue(self, solver.env)    
+    try: self_first_func = self.first_set_func
+    except: return set([base.null]) # return solver.universal_set
+    return self.first_set_func(self, solver, memo, *args)
+  def __hash__(self): return id(self)
+  def __eq__(self, other): return id(self)==id(other)
 
 class Symbol: pass
 
@@ -201,6 +95,9 @@ class Var(Command):
   def match(self, other): return True
         
   def unify(self, other, env, occurs_check=False):
+    if self is other: 
+      yield True
+      return
     self = self.deref(env)
     other = deref(other, env)
     if isinstance(self, Var):
@@ -343,6 +240,8 @@ class CommandCall(Command):
   def __init__(self, operator, *operand):
     self.operator = operator
     self.operand = operand
+    try: self.first_set_func = operator.first_set_func
+    except: pass
     
   def cont(self, cont, solver):
     @mycont(cont)
@@ -360,6 +259,10 @@ class CommandCall(Command):
 
   def closure(self, env):
     return CommandCall(self.operator, *[closure(x, env) for x in self.operand])
+  
+  def first_set(self, solver, memo):
+    return self.operator.first_set(solver, memo, *self.operand)
+  
   def __repr__(self): 
     if run_mode() is interactive:
       code = interactive_parser().parse(self)
@@ -377,7 +280,7 @@ class CommandCall(Command):
   def __or__(self, other):
     from dao.builtins.control import or_p
     return or_p(self, other)
-  
+  def __hash__(self): return id(self)
   def __eq__(self, other): 
     return isinstance(other, self.__class__) and self.operator==other.operator and self.operand==other.operand
   
@@ -416,7 +319,7 @@ class Cons:
       for x in other.unify(self, env, occurs_check):
         yield True
     else:
-      if self.__class__!=other.__class__: return
+      if not isinstance(other, Cons): return
       for x in unify(self.head, other.head, env, occurs_check):
         for y in unify(self.tail, other.tail, env, occurs_check):
           yield True

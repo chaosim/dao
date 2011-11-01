@@ -3,6 +3,9 @@ from dao import builtin
 from dao.solve import CutException, mycont
 from dao.builtin import Builtin, Function
 from dao.term import CommandCall
+from dao.base import get_first_set, exps_first_set
+from dao.builtin import first_set
+from dao import base
 
 # control predicates
 
@@ -71,6 +74,7 @@ def cut(solver, cont):
   raise CutException
 cut = cut()
 
+@first_set(exps_first_set)
 @builtin.macro('and_p', '&!')
 def and_p(solver, cont, *calls):
   if len(calls)==0:  
@@ -86,6 +90,9 @@ def and_p(solver, cont, *calls):
     else: 
       yield solver.exps_cont(calls[:-1], and_cont), True
     
+from operator import or_
+@first_set(lambda self, solver, memo, *calls:
+           or_(*[get_first_set(c, solver, memo) for c in calls]))  
 @builtin.macro('or_p', '|!')
 def or_p(solver, cont, *calls):
   if len(calls)==0:  
@@ -113,6 +120,7 @@ def first_p(solver, cont, *calls):
       yield c, value
     if solved: return
 
+@first_set(exps_first_set)  
 @builtin.macro('if_p', '->')  
 def if_p(solver, cont, if_clause, then_clause):
   # This unusual semantics is part of the ISO and all de-facto Prolog standards.

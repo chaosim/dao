@@ -7,6 +7,9 @@ from dao.builtins.term import is_
 from dao.builtins.control import or_p, and_p
 from dao import special
 from dao.builtin import builtin, BuiltinFunction2
+from dao import base
+from dao.base import get_first_set
+from dao.builtin import first_set
 
 from dao.solve import run_mode, interactive
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
@@ -150,6 +153,11 @@ class BuiltinMatcher(BuiltinMacro):
   def __call__(self, *exps): return BuiltinMatcherCall(self, *exps)
 
 class BuiltinMatcherCall(Matcher, CommandCall): pass
+  #def first_set(self, solver, memo):
+    #try: self_first_func = self.first_set_func
+    #except: return solver.universal_set # return set([base.null])
+    #return self.first_set_func(self, solver, memo, *self.operand)
+
 
 matcher = builtin(BuiltinMatcher)
 
@@ -173,11 +181,17 @@ class MatcherOr(Matcher):
   def ___parse___(self, parser):
     return or_p(parser.parse(self.call1), parser.parse(self.call2))
 
+@first_set(lambda self, solver, memo: set([base.null]))
 @matcher()
 def nullword(solver, cont): 
   yield cont,  True
 null = nullword = nullword()
 
+def optional_first_set(self, solver, memo, item, mode): 
+  return first_set(item, solver, memo)|base.nullset
+
+@first_set(lambda self, solver, memo, item,template=None, result=None, mode=nongreedy:
+           get_first_set(item, solver, memo)|base.nullset)
 @matcher()
 def optional(solver, cont, item, mode=nongreedy):
   item_matched = [False]
@@ -191,6 +205,8 @@ def optional(solver, cont, item, mode=nongreedy):
   
 may = optional
 
+@first_set(lambda self, solver, memo, call1, call2:
+           get_first_set(call1, solver, memo)&get_first_set(call2, solver, memo))
 @matcher()
 def parallel(solver, cont, call1, call2):
   parse_state = solver.parse_state
@@ -286,25 +302,34 @@ def lazy_repeat_result_cont(item, cont, matched_times, matched_list, template, r
     yield solver.cont(item, next_cont), True
   return repeat_cont
   
+
 def any(item, template=None, result=None, mode=nongreedy):   
   if result is None:
     if mode==greedy:
+      @first_set(lambda self, solver, memo, item:
+           get_first_set(item, solver, memo)|base.nullset)
       @matcher('any')
       def any_bultin(solver, cont, item):  
         yield greedy_repeat_cont(deref(item, solver.env), cont), []
       return any_bultin(item)
     elif mode==nongreedy:
+      @first_set(lambda self, solver, memo, item:
+           get_first_set(item, solver, memo)|base.nullset)
       @matcher('any')
       def any_bultin(solver, cont, item):  
         yield nongreedy_repeat_cont(deref(item, solver.env), cont), []
       return any_bultin(item)
     else:# mode==lazy:
+      @first_set(lambda self, solver, memo, item:
+           get_first_set(item, solver, memo)|base.nullset)
       @matcher('any')
       def any_bultin(solver, cont, item):  
         yield lazy_repeat_cont(deref(item, solver.env), cont), []
       return any_bultin(item)
   else:
     if mode==greedy:
+      @first_set(lambda self, solver, memo, item,template, result:
+           get_first_set(item, solver, memo)|base.nullset)
       @matcher('any')
       def any_bultin(solver, cont, item, template, result):  
         yield greedy_repeat_result_cont(
@@ -312,6 +337,8 @@ def any(item, template=None, result=None, mode=nongreedy):
           deref(template, solver.env), deref(result, solver.env)), []
       return any_bultin(item, template, result)
     elif mode==nongreedy:
+      @first_set(lambda self, solver, memo, item, template, result:
+           get_first_set(item, solver, memo)|base.nullset)
       @matcher('any')
       def any_bultin(solver, cont, item, template, result):  
         yield nongreedy_repeat_result_cont(
@@ -319,6 +346,8 @@ def any(item, template=None, result=None, mode=nongreedy):
           deref(template, solver.env), deref(result, solver.env)), []
       return any_bultin(item, template, result)
     else: # mode==lazy
+      @first_set(lambda self, solver, memo, item, template, result:
+           get_first_set(item, solver, memo)|base.nullset)
       @matcher('any')
       def any_bultin(solver, cont, item, template, result):  
         yield lazy_repeat_result_cont(
@@ -351,18 +380,24 @@ def make_repeat_cont(solver, cont, item, matched_times, matched_list, template, 
 def some(item, template=None, result=None, mode=nongreedy):   
   if result is None:
     if mode==greedy:
+      @first_set(lambda self, solver, memo, item:
+           get_first_set(item, solver, memo))
       @matcher('some')
       def some_bultin(solver, cont, item):  
         yield solver.cont(item, greedy_repeat_cont(
           deref(item, solver.env), cont)), []
       return some_bultin(item)
     elif mode==nongreedy:
+      @first_set(lambda self, solver, memo, item:
+           get_first_set(item, solver, memo))
       @matcher('some')
       def some_bultin(solver, cont, item):  
         yield solver.cont(item, nongreedy_repeat_cont(
           deref(item, solver.env), cont)), []
       return some_bultin(item)
     else:# mode==lazy:
+      @first_set(lambda self, solver, memo, item:
+           get_first_set(item, solver, memo))
       @matcher('some')
       def some_bultin(solver, cont, item):  
         yield solver.cont(item, lazy_repeat_cont(
@@ -370,6 +405,8 @@ def some(item, template=None, result=None, mode=nongreedy):
       return some_bultin(item)
   else:
     if mode==greedy:
+      @first_set(lambda self, solver, memo, item, template, result:
+           get_first_set(item, solver, memo))
       @matcher('some')
       def some_bultin(solver, cont, item, template, result):  
         yield solver.cont(item, greedy_repeat_result_cont(
@@ -377,6 +414,8 @@ def some(item, template=None, result=None, mode=nongreedy):
           deref(template, solver.env), deref(result, solver.env))), []
       return some_bultin(item, template, result)
     elif mode==nongreedy:
+      @first_set(lambda self, solver, memo, item, template, result:
+           get_first_set(item, solver, memo))
       @matcher('some')
       def some_bultin(solver, cont, item, template, result):  
         yield solver.cont(item, nongreedy_repeat_result_cont(
@@ -384,6 +423,8 @@ def some(item, template=None, result=None, mode=nongreedy):
           deref(template, solver.env), deref(result, solver.env))), []
       return some_bultin(item, template, result)
     else: # mode==lazy
+      @first_set(lambda self, solver, memo, item, template, result:
+           get_first_set(item, solver, memo))
       @matcher('some')
       def some_bultin(solver, cont, item, template, result):  
         yield solver.cont(item, lazy_repeat_result_cont(
@@ -524,12 +565,22 @@ def lazy_times_result_cont(item, expect_times, cont,
       next_cont = lazy_times_result_cont(item, cont, matched_times+1, matched_list, template, result)
       yield solver.cont(item, next_cont), True
   return times_cont
+
+def times_first_set(self, solver, memo, item, expect_times, template=None, result=None):
+  expectTimes1 = getvalue(expect_times, solver.env)
+  if isinstance(expectTimes1, int):
+    if expectTimes1<0: raise Error
+    elif expectTimes1==0: return base.nullset
+    else: return get_first_set(item, solver, memo)
+  else:
+    return get_first_set(item, solver, memo)|base.nullset
   
 def times(item, expect_times, template=None, result=None, mode=nongreedy):   
   if result is None:
     if mode==greedy:
+      @first_set(times_first_set)
       @matcher('times')
-      def times_bultin(solver, cont, item):
+      def times_bultin(solver, cont, item, expect_times):
         expectTimes1 = getvalue(expect_times, solver.env)
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
@@ -537,10 +588,11 @@ def times(item, expect_times, template=None, result=None, mode=nongreedy):
             yield cont, True
             return
         yield greedy_times_cont(item, expectTimes1, cont, 0), True
-      return times_bultin(item)
+      return times_bultin(item, expect_times)
     elif mode==nongreedy:
+      @first_set(times_first_set)
       @matcher('times')
-      def times_bultin(solver, cont, item):
+      def times_bultin(solver, cont, item, expect_times):
         expectTimes1 = getvalue(expect_times, solver.env)
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
@@ -548,10 +600,11 @@ def times(item, expect_times, template=None, result=None, mode=nongreedy):
             yield cont, True
             return
         yield nongreedy_times_cont(item, expectTimes1, cont, 0), True
-      return times_bultin(item)
+      return times_bultin(item, expect_times)
     else:# mode==lazy:
+      @first_set(times_first_set)
       @matcher('times')
-      def times_bultin(solver, cont, item): 
+      def times_bultin(solver, cont, item, expect_times): 
         expectTimes1 = getvalue(expect_times, solver.env)
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
@@ -559,11 +612,12 @@ def times(item, expect_times, template=None, result=None, mode=nongreedy):
             yield cont, True
             return
         yield lazy_times_cont(item, expectTimes1, cont, 0), True
-      return times_bultin(item)
+      return times_bultin(item, expect_times)
   else:
     if mode==greedy:
+      @first_set(times_first_set)
       @matcher('times')
-      def times_bultin(solver, cont, item, template, result):  
+      def times_bultin(solver, cont, item, expect_times, template, result):  
         expectTimes1 = getvalue(expect_times, solver.env)
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
@@ -573,10 +627,11 @@ def times(item, expect_times, template=None, result=None, mode=nongreedy):
         yield greedy_times_result_cont(
           deref(item, solver.env), expectTimes1, cont, 0, [], 
           deref(template, solver.env), deref(result, solver.env)), []
-      return times(item, expect_times, template, result)
+      return times(item, expect_times, expect_times, template, result)
     elif mode==nongreedy:
+      @first_set(times_first_set)
       @matcher('times')
-      def times_bultin(solver, cont, item, template, result): 
+      def times_bultin(solver, cont, item, expect_times, template, result): 
         expectTimes1 = getvalue(expect_times, solver.env)
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
@@ -586,10 +641,11 @@ def times(item, expect_times, template=None, result=None, mode=nongreedy):
         yield nongreedy_times_result_cont(
           deref(item, solver.env), expectTimes1, cont, 0, [], 
           deref(template, solver.env), deref(result, solver.env)), []
-      return times_bultin(item, template, result)
+      return times_bultin(item, expect_times, template, result)
     else: # mode==lazy
+      @first_set(times_first_set)
       @matcher('times')
-      def times_bultin(solver, cont, item, template, result): 
+      def times_bultin(solver, cont, item, expect_times, template, result): 
         expectTimes1 = getvalue(expect_times, solver.env)
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
@@ -599,8 +655,14 @@ def times(item, expect_times, template=None, result=None, mode=nongreedy):
         yield lazy_times_result_cont(
           deref(item, solver.env), expectTimes1, cont, 0, [], 
           deref(template, solver.env), deref(result, solver.env)), []
-      return times_bultin(item, template, result)
+      return times_bultin(item, expect_times, template, result)
 
+def times_more_first_set(self, solver, memo, item, expect_times, template=None, result=None):
+  if expectTimes1<0: raise Error
+  elif expectTimes1==0: return get_first_set(item, solver)|base.nullset
+  else: return get_first_set(item, solver)
+  
+@first_set(times_more_first_set)
 @matcher()
 def times_more(solver, cont, item, expect_times, template=None, result=None, mode=nongreedy): 
   item = deref(item, solver.env)

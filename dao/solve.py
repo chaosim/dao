@@ -5,8 +5,10 @@
 # parse_state: parse_state such as text used by the matchers which do parsing
 
 from dao.env import GlobalEnvironment
+from dao.base import Parser, LoopExitNextTagger, uniset
 
 class CutException(Exception): pass
+
 class DaoStopIteration(Exception): pass
 
 class DaoUncaughtThrow(Exception):
@@ -71,62 +73,6 @@ def cut(cont_gen):
   try: return cont_gen.cut
   except: return False
 
-class Parser: 
-  def parse(self, exp):
-    try: exp_parse = exp.___parse___
-    except: 
-      if isinstance(exp, list):
-        return [self.parse(e) for e in exp]
-      elif isinstance(exp, tuple):
-        return tuple(self.parse(e) for e in exp)
-      else: return exp
-    try: return exp_parse(self)
-    except TypeError: return exp
-
-def preparse(exp): 
-  return Parser().parse(exp)
-
-class LoopExitNextTagger:
-  ''' use tagger to preprocess before solve expression'''
-  surfix = '$'
-  def __init__(self): 
-    self.new_label_id = 1
-    self.labels = {}
-  def make_label(self, label):
-    if label is None: 
-      label = '$'+str(self.new_label_id)
-      self.new_label_id += 1
-    return label
-  def push_label(self, control_struct_type, label):
-    self.labels.setdefault(control_struct_type, []).append(label)
-    self.labels.setdefault(None,[]).append(label)
-  def pop_label(self, control_struct_type):
-    self.labels[control_struct_type].pop()
-    self.labels[None].pop()
-
-  def tag_loop_label(self, exp):
-    try: exp_tag_loop_label = exp.tag_loop_label
-    except: 
-      if isinstance(exp, list):
-        return [self.tag_loop_label(e) for e in exp]
-      elif isinstance(exp, tuple):
-        return tuple(self.tag_loop_label(e) for e in exp)
-      else: return exp
-    try: return exp_tag_loop_label(self)
-    except TypeError: return exp
-
-def tag_loop_label(exp): 
-  return LoopExitNextTagger().tag_loop_label(exp)
-
-def dao_repr(exp):
-    try: exp_____repr____ = exp.____repr____
-    except: 
-      if isinstance(exp, list) or isinstance(exp, tuple):
-        return ','.join([dao_repr(e) for e in exp])
-      else: return repr(exp)
-    try: return exp_____repr____()
-    except TypeError: return repr(exp)
-
 def eval(exp):
   return Solver().eval(exp)
 
@@ -182,6 +128,7 @@ class Solver:
     self.env = env
     self.stop_cont = stop_cont
     self.parse_state = parse_state
+    self.universal_set = uniset
     self.solved = False
   
   def eval(self, exp):

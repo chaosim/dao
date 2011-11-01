@@ -2,7 +2,7 @@ from dao.term import deref, unify_list_rule_head, conslist, getvalue, match, Var
 from dao.term import rule_head_signatures
 from dao import builtin
 from dao.rule import Rule, RuleList
-from dao.special import UserFunction, UserMacro, make_rules
+from dao.special import UserFunction, UserMacro, make_rules, begin
 
 # rule manipulation
 
@@ -31,7 +31,7 @@ def assert_(solver, cont, rules, head, body, klass=UserFunction):
   arity = len(head)
   arity_rules = rules.arity2rules.setdefault(arity, [])
   index = len(arity_rules)
-  arity_rules.append(Rule(head, body))
+  arity_rules.append(Rule(head, begin(*body)))
   for signature in rule_head_signatures(head):
     arity2signature = rules.signature2rules.setdefault(arity, {})
     arity2signature.setdefault(signature, set()).add(index)
@@ -52,7 +52,7 @@ def asserta(solver, cont, rules, head, body, klass=UserFunction):
   arity = len(head)
   arity_rules = rules.arity2rules.setdefault(arity, [])
   arity_signature = rules.signature2rules.setdefault(arity, {})
-  arity_rules.insert(0, Rule(head, body))
+  arity_rules.insert(0, Rule(head, begin(*body)))
   for sign in arity_signature:
     arity_signature[sign] = set([i+1 for i in arity_signature[sign]])
   for signature in rule_head_signatures(head):
@@ -76,7 +76,7 @@ def append_def(solver, cont, rules, head, bodies, klass=UserFunction):
   arity_rules = rules.arity2rules.setdefault(arity, [])
   arity2signature = rules.signature2rules.setdefault(arity, {})
   index = length = len(arity_rules)
-  arity_rules.rules[arity] += [Rule(head, body) for body in bodies]
+  arity_rules.rules[arity] += [Rule(head, begin(*body)) for body in bodies]
   new_indexes = set(range(length, length+len(bodies)))
   for signature in rule_head_signatures(head):
     indexes = arity2signature.setdefault(signature, set()) 
@@ -98,7 +98,7 @@ def insert_def(solver, cont, rules, head, bodies, klass=UserFunction):
   arity = len(head)
   arity2signature = rules.signature2rules.setdefault(arity, {})
   length = len(rules.arity2rules[arity])
-  rules.arity2rules[arity] = [Rule(head, body)]+rules.arity2rules[arity]
+  rules.arity2rules[arity] = [Rule(head, begin(*body))]+rules.arity2rules[arity]
   bodies_length = len(bodies)
   new_indexes = set(range(bodies_length))
   for signature in rule_head_signatures(head):
@@ -137,7 +137,7 @@ def replace(solver, cont, rules, head, body, klass=UserFunction):
       if old_arity_rules is None:
         old_arity_rules = arity_rules[:]
         old_arity_signatures = deepcopy(arity_signatures)
-        arity_rules[index] = Rule(head, body)
+        arity_rules[index] = Rule(head, begin(*body))
         for signature in rule_head_signatures(rule.head):
           arity_signatures[signature].remove(index)
         for signature in rule_head_signatures(head):
@@ -179,7 +179,7 @@ def replace_def(solver, cont, rules, head, bodies, klass=UserFunction):
   arity = len(head)
   new_indexes = set(range(len(bodies)))
   if arity not in rules.arity2rules: 
-    rules.arity2rules[arity] = [Rule(head, body) for body in bodies]
+    rules.arity2rules[arity] = [Rule(head, begin(*body)) for body in bodies]
     rules.signature2rules[arity] = {}
     for signature in rule_head_signatures(head):
       rules.signature2rules[arity][signature] = new_indexes
@@ -205,7 +205,7 @@ def replace_def(solver, cont, rules, head, bodies, klass=UserFunction):
         for signature in rule_head_signatures(rule.head):
           arity_signatures[signature].remove(index)
         for body in bodies:
-          arity_rules.insert(index, Rule(head, body))
+          arity_rules.insert(index, Rule(head, begin(*body)))
         new_indexes_map = {}
         for signature in rule_head_signatures(head):
           new_indexes_map[signature] = new_indexes

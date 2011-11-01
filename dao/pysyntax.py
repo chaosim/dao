@@ -27,7 +27,8 @@ __all__ = ['element', 'preparse', 'lead',
 from dao.solve import run_mode, interactive
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
 from dao.term import deref, unify, DummyVar
-from dao.solve import eval, preparse, dao_repr
+from dao.solve import eval
+from dao.base import preparse, dao_repr
 from dao import special
 from dao.builtins.matcher import matcher
 from dao.builtins.parser import parse_sequence

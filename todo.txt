@@ -1,5 +1,5 @@
-﻿todo: rule signature, for better efficieny in calling function.
-todo: first set for matcher 
+﻿todo: first set for matcher 
+  half: 试了一下，没有变快，反而好像大概慢了一半。
 todo: 可以根据历史选择和最近选择优选下一次的规则分支。
 todo: quasiquote and backquote
 todo: left recursive
@@ -12,5 +12,6 @@ todo: natural language programming
 todo: 汉语编程
   过滤 缀词，冗余词
 
+done 2011-11-1: rule signature, for better efficieny in calling function.
 done: meta syntax in python.
   done: dinpy is born.

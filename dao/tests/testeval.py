@@ -3,7 +3,8 @@
 from nose.tools import eq_, ok_, assert_raises
 
 from dao.term import cons
-from dao.solve import eval, tag_loop_label, NoSolutionFound
+from dao.solve import eval, NoSolutionFound
+from dao.base import tag_loop_label
 from dao.special import quote, set, begin, if_, iff, lambda_, let, letr, eval_
 from dao.special import function, macro
 from dao.special import block, exit_block, continue_block, catch, throw

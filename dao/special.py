@@ -8,6 +8,9 @@ from dao.env import BlockEnvironment
 from dao.builtins.arith import eq, not_
 from dao.builtins.term import iter_next, make_iter
 from dao import builtin
+from dao.base import get_first_set, exps_first_set
+from dao import base
+from dao.base import unify, getvalue
 
 from dao.solve import run_mode, set_run_mode, interactive, noninteractive
 from dao.solve import interactive_parser, interactive_tagger
@@ -21,7 +24,6 @@ class ParserForm:
 class SpecialForm(Command, ParserForm):
   #symbol = None
   # 具体的特殊式各自定义自己的__init__, __repr__与cont
-  def __call__(self, *exps): return CommandCall(self, *exps)
   def __add__(self, other): return begin(self, other)
   def __or__(self, other): 
     from dao.builtins.control import or_p
@@ -112,6 +114,9 @@ class begin(SpecialForm):
     self.exps = exps
   def cont(self, cont, solver): 
     return solver.exps_cont(self.exps, cont)
+  def first_set(self, solver, memo):
+    return exps_first_set(self, solver, memo, *self.exps)
+      
   def ___parse___(self, parser): 
     self.exps = tuple(parser.parse(exp) for exp in self.exps)
     return self
@@ -119,7 +124,7 @@ class begin(SpecialForm):
     self.exps = tuple(tagger.tag_loop_label(exp) for exp in self.exps)
     return self
   def __eq__(self, other): 
-    return self.exps==other.exps
+    return isinstance(other, begin) and self.exps==other.exps
   def __repr__(self):
     return 'begin(%s)'%(';'.join([repr(x) for x in self.exps]))
   
@@ -446,7 +451,7 @@ def make_rules(rules):
   result = {}, {}
   for i, rule in enumerate(rules):
     head = rule[0]
-    rule = Rule(head, rule[1:])
+    rule = Rule(head, begin(*rule[1:]))
     arity = len(head)
     result[0].setdefault(arity, []).append(rule)
     if arity==0: continue
@@ -516,12 +521,40 @@ class MacroForm(FunctionForm):
 
 macro = MacroForm
 
+def Rules_first_set_func(self, solver, memo, *values):
+  if (self, values) in memo:
+    return memo[(self, values)]
+  else: memo[(self, values)] = pyset()
+  arity = len(values)
+  if arity==0:
+    rule_list = self.arity2rules[0]
+  else:
+    arity2rules = self.arity2rules[arity]
+    sign2index = self.signature2rules[arity]
+    index_set = pyset(range(len(arity2rules)))
+    for signature in rule_head_signatures(values):
+      if signature==(signature[0], Var): continue
+      else:
+        var_sign = signature[0], Var
+        index_set &= sign2index.get(var_sign, pyset())|\
+                     sign2index.get(signature, pyset())
+    rule_list = [arity2rules[i] for i in index_set]
+  result = pyset()
+  env = solver.env
+  for rule in rule_list:
+    solver.env = env.extend()
+    for _ in unify(rule.head, values, env):
+      result = result|get_first_set(getvalue(rule.body, env), solver, memo)
+  solver.env = env
+  memo[(self, values)] = result
+  return result
+
 class Rules:
   def __init__(self, arity2rules, signature2rules, env, recursive): 
     self.arity2rules, self.signature2rules = arity2rules, signature2rules
     self.env = env
     self.recursive = recursive
-    
+    self.first_set_func = Rules_first_set_func
   def apply(self, solver, values, cont):
     arity = len(values)
     if arity==0:
@@ -542,10 +575,10 @@ class Rules:
     return rule_list.apply(solver, self.env, cont, self.recursive, values)
   
 class UserFunction(Rules,  Function): 
-  def __repr__(self):return 'fun(%s)'%repr(self.rules)
+  def __repr__(self):return 'fun(%s)'%repr(self.arity2rules)
   
 class UserMacro(Rules,  Macro): 
-  def __repr__(self): return 'macro(%s)'%repr(self.rules)
+  def __repr__(self): return 'macro(%s)'%repr(self.arity2rules)
   
 @builtin.function2('eval')
 def eval_(solver, cont, exp):
