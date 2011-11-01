@@ -241,63 +241,92 @@ def replace_def(solver, cont, rules, head, bodies, klass=UserFunction):
 @builtin.macro('retract')
 def retract(solver, cont, rules, head):
   rules = getvalue(rules, solver.env)
-  if len(head) not in rules.rules: return
-  arity_rules = rules.rules[len(head)]
+  if not isinstance(rules, klass): raise ValueError(rules)
+  arity = len(head)
+  if arity not in rules.arity_rules: 
+    yield cont, rules.arity_rules[arity]
+    return
+  arity_rules = rules.arity_rules[arity]
   index = 0
-  old  = None
   while index<len(arity_rules):
     rule = arity_rules[index]
     caller_env = solver.env.extend()
     callee_env = caller_env.extend()
     for _ in unify_list_rule_head(head, rule.head, callee_env, caller_env, set()):
-      if old is None:
-        old = arity_rules.copy()
+      rule = arity_rules[index]
       del arity_rules[index]
-      yield cont, True
-      rules.rules[len(head)] = old
+      arity_signature2rules = rules.signature2rules[arity]
+      for signature in rule_head_signatures(rule.head):
+        arity_signature2rules[signature].remove(index)
+      yield cont, arity_rules
+      arity_rules.insert(index, rule)
+      for signature in rule_head_signatures(rule.head):
+        arity_signature2rules[signature].add(index)
       return
   yield cont, True
   
-# All  facts or  clauses in the  database for  which the head  unifies
-#   with Head are removed.
+# All  rules for  which head  unifies with head are removed.
 @builtin.macro('retractall')
 def retractall(solver, cont, rules, head, klass=UserFunction):
   rules = getvalue(rules, solver.env)
   if not isinstance(rules, klass): raise ValueError
-  if len(head) not in rules.rules: return
-  arity_rules = rules.rules[len(head)]
+  arity = len(head)
+  if arity not in rules.arity_rules: 
+    yield cont, rules.arity_rules[arity]
+    return
+  arity_signature2rules = rules.signature2rules[arity]
+  arity_rules = rules.arity_rules[arity]
+  old_arity_rules = arity_rules[:]
+  del_indexes = {}
   index = 0
-  old  = None
+  changed = False
   while index<len(arity_rules):
-    unified = False
     caller_env = solver.env.extend()
     callee_env = caller_env.extend()
-    for _ in unify_list_rule_head(head, arity_rules[index].head, 
-                                  callee_env, caller_env, set()):
-      if not unifyied:
-        unified = True
-        old = arity_rules.copy()
+    unified = False
+    for _ in unify_list_rule_head(head, rule.head, callee_env, caller_env, set()):
+      unified = True
+      changed = True
+      rule = arity_rules[index]
       del arity_rules[index]
-    if not unified: index += 1
-  yield cont, rules
-  if old is not None: rules.rules[len(head)] = old
+      for signature in rule_head_signatures(rule.head):
+        arity_signature2rules[signature].remove(index)
+        del_indexes.setdefault(signature, set()).add(index)
+      del_indexes.append(index)
+    if not unified: index += 1  
+  yield cont, arity_rules
+  if not changed:  return
+  rules.signature2rules[arity] = old_arity_rules
+  for signature, indexes in del_indexes.items():
+    arity_signature2rules[signature] |= indexes
 
 # remove all rules which head matched with.
 @builtin.macro('remove')
 def remove(solver, cont, rules, head, klass=UserFunction):
   rules = getvalue(rules, solver.env)
   if not isinstance(rules, klass): raise ValueError
-  if len(head) not in rules.rules: 
-    yield cont, True
+  arity = len(head)
+  if arity not in rules.arity_rules: 
+    yield cont, rules.arity_rules[arity]
     return
-  arity_rules = rules.rules[len(head)]
+  arity_signature2rules = rules.signature2rules[arity]
+  arity_rules = rules.arity_rules[arity]
+  old_arity_rules = arity_rules[:]
+  del_indexes = {}
   index = 0
-  old  = None
+  changed = False
   while index<len(arity_rules):
     if match(head, arity_rules[index].head):
-      if old is None: old = arity_rules.copy()
+      changed = True
+      rule = arity_rules[index]
       del arity_rules[index]
-    else: index += 1
-  yield cont, rules
-  if old is not None: rules.rules[len(head)] = old
-
+      for signature in rule_head_signatures(rule.head):
+        arity_signature2rules[signature].remove(index)
+        del_indexes.setdefault(signature, set()).add(index)
+      del_indexes.append(index)
+    if not unified: index += 1  
+  yield cont, arity_rules
+  if not changed:  return
+  rules.signature2rules[arity] = old_arity_rules
+  for signature, indexes in del_indexes.items():
+    arity_signature2rules[signature] |= indexes
