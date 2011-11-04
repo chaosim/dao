@@ -190,7 +190,7 @@ class Solver:
     # left recursive is permmited
     self.sign_state2cont = {}
     self.sign_state2results = {}
-    self.call_level = 0
+    self.call_path = []
   
   def eval(self, exp):
     if isinstance(exp, list) or isinstance(exp, tuple):
@@ -262,15 +262,7 @@ class Solver:
         cg = cont_gen
         cont_gen = parent[cont_gen]
         del parent[cg]
-##      except GeneratorExit: 
-##        if cont_gen is root: return
-##        else: 
-##          cg = cont_gen
-##          cont_gen = parent[cont_gen]
-##          del parent[cg]
-##      except: 
-##        self1.env, self1.parse_state = env, parse_state
-##        raise
+
   def cont(self, exp, cont):    
     try: exp_cont = exp.cont
     except: return value_cont(exp, cont)

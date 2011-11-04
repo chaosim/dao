@@ -99,12 +99,6 @@ def or_p(solver, cont, *calls):
     calls = (and_p(if_clause, cut, then_clause),)+calls[1:]
   for call in calls:
     yield solver.cont(call, cont), True
-  #@mycont(cont)
-  #def or_cont(value, solver):
-    #for call in calls:
-      #yield solver.cont(call, cont), True
-  #or_cont.cut = True
-  #yield or_cont, True
 
 @builtin.macro('first_p', 'first!')
 def first_p(solver, cont, *calls):

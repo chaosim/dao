@@ -19,7 +19,7 @@ from dao.util import *
 from dao.solve import set_run_mode, noninteractive
 set_run_mode(noninteractive)
 
-class xTestLine_parser:
+class xxxTestLine_parser:
   def test_row_column(self):
     from dao.builtins.line_parser import set_text, row, column
     eq_(eval(begin(set_text('ab'), row())), 0)
@@ -350,7 +350,7 @@ class testIndentUndent:
                 (line,function( ((n,), times(space, n),some(letter(_)),any(space),char('\n'))))
                 ]
     eq_(eval(letr(ruleList, parse_text(s(0),  'a\n b\n c\n'))), True)
-    #eq_(eval(letr(ruleList, parse_text(s(0),  'asd\n bdf\n cdfh\n'))), True)
+    eq_(eval(letr(ruleList, parse_text(s(0),  'asd\n bdf\n cdfh\n'))), True)    
 
 class TestExpression:          
   def testRecursiveReturnValue1(self):
@@ -391,14 +391,27 @@ class TestExpression:
     assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(and_p(E(e, 1), eoi), ''), e))
 
 class TestLeftRecursive:          
-  def testLeftRecursive(self):
+  def testDirectLeftRecursive(self):
     #assert 0, 'temporary mask'
     E = Var('E')
     ruleList = [(E,function( 
                      ((), E()+char('a')),
                      ((), char('b')),
                      ))]
+    eq_(eval(letr(ruleList, parse_text(E()+eoi,  'b'))), True)
     eq_(eval(letr(ruleList, parse_text(E()+eoi,  'ba'))), True)
+    eq_(eval(letr(ruleList, parse_text(E()+eoi,  'baa'))), True)
+  def testIndirectLeftRecursive(self):
+    #assert 0, 'temporary mask'
+    A, B, C = vars('A, B, C')
+    ruleList = [(A, function(((), B()))), 
+                (B, function(
+                      ((), A()+char('a')),
+                       ((), char('b')),
+                     ))]
+    eq_(eval(letr(ruleList, parse_text(A()+eoi,  'b'))), True)
+    eq_(eval(letr(ruleList, parse_text(A()+eoi,  'ba'))), True)
+    eq_(eval(letr(ruleList, parse_text(A()+eoi,  'baa'))), True)
 
 class TestChartParsing:          
   def testABCD(self):

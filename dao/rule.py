@@ -14,16 +14,17 @@ class Rule(object):
     return Rule(self.head, tagger.tag_loop_label(self.body))
   
   def apply(self, solver, cont, values, call_data):
-    values = getvalue(values, solver.env)
     caller_env = solver.env
     env = call_data.env
-    solver.call_level += 1
+    call_path = solver.call_path[:]
+    solver.call_path.append(self)
     if not call_data.recursive: solver.env = env.extend()
     else: 
       env.bindings = {}
       solver.env = env
     subst = {}
     sign_state = (call_data.command, call_data.signatures), solver.parse_state
+    values = getvalue(values, solver.env)
     for _ in unify_list_rule_head(values, self.head, solver.env, subst):
       @mycont(cont)
       def rule_done_cont(value, solver):
@@ -33,14 +34,13 @@ class Rule(object):
                            for k, v in zip(subst.keys(), env_values))
         for _ in apply_generators(generators):
           solver.env = caller_env
-          solver.call_level -= 1
+          solver.call_path = call_path
           yield cont, value
         solver.env = caller_env
-        solver.call_level -= 1
+        solver.call_path = call_path
       yield solver.exps_cont(self.body, rule_done_cont), True
-      
-    solver.env = caller_env # must outside of 'for' loop!!!
-    solver.call_level -= 1
+    solver.env = caller_env 
+    solver.call_path = call_path
       
     
   def copy(self): return Rule(self.head, self.body)

@@ -151,30 +151,24 @@ def apply_generators(generators):
   if length==0: 
     yield True
     return
+  elif length==1:
+    for _ in generators[0]:
+      yield True
+    return
+  
   i = 0
   while i <length:
     try:
       generators[i].next()
-      if i==length-1: yield True
+      if i==length-1: 
+        yield True
+        return
       else: i += 1
     except StopIteration:
       if i==0: return
       i -= 1
     except GeneratorExit: raise
 
-# implemented by using apply_generators
-def unify_list(list1, list2, env, occurs_check=False):
-  '''unify list1 with list2 in env.'''
-  
-  if len(list1)!=len(list2): return
-  if len(list1)==0: yield True
-  if len(list1)==1: 
-    for _ in unify(list1[0], list2[0], env, occurs_check):
-      yield True
-  for _ in apply_generators(tuple(unify(x, y, env, occurs_check) 
-                            for x, y in zip(list1, list2))):
-    yield True
-  
 def unify(x, y, env, occurs_check=False):
   try: x_unify = x.unify
   except AttributeError: 
@@ -192,6 +186,20 @@ def unify(x, y, env, occurs_check=False):
   for _ in x_unify(y, env, occurs_check):
     yield True
 
+def unify_list(list1, list2, env, occurs_check=False):
+  '''unify list1 with list2 in env.'''
+  
+  if len(list1)!=len(list2): return
+  
+  #if len(list1)==0: yield True
+  #if len(list1)==1: 
+    #for _ in unify(list1[0], list2[0], env, occurs_check):
+      #yield True
+  
+  for _ in apply_generators(tuple(unify(x, y, env, occurs_check) 
+                            for x, y in zip(list1, list2))):
+    yield True
+    
 def deref(x, env):
   try: x_deref = x.deref
   except AttributeError: 
@@ -208,13 +216,44 @@ def getvalue(x, env):
     else: return x
   return x_getvalue(env)
 
-def copy(x, memo):
-  try: x_copy = x.copy
+# one shot generators with return result list
+def apply_generators_list(generators): 
+  length = len(generators)
+  if length==0: 
+    yield []
+    return
+  i = 0
+  result = []
+  while i <length:
+    try:
+      result.append(generators[i].next())
+      if i==length-1: 
+        yield result
+        return
+      else: i += 1
+    except StopIteration:
+      if i==0: return
+      i -= 1
+    except GeneratorExit: raise
+
+def peek_value(exp, env):
+  try: exp_take_value = exp.peek_value
   except AttributeError: 
-    if isinstance(x, list): return [getvalue(e, memo) for e in x]
-    elif isinstance(x, tuple): return tuple(getvalue(e, memo) for e in x)
-    else: return x
-  return x_copy(memo)
+    if isinstance(exp, list):
+      return [peek_value(e) for e in exp]
+    elif isinstance(exp, tuple): 
+      return tuple(peek_value(e) for e in exp)
+    else: return exp
+  return exp_take_value(env)
+
+
+def copy(exp, memo):
+  try: exp_copy = exp.copy
+  except AttributeError: 
+    if isinstance(exp, list): return [getvalue(e, memo) for e in exp]
+    elif isinstance(exp, tuple): return tuple(getvalue(e, memo) for e in exp)
+    else: return exp
+  return exp_copy(memo)
 
 def copy_rule_head(arg_exp, env):
   try: arg_exp_copy_rule_head = arg_exp.copy_rule_head

@@ -8,68 +8,15 @@ from dao.solve import value_cont, mycont
 from dao.solve import run_mode, interactive
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
 
+from dao.base import deref, getvalue, copy, copy_rule_head
+from dao.base import apply_generators, unify, unify_list, match
+from dao.base import closure
+
 # ==============================================
 
 # important function's definitions
 # unify, deref, getvalue, match, closure, unify_rule_head
 # copy, copy_rule_head, signature
-
-# one shot generators, such as unify, set/restore
-def apply_generators(generators): 
-  length = len(generators)
-  if length==0: 
-    yield True
-    return
-  i = 0
-  while i <length:
-    try:
-      generators[i].next()
-      if i==length-1: yield True
-      else: i += 1
-    except StopIteration:
-      if i==0: return
-      i -= 1
-    except GeneratorExit: raise
-
-# implemented by using apply_generators
-def unify_list(list1, list2, env, occurs_check=False):
-  '''unify list1 with list2 in env.'''
-  
-  if len(list1)!=len(list2): return
-  if len(list1)==0: yield True
-  if len(list1)==1: 
-    for _ in unify(list1[0], list2[0], env, occurs_check):
-      yield True
-  for _ in apply_generators(tuple(unify(x, y, env, occurs_check) 
-                            for x, y in zip(list1, list2))):
-    yield True
-  
-def unify(x, y, env, occurs_check=False):
-  try: x_unify = x.unify
-  except AttributeError: 
-    try: y_unify = y.unify 
-    except AttributeError: 
-      if (isinstance(x, list) or isinstance(x, tuple))\
-          and (isinstance(y, list) or isinstance(y, tuple)):
-        for _ in unify_list(x, y, env, occurs_check):
-          yield True
-      elif x==y: yield True
-      return
-    for _ in y_unify(x, env, occurs_check):
-      yield True
-    return
-  for _ in x_unify(y, env, occurs_check):
-    yield True
-
-def unify_list_rule_head(values, args, env, subst):
-  if len(values)==0: yield True
-  elif len(values)==1: 
-    for _ in unify_rule_head(values[0], args[0], env, subst): 
-      yield True
-  else:
-    for _ in apply_generators(tuple(unify_rule_head(x, y, env, subst) 
-                              for x, y in zip(values, args))):
-      yield True
 
 def unify_rule_head(value, head, env, subst):
   if isinstance(head, Var): 
@@ -97,70 +44,20 @@ def unify_rule_head(value, head, env, subst):
         for _ in unify_list_rule_head(value, head, env, subst): 
           yield True
       elif value==head: yield True
+
+def unify_list_rule_head(values, args, env, subst):
+  # don't need to check the equality of the length of arguments
+  # has been done in rules.apply for finding rule list
+  
+  #if len(values)==0: yield True
+  #elif len(values)==1: 
+    #for _ in unify_rule_head(values[0], args[0], env, subst): 
+      #yield True
+  #else:
+    for _ in apply_generators(tuple(unify_rule_head(x, y, env, subst) 
+                              for x, y in zip(values, args))):
+      yield True
       
-def deref(x, env):
-  try: x_deref = x.deref
-  except AttributeError: 
-    if isinstance(x, list): return [deref(e, env) for e in x]
-    elif isinstance(x, tuple): return tuple(deref(e, env) for e in x)
-    else: return x
-  return x_deref(env)
-  
-def getvalue(x, env):
-  try: x_getvalue = x.getvalue
-  except AttributeError: 
-    if isinstance(x, list): return [getvalue(e, env) for e in x]
-    elif isinstance(x, tuple): return tuple(getvalue(e, env) for e in x)
-    else: return x
-  return x_getvalue(env)
-
-def copy(x, memo):
-  try: x_copy = x.copy
-  except AttributeError: 
-    if isinstance(x, list): return [getvalue(e, memo) for e in x]
-    elif isinstance(x, tuple): return tuple(getvalue(e, memo) for e in x)
-    else: return x
-  return x_copy(memo)
-
-def copy_rule_head(arg_exp, env):
-  try: arg_exp_copy_rule_head = arg_exp.copy_rule_head
-  except AttributeError: 
-    if isinstance(arg_exp, list): 
-      return [copy_rule_head(e, env) for e in arg_exp]
-    elif isinstance(arg_exp, tuple):
-      return tuple(copy_rule_head(e, env) for e in arg_exp)
-    else: return arg_exp
-  return arg_exp_copy_rule_head(env)
-
-def match_list(list1, list2):
-  if len(list1)!=len(list2): return False
-  for x, y in zip(list1, list2):
-    if not match(x, y): return False
-  return True
-
-# match(var, nonvar): True,
-# match(nonvar, var): False
-def match(x, y):
-  try: x_match = x.match
-  except AttributeError: 
-    if (isinstance(x, list) or isinstance(x, tuple)) or\
-       isinstance(y, list) and isinstance(y, tuple):
-      return match_list(x, y)
-    else: return x==y
-  return x_match(y)
-
-def contain_var(x, y):
-  try: return x.contain_var(x, y)
-  except: return False
-  
-def closure(exp, env):
-  try: exp_closure = exp.closure
-  except AttributeError: 
-    if isinstance(exp, list) or isinstance(exp, tuple): 
-      return tuple(closure(e, env) for e in exp) 
-    else: return exp
-  return exp_closure(env)
-
 def signature(x):
   '''signature return a binary tuple, first value tell whether x is Var,
 second value is a hashable value'''
@@ -204,13 +101,29 @@ class Command:
       
     sign_state  = ((self, signatures), hash_parse_state(solver.parse_state))
     sign_state2cont = solver.sign_state2cont.setdefault(sign_state, [])
-    if (values, cont) not in sign_state2cont:
-      sign_state2cont.append((cont, values))
+    
+    # TODO: greedy, nongreedy, lazy mode
+    # lazy : reverse the order of sign_state2cont
+    memo = False
+    i = 0
+    for path, c in sign_state2cont:
+      if cont==sign_state2cont: 
+        memo = True
+        break
+      if len(solver.call_path)<=path: # lazy: >
+        i += 1
+      continue
+      for x, y in zip(path, solver.call_path):
+        if x!=y: break
+      else: break 
+      i += 1
+    if not memo:
+        sign_state2cont.insert(i, (solver.call_path, cont))
     
     memo_results = solver.sign_state2results.get(sign_state)
     env = solver.env
     if memo_results is not None:
-      for c, head in sign_state2cont:
+      for _, c in sign_state2cont:
         if c.cont_order>cont.cont_order: continue
         for result_head, reached_parse_state, value in memo_results:
           solver.env = env.extend()
@@ -224,7 +137,8 @@ class Command:
       result_head = getvalue(values, solver.env)
       result = result_head, solver.parse_state, value
       solver.sign_state2results.setdefault(sign_state, []).append(result)
-      for c, v in sign_state2cont:
+      # TODO: prevent backtracking for greedy
+      for _, c in sign_state2cont:
         yield c, value
         
     if len(sign_state2cont)==1: 
@@ -283,12 +197,26 @@ class Var(Command):
     if result is not envValue and not isinstance(envValue, RuleHeadCopyVar): 
       self.setvalue(result, env)
     return result
+  
   def getvalue(self, env):
     result = self.deref(env)
     if not isinstance(result, Var): 
       result = getvalue(result, env)
     return result
-
+  
+  def take_value(self, env):
+    envValue = env[self]
+    if not isinstance(envValue, Var): 
+      result =  envValue
+    else:
+      next = env.bindings.get(envValue, None)
+      if next is None: result =  envValue
+      elif next is self: result =  next
+      else: result = deref(next, env)
+    if not isinstance(result, Var): 
+      return take_value(result, env)
+    return result
+    
   def setvalue(self, value, env):
     env.bindings[self] = value
 
@@ -338,15 +266,25 @@ class RuleHeadCopyVar(Var):
   
 class DummyVar(Var):
   def __init__(self, name='_v', index=0): Var.__init__(self, name)
+  
   def unify_rule_head(self, other, callee_env, caller_env, varset): 
     for x in self.unify(other, callee_env):
       yield varset | set([self])
+      
   def deref(self, env): return self
+  
   def getvalue(self, env):
     binding = env[self]
     if binding is self: return binding
     return getvalue(binding, env)
+  
+  def take_value(self, env):
+    binding = env[self]
+    if binding is self: return binding
+    return take_value(binding, env)
+  
   def closure(self, env): return self
+  
   def free(self, env): return True  
   def __eq__(self, other): return self.__class__ == other.__class__
 
@@ -493,6 +431,13 @@ class Cons:
   def getvalue(self, env):
     head = getvalue(self.head, env)
     tail = getvalue(self.tail, env)
+    if head==self.head and tail==self.tail:
+      return self
+    return Cons(head, tail)
+  
+  def take_value(self, env):
+    head = take_value(self.head, env)
+    tail = take_value(self.tail, env)
     if head==self.head and tail==self.tail:
       return self
     return Cons(head, tail)
