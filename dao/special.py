@@ -19,8 +19,7 @@ class ParserForm:
   def ___parse___(self, parser): return self
 
 class SpecialForm(Command, ParserForm):
-  #symbol = None
-  # 具体的特殊式各自定义自己的__init__, __repr__与cont
+
   def __call__(self, *exps): return CommandCall(self, *exps)
   def __add__(self, other): return begin(self, other)
   def __or__(self, other): 
@@ -443,17 +442,17 @@ def lambda_(vars, *body):
   return FunctionForm((vars,)+body)
 
 def make_rules(rules):
-  result = {}, {}
+  arity2rules, arity2signatures = {}, {}
   for i, rule in enumerate(rules):
     head = rule[0]
     rule = Rule(head, rule[1:])
     arity = len(head)
-    result[0].setdefault(arity, []).append(rule)
+    arity2rules.setdefault(arity, []).append(rule)
     if arity==0: continue
     for signature in rule_head_signatures(head):
-      arity2signature = result[1].setdefault(arity, {})
-      arity2signature.setdefault(signature, pyset()).add(i)
-  return result
+      arity_signature = arity2signatures.setdefault(arity, {})
+      arity_signature.setdefault(signature, pyset()).add(i)
+  return arity2rules, arity2signatures
 
 class FunctionForm(SpecialForm):
   symbol = 'function'
@@ -716,14 +715,17 @@ class unwind_protect(SpecialForm):
   #[unwind-protect form cleanup]
   def __init__(self, form, *cleanup):
     self.form, self.cleanup = form, cleanup
+    
   def ___parse___(self, parser):
     self.form = parser.parse(self.form)
     self.cleanup = parser.parse(self.cleanup)
     return self
+  
   def tag_loop_label(self, tagger):
     self.cleanup = tagger.tag_loop_label(self.cleanup)
     self.form = tagger.tag_loop_label(self.form)
     return self
+  
   def cont(self, cont, solver):
     env = solver.env
     cont0 = cont

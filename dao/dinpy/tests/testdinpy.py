@@ -206,8 +206,8 @@ class TestFun:
     x = v.x
     eq_(eval([fun. a(x)[prin(x), x], a(1),
               fun. a(x)[prin(-x), -x], a(1)]), -1)
-    eq_(eval([fun. a(x)[prin(x), x], a(1),
-              fun. a(x, i)[prin(-x, i), -x], a(3), a(1, 2)]), -1)
+    #eq_(eval([fun. a(x)[prin(x), x], a(1),
+              #fun. a(x, i)[prin(-x, i), -x], a(3), a(1, 2)]), -1)
   def test3(self):
     eq_(preparse(fun. a(x)>= [prin(1)]), 
         append_def(a, (x,), [(prin(1),)], special.UserFunction))

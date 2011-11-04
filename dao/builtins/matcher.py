@@ -19,6 +19,7 @@ from dao.solve import interactive_solver, interactive_tagger, interactive_parser
 # lazy: match at least, except matchers that followed fail. 尽量少吃进，除非别人逼我多吃一点
 # nongreedy, match at most, throw out if matchers followed fail.先尽量多吃，如果别人要再吐出来
 # greedy, match at most, don,t throw out even matchers followed fail. 吃进去了就不会吐出来。
+
 lazy, nongreedy, greedy = range(3)
 
 def slice_stop_default():

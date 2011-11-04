@@ -6,12 +6,25 @@ from dao.special import UserFunction, UserMacro, make_rules
 
 # rule manipulation
 
+def remove_memo_arity(solver, rules, arity):
+  removed = []
+  for sign_state in solver.sign_state2cont:
+    if sign_state[0][0]==rules and len(sign_state[0][1])==arity:
+      removed.append(sign_state)
+  for x in removed:
+    del solver.sign_state2cont[x]
+  removed = []
+  for sign_state in solver.sign_state2results:
+    if sign_state[0][0]==rules and len(sign_state[0][1])==arity:
+      removed.append(sign_state)
+  for x in removed:
+    del solver.sign_state2results[x]
+  
 @builtin.macro()
 def abolish(solver, cont, rules, arity):
   rules = getvalue(rules, solver.cont)
   if not isinstance(rules, UserFunction) and not isinstance(rules, UserMacro):
     raise ValueError(rules)
-    #yield cont, rules
   arity = deref(arity, solver.cont)
   if arity not in rules.arity2rules:
     yield cont, rules.rules
@@ -20,6 +33,9 @@ def abolish(solver, cont, rules, arity):
   old_signature2rules = rules.signature2rules[arity]
   del rules.arity2rules[arity]
   del rules.signature2rules[arity]
+  
+  remove_memo_arity(solver, rules, arity)
+  
   yield cont, rules.arity2rules
   rules.arity2rules[arity] = old_arity2rules
   rules.signature2rules[arity] = old_signature2rules
@@ -35,7 +51,11 @@ def assert_(solver, cont, rules, head, body, klass=UserFunction):
   for signature in rule_head_signatures(head):
     arity2signature = rules.signature2rules.setdefault(arity, {})
     arity2signature.setdefault(signature, set()).add(index)
+  
+  remove_memo_arity(solver, rules, arity)
+  
   yield cont, arity_rules
+  
   if index==0: 
     del rules.arity2rules[arity]
     del rules.signature2rules[arity]
@@ -57,7 +77,11 @@ def asserta(solver, cont, rules, head, body, klass=UserFunction):
     arity_signature[sign] = set([i+1 for i in arity_signature[sign]])
   for signature in rule_head_signatures(head):
     arity_signature.setdefault(signature, set()).add(0)
+  
+  remove_memo_arity(solver, rules, arity)
+  
   yield cont, rules
+  
   del arity_rules[0]
   if len(arity_rules)==1: 
     del rules.arity2rules[arity]
@@ -68,6 +92,29 @@ def asserta(solver, cont, rules, head, body, klass=UserFunction):
       arity_signature[sign] = set([i-1 for i in arity_signature[sign] if i!=0])
       if arity_signature[sign]==set(): del arity_signature[sign]
 
+def match_signatures(sign1, sign2):
+  if sign1[0]!=sign2[0]: return False
+  if len(sign1[1])!=len(sign2[1]): return False
+  for s1, s2 in zip(sign1[1], sign2[1]):
+    if s1[1]==Var or s2[1]==Var: continue
+    if s1[1]!=s2[1]: return False
+  return True
+
+def remove_memo_head(solver, rules, head):
+  signatures = rule_head_signatures(head)
+  removed = []
+  for sign_state in solver.sign_state2cont:
+    if match_signatures(sign_state[0], (rules, signatures)):
+      removed.append(sign_state)
+  for x in removed:
+    del solver.sign_state2cont[x]
+  removed = []
+  for sign_state in solver.sign_state2results:
+    if match_signatures(sign_state[0], (rules, signatures)):
+      removed.append(sign_state)
+  for x in removed:
+    del solver.sign_state2results[x]
+  
 @builtin.macro('append_def')
 def append_def(solver, cont, rules, head, bodies, klass=UserFunction):
   rules = getvalue(rules, solver.env)
@@ -81,7 +128,11 @@ def append_def(solver, cont, rules, head, bodies, klass=UserFunction):
   for signature in rule_head_signatures(head):
     indexes = arity2signature.setdefault(signature, set()) 
     indexes |= new_indexes
+  
+  remove_memo_head(solver, rules, head)
+  
   yield cont, arity_rules
+  
   if length==0: 
     del rules.arity2rules[arity]
     del rules.signature2rules[arity]
@@ -104,7 +155,11 @@ def insert_def(solver, cont, rules, head, bodies, klass=UserFunction):
   for signature in rule_head_signatures(head):
     indexes = arity2signature.setdefault(signature, set())
     indexes |= new_indexes
+      
+  remove_memo_head(solver, rules, head)
+  
   yield cont, arity_rules
+  
   if length==0: 
     del rules.arity2rules[arity]
     del rules.signature2rules[arity]
@@ -147,6 +202,9 @@ def replace(solver, cont, rules, head, body, klass=UserFunction):
         del arity_rules[index]
         del_indexes.append(index)
     else: index += 1 
+      
+  remove_memo_head(solver, rules, head)
+  
   if old_arity_rules is not None:
     delta = 0
     modify_dict = {}
@@ -156,11 +214,14 @@ def replace(solver, cont, rules, head, body, klass=UserFunction):
     for sign in arity_signatures:
       arity_signatures[sign] = set([modify_dict[i] for i in arity_signatures[sign] 
                                    if i not in del_indexes])
+    
     yield cont, arity_rules
+    
     # backtracking
     rules.arity2rules[arity] = old_arity_rules
     rules.arity2signatures[arity] = old_arity_signatures
-  else: yield cont, arity_rules
+  else: 
+    yield cont, arity_rules
 
 # replace or define the rules which the head can match with.
 @builtin.macro('replace_def')
@@ -214,6 +275,7 @@ def replace_def(solver, cont, rules, head, bodies, klass=UserFunction):
         del arity_rules[index]
         del_indexes.append(index)
     else: index += 1 
+  
   if old_arity_rules is not None:
     delta = 0
     modify_dict = {}
@@ -228,10 +290,15 @@ def replace_def(solver, cont, rules, head, bodies, klass=UserFunction):
       arity_signatures[sign] = set([modify_dict[i] for i in arity_signatures[sign] 
                                    if i not in del_indexes])
       arity_signatures[sign] |= new_indexes_map.get(sign, set())
+      
+    remove_memo_head(solver, rules, head)
+    
     yield cont, arity_rules
+    
     # backtracking
     rules.arity2rules[arity] = old_arity_rules
     rules.arity2signatures[arity] = old_arity_signatures
+    
   else: yield cont, arity_rules
       
 # retract(+Term)                                                    [ISO]
@@ -258,12 +325,19 @@ def retract(solver, cont, rules, head):
       arity_signature2rules = rules.signature2rules[arity]
       for signature in rule_head_signatures(rule.head):
         arity_signature2rules[signature].remove(index)
+  
+      remove_memo_head(solver, rules, head)
+        
       yield cont, arity_rules
+      
       arity_rules.insert(index, rule)
       for signature in rule_head_signatures(rule.head):
         arity_signature2rules[signature].add(index)
       return
+  
+  # head don't match any rule in rules
   yield cont, True
+  #no changes happen before yield, so don't need restore
   
 # All  rules for  which head  unifies with head are removed.
 @builtin.macro('retractall')
@@ -293,8 +367,13 @@ def retractall(solver, cont, rules, head, klass=UserFunction):
         arity_signature2rules[signature].remove(index)
         del_indexes.setdefault(signature, set()).add(index)
       del_indexes.append(index)
-    if not unified: index += 1  
+    if not unified: index += 1
+    
+  if changed:
+    remove_memo_head(solver, rules, head)        
+    
   yield cont, arity_rules
+  
   if not changed:  return
   rules.signature2rules[arity] = old_arity_rules
   for signature, indexes in del_indexes.items():
@@ -324,8 +403,13 @@ def remove(solver, cont, rules, head, klass=UserFunction):
         arity_signature2rules[signature].remove(index)
         del_indexes.setdefault(signature, set()).add(index)
       del_indexes.append(index)
-    if not unified: index += 1  
+    if not unified: index += 1
+        
+  if changed:
+    remove_memo_head(solver, rules, head)        
+    
   yield cont, arity_rules
+  
   if not changed:  return
   rules.signature2rules[arity] = old_arity_rules
   for signature, indexes in del_indexes.items():
