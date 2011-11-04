@@ -27,7 +27,7 @@ def abolish(solver, cont, rules, arity):
     raise ValueError(rules)
   arity = deref(arity, solver.cont)
   if arity not in rules.arity2rules:
-    yield cont, rules.rules
+    yield cont, rules.arity2rules
     return
   old_arity2rules = rules.arity2rules[arity]
   old_signature2rules = rules.signature2rules[arity]
@@ -123,7 +123,7 @@ def append_def(solver, cont, rules, head, bodies, klass=UserFunction):
   arity_rules = rules.arity2rules.setdefault(arity, [])
   arity2signature = rules.signature2rules.setdefault(arity, {})
   index = length = len(arity_rules)
-  arity_rules.rules[arity] += [Rule(head, body) for body in bodies]
+  arity_rules += [Rule(head, body) for body in bodies]
   new_indexes = set(range(length, length+len(bodies)))
   for signature in rule_head_signatures(head):
     indexes = arity2signature.setdefault(signature, set()) 
@@ -142,14 +142,15 @@ def append_def(solver, cont, rules, head, bodies, klass=UserFunction):
       arity2signature[signature] -= new_indexes
       if arity2signature[signature]==set(): del arity2signature[signature]
 
-@builtin.macro('asserta')
+@builtin.macro('insert_def')
 def insert_def(solver, cont, rules, head, bodies, klass=UserFunction):
   rules = getvalue(rules, solver.env)
   if not isinstance(rules, klass): raise ValueError(rules)
   arity = len(head)
+  arity_rules = rules.arity2rules.setdefault(arity, [])
   arity2signature = rules.signature2rules.setdefault(arity, {})
   length = len(rules.arity2rules[arity])
-  rules.arity2rules[arity] = [Rule(head, body)]+rules.arity2rules[arity]
+  arity_rules = [Rule(head, body) for body in bodies]+rules.arity2rules[arity]
   bodies_length = len(bodies)
   new_indexes = set(range(bodies_length))
   for signature in rule_head_signatures(head):
@@ -297,7 +298,7 @@ def replace_def(solver, cont, rules, head, bodies, klass=UserFunction):
     
     # backtracking
     rules.arity2rules[arity] = old_arity_rules
-    rules.arity2signatures[arity] = old_arity_signatures
+    rules.signature2rules[arity] = old_arity_signatures
     
   else: yield cont, arity_rules
       
@@ -385,14 +386,15 @@ def remove(solver, cont, rules, head, klass=UserFunction):
   rules = getvalue(rules, solver.env)
   if not isinstance(rules, klass): raise ValueError
   arity = len(head)
-  if arity not in rules.arity_rules: 
-    yield cont, rules.arity_rules[arity]
+  if arity not in rules.arity2rules: 
+    yield cont, rules.arity2rules[arity]
     return
   arity_signature2rules = rules.signature2rules[arity]
-  arity_rules = rules.arity_rules[arity]
+  arity_rules = rules.arity2rules[arity]
   old_arity_rules = arity_rules[:]
-  del_indexes = {}
+  del_arity_signature2rules = {}
   index = 0
+  old_index = 0
   changed = False
   while index<len(arity_rules):
     if match(head, arity_rules[index].head):
@@ -400,11 +402,11 @@ def remove(solver, cont, rules, head, klass=UserFunction):
       rule = arity_rules[index]
       del arity_rules[index]
       for signature in rule_head_signatures(rule.head):
-        arity_signature2rules[signature].remove(index)
-        del_indexes.setdefault(signature, set()).add(index)
-      del_indexes.append(index)
-    if not unified: index += 1
-        
+        arity_signature2rules[signature].remove(old_index)
+        del_arity_signature2rules.setdefault(signature, set()).add(old_index)
+    else: index += 1
+    old_index += 1
+    
   if changed:
     remove_memo_head(solver, rules, head)        
     
@@ -412,5 +414,5 @@ def remove(solver, cont, rules, head, klass=UserFunction):
   
   if not changed:  return
   rules.signature2rules[arity] = old_arity_rules
-  for signature, indexes in del_indexes.items():
+  for signature, indexes in del_arity_signature2rules.items():
     arity_signature2rules[signature] |= indexes

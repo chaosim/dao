@@ -2,8 +2,9 @@ from setuptools import setup, find_packages
 
 setup(
   name = "daot",
-  version = "0.7.2",
+  version = "0.7.3",
   packages = find_packages(),
+  
 ##  scripts = ['say_hello.py'],
 
 ##  # Project uses reStructuredText, so ensure that the docutils get
@@ -11,7 +12,6 @@ setup(
 ##  install_requires = ['docutils>=0.3'],
 
   package_data = {
-##      '': ['*.txt', '*.rst'] #,
       r'document\_build\html':['*.*'],
       r'document\zh':['*.rst', '*.html', '*.js'],
       r'document\en':['*.rst', '*.html', '*.js']

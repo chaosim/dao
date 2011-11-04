@@ -1,4 +1,4 @@
-This is Dao 0.7.2
+This is Dao 0.7.3
 ============================
 
 What would happen when lisp meets prolog in python?  
@@ -57,18 +57,20 @@ f1
 0
 
 ----------------------------
-What's new in this release?
+What's new in dao 0.7.3?
 ----------------------------
 
+*Release date:  2011-11-4
+
 * new in code:
-  * refactor findall, call, once
-  * fix a bug that prevent some backtracking in optional
-  * fix the bug caused by getvalue/setvalue.
-     the bug masks the internal generated variable for function argumnet when return and causes error in some situations.
+  * memo the result of after running command to suppoort left recursive and to speedup.
+  * use signatures of rule head to cut down the rules to unify with.
+  * samples\sexpression.py pass all tests in dao\tests\testsexpression.py.
+  * rename builtin.function2 to builtin.predicate
 
 * chinese document is almost finished: 
-  * new chapter: function, macro
-  * more about logic command in document(zh)
+  * add document about samples\sexpression.py in chinese document
+  * other modification and update in document.
 
 See the file "news.txt" for what's new in all releases.
 

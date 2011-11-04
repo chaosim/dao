@@ -94,7 +94,7 @@ class Command:
   def run(self, solver, cont, values):
     signatures = rule_head_signatures(values)
     
-    if not self.memorable:
+    if solver.parse_state is None or not self.memorable:
       for c, v in self.apply(solver, cont, values, signatures):
         yield c, v
       return

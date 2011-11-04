@@ -8,25 +8,24 @@ from dao.dinpy import *
 
 dinpy.version = '0.7.2'
 
-##dinpy[
-##
-##parse_text(char('a')+any(~char('b')+some(char('c')))+eoi, 'ab'),
-####fun.f()
-##
-##]
-##dinpy.eval()
-
 dinpy[
-##use.a.b.c,
-##use [_.a, _.x.y._.b],  # import name  
-##use.a.b/[_.a, _.b >> x], #重命名
-##use.a.b.all,
-##use.a/'a*',
-##use.a/'test_*1',
+
+println('parsing:'),
+
+parse_text(char(x1)+any(~char('b')+some(char(x1)))+eoi, 'abaaaa'),
+
+prin(x1),
+
+println('\n\nfindall:'),
+
 let( f << fun()[2][3] ) 
   .do[ findall(is_(x, f()), x, y), prin(y) ],
+
+println('\n\nrepeat/fail:'),
+
 let( i<<0 ). do[ repeat, prin(i), ++i, iff(i<3).do[fail] ],
 
+println('\n\nand_p(b(x),c(x)): '),
 
 letr( a << fun(x) [ and_p(b(x),c(x)) ]
                   [ d(x) ],
@@ -37,10 +36,12 @@ letr( a << fun(x) [ and_p(b(x),c(x)) ]
      ).do[ 
      a(x), prin(x) ],
 
-v.a_trt_b, # 刚导入的变量
+println('\n\neach(i)[1:3]: '),
 
 each(i)[1:3].
   loop[prin(i)],
+
+println('\n\neach(i,j)[1:3][1:3]: '),
 
 each(i,j)[1:3][1:3].
   loop[prin(i, j)],
@@ -52,31 +53,41 @@ each(i,j)[1:10][1:10].
 each(i,j)[zip(range(5), range(5))].
   loop [prin(i,j)],
 
+println('\n\ncase: '),
+
 case(1).
   of(1)[prin(1)].
   of(2)[prin(2)],
 fun. a== at(x)  [prin('sdgsgd')],
 a(1),
 
+println('\n\nloop: '),
+
 loop(3)[prin(1)],
 
+println('\n\n++, --: '),
+
 i << 0, prin(i), ++i , prin(i), --i, prin(i),
+
+println('\n\nblock / exit: '),
 
 block.block1[
   loop[
     prin(1),
-##    next.loop,
-##    exit,
     prin(2),
     exit >>3,
   ]
 ],
+
+println('\n\nloop times: '),
 
 loop(3) [prin(1)],
 
 loop(2) [prin(3), prin(4)],
 loop[ prin(1), prin(2), exit ], # 无限循环
 put.i.j.z << (0, 1, 2), 
+
+println('\n\nloop: '),
 
 i << 0,
 label.a %
@@ -90,14 +101,15 @@ loop[
   iff (i==1) .do[next], 
   prin(i), 
   iff (i>20) .do[exit], 
-  iff (i==1) .do[next.loop], #再一次执行label为a的块
-##  iff(eq(i,3)) .do[exit], #从block a退出，返回None
-##  iff(eq(i,3)) .do[exit >>12], #从block a退出，返回12
-##  iff(eq(i,3)) .do[exit.loop1 >>12], #从block a退出，返回12
+  iff (i==1) .do[next.loop],
 ], 
+
+println('\n\nloop-when: '),
 
 i << 0,
 loop[ i << i+1, prin(i)].when(i==3),
+
+println('\n\nloop-until: '),
 
 i << 0,
 loop[ ++i, prin(i)].until(i==3),
@@ -105,92 +117,87 @@ loop[ ++i, prin(i)].until(i==3),
 '''block comment''',  
 "block comment",
 
+println('\n\nlet: '),
+
 let (a << 1, 
      b << 2) 
   .do[prin(v.a, v.b)],
   
-##let (a << b << c << 1) #serial let is waiting to implemented.
-##  .do[prin(v.a, v.b)],
+println('\n\nlet( a/ b/ c << range(3)) '),
 
 let( a/ b/ c << range(3)) 
   .do[prin(v.a, v.b, v.c)],
   
-prin('adafa'),
+println('\n\nfun definitions '),
 
-fun. a(x)[prin(1)], #覆盖与a(x)匹配的整个定义
-fun. a == at(x)  [prin(x)], #覆盖a的整个定义
-fun. a(1) <= [prin(1)], #在前面插入定义
-fun. a(3) >= [prin(3)], #在后面附加定义
+##char(x)[5:8],           # 5-8 times char(x) 
+fun. a(x)[prin(1)], # redefine a(x)
+fun. a == at(x)  [prin(x)], # redefine a 
+fun. a(1) <= [prin(1)], # insert defintion before rule list of a/1
+fun. a(3) >= [prin(3)], # append definition after rule list of a/1
 fun (x)[1]
-    (y)[y],
-fun [1],
-fun(x)[1][2],
-##macro. a(x,[y],{a:1}) >= (prin(2)), #可选参数，关键字参数
-##fun. a (x) == [], #删除函数a中与(x)一致的定义
-##fun. a == [], # 删除函数a的整个定义
-a(1),
-- fun.a/3,
-- fun.a(x),
+    (y)[y], # define a function with two rules
+fun [1], # same as fun()[1]
+fun(x)[1][2], # same as fun()[1[2]
 
-##a('affd'), # NoSolutionFound
+a(1), # call function a(1)
 
-##  rule. r1 == at(1) [prin(1)],
-##  rules. rs1 == at(1) [prin(1)],
-##  fun. a - rule.r1, #从函数a中删除匹配规则r1的规则
-##  fun. a - rules.rs1, #从函数a中删除匹配规则集rs1的规则
+- fun.a/3, # remove rule list which head have 3 arguments in a's function defintion
+- fun.a(x), # remove rules which head matches with (x) in a's function defintion
+
+println('\n\neach(i)[1:10]'),
 
 each(i)[1:10].
   loop[prin(i)],
   
+println('\n\neach(i,j)[1:10][1:10]'),
+
 label.a % 
 each(i,j)[1:10][1:10].
   loop[prin(i, j)],
   
+println('\n\neach(i,j)[zip(range(5), range(5))]'),
+
 each(i,j)[zip(range(5), range(5))].
   loop [prin(i,j)],
 
+println('\n\ncase(1)'),
 case(1)
   .of(1)[prin(1)]
   .of(2)[prin(2)],
 
-##on(f1==open('readme.txt'),
-##    f2==open('out.txt', 'w')).
-##  do [prin(f1, 'hello')],
+#v.command << open, # assign open to var command
+#pycall(open, 'readme.txt'), 
 
-##loop(10)[char(x)[10]],  
-
-v.command << open,
-##v.command('readme.txt'),
-##pycall(open, 'readme.txt'), 
-##char(x)[10][10],
-##char(x)[10][:],
 set_text('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+# char(x)[10][10],
+# char(x)[10][:],
 x-1,          
--char(x),               # 非贪婪可选
-~char(x),               # 贪婪可选
-char(x)[:],             # 非贪婪char(x)重复任意次（包括0次）
-~char(x)[1:],           # 贪婪char(x)重复任意次（不包括0次）
-##-char(x)[1:],           # 懒惰char(x)重复任意次（不包括0次）
-##char(x)[:]/char(' '),   # 空格分隔的列表
-##char(x)[5],             # char(x)重复5次
-##char(x)[5]/char(','),   # 空格分隔的char(x)列表，重复5次
-##char(x)[:]/' '%(x,y)*a, #任意项char(x)以模板x,y收集到a
-##char(x)[:5],            # char(x)不大于五次
-##char(x)[5:],            # char(x)至少五次
-##char(x)[5:8],           # char(x)至少五次
+-char(x),                 # nongreedy optional
+~char(x),                 # greedy optional
+char(x)[:],               # nongreedy any times char(x), include 0 times.
+# ~char(x)[1:],           # greedy any times char(x), exclude 0 times.
+# -char(x)[1:],           # lazy some times char(x), exclude 0 times.
+# char(x)[:]/char(' '),   # list separated by ' ', include 0 times of x
+# char(x)[5],             # 5 times char(x)
+# char(x)[5]/char(','),   # 5 times list separated by ','
+# char(x)[:]/' '%x*y,     # any times list separated by  ' ', collect result by x in y
+# char(x)[:5],            # no more 5 times char(x)
+# char(x)[5:],            # 5 times or more char(x)
 ]
+
 
 X, Expr, Expr2, ExprList, Result, Y, sexpression = symbols(
 'X, Expr, Expr2, ExprList, Result, Y, sexpression') 
+
 stringExpression, bracketExpression, puncExpression, sexpressionList, condSpace = symbols(
   'stringExpression, bracketExpression, puncExpression, sexpressionList, condSpace')
-##symbols('X, Expr, Expr2, ExprList, Result, Y, sexpression' 
-##  'stringExpression, bracketExpression, puncExpression, sexpressionList, condSpace')
 
 dinpy[
-fun. evalRule(Result) [sexpression(Expr2)+eoi+is_(Result, eval_<getvalue<Expr2)],
+fun. evalRule(Result) 
+  [sexpression(Expr2)+eoi+is_(Result, eval_<getvalue<Expr2)],
 
-fun. sexpression == at
+fun. sexpression
   (Result)
     [char('{')+sexpression(Expr2)+char('}')+setvalue(Result, eval_<getvalue<Expr2)]
   (Expr)

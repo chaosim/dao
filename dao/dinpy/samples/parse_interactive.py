@@ -4,7 +4,10 @@ print free(x)
 print unify(x,1)
 print free(x)
 print set_parse_state(('abc', 0))
-print unify_parse_state(('abc', x))
+
+# x:1, failed to unify with 0.
+#print unify_parse_state(('abc', x))
+
 print x
 print get_parse_state()
 print char(y)
@@ -15,4 +18,6 @@ print get_parse_state()
 print z
 
 print parse(char('a'), ('abc',0))
-print parse(char('a'), ('abc',1))
+
+# should raise NoSolutionFound
+#print parse(char('a'), ('abc',1))
