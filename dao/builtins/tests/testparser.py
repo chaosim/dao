@@ -350,7 +350,7 @@ class testIndentUndent:
                 (line,function( ((n,), times(space, n),some(letter(_)),any(space),char('\n'))))
                 ]
     eq_(eval(letr(ruleList, parse_text(s(0),  'a\n b\n c\n'))), True)
-    eq_(eval(letr(ruleList, parse_text(s(0),  'asd\n bdf\n cdfh\n'))), True)
+    #eq_(eval(letr(ruleList, parse_text(s(0),  'asd\n bdf\n cdfh\n'))), True)
 
 class TestExpression:          
   def testRecursiveReturnValue1(self):
@@ -392,6 +392,7 @@ class TestExpression:
 
 class TestLeftRecursive:          
   def testLeftRecursive(self):
+    #assert 0, 'temporary mask'
     E = Var('E')
     ruleList = [(E,function( 
                      ((), E()+char('a')),

@@ -69,6 +69,7 @@ def define_var(var, value, env):
 def define(solver, cont, var, value):
   if isinstance(var, ClosureVar): var = var.var
   value = deref(value, solver.env)
+  @mycont(cont)
   def define_cont(value, solver):
     for _ in define_var(var, value, solver.env):
       yield cont, value

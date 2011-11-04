@@ -9,7 +9,7 @@ from dao.term import CommandCall
 # call with current continuation
 
 class ContinuationFunction(Builtin, Function):
-  def apply(self, solver, cont, values):
+  def apply(self, solver, cont, values, signatures):
     return self.function(values[0], solver)
       
 @builtin.macro('callcc', 'call/cc')
@@ -46,7 +46,8 @@ def once(solver, cont, pred):
     return
 
 @builtin.macro()
-def succeed(solver, cont): yield cont, True
+def succeed(solver, cont): 
+  yield cont, True
 succeed = succeed()
 
 @builtin.macro()
@@ -57,6 +58,7 @@ fail = fail()
 
 @builtin.macro()
 def repeat(solver, cont):
+  @mycont(cont)
   def repeat_cont(value, solver):
     while 1: 
       yield cont, True
@@ -76,7 +78,7 @@ def and_p(solver, cont, *calls):
   if len(calls)==0:  
     yield value_cont(None, cont), True
   if len(calls)==1:
-    yield solver.cont(call[0], cont), True
+    yield solver.cont(calls[0], cont), True
   else:
     @mycont(cont)
     def and_cont(value, solver): 
@@ -119,6 +121,7 @@ def if_p(solver, cont, if_clause, then_clause):
   # see SWI-Prolog help.
   if_clause = deref(if_clause, solver.env)
   then_clause = deref(then_clause, solver.env)
+  @mycont(cont)
   def if_p_cont(value, solver):
 ##    if not value: return # important! logic predicate if_p decide whether to continue by the fail or succeed of the condition.
     yield solver.cont(then_clause, cont), True

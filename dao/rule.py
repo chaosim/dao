@@ -17,12 +17,13 @@ class Rule(object):
     values = getvalue(values, solver.env)
     caller_env = solver.env
     env = call_data.env
+    solver.call_level += 1
     if not call_data.recursive: solver.env = env.extend()
     else: 
       env.bindings = {}
       solver.env = env
     subst = {}
-    sign_state = (call_data.rule_form, call_data.signatures), call_data.parse_state
+    sign_state = (call_data.command, call_data.signatures), solver.parse_state
     for _ in unify_list_rule_head(values, self.head, solver.env, subst):
       @mycont(cont)
       def rule_done_cont(value, solver):
@@ -32,15 +33,14 @@ class Rule(object):
                            for k, v in zip(subst.keys(), env_values))
         for _ in apply_generators(generators):
           solver.env = caller_env
-          result_head = getvalue(values, caller_env)
-          result = result_head, solver.parse_state, value
-          solver.sign_state2results.setdefault(sign_state, []).append(result)
-          for head, c in solver.sign_state2cont[sign_state]:
-            yield c, value
+          solver.call_level -= 1
+          yield cont, value
         solver.env = caller_env
+        solver.call_level -= 1
       yield solver.exps_cont(self.body, rule_done_cont), True
       
-    solver.env = caller_env # must outside of for loop!!!
+    solver.env = caller_env # must outside of 'for' loop!!!
+    solver.call_level -= 1
       
     
   def copy(self): return Rule(self.head, self.body)

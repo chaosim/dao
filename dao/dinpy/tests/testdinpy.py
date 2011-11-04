@@ -241,7 +241,7 @@ class TestFun:
     
 class TestMacro:
   def test5(self):
-    eq_(preparse(fun. a== at()[prin(1)]), 
+    eq_(preparse(macro. a== at()[prin(1)]), 
         special.set(a, special.MacroForm(((), prin(1)))))
     
 

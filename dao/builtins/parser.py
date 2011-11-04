@@ -5,42 +5,75 @@ from dao.builtins.matcher import matcher
 
 # set and manipulate parse_state for parsing 
 
+@builtin.nomemo
 @matcher()
 def set_parse_state(solver, cont, parse_state):
   old_parse_state = solver.parse_state
   solver.parse_state = parse_state  
+  sign_state2cont = solver.sign_state2cont
+  sign_state2results = solver.sign_state2results
+  solver.sign_state2cont = {}
+  solver.sign_state2results = {}
   yield cont, solver.parse_state
   solver.parse_state = old_parse_state
+  solver.sign_state2cont = sign_state2cont
+  solver.sign_state2results = sign_state2results
   
+@builtin.nomemo
 @matcher()
 def set_sequence(solver, cont, text):
   parse_state = solver.parse_state
-  solver.parse_state = text, 0  #text, 0
+  sign_state2cont = solver.sign_state2cont
+  sign_state2results = solver.sign_state2results
+  solver.sign_state2cont = {}
+  solver.sign_state2results = {}
+  solver.parse_state = text, 0  
   yield cont, solver.parse_state
   solver.parse_state = parse_state
+  solver.sign_state2cont = sign_state2cont
+  solver.sign_state2results = sign_state2results
 
 set_text = set_sequence
 
+@builtin.nomemo
 @builtin.macro()
 def parse(solver, cont, predicate, parse_state):
   old_parse_state = solver.parse_state
+  sign_state2cont = solver.sign_state2cont
+  sign_state2results = solver.sign_state2results
+  solver.sign_state2cont = {}
+  solver.sign_state2results = {}
   solver.parse_state = parse_state
   @mycont(cont)
   def parser_cont(value, solver):
     solver.parse_state = old_parse_state
+    solver.sign_state2cont = sign_state2cont
+    solver.sign_state2results = sign_state2results
     yield cont, value 
   yield solver.cont(predicate, parser_cont), parse_state
   solver.parse_state = old_parse_state
+  solver.sign_state2cont = sign_state2cont
+  solver.sign_state2results = sign_state2results
 
+@builtin.nomemo
 @builtin.macro()
 def parse_sequence(solver, cont, pred, sequence):
   parse_state = solver.parse_state
+  sign_state2cont = solver.sign_state2cont
+  sign_state2results = solver.sign_state2results
+  solver.sign_state2cont = {}
+  solver.sign_state2results = {}
   solver.parse_state = sequence, 0 #sequence, start position
   @mycont(cont)
   def parser_cont(value, solver):
+    solver.parse_state = parse_state
+    solver.sign_state2cont = sign_state2cont
+    solver.sign_state2results = sign_state2results
     yield cont, value 
   yield solver.cont(pred, parser_cont), solver.parse_state
   solver.parse_state = parse_state
+  solver.sign_state2cont = sign_state2cont
+  solver.sign_state2results = sign_state2results
 
 parse_text = parse_sequence
   
@@ -108,6 +141,7 @@ def left(solver, cont):
   text, pos = solver.parse_state
   yield cont, text[pos:]
 
+@builtin.nomemo
 @matcher()
 def next_element(solver, cont): 
   text, pos = solver.parse_state

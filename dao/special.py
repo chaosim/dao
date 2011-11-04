@@ -516,13 +516,10 @@ class MacroForm(FunctionForm):
 
 macro = MacroForm
 
-from dao.term import unify_list_rule_head, getvalue, unify
-from dao.rule import set_bindings
-
 class CallData:
-  def __init__(self, rule_form, signatures, parse_state, env, recursive):
-    self.rule_form, self.signatures, self.parse_state, self.env, self.recursive = (
-      rule_form, signatures, parse_state, env, recursive)
+  def __init__(self, command, signatures, env, recursive):
+    self.command, self.signatures, self.env, self.recursive = (
+      command, signatures, env, recursive)
   
 class Rules:
   def __init__(self, arity2rules, signature2rules, env, recursive): 
@@ -530,25 +527,7 @@ class Rules:
     self.env = env
     self.recursive = recursive
     
-  def apply(self, solver, cont, values):
-    signatures = rule_head_signatures(values)
-    sign_state  = ((self, signatures), solver.parse_state)
-    
-    sign_state2cont = solver.sign_state2cont.setdefault(sign_state, [])
-    sign_state2cont.append((values, cont))
-    
-    memo_results = solver.sign_state2results.get(sign_state)
-    env = solver.env
-    if memo_results is not None:
-      for head, c in sign_state2cont:
-        for result_head, reached_parse_state, value in memo_results:
-          solver.env = env.extend()
-          for _ in unify(values, result_head, solver.env):
-            solver.parse_state = reached_parse_state
-            yield c, value
-      solver.env = env      
-    if len(sign_state2cont)>1: return
-    
+  def apply(self, solver, cont, values, signatures):
     arity = len(values)
     if arity==0:
       rule_list = RuleList(self.arity2rules[0])
@@ -565,14 +544,16 @@ class Rules:
       rule_list = list(index_set)
       rule_list.sort()
       rule_list = RuleList([arity2rules[i] for i in rule_list])
-    call_data = CallData(self, signatures, solver.parse_state, self.env, self.recursive)
+    call_data = CallData(self, signatures, self.env, self.recursive)
     for c, v in rule_list.apply(solver, cont, values, call_data):
       yield c, v
           
-class UserFunction(Rules,  Function): 
+class UserFunction(Rules,  Function):
+  memorable = True
   def __repr__(self):return 'fun(%s)'%repr(self.arity2rules)
   
-class UserMacro(Rules,  Macro): 
+class UserMacro(Rules,  Macro):
+  memorable = True
   def __repr__(self): return 'macro(%s)'%repr(self.arity2rules)
   
 @builtin.function2('eval')

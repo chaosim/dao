@@ -17,18 +17,13 @@ class  DaoSyntaxError(Exception):
   pass
 
 class NoSolutionFound:
+  cont_order = 0 # just use it accidently
   def __init__(self, exp): 
     self.exp = exp
   def __repr__(self): return 'exit!'
   
 class NoMoreSolution(Exception): pass
 
-def mycont(cont):
-  def mycont_tagger(fun):
-    fun.cont = cont
-    return fun
-  return mycont_tagger
- 
 def tag_lookup(fun):
   def lookup_tagger(tagged_fun):
     tagged_fun.lookup = fun
@@ -56,9 +51,16 @@ def done_unwind(cont, value, tag, stop_cont_cont, solver, next_cont=None):
     return cont if next_cont is None else next_cont
   raise DaoUncaughtThrow(tag)
 
+def mycont(cont):
+  def mycont_tagger(fun):
+    fun.cont = cont
+    fun.cont_order = cont.cont_order+1
+    return fun
+  return mycont_tagger
+ 
 @tag_lookup(done_lookup)
 @tag_unwind(done_unwind)
-@mycont(None)
+@mycont(NoSolutionFound)
 def done(value, solver): yield done, value
 
 def value_cont(exp, cont):
@@ -66,7 +68,7 @@ def value_cont(exp, cont):
   def value_cont(value, solver): 
     return cont(exp, solver)
   return value_cont
-  
+
 def cut(cont_gen): 
   try: return cont_gen.cut
   except: return False
@@ -172,7 +174,7 @@ def set_run_mode(mode=interactive, solver=None, tagger=None, parser=None):
     else: _interactive_parser = _parser
   else: 
     _run_mode = noninteractive
-
+  
 class Solver:
   # exp: expression 
   # exps: expression list
@@ -184,8 +186,11 @@ class Solver:
     self.parse_state = parse_state
     self.solved = False
     
+    # used for chart parsing, from bottom to up parsing
+    # left recursive is permmited
     self.sign_state2cont = {}
     self.sign_state2results = {}
+    self.call_level = 0
   
   def eval(self, exp):
     if isinstance(exp, list) or isinstance(exp, tuple):

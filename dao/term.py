@@ -173,7 +173,7 @@ second value is a hashable value'''
     try: 
       hash(x)
       return x
-    except: return type(x)
+    except: return id(x)
 
 def rule_head_signatures(head):
   return tuple((i,signature(x)) for i, x in enumerate(head)) 
@@ -183,11 +183,53 @@ def rule_head_signatures(head):
 # Var, ClosureVar, DummyVar, Cons, Nil and nil
 # Command, CommandCall, Function, Macro
 
+def hash_parse_state(parse_state):
+  try: return parse_state[1]
+  except: return id(parse_state)
+
 class Command:
   ''' the base class for all the callable object in the dao system.'''
+  memorable = False
   
   def __call__(self, *args):
     return CommandCall(self, *args)
+  
+  def run(self, solver, cont, values):
+    signatures = rule_head_signatures(values)
+    
+    if not self.memorable:
+      for c, v in self.apply(solver, cont, values, signatures):
+        yield c, v
+      return
+      
+    sign_state  = ((self, signatures), hash_parse_state(solver.parse_state))
+    sign_state2cont = solver.sign_state2cont.setdefault(sign_state, [])
+    if (values, cont) not in sign_state2cont:
+      sign_state2cont.append((cont, values))
+    
+    memo_results = solver.sign_state2results.get(sign_state)
+    env = solver.env
+    if memo_results is not None:
+      for c, head in sign_state2cont:
+        if c.cont_order>cont.cont_order: continue
+        for result_head, reached_parse_state, value in memo_results:
+          solver.env = env.extend()
+          for _ in unify(values, result_head, solver.env):
+            solver.parse_state = reached_parse_state
+            yield c, value
+      solver.env = env 
+      
+    @mycont(cont)
+    def memo_result_cont(value, solver):
+      result_head = getvalue(values, solver.env)
+      result = result_head, solver.parse_state, value
+      solver.sign_state2results.setdefault(sign_state, []).append(result)
+      for c, v in sign_state2cont:
+        yield c, value
+        
+    if len(sign_state2cont)==1: 
+      for c, v in self.apply(solver, memo_result_cont, values, signatures):
+        yield c, v
 
 class Symbol: pass
 
@@ -358,9 +400,10 @@ class CommandCall(Command):
     def evaluate_cont(op, solver): 
       return op.evaluate_cont(solver, cont, self.operand)
     return solver.cont(self.operator, evaluate_cont)
-  
+      
   def closure(self, env):
     return CommandCall(self.operator, *[closure(x, env) for x in self.operand])
+  
   def __repr__(self): 
     if run_mode() is interactive:
       code = interactive_parser().parse(self)
@@ -369,6 +412,7 @@ class CommandCall(Command):
       return repr(result) if result is not None else ''
     return '%s(%s)'%(self.operator, 
                 ','.join([repr(e) for e in self.operand]))
+  
   def __and__(self, other):
     from dao.builtins.control import and_p
     return and_p(self, other)
@@ -382,28 +426,36 @@ class CommandCall(Command):
   def __eq__(self, other): 
     return isinstance(other, self.__class__) and self.operator==other.operator and self.operand==other.operand
   
-class Function(Command): 
+class Function(Command):
+  memorable = True
+  
   def evaluate_cont(self, solver, cont, exps):
     def evaluate_arguments(exps, cont):
         if len(exps)==0: 
-          return cont([], solver)
+          yield cont, []
         else:
           @mycont(cont)
           def argument_cont(value, solver):
             @mycont(cont)
             def gather_cont(values, solver):
-                for c, v in cont([value]+values, solver): yield c, v
+                for c, v in cont([value]+values, solver): 
+                  yield c, v
             return evaluate_arguments(exps[1:], gather_cont)
-          return solver.cont(exps[0], argument_cont)(True, solver)
+          yield solver.cont(exps[0], argument_cont), True
+    
     @mycont(cont)
     def apply_cont(values, solver): 
-      return self.apply(solver, cont, values)
+      return self.run(solver, cont, values)
+    
     return evaluate_arguments(exps, apply_cont)
 
 class Macro(Command): 
+  
+  memorable = True
+  
   def evaluate_cont(self, solver, cont, exps):
     exps1 = [(closure(exp, solver.env)) for exp in exps]
-    return self.apply(solver, cont, exps1)
+    return self.run(solver, cont, exps1)
 
 # ----------------------------------
 # Cons, cons, Nil, nil, conslist, cons2tuple

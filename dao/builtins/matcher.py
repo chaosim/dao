@@ -6,7 +6,7 @@ from dao.solve import mycont
 from dao.builtins.term import is_
 from dao.builtins.control import or_p, and_p
 from dao import special
-from dao.builtin import builtin, BuiltinFunction2
+from dao.builtin import builtin, BuiltinFunction2, memo, nomemo
 
 from dao.solve import run_mode, interactive
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
@@ -147,6 +147,8 @@ class Repeater(Matcher):
           self.template, self.result, self.mode]])
 
 class BuiltinMatcher(BuiltinMacro):
+  memorable = False
+  
   def __call__(self, *exps): return BuiltinMatcherCall(self, *exps)
 
 class BuiltinMatcherCall(Matcher, CommandCall): pass
@@ -173,9 +175,11 @@ class MatcherOr(Matcher):
   def ___parse___(self, parser):
     return or_p(parser.parse(self.call1), parser.parse(self.call2))
 
+@nomemo
 @matcher()
 def nullword(solver, cont): 
   yield cont,  True
+
 null = nullword = nullword()
 
 @matcher()
