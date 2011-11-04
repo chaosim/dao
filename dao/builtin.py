@@ -18,19 +18,19 @@ class Builtin:
 class BuiltinFunction(Builtin, Function):
   def __call__(self, *exps):
     return CommandCall(self, *exps)
-  def apply(self, solver, cont, values, call_data):
+  def apply(self, solver, cont, values):
     yield cont, self.function(*values)
     
 class BuiltinFunction2(Builtin, Function):
   def __call__(self, *exps):
     return CommandCall(self, *exps)
-  def apply(self, solver, cont, values, call_data):
+  def apply(self, solver, cont, values):
     return self.function(solver, cont, *values)
   
 class BuiltinMacro(Builtin, Macro):
   def __call__(self, *exps):
     return CommandCall(self, *exps)
-  def apply(self, solver, cont, exps, call_data):
+  def apply(self, solver, cont, exps):
     return self.function(solver, cont, *exps)
   
 def builtin(klass):

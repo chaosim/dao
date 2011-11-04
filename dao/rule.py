@@ -37,6 +37,7 @@ class Rule(object):
           solver.sign_state2results.setdefault(sign_state, []).append(result)
           for head, c in solver.sign_state2cont[sign_state]:
             yield c, value
+        solver.env = caller_env
       yield solver.exps_cont(self.body, rule_done_cont), True
       
     solver.env = caller_env # must outside of for loop!!!
@@ -77,16 +78,10 @@ class RuleList(list):
   def apply(self, solver, cont, values, call_data):
     def rules_cont(values, solver):
       for rule in self:
-        #if rule in solver.parse_state2rules.get(solver.parse_state, set()) and\
-           #rule not in solver.left_recursive_rules: 
-          #continue
         for c, v in rule.apply(solver, cont, values, call_data):
           yield c, v
     rules_cont.cut = True
     yield rules_cont, values
     
-    
-  #def copy(self): return RuleList(self[:])
-  
   def __repr__(self): 
     return 'RuleList[%s]'%' '.join([repr(rule) for rule in self])

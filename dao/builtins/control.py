@@ -9,7 +9,7 @@ from dao.term import CommandCall
 # call with current continuation
 
 class ContinuationFunction(Builtin, Function):
-  def apply(self, solver, cont, values, call_data):
+  def apply(self, solver, cont, values):
     return self.function(values[0], solver)
       
 @builtin.macro('callcc', 'call/cc')

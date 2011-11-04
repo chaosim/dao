@@ -38,7 +38,7 @@ def unify_list(list1, list2, env, occurs_check=False):
   if len(list1)!=len(list2): return
   if len(list1)==0: yield True
   if len(list1)==1: 
-    for _ in unify_list(list1[0], list2[0], env, occurs_check):
+    for _ in unify(list1[0], list2[0], env, occurs_check):
       yield True
   for _ in apply_generators(tuple(unify(x, y, env, occurs_check) 
                             for x, y in zip(list1, list2))):
@@ -397,14 +397,13 @@ class Function(Command):
           return solver.cont(exps[0], argument_cont)(True, solver)
     @mycont(cont)
     def apply_cont(values, solver): 
-      solver.call_data.parse_state = solver.parse_state
-      return self.apply(solver, cont, values, solver.call_data)
+      return self.apply(solver, cont, values)
     return evaluate_arguments(exps, apply_cont)
 
 class Macro(Command): 
   def evaluate_cont(self, solver, cont, exps):
     exps1 = [(closure(exp, solver.env)) for exp in exps]
-    return self.apply(solver, cont, exps1, solver.call_data)
+    return self.apply(solver, cont, exps1)
 
 # ----------------------------------
 # Cons, cons, Nil, nil, conslist, cons2tuple

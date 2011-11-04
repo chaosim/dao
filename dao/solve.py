@@ -173,19 +173,6 @@ def set_run_mode(mode=interactive, solver=None, tagger=None, parser=None):
   else: 
     _run_mode = noninteractive
 
-class CallData:
-  def __init__(self, parse_state, path):
-    self.parse_state, self.path = parse_state, path
-    
-  def copy_with(self, left_recursive):
-    result = CallData(self.parse_state, self.path)
-    result.rule_form = self.rule_form
-    result.signatures = self.signatures
-    result.env = self.env
-    result.recursive = self.recursive
-    result.left_recursive = left_recursive
-    return result
-  
 class Solver:
   # exp: expression 
   # exps: expression list
@@ -196,12 +183,7 @@ class Solver:
     self.stop_cont = stop_cont
     self.parse_state = parse_state
     self.solved = False
-    self.rules2cont = {}
-    self.rules2solutions = {}
-    self.parse_state2rules = {}
-    self.left_recursive_rules = set()
-    self.sign_state2leftrec_conts = {}
-    self.call_data = CallData(parse_state, [])
+    
     self.sign_state2cont = {}
     self.sign_state2results = {}
   

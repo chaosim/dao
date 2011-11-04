@@ -188,10 +188,10 @@ class TestCut:
     a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x'), 
     eq_(eval(letr([(a, function([[x], b(x)&cut&c(x)],
                           [[x], d(x)])),
-                     (b, function([[1], True],
-                                 [[4], True])),
-                     (c, function([[4], True])),
-                     (d, function([[3], True]))],
+                     (b, function([[1], 'b1'],
+                                 [[4], 'b4'])),
+                     (c, function([[4], 'c4'])),
+                     (d, function([[3], 'd3']))],
              a(x), x)), 3)
     
 class TestMacro:

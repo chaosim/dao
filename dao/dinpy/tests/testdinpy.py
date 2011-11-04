@@ -202,6 +202,7 @@ class TestFun:
   def test2(self):
     eq_(preparse(fun. a(x)[prin(1)]), replace_def(a, (x,), [[prin(1)]], UserFunction))
   def test_eval_a_x2(self):
+    #assert 0, 'repace_def rethink'
     x = v.x
     eq_(eval([fun. a(x)[prin(x), x], a(1),
               fun. a(x)[prin(-x), -x], a(1)]), -1)

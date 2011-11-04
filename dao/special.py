@@ -516,15 +516,21 @@ class MacroForm(FunctionForm):
 
 macro = MacroForm
 
-from dao.term import unify_list_rule_head
+from dao.term import unify_list_rule_head, getvalue, unify
+from dao.rule import set_bindings
 
+class CallData:
+  def __init__(self, rule_form, signatures, parse_state, env, recursive):
+    self.rule_form, self.signatures, self.parse_state, self.env, self.recursive = (
+      rule_form, signatures, parse_state, env, recursive)
+  
 class Rules:
   def __init__(self, arity2rules, signature2rules, env, recursive): 
     self.arity2rules, self.signature2rules = arity2rules, signature2rules
     self.env = env
     self.recursive = recursive
     
-  def apply(self, solver, cont, values, call_data):
+  def apply(self, solver, cont, values):
     signatures = rule_head_signatures(values)
     sign_state  = ((self, signatures), solver.parse_state)
     
@@ -532,24 +538,15 @@ class Rules:
     sign_state2cont.append((values, cont))
     
     memo_results = solver.sign_state2results.get(sign_state)
+    env = solver.env
     if memo_results is not None:
       for head, c in sign_state2cont:
         for result_head, reached_parse_state, value in memo_results:
-          caller_env = solver.env
-          if not self.recursive: env =  self.env.extend()
-          else: 
-            env = self.env
-            env.bindings = {}
-          subst = {}
-          for _ in unify_list_rule_head(values, head, env, subst):
-            env_values = tuple(getvalue(v, env) for v in subst.values())
-            generators = tuple(set_bindings(caller_env.bindings, k, v) 
-                               for k, v in zip(subst.keys(), env_values))
-            for _ in apply_generators(generators):
-              solver.env = caller_env
-              solver.parse_state = reached_parse_state
-              yield c, value
-            
+          solver.env = env.extend()
+          for _ in unify(values, result_head, solver.env):
+            solver.parse_state = reached_parse_state
+            yield c, value
+      solver.env = env      
     if len(sign_state2cont)>1: return
     
     arity = len(values)
@@ -568,8 +565,7 @@ class Rules:
       rule_list = list(index_set)
       rule_list.sort()
       rule_list = RuleList([arity2rules[i] for i in rule_list])
-    call_data.rule_form, call_data.signatures = self, signatures
-    call_data.env, call_data.recursive  = self.env, self.recursive
+    call_data = CallData(self, signatures, solver.parse_state, self.env, self.recursive)
     for c, v in rule_list.apply(solver, cont, values, call_data):
       yield c, v
           
@@ -577,7 +573,7 @@ class UserFunction(Rules,  Function):
   def __repr__(self):return 'fun(%s)'%repr(self.arity2rules)
   
 class UserMacro(Rules,  Macro): 
-  def __repr__(self): return 'macro(%s)'%repr(self.rules)
+  def __repr__(self): return 'macro(%s)'%repr(self.arity2rules)
   
 @builtin.function2('eval')
 def eval_(solver, cont, exp):
