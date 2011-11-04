@@ -6,7 +6,7 @@ from dao.solve import mycont
 from dao.builtins.term import is_
 from dao.builtins.control import or_p, and_p
 from dao import special
-from dao.builtin import builtin, BuiltinFunction2, memo, nomemo
+from dao.builtin import builtin, BuiltinPredicate, memo, nomemo
 
 from dao.solve import run_mode, interactive
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser

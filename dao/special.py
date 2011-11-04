@@ -555,7 +555,7 @@ class UserMacro(Rules,  Macro):
   memorable = True
   def __repr__(self): return 'macro(%s)'%repr(self.arity2rules)
   
-@builtin.function2('eval')
+@builtin.predicate('eval')
 def eval_(solver, cont, exp):
   @mycont(cont)
   def eval_cont(value, solver): 

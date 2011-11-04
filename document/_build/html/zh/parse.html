@@ -203,14 +203,16 @@ next_char(x)</p>
 <dt>skip(n=1)</dt>
 <dd>解析位置前进n步, 返回序列中前进后所在位置的元素。</dd>
 </dl>
-<p>sub_sequence((start, end)
-| subtext(start, end)</p>
-<blockquote>
-<div>返回解析序列的一个字段parser_state[0][start:end]</div></blockquote>
-<p>set_position(position)
-| goto(position)</p>
-<blockquote>
-<div>解析位置跳到positioin</div></blockquote>
+<p>sub_sequence((start, end)</p>
+<dl class="docutils">
+<dt>subtext(start, end)</dt>
+<dd>返回解析序列的一个字段parser_state[0][start:end]</dd>
+</dl>
+<p>set_position(position)</p>
+<dl class="docutils">
+<dt>goto(position)</dt>
+<dd>解析位置跳到positioin</dd>
+</dl>
 </div>
 <div class="section" id="id5">
 <h2>终结匹配符<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h2>
@@ -387,6 +389,7 @@ char_on_test, char_in， char_between,  string_on_test， string_in， string_be
      ]</pre>
 </div>
 <p>由于dao的特点，目前尚未看到不支持左递归对表达能力的实质影响。毕竟，目前还没有任何一种程序语言支持真正的左递归（第一条语句进行无条件递归调用）。因此，目前我选择放弃支持左递归，以保持实现代码的简单优雅。如果能找到简单优雅的设计，我将再次考虑支持左递归。</p>
+<p><strong>更新(2011-11-4)</strong>：dao已经实现对左递归的完美支持，包括对间接左递归的支持。终于找到了一个优雅的设计，其简单程度超乎想象，只是在一个地方增加了不到二十行代码即实现了完整而灵活的左递归支持，并且不影响合一回溯的执行机制，也不会对整体执行速度有明显的影响。实现方案类似于earley解析算法或表图解析算法(chart parsing)，但是通过利用dao使用的后续传递风格编程技术，dao系统可以抑制不必要的计算，只在需要的时候才回溯到另外的计算路径。类似于PEG文法和parckrat解析算法，通过缓存技术，对于绝大多数实际使用的语法（包括直接或间接左递归），dao都将以接近于线性时间复杂度执行。即使在最糟糕的情况下dao也可以避免普通回溯算法的指数时间复杂度，而只是达到earley解析算法或表解析算法常有的O(n<sup>3</sup>)时间复杂度。与earley算法类似，由于需要缓存命令的执行结果，需要消耗更多内存。缓存所引起的簿记操作也会影响执行速度。为此，dao允许程序员指定命令是否缓存其结果（左递归的用户定义命令必须缓存才能正确执行）。目前系统在对内置命令的缓存支持上还存在一些bug，暂时关闭了对所有内置命令的缓存支持。在经过进一步的调试和测试后，系统将允许程序员根据需要自由决定任何内置命令和用户定义命令的缓存选项。</p>
 </li>
 <li><p class="first">与antlr的比较</p>
 <p>ANTLR(ANother Tool for Language Recognition)是一个广为流行的解析器和编程语言工作平台。它以LL(*)文法为基础，支持包括java， python，C++在内的大量目标语言。dao系统的表达能力大大强于antlr系统的LL(*)文法。但是，从执行效率来看，Dao目前采用的是基于回溯的方法，还不如antlr。</p>
@@ -396,10 +399,16 @@ char_on_test, char_in， char_between,  string_on_test， string_in， string_be
 <div class="section" id="dao">
 <h2>提高dao系统执行效率的方法<a class="headerlink" href="#dao" title="Permalink to this headline">¶</a></h2>
 <p>Dao目前采用全回溯的方法，执行效率受到制约。从易到难，有多种提高dao的执行效率的技术：</p>
-<ol class="arabic simple">
-<li>利用函数参数的signature选择规则，从而减少需要进行合一匹配操作的规则头数量。这一技术在pypy prolog中已经实现，可以比较快捷的融合进来。</li>
-<li>利用first集选择规则，依据前探字符减少尝试失败的规则数量，这也不难实现。</li>
-<li>利用memo机制，避免重复执行解析原语，有很多这样的参考实现，比如lepl，packrat解析器。重要的是要注意memo方法可能对程序语义带来的影响，比如赋值，打印等副作用等。这项优化的决策和实现可以考虑交给用户程序。</li>
+<ol class="arabic">
+<li><p class="first">利用函数参数的signature选择规则，从而减少需要进行合一匹配操作的规则头数量。这一技术在pypy prolog中已经实现，可以比较快捷的融合进来。</p>
+<p><strong>更新(2011-11-4)</strong>：已经实现。对于现有的测试集，执行速度没有变化，但是对于具有大规则集义的命令，将极大地削减合一匹配规则头的时间。</p>
+</li>
+<li><p class="first">利用first集选择规则，依据前探字符减少尝试失败的规则数量，这也不难实现。</p>
+<p><strong>更新(2011-11-4)</strong>：已经实现。由于需要额外计算first set，现有的测试集的执行速度下降大约一半，对于大文本和大文法目前没有可以测试的实例。暂时没有合并到版本库主分支。正在考虑实现细节以追求速度的提升。</p>
+</li>
+<li><p class="first">利用缓存机制，避免重复执行解析原语，有很多这样的参考实现，比如lepl，packrat解析器。重要的是要注意缓存方法可能对程序语义带来的影响，比如赋值，打印等副作用等。这项优化的决策和实现可以考虑交给用户程序。</p>
+<p><strong>更新(2011-11-4)</strong>：为了支持左递归文法，已经实现。左递归命令必须缓存。其它命令可以由用户指定缓存与否。</p>
+</li>
 </ol>
 <ol class="arabic simple" start="3">
 <li>利用pypy项目进行翻译或者是pypy的jit能力提高执行速度。对此需要了解dao的实现代码与pypy的翻译器或jit的兼容性，特别是dao的实现代码对rpython的符合程度，以评估所需的工作量。</li>

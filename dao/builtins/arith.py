@@ -108,7 +108,7 @@ def abs(x): return operator.abs(x)
 @binary('invert', '~')
 def invert(x): return operator.invert(x)
 
-@builtin.function2()
+@builtin.predicate()
 def between(solver, cont, *exps):
   lower, upper, mid = exps
   lower = deref(lower, solver.env)
@@ -122,7 +122,7 @@ def between(solver, cont, *exps):
   for x in range(lower, upper+1):
     for y in mid.unify(x, solver.env): yield cont, True
 
-@builtin.function2('equal', '=!')
+@builtin.predicate('equal', '=!')
 def equal(solver, cont, left, right):
   if deref(left, solver.env)==deref(right, solver.env): 
     yield cont, True

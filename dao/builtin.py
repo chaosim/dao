@@ -25,7 +25,7 @@ class BuiltinFunction(Builtin, Function):
   def apply(self, solver, cont, values, signatures):
     yield cont, self.function(*values)
     
-class BuiltinFunction2(Builtin, Function):
+class BuiltinPredicate(Builtin, Function):
   memorable = builtin_memorable
   def __call__(self, *exps):
     return CommandCall(self, *exps)
@@ -59,5 +59,5 @@ def nomemo(builtin):
   return builtin
 
 function = builtin(BuiltinFunction)
-function2 = builtin(BuiltinFunction2)
+predicate = builtin(BuiltinPredicate)
 macro = builtin(BuiltinMacro)
