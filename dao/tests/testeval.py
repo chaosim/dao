@@ -200,19 +200,27 @@ class TestMacro:
   def test_eval(self):
     eq_(eval(macro([[x, y], eval_(x)],
                    [[x, y],eval_(y)])(prin(1), prin(2))), None) 
-  def test_closure(self):
+  def test_or_p(self):
+    eq_(eval(macro([[x, y], x],
+                   [[x, y],y])(prin(1), prin(2))), None) 
+  def test_closure1(self):
     eq_(eval(let([(f, macro([[x], prin(eval_(x))])),
                   (x, 1)],
              f(x+x))), None) 
-    eq_(eval(let([(f, function([[x], prin(x)])),
-                  (x, 1)],
-             f(x+x))), None) 
+  def test_closure2(self):
     eq_(eval(let([(f, macro([[x], prin(x)])),
                   (x, 1)],
              f(x+x))), None) 
+  def test_closure3(self):
+    eq_(eval(let([(f, function([[x], prin(x)])),
+                  (x, 1)],
+             f(x+x))), None) 
+  def test_closure4(self):
+    eq_(eval(let([(f, macro([[x], x])),
+                  (x, 1)],
+             f(x+x))), 2) 
   def test4(self):
-    eq_(eval(macro([[x], x])(prin(1))), prin(1)) 
-##    eq_(eval(macro([[x], x])(prin(1))), (prin, 1)) #on to_sexpression
+    eq_(eval(macro([[x], x])(prin(1))), None) 
     
 class TestCallccBlockCatch:
   def testblock(self):

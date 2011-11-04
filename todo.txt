@@ -18,6 +18,8 @@ todo: natural language programming
 todo: 汉语编程
   过滤 缀词，冗余词
 
+done 2011-11-5: user macro rethink
+  # true lisp macro: expand and eval in eval the macro.
 done 2011-11-4: left recursive
 done 2011-11-2: first set for matcher 
 done 2011-10-31: rule signature, for better efficieny in calling function.

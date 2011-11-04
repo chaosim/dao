@@ -544,8 +544,7 @@ class Rules:
       rule_list.sort()
       rule_list = RuleList([arity2rules[i] for i in rule_list])
     call_data = CallData(self, signatures, self.env, self.recursive)
-    for c, v in rule_list.apply(solver, cont, values, call_data):
-      yield c, v
+    return rule_list.apply(solver, cont, values, call_data)
           
 class UserFunction(Rules,  Function):
   memorable = True
@@ -553,6 +552,11 @@ class UserFunction(Rules,  Function):
   
 class UserMacro(Rules,  Macro):
   memorable = True
+  def apply(self, solver, cont, values, signatures):
+    @mycont(cont)
+    def eval_macro_result_cont(value, solver):
+      yield solver.cont(value, cont), value
+    return Rules.apply(self, solver, eval_macro_result_cont, values, signatures)
   def __repr__(self): return 'macro(%s)'%repr(self.arity2rules)
   
 @builtin.predicate('eval')
