@@ -55,6 +55,7 @@
             
   <div class="section" id="daodinpy">
 <h1>扩展Dao和Dinpy<a class="headerlink" href="#daodinpy" title="Permalink to this headline">¶</a></h1>
+<p><strong>暂无没有详细内容和实例介绍</strong></p>
 <div class="section" id="dao">
 <h2>Dao内核介绍<a class="headerlink" href="#dao" title="Permalink to this headline">¶</a></h2>
 <ul>
@@ -85,15 +86,18 @@
 def function_name(arg...):</p>
 <blockquote>
 <div>...</div></blockquote>
-<p>builtin.function2:</p>
+</div>
+<div class="section" id="id2">
+<h2>为dao增加内置谓词<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<p>builtin.predicate:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="nd">@builtin.function</span>
 <span class="k">def</span> <span class="nf">function_name</span><span class="p">(</span><span class="n">solver</span><span class="p">,</span> <span class="n">cont</span><span class="p">,</span> <span class="n">arg</span><span class="o">...</span><span class="p">):</span>
    <span class="o">...</span>
 </pre></div>
 </div>
 </div>
-<div class="section" id="id2">
-<h2>为dao增加内置宏定义<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id3">
+<h2>为dao增加内置宏定义<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
 <p>builtin.macro</p>
 <blockquote>
 <div><p>&#64;builtin.macro
@@ -101,6 +105,9 @@ def macro_name(solver, cont, arg...):</p>
 <blockquote>
 <div>...</div></blockquote>
 </div></blockquote>
+</div>
+<div class="section" id="id4">
+<h2>为dao增加内置匹配器<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h2>
 <dl class="docutils">
 <dt>builtin.matcher</dt>
 <dd><p class="first">&#64;builtin.matcher
@@ -110,8 +117,8 @@ def macro_name(solver, cont, arg...):</p>
 </dd>
 </dl>
 </div>
-<div class="section" id="id3">
-<h2>为dao增加特殊式<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id5">
+<h2>为dao增加特殊式<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h2>
 <p>SpecialForm</p>
 <p>增加或修改Dinpy的语法</p>
 </div>
@@ -128,8 +135,10 @@ def macro_name(solver, cont, arg...):</p>
 <li><a class="reference internal" href="#">扩展Dao和Dinpy</a><ul>
 <li><a class="reference internal" href="#dao">Dao内核介绍</a></li>
 <li><a class="reference internal" href="#id1">为dao增加内置函数</a></li>
-<li><a class="reference internal" href="#id2">为dao增加内置宏定义</a></li>
-<li><a class="reference internal" href="#id3">为dao增加特殊式</a></li>
+<li><a class="reference internal" href="#id2">为dao增加内置谓词</a></li>
+<li><a class="reference internal" href="#id3">为dao增加内置宏定义</a></li>
+<li><a class="reference internal" href="#id4">为dao增加内置匹配器</a></li>
+<li><a class="reference internal" href="#id5">为dao增加特殊式</a></li>
 </ul>
 </li>
 </ul>

@@ -16,8 +16,8 @@
    logic
    function
    macro
-   parse
    eval
+   parse
    opsyntax
    extension
    makelang

@@ -1,6 +1,8 @@
 扩展Dao和Dinpy
 ***************
 
+**暂无没有详细内容和实例介绍**
+
 Dao内核介绍
 ---------------
 
@@ -29,7 +31,10 @@ builtin.function
 def function_name(arg...):
    ...
 
-builtin.function2::
+为dao增加内置谓词
+-----------------
+
+builtin.predicate::
 
   @builtin.function
   def function_name(solver, cont, arg...):
@@ -43,6 +48,9 @@ builtin.macro
   @builtin.macro
   def macro_name(solver, cont, arg...):
      ...
+
+为dao增加内置匹配器
+------------------
 
 builtin.matcher
   @builtin.matcher

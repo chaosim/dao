@@ -5,6 +5,7 @@ yeanpypa.py
 *.wpu
 document/_build/doctrees
 document/_build/pdf
+document/_build/html/_sources
 build
 daot.egg-info
 dist
