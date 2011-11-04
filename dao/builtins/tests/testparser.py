@@ -1,6 +1,6 @@
 from nose.tools import eq_, assert_raises
 
-from dao.term import Var, DummyVar, Cons, nil, conslist as L
+from dao.term import Var, DummyVar, Cons, nil, conslist as L, vars
 from dao.solve import eval, preparse, NoSolutionFound
 from dao.builtins.control import fail, or_p, and_p, not_p, cut
 
@@ -389,3 +389,23 @@ class TestExpression:
     assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(and_p(E(e, 1), eoi), '1/'), e))
     assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(and_p(E(e, 1), eoi), '/'), e))
     assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(and_p(E(e, 1), eoi), ''), e))
+
+class TestLeftRecursive:          
+  def testLeftRecursive(self):
+    E = Var('E')
+    ruleList = [(E,function( 
+                     ((), E()+char('a')),
+                     ((), char('b')),
+                     ))]
+    eq_(eval(letr(ruleList, parse_text(E()+eoi,  'ba'))), True)
+
+class TestChartParsing:          
+  def testABCD(self):
+    A, B, C, D = vars('A, B, C, D')
+    ruleList = [(A,function(((), B()|C()))), 
+                (B,function(((), D()+char('b')))), 
+                (C,function(((), D()+char('c')))), 
+                (D,function(((), char('d')))), 
+               ]
+    eq_(eval(letr(ruleList, parse_text(A()+eoi,  'dc'))), True)
+    

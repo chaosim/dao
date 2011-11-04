@@ -1,12 +1,8 @@
+# -*- coding: utf-8 -*-
+
 from dao.dinpy import *
 
 dinpy.version = '0.7.2'
-
-dinpy[
-
-parse_text(char('a')+any(~char('b')+some(char('c')))+eoi, 'ab'),
-
-]
 
 (sexpression1, sexpression, bracketExpression, puncExpression, sexpressionList, 
  stringExpression, condSpace, evalRule) = (var. sexpression1.sexpression.bracketExpression.puncExpression.sexpressionList
@@ -14,35 +10,34 @@ parse_text(char('a')+any(~char('b')+some(char('c')))+eoi, 'ab'),
 
 _ = dummy._
 a= local.a
-X, Expr, ExprList, Result, Y = var. X. Y. Expr. ExprList. Result # 语句不能放在列表中
+X, Expr, ExprList, Result, Y = var. X. Y. Expr. ExprList. Result 
 Expr2 = var.Expr2
 
-from dao.tests.util import function, eval_
+'''
+# 1*2+3+4
+# 1+2*3 == 5/6+3
+# 1+((2-(-3)*6)+2) == 1/(2+3)
 
-functions = [
-  fun. evalRule(Result)> sexpression(Expr2)+eoi+is_(Result, eval_.getvalue(lExpr2)),
-  fun. sexpression> 
-    [(Result)> char('{')+sexpression(Expr2)+char('}')+setvalue(Result, eval_.getvalue(Expr2)),
-    (Expr)> stringExpression(Expr),
-    (Expr)> bracketExpression(Expr),
-    (Expr)> puncExpression(Expr)],
-  fun. stringExpression(X)> 
-    [number(X) | dqstring(X) |symbol(X)],
-  fun. bracketExpression(ExprList)> 
-    [char('(')+spaces0(_)+sexpressionList(ExprList)+spaces0(_)+char(')'),
-     char('[')+spaces0(_)+sexpressionList(ExprList)+spaces0(_)+char(']')],
-  fun. puncExpression> 
-    [['quote', Expr]> 
-        char("'")/sexpression(Expr),
-     ['quasiquote', Expr]>  
-        char("`")+sexpression(Expr),
-     ['unquote-splicing', Expr]>  
-        literal(",@")+sexpression(Expr),
-     ['unquote', Expr]/  
-        char(",")+(sexpression, Expr)],
-  fun. sexpressionList>
-    [[Expr, ExprList]>  sexpression(Expr)+condSpace+sexpressionList(ExprList),
-     NIL/epsilon],
-  fun. sexpression1(Expr)>  spaces0(_)+sexpressionList(Expr)+spaces0(_),
-  fun. condSpace()>  if_p(notFollowChars('([])')+notFollowByChars('([])')+not_p(eoi)).spaces(_)
-          .spaces0(_)]
+
+number(x) -> E(x, 100)
+
+E(x,100) : number(x)
+E((op,x,y), p2): E(x, p1)+op(p2)+E(y, p3) 
+
+E(x, p1)+op(p2)+E(y, p3) -> E((op,x,y), p2)
+
+'''
+
+dinpy[
+
+letr(
+  expression << fun
+    ((op, E1, E2), Precedence)
+       [ expression(E1, Precedence1)+binary(op, Precedence)+(Precedence1>=Precedence<=Precedence2) +expression(E2, Precedence2) ],
+    (X, 100) [ number(X) ],
+    
+  binary << fun(add, 50) [ char('+') ],
+            fun(mul, 60) [ char('*') ],
+  unary << fun(positive, 90) [ char('+') ],
+  
+]

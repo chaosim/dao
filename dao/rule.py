@@ -6,20 +6,23 @@ from dao.term import getvalue, unify_list_rule_head, unify, apply_generators
 class Rule(object):
   def __init__(self, head, body):
     self.head, self.body = head, body
-    self.signature = len(self.head)
 
   def ___parse___(self, parser):
     return Rule(self.head, parser.parse(self.body))
+  
   def tag_loop_label(self, tagger):
     return Rule(self.head, tagger.tag_loop_label(self.body))
-  def apply(self, solver, env, cont, recursive, values):
-    values = [getvalue(v, solver.env) for v in values]
+  
+  def apply(self, solver, cont, values, call_data):
+    values = getvalue(values, solver.env)
     caller_env = solver.env
-    if not recursive: solver.env = env.extend()
+    env = call_data.env
+    if not call_data.recursive: solver.env = env.extend()
     else: 
       env.bindings = {}
       solver.env = env
     subst = {}
+    sign_state = (call_data.rule_form, call_data.signatures), call_data.parse_state
     for _ in unify_list_rule_head(values, self.head, solver.env, subst):
       @mycont(cont)
       def rule_done_cont(value, solver):
@@ -29,13 +32,22 @@ class Rule(object):
                            for k, v in zip(subst.keys(), env_values))
         for _ in apply_generators(generators):
           solver.env = caller_env
-          yield cont, value
+          result_head = getvalue(values, caller_env)
+          result = result_head, solver.parse_state, value
+          solver.sign_state2results.setdefault(sign_state, []).append(result)
+          for head, c in solver.sign_state2cont[sign_state]:
+            yield c, value
       yield solver.exps_cont(self.body, rule_done_cont), True
+      
     solver.env = caller_env # must outside of for loop!!!
+      
+    
   def copy(self): return Rule(self.head, self.body)
+  
   def __eq__(self, other): 
     return self.__class__==other.__class__ and self.head==other.head and self.body==other.body
   def __ne__(self, other): return not self==other
+  
   def __repr__(self):
     head = '(%s)'%' '.join(['%s'%repr(a) for a in self.head])
     body = '; '.join(['%s'%' '.join(repr(stmt)) for stmt in self.body])
@@ -52,18 +64,29 @@ def set_bindings(bindings, var, value):
     yield True
     del bindings[var]
     
-class RuleList(list):  
+class RuleList(list): 
+  def __init__(self, rules):
+    list.__init__(self, rules)
+  
   def ___parse___(self, parser):
     return RuleList([parser.parse(rule) for rule in self])
+  
   def tag_loop_label(self, tagger):
     return RuleList([tagger.tag_loop_label(rule) for rule in self])
-  def apply(self, solver, env, cont, recursive, values):
+  
+  def apply(self, solver, cont, values, call_data):
     def rules_cont(values, solver):
       for rule in self:
-        for c, v in rule.apply(solver, env, cont, recursive, values):
+        #if rule in solver.parse_state2rules.get(solver.parse_state, set()) and\
+           #rule not in solver.left_recursive_rules: 
+          #continue
+        for c, v in rule.apply(solver, cont, values, call_data):
           yield c, v
     rules_cont.cut = True
     yield rules_cont, values
-  def copy(self): return RuleList(self[:])
+    
+    
+  #def copy(self): return RuleList(self[:])
+  
   def __repr__(self): 
     return 'RuleList[%s]'%' '.join([repr(rule) for rule in self])

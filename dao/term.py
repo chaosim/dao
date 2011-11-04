@@ -344,11 +344,6 @@ class CommandCall(Command):
     self.operator = operator
     self.operand = operand
     
-  def cont(self, cont, solver):
-    @mycont(cont)
-    def evaluate_cont(op, solver): 
-      return op.evaluate_cont(self.operand, cont, solver)
-    return solver.cont(self.operator, evaluate_cont)
   def ___parse___(self, parser):
     self.operator = parser.parse(self.operator)
     self.operand = parser.parse(self.operand)
@@ -358,6 +353,12 @@ class CommandCall(Command):
     self.operand = tagger.tag_loop_label(self.operand)
     return self
 
+  def cont(self, cont, solver):
+    @mycont(cont)
+    def evaluate_cont(op, solver): 
+      return op.evaluate_cont(solver, cont, self.operand)
+    return solver.cont(self.operator, evaluate_cont)
+  
   def closure(self, env):
     return CommandCall(self.operator, *[closure(x, env) for x in self.operand])
   def __repr__(self): 
@@ -382,7 +383,7 @@ class CommandCall(Command):
     return isinstance(other, self.__class__) and self.operator==other.operator and self.operand==other.operand
   
 class Function(Command): 
-  def evaluate_cont(self, exps, cont, solver):
+  def evaluate_cont(self, solver, cont, exps):
     def evaluate_arguments(exps, cont):
         if len(exps)==0: 
           return cont([], solver)
@@ -396,13 +397,14 @@ class Function(Command):
           return solver.cont(exps[0], argument_cont)(True, solver)
     @mycont(cont)
     def apply_cont(values, solver): 
-      return self.apply(solver, values, cont)
+      solver.call_data.parse_state = solver.parse_state
+      return self.apply(solver, cont, values, solver.call_data)
     return evaluate_arguments(exps, apply_cont)
 
 class Macro(Command): 
-  def evaluate_cont(self, exps, cont, solver):
+  def evaluate_cont(self, solver, cont, exps):
     exps1 = [(closure(exp, solver.env)) for exp in exps]
-    return self.apply(solver, exps1, cont)
+    return self.apply(solver, cont, exps1, solver.call_data)
 
 # ----------------------------------
 # Cons, cons, Nil, nil, conslist, cons2tuple

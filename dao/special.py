@@ -516,13 +516,42 @@ class MacroForm(FunctionForm):
 
 macro = MacroForm
 
+from dao.term import unify_list_rule_head
+
 class Rules:
   def __init__(self, arity2rules, signature2rules, env, recursive): 
     self.arity2rules, self.signature2rules = arity2rules, signature2rules
     self.env = env
     self.recursive = recursive
     
-  def apply(self, solver, values, cont):
+  def apply(self, solver, cont, values, call_data):
+    signatures = rule_head_signatures(values)
+    sign_state  = ((self, signatures), solver.parse_state)
+    
+    sign_state2cont = solver.sign_state2cont.setdefault(sign_state, [])
+    sign_state2cont.append((values, cont))
+    
+    memo_results = solver.sign_state2results.get(sign_state)
+    if memo_results is not None:
+      for head, c in sign_state2cont:
+        for result_head, reached_parse_state, value in memo_results:
+          caller_env = solver.env
+          if not self.recursive: env =  self.env.extend()
+          else: 
+            env = self.env
+            env.bindings = {}
+          subst = {}
+          for _ in unify_list_rule_head(values, head, env, subst):
+            env_values = tuple(getvalue(v, env) for v in subst.values())
+            generators = tuple(set_bindings(caller_env.bindings, k, v) 
+                               for k, v in zip(subst.keys(), env_values))
+            for _ in apply_generators(generators):
+              solver.env = caller_env
+              solver.parse_state = reached_parse_state
+              yield c, value
+            
+    if len(sign_state2cont)>1: return
+    
     arity = len(values)
     if arity==0:
       rule_list = RuleList(self.arity2rules[0])
@@ -530,7 +559,7 @@ class Rules:
       arity2rules = self.arity2rules[arity]
       sign2index = self.signature2rules[arity]
       index_set = pyset(range(len(arity2rules)))
-      for signature in rule_head_signatures(values):
+      for signature in signatures:
         if signature==(signature[0], Var): continue
         else:
           var_sign = signature[0], Var
@@ -538,11 +567,14 @@ class Rules:
                        sign2index.get(signature, pyset())
       rule_list = list(index_set)
       rule_list.sort()
-      rule_list = RuleList(arity2rules[i] for i in rule_list)
-    return rule_list.apply(solver, self.env, cont, self.recursive, values)
-  
+      rule_list = RuleList([arity2rules[i] for i in rule_list])
+    call_data.rule_form, call_data.signatures = self, signatures
+    call_data.env, call_data.recursive  = self.env, self.recursive
+    for c, v in rule_list.apply(solver, cont, values, call_data):
+      yield c, v
+          
 class UserFunction(Rules,  Function): 
-  def __repr__(self):return 'fun(%s)'%repr(self.rules)
+  def __repr__(self):return 'fun(%s)'%repr(self.arity2rules)
   
 class UserMacro(Rules,  Macro): 
   def __repr__(self): return 'macro(%s)'%repr(self.rules)
