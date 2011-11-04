@@ -180,7 +180,7 @@ class Solver:
   # exps: expression list
   
   def __init__(self, env=None, parse_state=None, stop_cont=None):
-    if env is None: env = GlobalEnvironment()
+    if env is None: env = GlobalEnvironment({})
     self.env = env
     self.stop_cont = stop_cont
     self.parse_state = parse_state

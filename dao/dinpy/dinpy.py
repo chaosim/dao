@@ -39,8 +39,8 @@ from dao import special
 from dao.special import set as assign
 from dao.builtins.matcher import some, any, may
 from dao.builtins.terminal import eoi
-from dao.builtins.term import pytuple, pycall, py_apply, head_list, list_tail
-from dao.builtins.term import items, first, left
+from dao.builtins.container import pytuple, head_list, list_tail, items, first, left
+from dao.builtins.term import pycall, py_apply
 from dao.builtins.term import getvalue, getvalue_default, is_
 from dao.builtins.arith import ne_p
 from dao.solve import eval as oad_eval, solve, tag_loop_label

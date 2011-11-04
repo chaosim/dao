@@ -8,8 +8,8 @@ from dao.dinpy.vars import *
 from dao.dinpy.arith import *
 from dao.dinpy.control import *
 from dao.dinpy.io import *
-from dao.dinpy.string import *
-from dao.dinpy.matcher import *
+from dao.dinpy.container import *
+from dao.dinpy.parser import *
 from dao.dinpy.term import *
 
 from dao.solve import set_run_mode

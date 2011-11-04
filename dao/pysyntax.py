@@ -8,7 +8,7 @@ see dinpy.py for a real sample.
 >>> set_run_mode(noninteractive)
 >>> from dao.term import Var
 >>> from dao.builtins.terminal import eoi
->>> from dao.builtins.term import pytuple, first
+>>> from dao.builtins.container import pytuple, first
 >>> bindings, body = Var('bindings'), Var('body')
 >>> do = word('do')
 >>> let = element('let', call(bindings)+do+getitem(body)+eoi+pytuple(first(bindings), body))
@@ -31,7 +31,7 @@ from dao.solve import eval, preparse, dao_repr
 from dao import special
 from dao.builtins.matcher import matcher
 from dao.builtins.parser import parse_sequence
-from dao.builtins.term import to_list
+from dao.builtins.container import to_list
 from dao.builtins.control import and_p
 
 ##from dao.dinpy.dexpr import DinpySyntaxError

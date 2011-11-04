@@ -1,43 +1,160 @@
 # -*- coding: utf-8 -*-
 
-from dao.dinpy import *
+from dao.rule import Rule
 
-dinpy.version = '0.7.2'
+from dao import term
+from dao.term import nil, Cons, conslist as L, cons2tuple
+from dao.term import vars, DummyVar, Command, CommandCall
+from dao.solve import Solver, set_run_mode, noninteractive
+from dao import builtin
+
+from dao.special import *
+from dao.builtins.arith import *
+from dao.builtins.control import *
+from dao.builtins.io import *
+from dao.builtins.container import *
+from dao.builtins.parser import *
+from dao.builtins.matcher import *
+from dao.builtins.terminal import *
+from dao.builtins.rule import *
+from dao.builtins.term import *
+
+set_run_mode(noninteractive)
+
+_builtins = {}
+
+def collocet_builtins():
+  
+  def is_subclass(sub, sup):
+    try: 
+      if sup in sub.__bases__: return True
+    except: return False
+    for klass in sub.__bases__:
+      if is_subclass(klass, sup): return True
+    
+  for name, obj in globals().items():
+    if isinstance(obj, Command) or is_subclass(obj, SpecialForm):
+      try: symbol = obj.symbol
+      except AttributeError:
+        try: symbol = obj.name
+        except AttributeError: symbol = name
+      _builtins[symbol] = obj
+
+collocet_builtins()
+
+_builtins.update({'let':let, 'letr':letr, 'lambda':lambda_})
+
+_var_cache = {}
+def var(name):
+  if name[0]=='_': klass = DummyVar
+  else: klass = Var
+  return _var_cache.setdefault(klass, {}).setdefault(name, klass(name))
+
+_SYMBOL_FORBID_CHARS = '\'", \r\n\t[]{}()`'
+
+@builtin.macro()
+def symbol(solver, cont, result):
+  text, pos = solver.parse_state
+  if pos>=len(text): return
+  char = text[pos]
+  if char in _SYMBOL_FORBID_CHARS or '0'<=char<='9':
+    return
+  p = pos
+  while p<len(text): 
+    if text[p] in _SYMBOL_FORBID_CHARS: break 
+    else: p += 1
+  name = text[pos:p]
+  sym = _builtins.get(name, var(name))
+  for _ in term.unify(result, sym, solver.env):
+    solver.parse_state = text, p
+    yield cont, True
+  solver.parse_state = text, pos
+
+def sexpression2daoexpression(item):
+  if isinstance(item, Cons):
+    head = sexpression2daoexpression(item.head)
+    if head==let or head==letr:
+      bindings = tuple((var, sexpression2daoexpression(exp)) for var, exp in item.tail.head)
+      body = tuple(sexpression2daoexpression(x) for x in item.tail.tail)
+      return head(bindings, *body)
+    elif head==lambda_:
+      vars = tuple(item.tail.head)
+      body = tuple(sexpression2daoexpression(x) for x in item.tail.tail)
+      return head(vars, *body)
+    elif head==FunctionForm or head==MacroForm:
+      return head(*tuple((cons2tuple(rule.head),)+tuple(sexpression2daoexpression(stmt)
+                                              for stmt in rule.tail) 
+                    for rule in item.tail)) 
+    return head(*tuple(sexpression2daoexpression(x) for x in item.tail))
+  else: return item
+
+X, Expr, ExprList, Result, Y, Expr2 = vars('X, Expr, ExprList, Result, Y, Expr2')
 
 (sexpression1, sexpression, bracketExpression, puncExpression, sexpressionList, 
- stringExpression, condSpace, evalRule) = (var. sexpression1.sexpression.bracketExpression.puncExpression.sexpressionList
- .stringExpression.condSpace.evalRule)
+ atom_expression, spaces_on_condition, eval_parse_result) = vars(
+   'sexpression1, sexpression, bracketExpression, puncExpression, sexpressionList, '
+ 'atom_expression, spaces_on_condition, eval_parse_result')
 
-_ = dummy._
-a= local.a
-X, Expr, ExprList, Result, Y = var. X. Y. Expr. ExprList. Result 
-Expr2 = var.Expr2
+_ = DummyVar('_')
 
-'''
-# 1*2+3+4
-# 1+2*3 == 5/6+3
-# 1+((2-(-3)*6)+2) == 1/(2+3)
-
-
-number(x) -> E(x, 100)
-
-E(x,100) : number(x)
-E((op,x,y), p2): E(x, p1)+op(p2)+E(y, p3) 
-
-E(x, p1)+op(p2)+E(y, p3) -> E((op,x,y), p2)
-
-'''
-
-dinpy[
-
-letr(
-  expression << fun
-    ((op, E1, E2), Precedence)
-       [ expression(E1, Precedence1)+binary(op, Precedence)+(Precedence1>=Precedence<=Precedence2) +expression(E2, Precedence2) ],
-    (X, 100) [ number(X) ],
-    
-  binary << fun(add, 50) [ char('+') ],
-            fun(mul, 60) [ char('*') ],
-  unary << fun(positive, 90) [ char('+') ],
+sexpression_rules = [
   
-]
+  (atom_expression, function(
+    ([X], number(X)),
+    ([X], dqstring(X)),
+    ([X], symbol(X))
+    )),
+  
+  (bracketExpression, function(
+    ([ExprList], and_p(char('('), spaces0(_), sexpressionList(ExprList), spaces0(_), char(')'))),
+    ([ExprList], and_p(char('['), spaces0(_), sexpressionList(ExprList), spaces0(_), char(']'))))),
+  
+  (puncExpression, function(
+    ([L(quote, Expr)], and_p(char("'"), sexpression(Expr))),
+    ([('quasiquote', Expr)], and_p(char("`"), sexpression(Expr))),
+    ([('unquote-splicing', Expr)], and_p(literal(",@"), sexpression(Expr))),
+    ([('unquote', Expr)], and_p(char(","), sexpression(Expr))))),
+  
+  (sexpressionList, function(
+    ([Cons(Expr, ExprList)], and_p(sexpression(Expr), spaces_on_condition(), sexpressionList(ExprList))),
+    ([nil], null))),
+  
+  (sexpression1, function(
+    ([Expr], and_p(spaces0(_), sexpressionList(Expr), spaces0(_))))),
+  
+  (spaces_on_condition, function(
+    ([], or_p(if_p(and_p(not_lead_chars('([])'), not_follow_chars('([])'), not_p(eoi)),
+                   spaces(_)),
+          spaces0(_) ) ) ) ),
+  
+  (sexpression, function(
+     # dynamic grammar arises!
+    ([Result], and_p(char('{'), sexpression(Expr2), char('}'), 
+                     setvalue(Result, eval_(pycall(sexpression2daoexpression, Expr2))))),
+
+    ([Expr], atom_expression(Expr)),
+    ([Expr], bracketExpression(Expr)),
+    ([Expr], puncExpression(Expr))),
+   ),
+  
+  # the kernel of dynamic grammar  
+  (eval_parse_result, function(
+    ([Result], and_p(sexpression(Expr2), eoi, 
+          is_(Result, eval_(pycall(sexpression2daoexpression, Expr2))))))),
+  
+  ]
+
+class Grammar:
+  def __init__(self, start, rules, result):
+    self.rules, self.start, self.result = rules, start, result
+
+def make_parse_statement(grammar, text):
+  return letr(grammar.rules, 
+              set_text(text), and_p(grammar.start, eoi), grammar.result)
+
+def parse(grammar, text):
+  solver = Solver()
+  exp = make_parse_statement(grammar, text)
+  return solver.eval(exp)
+
+grammar = Grammar(sexpression(Expr), sexpression_rules, Expr)

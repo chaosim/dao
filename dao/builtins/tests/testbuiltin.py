@@ -70,7 +70,7 @@ class TestArithpred:
 class TestTypePredicate:
   def test_ground(self):
     eq_(eval(ground_p(1)), True)
-    eq(eval(ground_p(Var(''))), None)
+    assert_raises(NoSolutionFound, eval, ground_p(Var('')))
   def test_var(self):
     eq_(eval(isvar(1)), False)
     eq_(eval(isvar(L(1))), False)
@@ -123,14 +123,16 @@ class TestRule:
                replace(f, [2], [3]), f(2))), 3)
     
         
-from dao.builtins.string import length, concat, contain_char, substring
+from dao.builtins.container import concat, subsequence
+from dao.builtins.container import length, contain
+
 class TestStringConstruct:
   def test_string_length(self):
     eq_(eval(length("abc", x)), True)
   def test_string_length2(self):
     eq_(eval(begin(length("abc", x), x)), 3)
   def test_char_in(self):
-    eq_(eval(begin(contain_char('abc', x), x)), 'a')
+    eq_(eval(begin(contain('abc', x), x)), 'a')
   def test_string_concat(self):
     eq_(eval(concat("abc", "def", "abcdef")), True)
     eq_(eval(begin(concat("abc", "def", x), x)), "abcdef")
@@ -138,10 +140,10 @@ class TestStringConstruct:
   def test_string_concat2(self):
     eq_(eval(begin(concat(x, y, "abcdef"), y)), "bcdef")    
   def test_sub_string(self):
-    eq_(eval(begin(findall(substring('ab', 0, y, 2, "ab"), y, z), z)), 
+    eq_(eval(begin(findall(subsequence('ab', 0, y, 2, "ab"), y, z), z)), 
              [2])
   def test_sub_string2(self):
-    eq_(eval(begin(findall(substring('ab', x, y, z, k), k, z), z)), 
+    eq_(eval(begin(findall(subsequence('ab', x, y, z, k), k, z), z)), 
              ['a', 'ab', 'b'])
   def test_findall_string_concat(self):
     eq_(eval(begin(findall(concat(x, y, "ab"), L(x, y), z), z)), 

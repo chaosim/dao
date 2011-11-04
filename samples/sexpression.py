@@ -10,7 +10,7 @@ from dao.special import *
 from dao.builtins.arith import *
 from dao.builtins.control import *
 from dao.builtins.io import *
-from dao.builtins.string import *
+from dao.builtins.container import *
 from dao.builtins.parser import *
 from dao.builtins.matcher import *
 from dao.builtins.terminal import *

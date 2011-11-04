@@ -23,16 +23,17 @@ def is_ground(term):
   return True
   
 @builtin.macro('ground')
-def ground(solver, cont, term):
-  yield cont, is_ground(getvalue(term, solver.env))
+def ground(solver, cont, item):
+  yield cont, is_ground(term.getvalue(item, solver.env))
   
 @builtin.macro('ground_p', 'ground!')
-def ground_p(solver, cont, term):
-  if is_ground(getvalue(term, solver.env)): yield cont, True
+def ground_p(solver, cont, item):
+  if is_ground(term.getvalue(item, solver.env)): yield cont, True
   
 @builtin.macro()
 def setvalue(solver, cont, var, value):
-  if isinstance(var, ClosureVar): var = var.var
+  # necessary to deref, see Colosure.deref for the reason
+  if isinstance(var, ClosureVar): var = var.var 
   var = deref(var, solver.env)
   assert isinstance(var, Var)
   @mycont(cont)
@@ -51,28 +52,21 @@ def is_(solver, cont, var, func):
       yield cont, True
   yield solver.cont(func, is_cont), True
 
-def define_var(var, value, env):
-  env0 = env
-  while env is not None:
-    try: 
-      old = env.bindings[var]
-      env.bindings[var] = value
-      yield True
-      env.bindings[var] = old
-      return
-    except KeyError: env = env.outer
-  env0.bindings[var] = value
-  yield True
-  del env0.bindings[var]
-
 @builtin.macro()
 def define(solver, cont, var, value):
   if isinstance(var, ClosureVar): var = var.var
   value = deref(value, solver.env)
   @mycont(cont)
   def define_cont(value, solver):
-    for _ in define_var(var, value, solver.env):
+    bindings = solver.env.bindings
+    try:
+      old = bindings[var]
       yield cont, value
+      binsings[old] = value
+    except:
+      bindings[var] = value
+      yield cont, value
+      del bindings[var]
   yield solver.cont(value, define_cont), True
 
 @builtin.macro()
@@ -185,6 +179,12 @@ def isnumber_p(solver, cont, arg):
      or isinstance(getvalue(arg, env), float): 
     yield cont, True
 
+@builtin.function('istuple?')
+def istuple(x):  return isinstance(x, tuple)
+
+@builtin.function('islist?')
+def islist(x): return isinstance(x, list)
+
 @builtin.macro('iscons')
 def iscons(solver, cont, arg):
   if isinstance(getvalue(arg, env), Cons): yield cont, True
@@ -196,22 +196,6 @@ def iscons_p(solver, cont, arg):
 @builtin.function('cons_f', 'iscons?')
 def is_cons(x): return isinstance(x, Cons)
 
-@builtin.function('conslist')
-def conslist(*arguments): return conslist(arguments)
-
-@builtin.function('pylist')
-def pylist(*arguments): return list(arguments)
-
-@builtin.function('is_pylist?')
-def is_pylist(x): return isinstance(x, list)
-
-@builtin.function('is_pytuple?')
-def pytuple(*arguments): 
-  return tuple(arguments)
-
-@builtin.function('is_pytuple?')
-def is_pytuple(x):  return isinstance(x, tuple)
-
 @builtin.function('pycall')
 def pycall(fun, *args):  
   return fun(*args)
@@ -219,56 +203,4 @@ def pycall(fun, *args):
 @builtin.function('py_apply')
 def py_apply(fun, args):  
   return fun(*args)
-
-@builtin.function('head_list')
-def head_list(head, tail): 
-  if isinstance(tail, list): return [head]+tail
-  else: return (head,)+tuple(tail)
-
-@builtin.function('list_tail')
-def list_tail(head, tail):
-  if isinstance(head, list): return head+[tail]
-  else: return head+(tail,)
-
-@builtin.function('index')
-def index(sequence, index): 
-  return sequence[index]
-
-@builtin.function('first')
-def first(sequence): 
-  return sequence[0]
-
-@builtin.function('left')
-def left(sequence): 
-  return sequence[1:]
-
-@builtin.function('second')
-def second(sequence): 
-  return sequence[1]
-
-from dao.solve import DaoStopIteration
-
-@builtin.function('iter_next')
-def iter_next(iterator): 
-  try: return iterator.next()
-  except StopIteration:
-##    iterator.close()
-    raise DaoStopIteration
-
-@builtin.function('make_iter')
-def make_iter(iterator): 
-  try: 
-    iterator.next
-    return iterator
-  except: return iter(iterator)
-  
-@builtin.function('to_list')
-def to_list(item): 
-  if isinstance(item, list) or isinstance(item, tuple): 
-    return item
-  return [item]
-
-@builtin.function('items')
-def items(dict):
-  return dict.items()
 

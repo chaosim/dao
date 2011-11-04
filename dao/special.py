@@ -6,7 +6,7 @@ from dao.rule import Rule, RuleList
 from dao.solve import value_cont, mycont, tag_unwind, DaoSyntaxError
 from dao.env import BlockEnvironment
 from dao.builtins.arith import eq, not_
-from dao.builtins.term import iter_next, make_iter
+from dao.builtins.container import iter_next, make_iter
 from dao import builtin
 
 from dao.solve import run_mode, set_run_mode, interactive, noninteractive
@@ -586,10 +586,12 @@ class module(SpecialForm):
 def from_(solver, cont, module, var):
   name = 'from_'
   symbol = 'from'
+  
   if isinstance(var, ClosureVar): var = var.var
+  
   @mycont(cont)
-  def from_module_cont(module, solver): 
-    yield cont, module[var]
+  def from_module_cont(module, solver):
+    yield cont, module.lookup(var)
   yield solver.cont(module, from_module_cont), module
   
 class block(SpecialForm):

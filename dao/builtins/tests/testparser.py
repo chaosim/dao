@@ -13,7 +13,7 @@ from dao.builtins.terminal import dqstring, sqstring, spaces, uLetterdigitString
 from dao.builtins.matcher import nullword, optional, parallel
 from dao.builtins.matcher import any, some, times, times_more, times_less, seplist
 from dao.builtins.matcher import lazy, times_between
-from dao.builtins.string import contain_char
+from dao.builtins.container import contain
 from dao.util import *
 
 from dao.solve import set_run_mode, noninteractive
@@ -48,7 +48,7 @@ class TestLowLevelPrimitive:
 class TestParameterize:
   def test_chars(self):
     x, cs,chars = Var('x'), Var('cs'), Var('chars')
-    eq_(eval(let([(chars, function(((x, cs), and_p(char(x), contain_char(cs, x)))))],
+    eq_(eval(let([(chars, function(((x, cs), and_p(char(x), contain(cs, x)))))],
                             parse_text(chars(x, 'a'), 'a'))), True)
   def test_kleene1(self):
     f, item, kleene = Var('f'), Var('item'), Var('kleene')
