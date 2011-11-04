@@ -1,85 +1,5 @@
 # -*- coding: utf-8 -*-
 
-class UniversalSet:
-  def __and__(self, other):
-    if not isinstance(other, UniversalSetWithNull): return other
-    else: return self
-  def __rand__(self, other):
-    if not isinstance(other, UniversalSetWithNull): return other
-    else: return self
-  def __or__(self, other):
-    if isinstance(other, UniversalSetWithNull): return other
-    else: return self
-  def __ror__(self, other):
-    if isinstance(other, UniversalSetWithNull): return other
-    else: return self
-  def __sub__(self, other):
-    return ReverseSet(other)
-  def __contains__(self, other):
-    if other is null: return False
-    return True
-  
-uniset = UniversalSet()
-
-class UniversalSetWithNull:
-  def __and__(self, other):
-    return other
-  def __rand__(self, other):
-    return other
-  def __or__(self, other):
-    return self
-  def __ror__(self, other):
-    return self
-  def __sub__(self, other):
-    return ReverseSet(other)
-  def __contains__(self, other):
-    return True
-
-unisetnull = UniversalSetWithNull()
-
-class ReverseSet:
-  def __init__(self, base_set):
-    self.base_set = base_set
-  def __and__(self, other):
-    if isinstance(other, UniversalSet):
-      return self
-    elif isinstance(other, ReverseSet):
-      return ReverseSet(self.base|other.base)    
-    return other
-  def __or__(self, other):
-    if isinstance(other, UniversalSet):
-      return other
-    elif isinstance(other, ReverseSet):
-      return ReverseSet(self.base&other.base)    
-    return other
-  def __ror__(self, other):
-    if isinstance(other, UniversalSet):
-      return other
-    elif isinstance(other, ReverseSet):
-      return ReverseSet(self.base&other.base)    
-    return other
-  def __contains__(self, other):
-    return False if other in self.base_set else True
-
-class Eoi: pass
-
-eoi = Eoi()
-
-class Null: pass
-
-null = Null()
-
-nullset = set([null])
-
-def next_element(parse_state):
-  try: 
-    if parse_state[1]>=len(parse_state[0]): return eoi
-    else: return parse_state[0][parse_state[1]]
-  except:
-    try: parse_state_next_element = parse_state.next_element
-    except: return parse_state
-    return parse_state_next_element()
-  
 #------------------------------------------
 # for preprocess before Solver.solve
 
@@ -190,11 +110,6 @@ def unify_list(list1, list2, env, occurs_check=False):
   '''unify list1 with list2 in env.'''
   
   if len(list1)!=len(list2): return
-  
-  #if len(list1)==0: yield True
-  #if len(list1)==1: 
-    #for _ in unify(list1[0], list2[0], env, occurs_check):
-      #yield True
   
   for _ in apply_generators(tuple(unify(x, y, env, occurs_check) 
                             for x, y in zip(list1, list2))):

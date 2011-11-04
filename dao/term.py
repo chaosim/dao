@@ -49,14 +49,9 @@ def unify_list_rule_head(values, args, env, subst):
   # don't need to check the equality of the length of arguments
   # has been done in rules.apply for finding rule list
   
-  #if len(values)==0: yield True
-  #elif len(values)==1: 
-    #for _ in unify_rule_head(values[0], args[0], env, subst): 
-      #yield True
-  #else:
-    for _ in apply_generators(tuple(unify_rule_head(x, y, env, subst) 
-                              for x, y in zip(values, args))):
-      yield True
+  for _ in apply_generators(tuple(unify_rule_head(x, y, env, subst) 
+                            for x, y in zip(values, args))):
+    yield True
       
 def signature(x):
   '''signature return a binary tuple, first value tell whether x is Var,

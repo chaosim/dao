@@ -197,6 +197,7 @@ class TestCut:
 class TestMacro:
   def test1(self):
     eq_(eval(macro([[], prin(1)])()), None) 
+    
   def test_eval(self):
     eq_(eval(macro([[x, y], eval_(x)],
                    [[x, y],eval_(y)])(prin(1), prin(2))), None) 

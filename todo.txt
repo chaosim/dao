@@ -1,4 +1,4 @@
-﻿todo： correctly arrange and search global env，builtin env
+﻿todo： correctly arrange and search env, global env，builtin env
 todo： better use module
 
 todo： manage builtin with module
@@ -6,15 +6,17 @@ todo： manage builtin with module
 todo: T language
   todo: grammar
 
-todo: 可以根据历史选择和最近选择优选下一次的规则分支。
 todo: quasiquote and backquote
 
+todo: 可以根据历史选择和最近选择优选下一次的规则分支。
+
 todo: more special forms, builtins.
-  todo: for/start /end/step
+  todo: for/start/end/step
   done: each(for/each), if-elsif-else, case/of, until, where, when, loop, do, 
 
 todo: natural language programming
   overlook superfluous words 
+
 todo: 汉语编程
   过滤 缀词，冗余词
 

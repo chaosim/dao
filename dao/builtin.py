@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from dao.term import Var, Function, Macro, CommandCall, Command
-
-builtins = []
+from dao.term import Var, Command, Function, Macro, CommandCall
 
 class Builtin: 
   def __init__(self, function, name=None, symbol=None):
@@ -16,24 +14,24 @@ class Builtin:
     return isinstance(other, self.__class__) and self.function==other.function
   def __repr__(self): return '<%s>'%(self.name)
 
-builtin_memorable = False
+_memorable = False
 
 class BuiltinFunction(Builtin, Function):
-  memorable = builtin_memorable
+  memorable = _memorable
   def __call__(self, *exps):
     return CommandCall(self, *exps)
   def apply(self, solver, cont, values, signatures):
     yield cont, self.function(*values)
     
 class BuiltinPredicate(Builtin, Function):
-  memorable = builtin_memorable
+  memorable = _memorable
   def __call__(self, *exps):
     return CommandCall(self, *exps)
   def apply(self, solver, cont, values, signatures):
     return self.function(solver, cont, *values)
   
 class BuiltinMacro(Builtin, Macro):
-  memorable = builtin_memorable
+  memorable = _memorable
   def __call__(self, *exps):
     return CommandCall(self, *exps)
   def apply(self, solver, cont, exps, signatures):
@@ -45,7 +43,6 @@ def builtin(klass):
       if name is None: name1 = func.__name__
       else: name1 = name
       b = klass(func, name1, symbol)
-      builtins.append(b)
       return b
     return makeBuiltin
   return builtin
