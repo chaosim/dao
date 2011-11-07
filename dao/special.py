@@ -46,20 +46,7 @@ class quote(SpecialForm):
 # do not restore the value of var in assign
 # if need to restore, use define instead.
 
-def assign_var(var, value, env):
-  env0 = env
-  while env is not None:
-    try: 
-##      old = env.bindings[var]
-      env.bindings[var] = value
-      yield True
-##      env.bindings[var] = old
-      return
-    except KeyError: env = env.outer
-  env0.bindings[var] = value
-  yield True
-##  del env0.bindings[var]
-  
+# assign var in the most inner env
 class set(SpecialForm):
   name = 'set'
   symbol = "set"
@@ -75,13 +62,14 @@ class set(SpecialForm):
   def cont(self, cont, solver):
     @mycont(cont)
     def set_cont(value, solver):
-      for _ in assign_var(self.var, value, solver.env):
-        yield cont, value
+      solver.env.bindings[self.var] = value
+      yield cont, value
     return solver.cont(self.exp, set_cont)
   def __eq__(self, other): return self.var==other.var and self.exp==other.exp
   def __repr__(self): return "set(%s, %s)"%(self.var, self.exp)
 assign = set
 
+# assign var in the most inner env
 class set_list(SpecialForm):
   def __init__(self, vars, exp):
     self.vars, self.exp = vars, exp
@@ -96,14 +84,98 @@ class set_list(SpecialForm):
     @mycont(cont)
     def set_cont(values, solver):
       if len(values)!=len(self.vars): raise ValueError(values)
-      for _ in apply_generators([assign_var(var, v, solver.env) 
-                                 for var, v in zip(self.vars, values)]):
-        yield cont, None
-
+      for var, value in zip(self.vars, values):
+        solver.env[var] = value
+      yield cont, None
     return solver.cont(self.exp, set_cont)
   def __eq__(self, other): return self.vars==other.vars and self.exp==other.exp
   def __repr__(self): return "set(%s %s)"%(self.vars, self.exp)
 assign = set
+
+# do not restore the side effect of assing!!!
+class get_outer(SpecialForm):
+  name = 'get_outer'
+  symbol = "get_outer"
+  def __init__(self, var):
+    self.var = var
+  def ___parse___(self, parser):
+    self.var = parser.parse(self.var)
+    self.exp = parser.parse(self.exp)
+    return self
+  def tag_loop_label(self, tagger): 
+    self.exp = tagger.tag_loop_label(self.exp)
+    return self
+  def cont(self, cont, solver):
+    return value_cont(solver.env.outer[self.var], cont)
+  def __eq__(self, other): return self.var==other.var and self.exp==other.exp
+  def __repr__(self): return "get_outer(%s)"%(self.var)
+
+class set_outer(SpecialForm):
+  name = 'set_outer'
+  symbol = "set_outer"
+  def __init__(self, var, exp):
+    self.var, self.exp = var, exp
+  def ___parse___(self, parser):
+    self.var = parser.parse(self.var)
+    self.exp = parser.parse(self.exp)
+    return self
+  def tag_loop_label(self, tagger): 
+    self.exp = tagger.tag_loop_label(self.exp)
+    return self
+  def cont(self, cont, solver):
+    @mycont(cont)
+    def set_cont(value, solver):
+      if env is not solver.global_env: 
+        env = solver.env.outer
+      while env is not None:
+        try: 
+          env.bindings[var] = value
+          yield cont, value
+          return
+        except KeyError: env = env.outer
+      env = env or solver.env.outer
+      env.bindings[self.var] = value 
+    return solver.cont(self.exp, set_cont)
+  def __eq__(self, other): return self.var==other.var and self.exp==other.exp
+  def __repr__(self): return "set_outer(%s, %s)"%(self.var, self.exp)
+
+class get_global(SpecialForm):
+  name = 'get_global'
+  symbol = "get_global"
+  def __init__(self, var):
+    self.var
+  def ___parse___(self, parser):
+    self.var = parser.parse(self.var)
+    self.exp = parser.parse(self.exp)
+    return self
+  def tag_loop_label(self, tagger): 
+    self.exp = tagger.tag_loop_label(self.exp)
+    return self
+  def cont(self, cont, solver):
+    return value_cont(self.global_env.bindings[self.var])
+  def __eq__(self, other): return self.var==other.var
+  def __repr__(self): return "get_global(%s, %s)"%(self.var, self.exp)
+  
+class set_global(SpecialForm):
+  name = 'set_global'
+  symbol = "set_global"
+  def __init__(self, var, exp):
+    self.var, self.exp = var, exp
+  def ___parse___(self, parser):
+    self.var = parser.parse(self.var)
+    self.exp = parser.parse(self.exp)
+    return self
+  def tag_loop_label(self, tagger): 
+    self.exp = tagger.tag_loop_label(self.exp)
+    return self
+  def cont(self, cont, solver):
+    @mycont(cont)
+    def set_cont(value, solver):
+      self.global_env.bindings[var] = value
+      yield cont, value
+    return solver.cont(self.exp, set_cont)
+  def __eq__(self, other): return self.var==other.var and self.exp==other.exp
+  def __repr__(self): return "set_global(%s, %s)"%(self.var, self.exp)
 
 class begin(SpecialForm):
   name = 'begin'

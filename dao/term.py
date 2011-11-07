@@ -142,6 +142,10 @@ class Command:
 
 class Symbol: pass
 
+_varcache = {}
+def var(name):
+  return _varcache.setdefault(name, Var(name))
+
 class Var(Command):
   def __init__(self, name): 
     self.name = name
@@ -258,7 +262,11 @@ class RuleHeadCopyVar(Var):
     self.index = self.var2index.get(var, 0)
     self.var2index[var] = self.index+1
   def __repr__(self): return '$%s_%s'%(self.name, self.index)
-  
+
+_dummycache = {}
+def dummy(name):
+  return _dummycache.setdefault(name, DummyVar(name))
+
 class DummyVar(Var):
   def __init__(self, name='_v', index=0): Var.__init__(self, name)
   
@@ -283,8 +291,8 @@ class DummyVar(Var):
   def free(self, env): return True  
   def __eq__(self, other): return self.__class__ == other.__class__
 
-def vars(names): return [Var(x.strip()) for x in names.split(',')]
-def dummies(names): return [DummyVar(x.strip()) for x in names.split(',')]
+def vars(names): return [var(x.strip()) for x in names.split(',')]
+def dummies(names): return [dummy(x.strip()) for x in names.split(',')]
 
 class ClosureVar(Var):
   def __init__(self, var, value):

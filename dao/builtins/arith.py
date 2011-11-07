@@ -142,3 +142,5 @@ le_p = arith_predicate(operator.le, 'le_p', '<=!')
 gt_p = arith_predicate(operator.gt, 'gt_p', '>!')
 ge_p = arith_predicate(operator.ge, 'ge_p', '>=!')
 
+#arith_builtins = builtin.collocet_builtins_to_module(globals())
+#print arith_builtins

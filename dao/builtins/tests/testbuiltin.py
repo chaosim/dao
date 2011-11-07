@@ -13,7 +13,7 @@ from dao.builtins.terminal import char
 from dao.builtins.term import unify, notunify
 from dao.builtins.io import prin #write, 
 from dao.builtins.term import ground_p
-from dao.builtins.term import isvar, nonvar, is_, nonvar_p, isvar_p
+from dao.builtins.term import isvar, nonvar, is_, define, nonvar_p, isvar_p
 
 from dao.solve import set_run_mode, noninteractive
 set_run_mode(noninteractive)
@@ -57,6 +57,8 @@ class TestControl:
 class TestArithpred:
   def test_is(self):
     eq_(eval(is_(x, 1)), True)
+  def test_define_recursive(self):
+    eq_(eval(begin(define(f, function(((2,), 2), ((x,), f(x-1)))), f(4))), 2)
   def test_eq_le_ne(self):
     from dao.builtins.arith import eq, le, ne
     eq_(eval(le(1, 1)&ne(1, 2)), True)

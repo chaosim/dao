@@ -20,6 +20,13 @@ todo: natural language programming
 todo: 汉语编程
   过滤 缀词，冗余词
 
+done: more builtin
+  cancel: serialized assign
+  done 2011-11-6:  global var assign, outer assign, local assign
+  done 2011-11-6: define global var, outer var
+  done 2011-11-6: recursive define    
+  done 2011-11-6: get the value of global var, outer var
+
 done 2011-11-5: user macro rethink
   # true lisp macro: expand and eval in eval the macro.
 done 2011-11-4: left recursive

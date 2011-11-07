@@ -3,7 +3,7 @@ from dao.rule import Rule
 from dao import term
 from dao.term import nil, Cons, conslist as L, cons2tuple
 from dao.term import vars, DummyVar, Command, CommandCall
-from dao.solve import Solver, set_run_mode, noninteractive
+from dao.solve import make_solver, set_run_mode, noninteractive
 from dao import builtin
 
 from dao.special import *
@@ -19,17 +19,11 @@ from dao.builtins.term import *
 
 set_run_mode(noninteractive)
 
+from dao.base import is_subclass
+
 _builtins = {}
 
-def collocet_builtins():
-  
-  def is_subclass(sub, sup):
-    try: 
-      if sup in sub.__bases__: return True
-    except: return False
-    for klass in sub.__bases__:
-      if is_subclass(klass, sup): return True
-    
+def collocet_builtins():    
   for name, obj in globals().items():
     if isinstance(obj, Command) or is_subclass(obj, SpecialForm):
       try: symbol = obj.symbol
@@ -151,12 +145,12 @@ def make_parse_statement(grammar, text):
               set_text(text), and_p(grammar.start, eoi), grammar.result)
 
 def parse(grammar, text):
-  solver = Solver()
+  solver = make_solver()
   exp = make_parse_statement(grammar, text)
   return solver.eval(exp)
 
 def parse_eval(grammar, text):
-  solver = Solver()
+  solver = make_solver()
   exp = make_parse_statement(grammar, text)
   exp = solver.eval(exp) 
   

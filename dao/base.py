@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 
+def is_subclass(sub, sup):
+  try: 
+    if sup in sub.__bases__: return True
+  except: return False
+  for klass in sub.__bases__:
+    if is_subclass(klass, sup): return True
+
 #------------------------------------------
 # for preprocess before Solver.solve
 

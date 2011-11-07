@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from dao.term import Var, Command, Function, Macro, CommandCall
+from dao.term import Command, Function, Macro, CommandCall
 
 class Builtin: 
   def __init__(self, function, name=None, symbol=None):
@@ -58,3 +58,18 @@ def nomemo(builtin):
 function = builtin(BuiltinFunction)
 predicate = builtin(BuiltinPredicate)
 macro = builtin(BuiltinMacro)
+
+from dao.base import is_subclass
+from dao.env import ModuleEnvironment
+from dao.term import var
+
+def collocet_builtins_to_module(globls): 
+  module = ModuleEnvironment({}, None)
+  for name, obj in globls.items():
+    if isinstance(obj, Command) or isinstance(obj, ModuleEnvironment):
+      try: symbol = obj.symbol
+      except AttributeError:
+        try: symbol = obj.name
+        except AttributeError: symbol = name
+      module[var(symbol)] = obj
+  return module

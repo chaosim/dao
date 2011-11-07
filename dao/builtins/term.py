@@ -70,6 +70,40 @@ def define(solver, cont, var, value):
   yield solver.cont(value, define_cont), True
 
 @builtin.macro()
+def define_outer(solver, cont, var, value):
+  if isinstance(var, ClosureVar): var = var.var
+  value = deref(value, solver.env)
+  @mycont(cont)
+  def define_cont(value, solver):
+    bindings = solver.env.outer.bindings
+    try:
+      old = bindings[var]
+      yield cont, value
+      binsings[old] = value
+    except:
+      bindings[var] = value
+      yield cont, value
+      del bindings[var]
+  yield solver.cont(value, define_cont), True
+
+@builtin.macro()
+def define_global(solver, cont, var, value):
+  if isinstance(var, ClosureVar): var = var.var
+  value = deref(value, solver.env)
+  @mycont(cont)
+  def define_cont(value, solver):
+    bindings = solver.global_env.bindings
+    try:
+      old = bindings[var]
+      yield cont, value
+      binsings[old] = value
+    except:
+      bindings[var] = value
+      yield cont, value
+      del bindings[var]
+  yield solver.cont(value, define_cont), True
+
+@builtin.macro()
 def copy_term(solver, cont, item, copy):
   for _ in term.unify(copy, term.copy(item, {}), solver.env):
     yield cont, True

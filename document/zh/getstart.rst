@@ -12,11 +12,11 @@ Dao系统及Dinpy语言起步
 
 * 使用easy_install直接连网安装，在系统终端输入如下shell命令::
 
-  easy_install dao
+  easy_install daot
 
 * 使用pip直接连网安装，在系统终端输入如下shell命令::
 
-  pip install dao
+  pip install daot
 
 
 交互方式执行Dinpy
@@ -273,4 +273,4 @@ f1
 
 上述语句用letr定义了函数f2。因为函数体中又调用了f2，所以它是一个递归函数。递归函数必须用letr定义。
 
-现在我们已经简单地介绍了dinpy的一些基本用法。在后续章节中我们将详细讨论dinpy的各种功能特性。下一章将介绍dinpy控制结构。
+现在我们已经简单地介绍了dinpy的一些基本用法。在后续章节中我们将详细讨论dinpy的各种功能特性。下一章将介绍dinpy的常用语句。

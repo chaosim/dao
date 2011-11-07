@@ -129,8 +129,13 @@ def dao_repr(exp):
     try: return exp_____repr____()
     except TypeError: return repr(exp)
 
+def make_solver():
+  global_env = GlobalEnvironment({})
+  env = global_env.extend()
+  return Solver(global_env, env, None, None)
+
 def eval(exp):
-  return Solver().eval(exp)
+  return make_solver().eval(exp)
 
 class Solutions:
   def __init__(self, solutions):
@@ -161,7 +166,7 @@ def set_run_mode(mode=interactive, solver=None, tagger=None, parser=None):
   if mode==interactive:
     _run_mode = interactive
     if solver is None:
-      _interactive_solver = Solver() if _interactive_solver is None\
+      _interactive_solver = make_solver() if _interactive_solver is None\
                            else _interactive_solver
     else: _interactive_solver = solver
     if tagger is None:
@@ -179,8 +184,8 @@ class Solver:
   # exp: expression 
   # exps: expression list
   
-  def __init__(self, env=None, parse_state=None, stop_cont=None):
-    if env is None: env = GlobalEnvironment({})
+  def __init__(self, global_env, env, parse_state, stop_cont):
+    self.global_env = global_env
     self.env = env
     self.stop_cont = stop_cont
     self.parse_state = parse_state
@@ -223,7 +228,7 @@ class Solver:
   
   def run_cont(self, cont, stop_cont, value=None):
     self1 = self
-    self = Solver(self.env, self.parse_state, stop_cont)
+    self = Solver(self.global_env, self.env, self.parse_state, stop_cont)
     stop_cont = self.stop_cont 
     root = cont_gen = cont(value, self)
     cut_gen = {}

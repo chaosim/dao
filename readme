@@ -19,7 +19,7 @@ How to use Dao?
 
 See the "get start" in the <http://code.google.com/p/daot/w/list> to get started with dao and dinpy.
 See <http://packages.python.org/daot> for document about dao and dinpy. 
-See the tests, and you'll get some information about the interface and user cases.
+See the tests, and you'll get some information about the interface and use cases.
 
 Have a look at running Dinpy in interactive mode in the python shell below::
 
@@ -102,24 +102,29 @@ See <http://packages.python.org/daot> for document about dao and dinpy.
 
 See <https://github.com/chaosim/dao/wiki> for wiki about dao and dinpy.
 
-Some informations can be reached from <http://code.google.com/p/daot>.
+Some old informations can be reached from <http://code.google.com/p/daot>.
+
+-------------
+Web sites
+-------------
+
+pypi distribution and document: http://pypi.python.org/pypi/daot
+ 
+the project's repository is on github <https://github.com/chaosim/dao>. 
+
+dao groups on google: Group name: daot, Group home page: http://groups.google.com/group/daot, Group email address: daot@googlegroups.com
+
+some old information and related stuff can be reached at <http://code.google.com/p/daot>.
+
+google+ pages for news on dao: https://plus.google.com/112050694070234685790
+
+Come to visit us!
 
 ---------
 Testing
 ---------
 
 dao use the nose test framework, the code in dao is tested with many tests.
-
--------------
-Web sites
--------------
-
-New dao releases, documents and related stuffs are published at
-<http://code.google.com/p/daot>. 
-
-the project's repository is on github <https://github.com/chaosim/dao>. 
-
-Come to visit us!
 
 ------------
 Bug reports
