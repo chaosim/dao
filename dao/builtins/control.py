@@ -15,7 +15,7 @@ class ContinuationFunction(Builtin, Function):
 @builtin.macro('callcc', 'call/cc')
 def callcc(solver, cont, fun):
   ''' call with current continuation '''
-  yield solver.cont(CommandCall(fun, ContinuationFunction(cont)), cont), fun
+  yield solver.cont((fun, ContinuationFunction(cont)), cont), fun
 
 # finding all solutions to a goal
 

@@ -132,7 +132,7 @@ sexpression_rules = [
   # the kernel of dynamic grammar  
   (eval_parse_result, function(
     ([Result], and_p(sexpression(Expr2), eoi, 
-          is_(Result, eval_(pycall(sexpression2daoexpression, Expr2))))))),
+          is_(Result, eval_(pycall(tuple,Expr2))))))),#pycall(sexpression2daoexpression, Expr2)
   
   ]
 
@@ -152,10 +152,12 @@ def parse(grammar, text):
 def parse_eval(grammar, text):
   solver = make_solver()
   exp = make_parse_statement(grammar, text)
-  exp = solver.eval(exp) 
+  sexp = to_sexpression(exp)
+  exp = solver.eval(sexp) 
   
-  # Do not need the second eval any more, with the rule 'eval_parse_result'. 
-  return solver.eval(sexpression2daoexpression(exp))
+  # Do not need the second eval any more, with the rule 'eval_parse_result'.
+  if isinstance(exp, Cons): exp = tuple(exp)
+  return solver.eval(exp)#sexpression2daoexpression
 
 eval = parse_eval
 

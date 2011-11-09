@@ -79,7 +79,7 @@ def hash_parse_state(parse_state):
   try: return parse_state[1]
   except: return id(parse_state)
 
-class Command:
+class Command(object):
   ''' the base class for all the callable object in the dao system.'''
   memorable = False
   
@@ -322,10 +322,15 @@ class ClosureVar(Var):
   def __repr__(self): return '(%s:%s)'%(self.var, self.value)
   def __eq__(self, other): return self.var is other
 
+from dao.solve import to_sexpression
+
 class CommandCall(Command):
   def __init__(self, operator, *operand):
     self.operator = operator
     self.operand = operand
+    
+  def to_sexpression(self):
+    return (to_sexpression(self.operator),)+tuple(to_sexpression(x) for x in self.operand)
     
   def ___parse___(self, parser):
     self.operator = parser.parse(self.operator)
@@ -336,11 +341,11 @@ class CommandCall(Command):
     self.operand = tagger.tag_loop_label(self.operand)
     return self
 
-  def cont(self, cont, solver):
-    @mycont(cont)
-    def evaluate_cont(op, solver): 
-      return op.evaluate_cont(solver, cont, self.operand)
-    return solver.cont(self.operator, evaluate_cont)
+  #def cont(self, cont, solver):
+    #@mycont(cont)
+    #def evaluate_cont(op, solver): 
+      #return op.evaluate_cont(solver, cont, self.operand)
+    #return solver.cont(self.operator, evaluate_cont)
       
   def closure(self, env):
     return CommandCall(self.operator, *[closure(x, env) for x in self.operand])

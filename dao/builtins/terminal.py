@@ -25,7 +25,7 @@ def eoi(solver, cont):
   '''end of parse_state'''
   if solver.parse_state[1]>=len(solver.parse_state[0]): 
     yield cont,  True
-eoi = eoi()
+eoi = (eoi,)
 
 @matcher()
 def lead_chars(solver, cont, chars):

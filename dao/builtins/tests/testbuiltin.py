@@ -5,6 +5,7 @@ from dao.special import *
 
 from dao.term import Var, conslist as L
 from dao.solve import eval, NoSolutionFound
+
 from dao.builtins.arith import eq, sub, mul, add, div
 from dao.builtins.control import succeed, fail, or_p, and_p, not_p, repeat
 from dao.builtins.control import findall, call, once

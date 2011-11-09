@@ -3,7 +3,7 @@
 from dao.term import CommandCall, Function, Macro, closure, Var, ClosureVar, Command
 from dao.term import apply_generators, rule_head_signatures
 from dao.rule import Rule, RuleList
-from dao.solve import value_cont, mycont, tag_unwind, DaoSyntaxError
+from dao.solve import value_cont, mycont, tag_unwind, DaoSyntaxError, to_sexpression
 from dao.env import BlockEnvironment
 from dao.builtins.arith import eq, not_
 from dao.builtins.container import iter_next, make_iter
@@ -30,6 +30,8 @@ class quote(SpecialForm):
   name = 'quote'
   symbol = "'"
   def __init__(self, exp): self.exp = exp
+  def to_sexpression(self):
+    return (quote, to_sexpression(self.exp))
   def cont(self, cont, solver): return value_cont(self.exp, cont)
   def __eq__(self, other): return self.exp==other.exp
   def __repr__(self): 
@@ -59,6 +61,8 @@ class set(SpecialForm):
   def tag_loop_label(self, tagger): 
     self.exp = tagger.tag_loop_label(self.exp)
     return self
+  def to_sexpression(self):
+    return (set, self.var, to_sexpression(self.exp))
   def cont(self, cont, solver):
     @mycont(cont)
     def set_cont(value, solver):
@@ -80,6 +84,8 @@ class set_list(SpecialForm):
   def tag_loop_label(self, tagger): 
     self.exp = tagger.tag_loop_label(self.exp)
     return self
+  def to_sexpression(self):
+    return (set_list, self.vars, to_sexpression(self.exp))
   def cont(self, cont, solver):
     @mycont(cont)
     def set_cont(values, solver):
@@ -105,6 +111,8 @@ class get_outer(SpecialForm):
   def tag_loop_label(self, tagger): 
     self.exp = tagger.tag_loop_label(self.exp)
     return self
+  def to_sexpression(self):
+    return (get_outer, self.var)
   def cont(self, cont, solver):
     return value_cont(solver.env.outer[self.var], cont)
   def __eq__(self, other): return self.var==other.var and self.exp==other.exp
@@ -122,6 +130,8 @@ class set_outer(SpecialForm):
   def tag_loop_label(self, tagger): 
     self.exp = tagger.tag_loop_label(self.exp)
     return self
+  def to_sexpression(self):
+    return (set_outer, self.var, to_sexpression(self.exp))
   def cont(self, cont, solver):
     @mycont(cont)
     def set_cont(value, solver):
@@ -143,7 +153,7 @@ class get_global(SpecialForm):
   name = 'get_global'
   symbol = "get_global"
   def __init__(self, var):
-    self.var
+    self.var = var
   def ___parse___(self, parser):
     self.var = parser.parse(self.var)
     self.exp = parser.parse(self.exp)
@@ -151,6 +161,8 @@ class get_global(SpecialForm):
   def tag_loop_label(self, tagger): 
     self.exp = tagger.tag_loop_label(self.exp)
     return self
+  def to_sexpression(self):
+    return (get_global, self.var)
   def cont(self, cont, solver):
     return value_cont(self.global_env.bindings[self.var])
   def __eq__(self, other): return self.var==other.var
@@ -168,6 +180,8 @@ class set_global(SpecialForm):
   def tag_loop_label(self, tagger): 
     self.exp = tagger.tag_loop_label(self.exp)
     return self
+  def to_sexpression(self):
+    return (set_global, self.var, to_sexpression(self.exp))
   def cont(self, cont, solver):
     @mycont(cont)
     def set_cont(value, solver):
@@ -181,14 +195,16 @@ class begin(SpecialForm):
   name = 'begin'
   def __init__(self, *exps):
     self.exps = exps
-  def cont(self, cont, solver): 
-    return solver.exps_cont(self.exps, cont)
   def ___parse___(self, parser): 
     self.exps = tuple(parser.parse(exp) for exp in self.exps)
     return self
   def tag_loop_label(self, tagger): 
     self.exps = tuple(tagger.tag_loop_label(exp) for exp in self.exps)
     return self
+  def to_sexpression(self):
+    return (begin, )+to_sexpression(self.exps)
+  def cont(self, cont, solver): 
+    return solver.exps_cont(self.exps, cont)
   def __eq__(self, other): 
     return self.exps==other.exps
   def __repr__(self):
@@ -214,6 +230,8 @@ class if_(SpecialForm):
     self.exp1 = tagger.tag_loop_label(self.exp1)
     self.exp2 = tagger.tag_loop_label(self.exp2)
     return self
+  def to_sexpression(self):
+    return (if_, )+to_sexpression((self.test, self.exp1, self.exp2))
   def cont(self, cont, solver):
     if_cont = make_if_cont(self.exp1, self.exp2, cont)
     return solver.cont(self.test, if_cont)
@@ -244,6 +262,8 @@ class iff(SpecialForm):
     self.clauses = [tagger.tag_loop_label(clause) for clause in self.clauses]
     self.els = tagger.tag_loop_label(self.els)
     return self
+  def to_sexpression(self):
+    return (iff, to_sexpression(self.clauses), to_sexpression(self.els))
   def cont(self, cont, solver):
     if len(self.clauses)==1: 
       ifcont = make_if_cont(self.clauses[0][1], self.els, cont)
@@ -272,6 +292,8 @@ class pytry(SpecialForm):
       clause[1] = tagger.tag_loop_label(clause[1])
     self.els = tagger.tag_loop_label(self.els)
     return self
+  def to_sexpression(self):
+    return (pytry,)+to_sexpression((self.body, self.exception, self.ex_clause, self.final))
   def cont(self, cont, solver):
     @mycont(cont)
     def pytry_cont(value, solver):
@@ -307,6 +329,9 @@ class CaseForm(SpecialForm):
       self.cases[k] = tagger.tag_loop_label(self.cases[k])
     self.els = tagger.tag_loop_label(self.els)
     return self
+  def to_sexpression(self):
+    cases = dict((k, to_sexpression(tuple(v))) for k, v in self.cases.items())
+    return (CaseForm,)+to_sexpression((self.test, cases, self.els))
   def cont(self, cont, solver):
     @mycont(cont)
     def case_cont(value, solver):
@@ -426,7 +451,7 @@ class EachForm(RepeatForm):
       setvar = set(self.vars, iter_next(iterator))
     else:
       setvar = set_list(self.vars, iter_next(iterator))
-    return set(iterator, make_iter(self.iterator))+\
+    return set(iterator, make_iter(quote(self.iterator)))+\
            block(label, 
                   pytry(setvar, DaoStopIteration, exit_block(label)),
                   *(body+[continue_block(label)]))
@@ -487,6 +512,8 @@ class OnForm(ParserForm):
     self.form = tagger.tag_loop_label(self.form)
     self.body = tagger.tag_loop_label(self.body)
     return self
+  def to_sexpression(self):
+    return (OnForm,)+to_sexpression(self.form, self.body, self.var)
   def cont(self, solver):
     @mycont(cont)
     def on_cont(value, solver):
@@ -503,16 +530,67 @@ class OnForm(ParserForm):
 # which distinct by the strict and lazy evaluation of the arguments.
 # the implentations is based on "Lisp In Small Pieces" by Christian Queinnec and Ecole Polytechnique
 
-def let(bindings, *body):
-  if isinstance(bindings, dict): raise Error
-  vars = tuple(b[0] for b in bindings)
-  values = tuple(b[1] for b in bindings)
-  return FunctionForm((vars,)+ body)(*values)
+class let(SpecialForm):
+  symbol = 'let'
+  def __init__(self, bindings, *body):
+    self.bindings, self.body = tuple(bindings), body
+  def ___parse___(self, parser):
+    self.bindings = tuple((b[0], parser.parse(b[1])) for b in self.bindings)
+    self.body = parser.parse(self.body)
+    return self
+  def tag_loop_label(self, tagger):
+    self.bindings = tuple((b[0], tagger.tag_loop_label(b[1])) for b in self.bindings)
+    self.body = tagger.tag_loop_label(self.body)
+    return self
+  def to_sexpression(self):
+    return (self.__class__, to_sexpression(self.bindings))+to_sexpression(self.body)
+  def cont(self, cont, solver):
+    vars = tuple(b[0] for b in self.bindings)
+    values = tuple(b[1] for b in self.bindings)
+    return  solver.cont(((FunctionForm,((vars,)+self.body)),)+values, cont)
+  def __repr__(self):
+    return 'let %s: %s'%(repr(self.bindings), self.body)
   
-def lambda_(vars, *body): 
-  #[lambda [var ...] ...]
-  return FunctionForm((vars,)+body)
-
+class letr(SpecialForm):
+  symbol = 'letr'
+  def __init__(self, bindings, *body):
+    self.bindings, self.body = tuple(bindings), body
+  def ___parse___(self, parser):
+    self.bindings = tuple((b[0], parser.parse(b[1])) for b in self.bindings)
+    self.body = parser.parse(self.body)
+    return self
+  def tag_loop_label(self, tagger):
+    self.bindings = tuple((b[0], tagger.tag_loop_label(b[1])) for b in self.bindings)
+    self.body = tagger.tag_loop_label(self.body)
+    return self
+  def to_sexpression(self):
+    return (self.__class__, to_sexpression(self.bindings))+to_sexpression(self.body)
+  def cont(self, cont, solver):
+    vars = tuple(b[0] for b in self.bindings)
+    values = tuple(b[1] for b in self.bindings)
+    return  solver.cont(((RecursiveFunctionForm,((vars,)+self.body)),)+values, cont)
+    return let_cont
+  def __repr__(self):
+    return 'letr %s: %s'%(repr(self.bindings), self.body)
+  
+#[lambda [var ...] ...]
+class lambda_(SpecialForm):
+  symbol = 'lambda'
+  def __init__(self, vars, *body):
+    self.vars, self.body = vars, body
+  def ___parse___(self, parser):
+    self.body = parser.parse(self.body)
+    return self
+  def tag_loop_label(self, tagger):
+    self.body = tagger.tag_loop_label(self.body)
+    return self
+  def to_sexpression(self):
+    return (self.__class__, self.vars)+to_sexpression(self.body)
+  def cont(self, cont, solver):
+    return solver.cont((FunctionForm, ((self.vars,)+self.body)), cont)
+  def __repr__(self):
+    return 'lambda %s: %s'%(repr(self.vars), self.body)
+  
 def make_rules(rules):
   arity2rules, arity2signatures = {}, {}
   for i, rule in enumerate(rules):
@@ -529,24 +607,26 @@ def make_rules(rules):
 class FunctionForm(SpecialForm):
   symbol = 'function'
   def __init__(self, *rules):
-    self.arity2rules, self.signature2rules = make_rules(rules)
+    self.rules = tuple( (tuple(rule[0]),)+tuple(rule[1:]) for rule in rules)
+    
   def ___parse___(self, parser):
-    for arity, rule_list in self.arity2rules.items():
-      self.arity2rules[arity] = parser.parse(rule_list)
+    self.rules = tuple(parser.parse(rule) for rule in self.rules)
     return self
   def tag_loop_label(self, tagger):
-    for arity, rule_list in self.arity2rules.items():
-      self.arity2rules[arity] = tagger.tag_loop_label(rule_list)
+    self.rules = tuple(tagger.tag_loop_label(rule) for rule in self.rules)
     return self
+  def to_sexpression(self):
+    return (self.__class__,)+to_sexpression(self.rules)
   def cont(self, cont, solver):
-    func = UserFunction(self.arity2rules, self.signature2rules, solver.env, recursive=False)
+    arity2rules, signature2rules = make_rules(self.rules)
+    func = UserFunction(arity2rules, signature2rules, solver.env, recursive=False)
     return value_cont(func, cont)
   def __eq__(self, other):
     return isinstance(other, FunctionForm) and self.arity2rules==other.arity2rules
   def __repr__(self):
     result = 'func('
-    for rules in self.arity2rules.values():
-      result += '%s'%rules
+    for rule in self.rules:
+      result += '%s'%repr(rule)
     result += ')'
     return result
 
@@ -564,24 +644,26 @@ class RecursiveFunctionForm(FunctionForm):
   def cont(self, cont, solver):
     newEnv = solver.env.extend()
     solver.env = newEnv
-    func = UserFunction(self.arity2rules, self.signature2rules, newEnv, recursive=True)
+    arity2rules, signature2rules = make_rules(self.rules)
+    func = UserFunction(arity2rules, signature2rules, newEnv, recursive=True)
     return value_cont(func, cont)
   def __repr__(self):
     result = 'recfunc('
-    for rules in self.arity2rules.values():
-      result += '%s'%rules
+    for rule in self.rules:
+      result += '%s'%repr(rule)
     result += ')'
     return result
   
 class MacroForm(FunctionForm):
   symbol = 'macro'
   def cont(self, cont, solver):
-    macro = UserMacro(self.arity2rules, self.signature2rules, solver.env, recursive=False)
+    arity2rules, signature2rules = make_rules(self.rules)
+    macro = UserMacro(arity2rules, signature2rules, solver.env, recursive=False)
     return value_cont(macro, cont)
   def __repr__(self):
     result = 'macroform('
-    for rules in self.arity2rules.values():
-      result += '%s'%rules
+    for rule in self.rules:
+      result += '%s'%repr(rule)
     result += ')'
     return result
 
@@ -649,6 +731,8 @@ class module(SpecialForm):
   def tag_loop_label(self, tagger):
     self.body = tagger.tag_loop_label(self.body)
     return self
+  def to_sexpression(self):
+    return (module, )+to_sexpression(self.body)
   def cont(self, cont, solver):
     old_env = solver.env
     env = solver.env = ModuleEnvironment({}, old_env)
@@ -658,13 +742,9 @@ class module(SpecialForm):
       yield cont, env
     return solver.exps_cont(self.body, module_done_cont)
 
-@builtin.macro()
-def from_(solver, cont, module, var):
-  name = 'from_'
-  symbol = 'from'
-  
+@builtin.macro('from_', 'from')
+def from_(solver, cont, module, var):  
   if isinstance(var, ClosureVar): var = var.var
-  
   @mycont(cont)
   def from_module_cont(module, solver):
     yield cont, module.lookup(var)
@@ -679,6 +759,8 @@ class block(SpecialForm):
   def tag_loop_label(self, tagger):
     self.body = tagger.tag_loop_label(self.body)
     return self
+  def to_sexpression(self):
+    return (block, self.label)+to_sexpression(self.body)
   def cont(self, cont, solver):
     block_env = BlockEnvironment(self.label, solver.env, cont, None)
     solver.env = block_env
@@ -703,6 +785,8 @@ class exit_block(SpecialForm):
   def tag_loop_label(self, tagger):
     self.form = tagger.tag_loop_label(self.form)
     return self
+  def to_sexpression(self):
+    return (exit_block,)+to_sexpression((self.label, self.form))
   def cont(self, cont, solver):
     env = solver.env
     @mycont(cont)
@@ -718,6 +802,8 @@ class continue_block(SpecialForm):
   def __init__(self, label):
     self.label = label
   def ___parse___(self, parser): return self
+  def to_sexpression(self):
+    return (continue_block, self.label)
   def cont(self, cont, solver):
     env = solver.env
     @mycont(cont)
@@ -755,6 +841,8 @@ class catch(SpecialForm):
     self.tag = tagger.tag_loop_label(self.tag)
     self.body = tagger.tag_loop_label(self.body)
     return self
+  def to_sexpression(self):
+    return (catch, to_sexpression(self.tag)) +to_sexpression(self.body)
   def cont(self, cont, solver):
     env = solver.env # not necessary?
     @mycont(cont)
@@ -780,13 +868,17 @@ class throw(SpecialForm):
     self.tag = tagger.tag_loop_label(self.tag)
     self.form = tagger.tag_loop_label(self.form)
     return self
+  def to_sexpression(self):
+    return (throw,)+to_sexpression((self.tag, self.form))
   def cont(self, cont, solver):
     @mycont(cont)
     def throw_cont(tag, solver): 
       yield lookup(throw_cont, tag, throw_cont, solver), True
     throw_cont.form, throw_cont.env = self.form, solver.env
     return solver.cont(self.tag, throw_cont)
+  
   def __repr__(self): return 'throw(%s,%s)'%(repr(self.tag),repr(self.form))
+  
 class unwind_protect(SpecialForm):
   name = 'unwind_protect'
   symbol = 'unwind-protect'
@@ -803,6 +895,9 @@ class unwind_protect(SpecialForm):
     self.cleanup = tagger.tag_loop_label(self.cleanup)
     self.form = tagger.tag_loop_label(self.form)
     return self
+  
+  def to_sexpression(self):
+    return (unwind_protect, to_sexpression(self.form))+to_sexpression(self.cleanup)
   
   def cont(self, cont, solver):
     env = solver.env

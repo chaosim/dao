@@ -245,9 +245,9 @@ class TestAnySomeTimesSepList:
     eq_(eval(begin(parse_text(times(char(_), 3, _, Y), '234'), Y)), ['2','3','4'])
   def test_dummy_times_more(self):
     _, Y = DummyVar('_'), Var('Y')
-    eq_(eval(begin(parse_text(times_more(char(_), 3, _, Y), '234'), Y)), ['2','3','4'])
-    eq_(eval(begin(parse_text(times_more(char(_), 3, _, Y), '2345'), Y)), ['2','3','4', '5'])
-    assert_raises(NoSolutionFound, eval, begin(parse_text(times_more(char(_), 3, _, Y), '23'), Y))
+    eq_(eval(begin(parse_text((times_more,char(_), 3, _, Y), '234'), Y)), ['2','3','4'])
+    eq_(eval(begin(parse_text((times_more,char(_), 3, _, Y), '2345'), Y)), ['2','3','4', '5'])
+    assert_raises(NoSolutionFound, eval, begin(parse_text((times_more,char(_), 3, _, Y), '23'), Y))
   def test_dummy_times_less(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(preparse(begin(parse_text(times_less(char(_), 3, _, Y)+char('4'), '234'), Y))), ['2','3'])
@@ -263,7 +263,7 @@ class TestAnySomeTimesSepList:
     eq_(eval(begin(parse_text(times_between(char(_), 2, 3, _, Y), '23'), Y)), ['2','3'])
     eq_(eval(begin(parse_text(times_between(char(_), 2, 3, _, Y), '2345'), Y)), ['2','3', '4'])
     assert_raises(NoSolutionFound, eval, begin(parse_text(times_between(char(_), 2, 3, _, Y), '2'), Y))
-    assert_raises(NoSolutionFound, eval, preparse(begin(parse_text(times_between(char(_), 2, 3, _, Y)+eoi, '2345'), Y)))
+    assert_raises(NoSolutionFound, eval, begin(parse_text((and_p, times_between(char(_), 2, 3, _, Y), eoi), '2345'), Y))
   def test_times_a2(self): 
     X, Y, S = Var('X'), Var('Y'), Var('S')
     function1 = function(((Y,), times(char('a'), 2, 'a', Y)))

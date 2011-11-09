@@ -120,7 +120,7 @@ class Testeval:
     eq_(eval(grammar, '(begin 1 2 3 4 5)'), (5))
   def testset(self):
     eq_(eval(grammar, '(let ((a 1)) (begin (set a 2) a))'), (2))
-  def testspecialForm(self):
+  def test_let(self):
     eq_(eval(grammar, '(let ((x 1) (y 2)) (+ x y))'), (3))
   def testspecialForm2(self):
     eq_(eval(grammar, '((if 0 + -) 1 1)'), (0))

@@ -5,6 +5,7 @@
 # parse_state: parse_state such as text used by the matchers which do parsing
 
 from dao.env import GlobalEnvironment
+from dao.base import is_subclass
 
 class CutException(Exception): pass
 class DaoStopIteration(Exception): pass
@@ -77,9 +78,7 @@ class Parser:
   def parse(self, exp):
     try: exp_parse = exp.___parse___
     except: 
-      if isinstance(exp, list):
-        return [self.parse(e) for e in exp]
-      elif isinstance(exp, tuple):
+      if isinstance(exp, list) or isinstance(exp, tuple):
         return tuple(self.parse(e) for e in exp)
       else: return exp
     try: return exp_parse(self)
@@ -134,8 +133,17 @@ def make_solver():
   env = global_env.extend()
   return Solver(global_env, env, None, None)
 
+def to_sexpression(exp):
+  try: exp_to_sexpression = exp.to_sexpression
+  except: 
+    if isinstance(exp, tuple):
+      return tuple(to_sexpression(x) for x in exp)
+    else: return exp
+  return exp_to_sexpression()
+
 def eval(exp):
-  return make_solver().eval(exp)
+  sexp = to_sexpression(exp)
+  return make_solver().eval(sexp)
 
 class Solutions:
   def __init__(self, solutions):
@@ -198,9 +206,9 @@ class Solver:
     self.call_path = []
   
   def eval(self, exp):
-    if isinstance(exp, list) or isinstance(exp, tuple):
-      from dao.special import begin
-      exp = begin(*exp)
+    #if isinstance(exp, list) or isinstance(exp, tuple):
+      #from dao.special import begin
+      #exp = begin(*exp)
     for x in self.solve(exp): return x
     raise NoSolutionFound(exp)
     
@@ -268,11 +276,20 @@ class Solver:
         cont_gen = parent[cont_gen]
         del parent[cg]
 
-  def cont(self, exp, cont):    
-    try: exp_cont = exp.cont
-    except: return value_cont(exp, cont)
-    try: return exp_cont(cont, self)
-    except TypeError: return value_cont(exp, cont)
+  def cont(self, exp, cont): 
+    if isinstance(exp, tuple): #isinstance(exp, list) or 
+      if is_subclass(exp[0], object): # SpecialForm
+        form = exp[0](*exp[1:])
+        return form.cont(cont, self)
+      else:
+        @mycont(cont)
+        def evaluate_cont(op, solver): 
+          return op.evaluate_cont(solver, cont, exp[1:])
+        return self.cont(exp[0], evaluate_cont)
+    else:
+      try: exp_cont = exp.cont
+      except: return value_cont(exp, cont)
+      return exp_cont(cont, self)
 
   def exps_cont(self, exps, cont):
       if len(exps)==0: return value_cont(None, cont)

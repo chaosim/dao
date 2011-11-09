@@ -52,10 +52,11 @@ class TestControl:
     eq_(eval(iff(((0, prin(1)), (0,prin(2))), prin(3))), None)
   def testCaseForm(self):
     eq_(eval(CaseForm(2, {0: [prin(0)], 1:[prin(1)], 2:[prin(2)]}, [prin(3)])), None)
-  def testeval(self):
+  def testeval1(self):
     eq_(eval(eval_(quote(1))), (1))
-    eq_(eval(let([(x,1)], eval_(quote(x)))), 1)
     eq_(eval(eval_(quote(add(1, 1)))), (2))
+  def testeval2(self):
+    eq_(eval(let([(x,1)], eval_(quote(x)))), 1)
 
 class TestLoop:
   def testloop(self):
