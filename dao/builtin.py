@@ -63,13 +63,15 @@ from dao.base import is_subclass
 from dao.env import ModuleEnvironment
 from dao.term import var
 
-def collocet_builtins_to_module(globls): 
-  module = ModuleEnvironment({}, None)
+def collocet_builtins_to_module(globls, global_env, module): 
   for name, obj in globls.items():
-    if isinstance(obj, Command) or isinstance(obj, ModuleEnvironment):
+    if isinstance(obj, Command):
       try: symbol = obj.symbol
-      except AttributeError:
+      except:
         try: symbol = obj.name
-        except AttributeError: symbol = name
-      module[var(symbol)] = obj
-  return module
+        except: symbol = name
+      v = var(symbol)
+      module[v] = obj
+      try: is_global = obj.is_global
+      except: is_global = False
+      if is_global: global_env[v] = obj

@@ -4,6 +4,17 @@ from dao.term import CommandCall
 
 # quasiquote and backquote
 
+def eval_quasiquote(solver, cont, item):
+  if isinstance(item, list):
+    yield cont, [eval_quasiquote(solver, cont, x) for x in item]
+  if isinstance(item, tuple):
+    yield cont, [eval_quasiquote(solver, cont, x) for x in item]
+  try:
+    item_eval_quasiquote = item.eval_quasiquote
+  except:
+    
+    (solver, cont, item):
+
 ##@builtin.macro('quasiquote')
 ##def quasiquote(solver, cont, item):
 ##  if isinstance(item, list):

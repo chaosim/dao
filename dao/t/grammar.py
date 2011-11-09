@@ -21,28 +21,7 @@ from dao.builtins.terminal import *
 from dao.builtins.rule import *
 from dao.builtins.term import *
 
-_builtins = {}
-
-def collocet_builtins():
-  for name, obj in globals().items():
-    if isinstance(obj, Command) or is_subclass(obj, SpecialForm):
-      try: symbol = obj.symbol
-      except AttributeError:
-        try: symbol = obj.name
-        except AttributeError: symbol = name
-      _builtins[symbol] = obj
-
-collocet_builtins()
-
-_builtins.update({'let':let, 'letr':letr, 'lambda':lambda_})
-
-_var_cache = {}
-def var(name):
-  if name[0]=='_': klass = DummyVar
-  else: klass = Var
-  return _var_cache.setdefault(klass, {}).setdefault(name, klass(name))
-
-_SYMBOL_FORBID_CHARS = '\'", \r\n\t[]{}()`'
+_SYMBOL_FORBID_CHARS = '\'`",;.: \r\n\t[]{}()'
 
 @builtin.macro()
 def symbol(solver, cont, result):
