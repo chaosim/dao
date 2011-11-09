@@ -24,7 +24,7 @@ __all__ = ['element', 'preparse', 'lead',
   'attr_item', 'attr_call', 'word', 'words', 'getitem_to_list',
   'DinpySyntaxError', 'syntax_error']
 
-from dao.solve import run_mode, interactive
+from dao.solve import run_mode, interactive, to_sexpression
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
 from dao.term import deref, unify, DummyVar
 from dao.solve import eval, preparse, dao_repr
@@ -32,7 +32,7 @@ from dao import special
 from dao.builtins.matcher import matcher
 from dao.builtins.parser import parse_sequence
 from dao.builtins.container import to_list
-from dao.builtins.control import and_p
+from dao.builtins.control import and_p, or_p
 
 ##from dao.dinpy.dexpr import DinpySyntaxError
 
@@ -113,7 +113,8 @@ class FormTraveller(object):
     if grammar is None:
       self.__form_grammar__ = None
     else:
-      self.__form_grammar__ = preparse(grammar|syntax_error)
+      #print grammar
+      self.__form_grammar__ = to_sexpression(preparse(or_p(grammar, syntax_error)))
     self.__operator_data__ = []
   def __lt__(self, other): 
     self.__operator_data__.append((__lt__, other)); return self

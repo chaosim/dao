@@ -34,7 +34,7 @@ class Test_v_var:
   def test_var(self):
     x = var.a.b.c
     eq_(preparse(list(x)), 
-        [varcache('a'),varcache('b'),varcache('c')])
+        (varcache('a'),varcache('b'),varcache('c')))
 
 class TestDecInc:
   def test_inc(self):

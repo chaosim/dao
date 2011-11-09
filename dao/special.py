@@ -15,7 +15,7 @@ from dao.solve import interactive_parser, interactive_tagger
 pyset = set
 
 # special forms: quote, begin, if, eval, let, lambda, function, macro, module
-class ParserForm: 
+class ParserForm(object): 
   def ___parse___(self, parser): return self
 
 class SpecialForm(Command, ParserForm):
@@ -76,7 +76,7 @@ assign = set
 # assign var in the most inner env
 class set_list(SpecialForm):
   def __init__(self, vars, exp):
-    self.vars, self.exp = vars, exp
+    self.vars, self.exp = tuple(vars), exp
   def ___parse___(self, parser): 
     self.vars = parser.parse(self.vars)
     self.exp = parser.parse(self.exp)
@@ -253,13 +253,13 @@ class iff(SpecialForm):
   name = 'iff'
   symbol = 'iff'
   def __init__(self, clauses, els=None):
-    self.clauses, self.els = clauses, els
+    self.clauses, self.els = tuple(clauses), els
   def ___parse___(self, parser): 
-    self.clauses = [parser.parse(clause) for clause in self.clauses]
+    self.clauses = tuple(parser.parse(clause) for clause in self.clauses)
     self.els = parser.parse(self.els)
     return self
   def tag_loop_label(self, tagger): 
-    self.clauses = [tagger.tag_loop_label(clause) for clause in self.clauses]
+    self.clauses = tuple(tagger.tag_loop_label(clause) for clause in self.clauses)
     self.els = tagger.tag_loop_label(self.els)
     return self
   def to_sexpression(self):
@@ -548,6 +548,8 @@ class let(SpecialForm):
     vars = tuple(b[0] for b in self.bindings)
     values = tuple(b[1] for b in self.bindings)
     return  solver.cont(((FunctionForm,((vars,)+self.body)),)+values, cont)
+  def __eq__(self, other):
+    return self.bindings==other.bindings and self.body==other.body
   def __repr__(self):
     return 'let %s: %s'%(repr(self.bindings), self.body)
   

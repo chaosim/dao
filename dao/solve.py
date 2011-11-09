@@ -139,6 +139,8 @@ def to_sexpression(exp):
     if isinstance(exp, tuple):
       return tuple(to_sexpression(x) for x in exp)
     else: return exp
+  if isinstance(exp, type):
+    return exp
   return exp_to_sexpression()
 
 def eval(exp):
@@ -287,6 +289,8 @@ class Solver:
           return op.evaluate_cont(solver, cont, exp[1:])
         return self.cont(exp[0], evaluate_cont)
     else:
+      if is_subclass(exp, object):
+         return value_cont(exp, cont)
       try: exp_cont = exp.cont
       except: return value_cont(exp, cont)
       return exp_cont(cont, self)

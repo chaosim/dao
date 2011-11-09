@@ -1,7 +1,7 @@
 from nose.tools import eq_, assert_raises
 
 from dao.term import Var, DummyVar, Cons, nil, conslist as L, vars
-from dao.solve import eval, preparse, NoSolutionFound
+from dao.solve import eval, preparse, NoSolutionFound, to_sexpression, make_solver
 from dao.builtins.control import fail, or_p, and_p, not_p, cut
 
 from dao.special import function, let, letr, macro, begin, eval_
@@ -19,12 +19,11 @@ from dao.util import *
 from dao.solve import set_run_mode, noninteractive
 set_run_mode(noninteractive)
 
-class xxxTestLine_parser:
-  def test_row_column(self):
-    from dao.builtins.line_parser import set_text, row, column
-    eq_(eval(begin(set_text('ab'), row())), 0)
-    eq_(eval(begin(set_text('ab'), row(),char('a'), column())), 1)
-    
+def eval(exp):
+  exp = preparse(exp)
+  sexp = to_sexpression(exp)
+  return make_solver().eval(sexp)
+
 class TestLowLevelPrimitive:
   def test_step(self):
     eq_(eval(begin(set_text('ab'), step(), step())), 'b')
@@ -247,7 +246,7 @@ class TestAnySomeTimesSepList:
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(begin(parse_text((times_more,char(_), 3, _, Y), '234'), Y)), ['2','3','4'])
     eq_(eval(begin(parse_text((times_more,char(_), 3, _, Y), '2345'), Y)), ['2','3','4', '5'])
-    assert_raises(NoSolutionFound, eval, begin(parse_text((times_more,char(_), 3, _, Y), '23'), Y))
+    assert_raises(NoSolutionFound, eval, begin(parse_text(times_more(char(_), 3, _, Y), '23'), Y))
   def test_dummy_times_less(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(preparse(begin(parse_text(times_less(char(_), 3, _, Y)+char('4'), '234'), Y))), ['2','3'])

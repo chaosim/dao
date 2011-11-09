@@ -14,9 +14,12 @@ from dao.builtins.rule import replace_def, remove, append_def, insert_def, \
 from dao.dinpy.dinpy import AtForm, varcache
 from dao.builtins import arith
 
-from dao.special import UserFunction
-from dao.solve import set_run_mode, noninteractive, DaoUncaughtThrow
+from dao.special import UserFunction, begin, quote
+from dao.solve import set_run_mode, noninteractive, DaoUncaughtThrow, to_sexpression
 set_run_mode(noninteractive)
+
+def preparse_to_sexpression(exp):
+  return to_sexpression(preparse(exp))
 
 a, b, c = var.a.b.c
 a, b, c = preparse([a, b, c])
@@ -40,15 +43,15 @@ class Test_v_var:
   def test_var(self):
     x = var.a.b.c
     eq_(preparse(list(x)), 
-        [varcache('a'),varcache('b'),varcache('c')])
+        (varcache('a'),varcache('b'),varcache('c')))
 
 class TestAssign:
   def test_assign1(self):
     eq_(preparse(v.i<<1), preparse(special.set(i, 1)))
   def test_assign2(self):
-    eq_(preparse(put.i.j<<v.i+1), preparse(special.set_list([i,j], arith.add(i, 1))))
+    eq_(preparse_to_sexpression(put.i.j<<v.i+1), preparse_to_sexpression(special.set_list([i,j], arith.add(i, 1))))
   def test_assign3(self):
-    eq_(preparse(put.i.j<<(1,2)), preparse(special.set_list([i,j], (1,2))))
+    eq_(preparse_to_sexpression(put.i.j<<(1,2)), preparse_to_sexpression(special.set_list([i,j], (1,2))))
     
 class TestDo:
   def test_do1(self):
@@ -56,7 +59,7 @@ class TestDo:
     
 class TestLet:
   def test_let1(self):
-    eq_(preparse(let(v.i << 1).do[1,2]), special.let([(i,1)], 1, 2))
+    eq_(preparse(let(v.i << 1).do[1,2]), special.let(((i,1),), 1, 2))
   def test_eval_let1(self):
     eq_(eval(let(v.i << 1).do[v.i]), 1)
   def test_let2(self):
@@ -107,67 +110,67 @@ catch(1)
 
 class TestLoop:
   def test_loop(self):
-    eq_(preparse(loop[prin(1)]), special.LoopForm([prin(1)])) 
+    eq_(preparse(loop[prin(1)]), special.LoopForm((prin(1),))) 
   def test_eval_loop(self):
     i = v.i
-    eq_(eval([i<<0, loop[prin(i), ++i, iff(i==3).do[exit >>i]], i]), 3)
+    eq_(eval(begin(i<<0, loop[prin(i), ++i, iff(i==3).do[exit >>i]], i)), 3)
   def test_loop_times(self):
-    eq_(preparse(loop(10)[prin(1)]), special.LoopTimesForm(10, [prin(1)], 'a')) 
+    eq_(preparse(loop(10)[prin(1)]), special.LoopTimesForm(10, (prin(1),), 'a')) 
   def test_eval_loop_times(self):
     eq_(eval(loop(3)[prin(1)]), None) 
   def test_loop_when(self):
-    eq_(preparse(loop[prin(1)].when(1)), special.LoopWhenForm([prin(1)], 1)) 
+    eq_(preparse(loop[prin(1)].when(1)), special.LoopWhenForm((prin(1),), 1)) 
   def test_eval_loop_when(self):
-    eq_(eval([ v.i<<0, loop[prin(v.i), ++v.i].when(v.i<3), v.i]), 3) 
+    eq_(eval(do[ v.i<<0, loop[prin(v.i), ++v.i].when(v.i<3), v.i]), 3) 
   def test_when_loop(self):
-    eq_(preparse(when(1).loop[prin(1)]), special.WhenLoopForm(1, [prin(1)])) 
+    eq_(preparse(when(1).loop[prin(1)]), special.WhenLoopForm(1, (prin(1),))) 
   def test_when_loop2(self):
-    eq_(preparse(when(v.i!=0).loop[ prin(v.i)]), special.WhenLoopForm(preparse(v.i!=0), [prin(i)])) 
+    eq_(preparse(when(v.i!=0).loop[ prin(v.i)]), special.WhenLoopForm(preparse(v.i!=0), (prin(i),))) 
   def test_loop_until(self):
     eq_(preparse(loop[prin(1)].until(v.i==1)), 
-        special.LoopUntilForm([prin(1)], arith.eq(i, 1))) 
+        special.LoopUntilForm((prin(1),), arith.eq(i, 1))) 
   def test_eval_loop_until(self):
-    eq_(eval([ v.i<<0, loop[prin(v.i), ++v.i].until(v.i==3), v.i]), 3) 
+    eq_(eval(do[ v.i<<0, loop[prin(v.i), ++v.i].until(v.i==3), v.i]), 3) 
     
 class TestCase:
   def test_Case1(self):
     x = preparse(v.x)
     eq_(preparse(case(x).of(1)[prin(1)].of(2,3)[prin(4)].els[prin(5)]), 
-        special.CaseForm(x,{1:[prin(1)], 2:[prin(4)], 3:[prin(4)]}, [prin(5)])) 
+        special.CaseForm(x,{1:(prin(1),), 2:(prin(4),), 3:(prin(4),)}, (prin(5),))) 
   def test_eval_Case1(self):
     x = preparse(v.x)
-    eq_(eval([v.x<<3, case(x).of(1)[prin(1)].of(2,3)[prin((2,3)), (2,3)].els[prin(5)]]), 
+    eq_(eval(case(2).of(1)[prin(1)].of(2,3)[prin(quote((2,3))), quote((2,3))].els[prin(5)]), 
         (2,3)) 
   def test_eval_Case2(self):
     x = preparse(v.x)
-    eq_(eval([v.x<<3, case(x).of(1)[prin(1), 1].of(2)[prin(2), 2].els[prin(3), 3]]), 
+    eq_(eval(case(3).of(1)[prin(1), 1].of(2)[prin(2), 2].els[prin(3), 3]), 
         3) 
   def test_eval_Case3(self):
     x = preparse(v.x)
-    eq_(eval([v.x<<(1,2), case(x).of((1,2), (3,4))[prin(x), x].of(2,3)[prin((2,3)), (2,3)].els[prin(5)]]), 
+    eq_(eval(begin(v.x<<quote((1,2)), case(x).of((1,2), (3,4))[prin(x), x].of(2,3)[prin((2,3)), (2,3)].els[prin(5)])), 
         (1,2)) 
     
 class TestEach:
   def test_slice(self):
     i = preparse(v.i); j = preparse(v.j)
     eq_(preparse(each(v.i,v.j)[1:3][1:3].loop[prin(v.i)]), 
-        special.EachForm((i,j), zip(range(1,3),range(1,3)),[prin(i)])) 
+        special.EachForm((i,j), zip(range(1,3),range(1,3)),(prin(i),))) 
   def test_eval_slice(self):
-    eq_(eval(each(v.i,v.j)[1:3][1:3].loop[prin(v.i, v.j), (v.i, v.j)]), 
+    eq_(eval(each(v.i,v.j)[1:3][1:3].loop[prin(v.i, v.j), quote((v.i, v.j))]), 
         None) 
   def test_getitem1(self):
     i = preparse(v.i); j = preparse(v.j)
     eq_(preparse(each(v.i,v.j)[zip(range(2), range(2))].loop[prin(v.i, v.j)]), 
-        special.EachForm((i,j), tuple(zip(range(2),range(2))),[prin(i,j)])) 
+        special.EachForm((i,j), tuple(zip(range(2),range(2))),(prin(i,j),))) 
   def test_eval_getitem1(self):
-    eq_(eval(each(v.i,v.j)[zip(range(2), range(2))].loop[prin(v.i, v.j), (v.i, v.j)]), 
+    eq_(eval(each(v.i,v.j)[zip(range(2), range(2))].loop[prin(v.i, v.j), quote((v.i, v.j))]), 
         None) 
   def test_getitem2(self):
     i = preparse(v.i); j = preparse(v.j)
     eq_(preparse(each(v.i,v.j)[range(2)][range(2)].loop[prin(v.i, v.j)]), 
-        special.EachForm((i,j), zip(range(2),range(2)),[prin(i,j)]))
+        special.EachForm((i,j), zip(range(2),range(2)),(prin(i,j),)))
   def test_eval_getitem2(self):
-    eq_(eval(each(v.i,v.j)[range(2)][range(2)].loop[prin(v.i, v.j), (v.i, v.j)]), 
+    eq_(eval(each(v.i,v.j)[range(2)][range(2)].loop[prin(v.i, v.j), quote((v.i, v.j))]), 
         None) 
     
 class TestExitNext:
@@ -182,7 +185,7 @@ class TestExitNext:
     
 class TestBlockLabel:
   def test_label(self):
-    eq_(preparse(label.a%loop[0]), special.LoopForm([0], 'a')) 
+    eq_(preparse(label.a%loop[0]), special.LoopForm((0,), 'a')) 
   def test_block(self):
     eq_(preparse(block.a[1]), special.block('a', 1)) 
   def test_block2(self):

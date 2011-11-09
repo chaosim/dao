@@ -178,10 +178,10 @@ class MatcherOr(Matcher):
 
 @nomemo
 @matcher()
-def nullword(solver, cont): 
+def Nullword(solver, cont): 
   yield cont,  True
 
-null = nullword = nullword()
+null = nullword = Nullword()
 
 @matcher()
 def optional(solver, cont, item, mode=nongreedy):
@@ -208,21 +208,6 @@ def parallel(solver, cont, call1, call2):
       if solver.parse_state[1]==right: yield cont, value
     yield solver.cont(call2, pallel_finish_cont), value1
   yield solver.cont(call1, pallel_cont), True
-
-##@matcher() # not necessary be a builtin.
-##def longest(solver, cont, call):
-##  parse_state = solver.parse_state
-##  right = -1
-##  for c, value in solver.exp_run_cont(call, cont):
-##    if solver.parse_state[1]<=right: continue
-##    right = solver.parse_state[1]
-##    bindings = solver.env.binings.copy()
-##    value1 = value
-##  if right==-1: return
-##  solver.parse_state = parse_state[0], right
-##  solver.env.binings = bindings
-##  yield cont,value1
-##
 
 def greedy_repeat_cont(item, cont):
   @mycont(cont)
@@ -290,8 +275,14 @@ def lazy_repeat_result_cont(item, cont, matched_times, matched_list, template, r
     next_cont = lazy_repeat_result_cont(item, cont, matched_times+1, matched_list, template, result)
     yield solver.cont(item, next_cont), True
   return repeat_cont
+
+class any(Matcher):
+  def __init__(self, item, template=None, result=None, mode=nongreedy):
+    self.item, self.template, self.result, self.mode = item, template, result, mode
+  def ___parse___(self, parser):
+    return make_any(self.item, self.template, self.result, self.mode)
   
-def any(item, template=None, result=None, mode=nongreedy):   
+def make_any(item, template=None, result=None, mode=nongreedy):   
   if result is None:
     if mode==greedy:
       @matcher('any')
@@ -353,7 +344,13 @@ def make_repeat_cont(solver, cont, item, matched_times, matched_list, template, 
           deref(item, solver.env), cont, matched_times, matched_list, 
           deref(template, solver.env), deref(result, solver.env))
   
-def some(item, template=None, result=None, mode=nongreedy):   
+class some(Matcher):
+  def __init__(self, item, template=None, result=None, mode=nongreedy):
+    self.item, self.template, self.result, self.mode = item, template, result, mode
+  def ___parse___(self, parser):
+    return make_some(self.item, self.template, self.result, self.mode)
+  
+def make_some(item, template=None, result=None, mode=nongreedy):   
   if result is None:
     if mode==greedy:
       @matcher('some')
@@ -530,7 +527,14 @@ def lazy_times_result_cont(item, expect_times, cont,
       yield solver.cont(item, next_cont), True
   return times_cont
   
-def times(item, expect_times, template=None, result=None, mode=nongreedy):   
+class times(Matcher):
+  def __init__(self, item, expect_times, template=None, result=None, mode=nongreedy):
+    self.item, self.expect_times, self.template, self.result, self.mode = (
+      item, expect_times, template, result, mode)
+  def ___parse___(self, parser):
+    return make_times(self.item, self.expect_times, self.template, self.result, self.mode)
+  
+def make_times(item, expect_times, template=None, result=None, mode=nongreedy):   
   if result is None:
     if mode==greedy:
       @matcher('times')
@@ -625,7 +629,7 @@ def times_more(solver, cont, item, expect_times, template=None, result=None, mod
     def times_more_cont(value, solver):
       matched_list = getvalue(temp_result, solver.env) if result is not None else None
       yield make_repeat_cont(solver, cont, item, 0, matched_list, template, result, mode), value
-    yield solver.cont(times(item, expect_times, template, temp_result), times_more_cont), True
+    yield solver.cont(make_times(item, expect_times, template, temp_result), times_more_cont), True
 
 def greedy_times_less_cont(item, expect_times, cont, matched_times):
   @mycont(cont)
@@ -774,7 +778,14 @@ def times_less(solver, cont, item, expect_times, template=None, result=None, mod
         yield lazy_times_less_result_cont(
             item, expect_times, cont, 0, [], template, result), []
         
-def times_between(item, min, max, template=None, result=None, mode=nongreedy):
+class times_between(Matcher):
+  def __init__(self, item, min, max, template=None, result=None, mode=nongreedy):
+    self.item, self.min, self.max, self.template, self.result, self.mode = (
+      item, min, max, template, result, mode)
+  def ___parse___(self, parser):
+    return make_times_between(self.item, self.min, self.max, self.template, self.result, self.mode)
+  
+def make_times_between(item, min, max, template=None, result=None, mode=nongreedy):
   @matcher('times_between')
   def times_between_builtin(solver, cont, item, template, result):
     min1 = deref(min, solver.env)
@@ -789,7 +800,7 @@ def times_between(item, min, max, template=None, result=None, mode=nongreedy):
     else: 
       temp1 = None
       temp2 = None
-    for c, _ in solver.exp_run_cont(times(item, min, template, temp1, mode), cont):
+    for c, _ in solver.exp_run_cont(make_times(item, min, template, temp1, mode), cont):
       for c, _ in solver.exp_run_cont((times_less, item, max-min, template, temp2, mode), cont):
         if result is not None:
           matched_list = getvalue(temp1, solver.env)+getvalue(temp2, solver.env)
@@ -798,7 +809,14 @@ def times_between(item, min, max, template=None, result=None, mode=nongreedy):
         else: yield cont, True
   return (times_between_builtin, item, template, result)
 
-def seplist(item, separator, template=None, result=None, 
+class seplist(Matcher):
+  def __init__(self, item, separator, expect_times, template=None, result=None, mode=nongreedy):
+    self.item, self.separator, self.expect_times, self.template, self.result, self.mode = (
+      item, separator, expect_times, template, result, mode)
+  def ___parse___(self, parser):
+    return make_seplist(self.item, self.separator, self.expect_times, self.template, self.result, self.mode)
+  
+def make_seplist(item, separator, template=None, result=None, 
             expect_times=None, mode=nongreedy):
   if expect_times==0: return nullword
   elif expect_times==1: return item
@@ -955,7 +973,14 @@ def seplist(item, separator, template=None, result=None,
         return (seplist_bultin, item, separator, template, result)
   return seplist_bultin()
     
-def seplist_times_more(item, separator, expect_times, template=None, result=None, mode=nongreedy):
+class seplist_times_more(Matcher):
+  def __init__(self, item, separator, expect_times, template=None, result=None, mode=nongreedy):
+    self.item, self.separator, self.expect_times, self.template, self.result, self.mode = (
+      item, separator, expect_times, template, result, mode)
+  def ___parse___(self, parser):
+    return make_seplist_times_more(self.item, self.separator, self.expect_times, self.template, self.result, self.mode)
+  
+def make_seplist_times_more(item, separator, expect_times, template=None, result=None, mode=nongreedy):
   @matcher('seplist_times_more')
   def seplist_bultin(solver, cont, item, separator, template, result):
     expect_times = deref(expect_times, solver.env)
@@ -967,7 +992,7 @@ def seplist_times_more(item, separator, expect_times, template=None, result=None
     else: 
       template1 = None
       temp_result = None
-    prefix_list = seplist(item, separator, template1, temp_result1, expect_times, mode)
+    prefix_list = make_seplist(item, separator, template1, temp_result1, expect_times, mode)
     for c, v in solver.exp_run_cont(prefix_list, cont):
       if result1 is not None:
         matched_list = getvalue(temp_result1, solver.env)
@@ -977,7 +1002,14 @@ def seplist_times_more(item, separator, expect_times, template=None, result=None
       yield next_cont, v
   return (seplist_bultin, item, separator, template, result)
 
-def seplist_times_less(item, separator, expect_times, template=None, result=None, mode=nongreedy):
+class seplist_times_less(Matcher):
+  def __init__(self, item, separator, expect_times, template=None, result=None, mode=nongreedy):
+    self.item, self.separator, self.expect_times, self.template, self.result, self.mode = (
+      item, separator, expect_times, template, result, mode)
+  def ___parse___(self, parser):
+    return make_seplist_times_less(self.item, self.separator, self.expect_times, self.template, self.result, self.mode)
+  
+def make_seplist_times_less(item, separator, expect_times, template=None, result=None, mode=nongreedy):
   @matcher('seplist_times_less')
   def seplist_times_less_bultin(solver, cont, item, separator, template, result):
     expect_times = deref(expect_times, solver.env)
@@ -1029,7 +1061,14 @@ def seplist_times_less(item, separator, expect_times, template=None, result=None
         yield c, v
   return (seplist_times_less_bultin, item, separator, template, result)
 
-def seplist_times_between(item, separator, min, max, template=None, result=None, mode=nongreedy):
+class seplist_times_between(Matcher):
+  def __init__(self, item, separator, min, max, template=None, result=None, mode=nongreedy):
+    self.item, self.separator, self.min, self.max, self.template, self.result, self.mode = (
+      item, separator, min, max, template, result, mode)
+  def ___parse___(self, parser):
+    return make_seplist_times_between(self.item, self.separator, min, max, self.template, self.result, self.mode)
+  
+def make_seplist_times_between(item, separator, min, max, template=None, result=None, mode=nongreedy):
   @matcher('seplist_times_between')
   def seplist_times_between_builtin(solver, cont, item, separator, template, result):
     min1 = deref(min, solver.env)

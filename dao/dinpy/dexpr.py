@@ -170,8 +170,9 @@ class _Binary(_SymbolExpression):
     self.x, self.y = x, y
   def ___parse___(self, parser): 
     return self.operator(parser.parse(self.x), parser.parse(self.y))
-  def __repr__(self): 
+  def ____repr____(self): 
     return '%s(%s, %s)'%(dao_repr(self.operator), dao_repr(self.x), dao_repr(self.y))
+  __repr__ = ____repr____
 
 class _Unary(_SymbolExpression): 
   def __init__(self, x): 

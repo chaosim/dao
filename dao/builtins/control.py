@@ -45,19 +45,19 @@ def once(solver, cont, pred):
     yield c, x
     return
 
-@builtin.macro()
-def succeed(solver, cont): 
+@builtin.macro('succeed')
+def Succeed(solver, cont): 
   yield cont, True
-succeed = succeed()
+succeed = Succeed()
 
-@builtin.macro()
-def fail(solver, cont):  
+@builtin.macro('fail')
+def Fail(solver, cont):  
   if 0: yield cont, True
   return
-fail = fail()
+fail = Fail()
 
 @builtin.macro()
-def repeat(solver, cont):
+def Repeat(solver, cont):
   @mycont(cont)
   def repeat_cont(value, solver):
     while 1: 
@@ -65,13 +65,13 @@ def repeat(solver, cont):
 ##  repeat_cont.cut = True
   yield repeat_cont, True
 
-repeat = repeat()
+repeat = Repeat()
   
 @builtin.macro('cut', '!')
-def cut(solver, cont):
+def Cut(solver, cont):
   yield cont, True
   raise CutException
-cut = cut()
+cut = Cut()
 
 @builtin.macro('and_p', '&!')
 def and_p(solver, cont, *calls):

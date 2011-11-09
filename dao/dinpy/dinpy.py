@@ -43,7 +43,7 @@ from dao.builtins.container import pytuple, head_list, list_tail, items, first, 
 from dao.builtins.term import pycall, py_apply
 from dao.builtins.term import getvalue, getvalue_default, is_
 from dao.builtins.arith import ne_p
-from dao.solve import eval as oad_eval, solve, tag_loop_label
+from dao.solve import eval as dao_eval, solve, tag_loop_label
 from dao.solve import set_run_mode, noninteractive, DaoUncaughtThrow
 from dao.solve import interactive_parser, interactive_tagger, interactive_solver
 
@@ -51,7 +51,7 @@ from dao.solve import interactive_parser, interactive_tagger, interactive_solver
 def eval(code):
   code = preparse(code)
   code = tag_loop_label(code)
-  return oad_eval(code)
+  return dao_eval(code)
 
 class DaoCodeFormater: 
   def __init__(self, indent_width=2):
@@ -93,7 +93,7 @@ class Dinpy(object):
     self.code = []
     return result
   def eval(self):
-    result = oad_eval(tag_loop_label(preparse(self.code)))
+    result = dao_eval(tag_loop_label(preparse(self.code)))
     self.code = []
     return result
   def pprint(self, formater=None):

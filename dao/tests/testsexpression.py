@@ -138,11 +138,7 @@ class Testeval:
                     (even? (lambda (n) (if (== n 0) 1 (odd? (- n 1))))))
                   (odd? 3))'''), (1))
   def testcallcc(self):
-    ##from dao.cont import done
     eq_(eval(grammar, '(call/cc (lambda (k) (k 2)))'), (2))
-    #eq_(eval(grammar, '(call/cc call/cc)'), done)
-    #assert 0, '((call/cc call/cc) (call/cc call/cc)) infinite loop.'
-    #eq_(eval(grammar, '((call/cc call/cc) (call/cc call/cc))'), (2))
   def testcatch(self):
     eq_(eval(grammar, '(catch 1 2)'), (2))
     eq_(eval(grammar, '(catch 1 (throw 1 2))'), (2))
