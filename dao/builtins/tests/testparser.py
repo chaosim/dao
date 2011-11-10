@@ -204,6 +204,9 @@ class TestParallel:
     assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(s(x), ''), x))
         
 class TestAnySomeTimesSepList:
+  def test_any_some(self):
+    X, Y = Var('X'), Var('Y')
+    eq_(eval(begin(parse_text(char(X)+any(~char('b')+some(char(X)))+eoi, 'abaaaa'), X)), 'a')
   def test_any(self):
     X, Y = Var('X'), Var('Y')
     eq_(eval(begin(parse_text(any(char(X), X, Y), '222'), Y)), ['2','2','2'])

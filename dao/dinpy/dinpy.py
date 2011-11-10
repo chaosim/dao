@@ -43,7 +43,7 @@ from dao.builtins.container import pytuple, head_list, list_tail, items, first, 
 from dao.builtins.term import pycall, py_apply
 from dao.builtins.term import getvalue, getvalue_default, is_
 from dao.builtins.arith import ne_p
-from dao.solve import eval as dao_eval, solve, tag_loop_label
+from dao.solve import eval as dao_eval, solve, tag_loop_label, to_sexpression
 from dao.solve import set_run_mode, noninteractive, DaoUncaughtThrow
 from dao.solve import interactive_parser, interactive_tagger, interactive_solver
 
@@ -86,14 +86,14 @@ class Dinpy(object):
     if isinstance(code, tuple): self.code +=  list(code)
     else: self.code += [code]
     return self
-  def preparse(self):
-    return tag_loop_label(preparse(self.code))
+  def preprocess(self):
+    return special.begin(*tag_loop_label(preparse(self.code)))
   def solve(self):
-    result = solve(tag_loop_label(preparse(self.code)))
+    result = solve(self.preprocess())
     self.code = []
     return result
   def eval(self):
-    result = dao_eval(tag_loop_label(preparse(self.code)))
+    result = dao_eval(self.preprocess())
     self.code = []
     return result
   def pprint(self, formater=None):
@@ -106,6 +106,7 @@ dinpy = Dinpy()
 def solve(exp):
   code = interactive_parser().parse(exp)
   code = interactive_tagger().tag_loop_label(code)
+  code = to_sexpression(code)
   return interactive_solver().solve(code)
     
 ## vv.a v.a

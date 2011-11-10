@@ -280,7 +280,7 @@ class any(Matcher):
   def __init__(self, item, template=None, result=None, mode=nongreedy):
     self.item, self.template, self.result, self.mode = item, template, result, mode
   def ___parse___(self, parser):
-    return make_any(self.item, self.template, self.result, self.mode)
+    return make_any(parser.parse(self.item), self.template, self.result, self.mode)
   
 def make_any(item, template=None, result=None, mode=nongreedy):   
   if result is None:
@@ -348,7 +348,7 @@ class some(Matcher):
   def __init__(self, item, template=None, result=None, mode=nongreedy):
     self.item, self.template, self.result, self.mode = item, template, result, mode
   def ___parse___(self, parser):
-    return make_some(self.item, self.template, self.result, self.mode)
+    return make_some(parser.parse(self.item), self.template, self.result, self.mode)
   
 def make_some(item, template=None, result=None, mode=nongreedy):   
   if result is None:
@@ -532,7 +532,7 @@ class times(Matcher):
     self.item, self.expect_times, self.template, self.result, self.mode = (
       item, expect_times, template, result, mode)
   def ___parse___(self, parser):
-    return make_times(self.item, self.expect_times, self.template, self.result, self.mode)
+    return make_times(parser.parse(self.item), self.expect_times, self.template, self.result, self.mode)
   
 def make_times(item, expect_times, template=None, result=None, mode=nongreedy):   
   if result is None:
@@ -783,7 +783,7 @@ class times_between(Matcher):
     self.item, self.min, self.max, self.template, self.result, self.mode = (
       item, min, max, template, result, mode)
   def ___parse___(self, parser):
-    return make_times_between(self.item, self.min, self.max, self.template, self.result, self.mode)
+    return make_times_between(parser.parse(self.item), self.min, self.max, self.template, self.result, self.mode)
   
 def make_times_between(item, min, max, template=None, result=None, mode=nongreedy):
   @matcher('times_between')
@@ -814,7 +814,8 @@ class seplist(Matcher):
     self.item, self.separator, self.expect_times, self.template, self.result, self.mode = (
       item, separator, expect_times, template, result, mode)
   def ___parse___(self, parser):
-    return make_seplist(self.item, self.separator, self.expect_times, self.template, self.result, self.mode)
+    return make_seplist(parser.parse(self.item), parser.parse(self.separator), 
+                        self.expect_times, self.template, self.result, self.mode)
   
 def make_seplist(item, separator, template=None, result=None, 
             expect_times=None, mode=nongreedy):
@@ -978,7 +979,8 @@ class seplist_times_more(Matcher):
     self.item, self.separator, self.expect_times, self.template, self.result, self.mode = (
       item, separator, expect_times, template, result, mode)
   def ___parse___(self, parser):
-    return make_seplist_times_more(self.item, self.separator, self.expect_times, self.template, self.result, self.mode)
+    return make_seplist_times_more(parser.parse(self.item), parser.parse(self.separator), 
+                                   self.expect_times, self.template, self.result, self.mode)
   
 def make_seplist_times_more(item, separator, expect_times, template=None, result=None, mode=nongreedy):
   @matcher('seplist_times_more')
@@ -1007,7 +1009,8 @@ class seplist_times_less(Matcher):
     self.item, self.separator, self.expect_times, self.template, self.result, self.mode = (
       item, separator, expect_times, template, result, mode)
   def ___parse___(self, parser):
-    return make_seplist_times_less(self.item, self.separator, self.expect_times, self.template, self.result, self.mode)
+    return make_seplist_times_less(parser.parse(self.item), parser.parse(self.separator), 
+                                   self.expect_times, self.template, self.result, self.mode)
   
 def make_seplist_times_less(item, separator, expect_times, template=None, result=None, mode=nongreedy):
   @matcher('seplist_times_less')
@@ -1066,7 +1069,8 @@ class seplist_times_between(Matcher):
     self.item, self.separator, self.min, self.max, self.template, self.result, self.mode = (
       item, separator, min, max, template, result, mode)
   def ___parse___(self, parser):
-    return make_seplist_times_between(self.item, self.separator, min, max, self.template, self.result, self.mode)
+    return make_seplist_times_between(parser.parse(self.item), parser.parse(self.separator), 
+                                      min, max, self.template, self.result, self.mode)
   
 def make_seplist_times_between(item, separator, min, max, template=None, result=None, mode=nongreedy):
   @matcher('seplist_times_between')

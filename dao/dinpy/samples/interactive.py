@@ -2,11 +2,9 @@ from dao.dinpy import *
 
 import random
 
-#print fun.f()
+print fun(1)[2]
 
-#print f()
-
-fun(1)[2], c<<fun(1)[True]
+print c<<fun(1)[True]
 
 print letr( a << fun(x) [ b(x)&c(x) ]
                         [ d(x) ],
@@ -42,6 +40,7 @@ print letr( a << fun(x) [ b(x)&cut&c(x) ]
             #c << fun(1) [True] 
            #).do[ 
            #a(x), x ]
+           
 result = solve(do[ repeat, i << pycall(random.randint, 0,10), prin(i), iff(i!=3).do [fail] ])
 
 print result.next()

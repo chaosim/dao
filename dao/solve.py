@@ -158,6 +158,7 @@ class Solutions:
 ##      raise NoMoreSolution
     
 def solve(exp): 
+  sexp = to_sexpression(exp)
   return Solutions(Solver.solve(exp))
 
 interactive, noninteractive = 1, 0

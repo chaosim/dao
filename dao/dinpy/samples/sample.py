@@ -85,7 +85,7 @@ loop(3) [prin(1)],
 
 loop(2) [prin(3), prin(4)],
 loop[ prin(1), prin(2), exit ], # 无限循环
-put.i.j.z << (0, 1, 2), 
+put.i.j.z << quote((0, 1, 2)), 
 
 println('\n\nloop: '),
 

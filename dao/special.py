@@ -283,14 +283,14 @@ class pytry(SpecialForm):
     self.body = body
     self.exception, self.ex_clause, self.final = exception, ex_clause, final
   def ___parse___(self, parser): 
-    for clause in self.clauses:
-      clause[1] = parser.parse(clause[1])
-    self.els = parser.parse(self.els)
+    #self.ex_clause = parser.parse(self.ex_clause)
+    #self.body = parser.parse(self.body)
+    #self.final = parser.parse(self.final)
     return self
-  def tag_loop_label(self, tagger): 
-    for clause in self.clauses:
-      clause[1] = tagger.tag_loop_label(clause[1])
-    self.els = tagger.tag_loop_label(self.els)
+  def tag_loop_label(self, parser): 
+    #self.ex_clause = tagger.tag_loop_label(self.ex_clause)
+    #self.body = tagger.tag_loop_label(self.body)
+    #self.final = tagger.tag_loop_label(self.final)
     return self
   def to_sexpression(self):
     return (pytry,)+to_sexpression((self.body, self.exception, self.ex_clause, self.final))
