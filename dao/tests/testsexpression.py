@@ -53,8 +53,9 @@ class Test_eval_while_parsing:
     eq_(parse(grammar, '{1}'), 1)
   def testif(self):
     eq_(parse(grammar, '{((if 0 + -) 1 1)}'), 0)
-  def testlet(self):
+  def testlet1(self):
     eq_(parse(grammar, '{(let ((a 1)) a)}'), 1)
+  def testlet2(self):
     eq_(parse(grammar, '{(let ((a 1)) {(+ a 1)})}'), 2)
   def testbegin(self):
     eq_(parse(grammar, '({begin} 1)'), (begin, 1))

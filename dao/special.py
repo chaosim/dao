@@ -543,7 +543,9 @@ class let(SpecialForm):
     self.body = tagger.tag_loop_label(self.body)
     return self
   def to_sexpression(self):
-    return (self.__class__, to_sexpression(self.bindings))+to_sexpression(self.body)
+    self.bindings = to_sexpression(self.bindings)
+    self.body = to_sexpression(self.body)
+    return (self.__class__, self.bindings)+self.body
   def cont(self, cont, solver):
     vars = tuple(b[0] for b in self.bindings)
     values = tuple(b[1] for b in self.bindings)
@@ -553,25 +555,13 @@ class let(SpecialForm):
   def __repr__(self):
     return 'let %s: %s'%(repr(self.bindings), self.body)
   
-class letr(SpecialForm):
+class letr(let):
   symbol = 'letr'
-  def __init__(self, bindings, *body):
-    self.bindings, self.body = tuple(bindings), body
-  def ___parse___(self, parser):
-    self.bindings = tuple((b[0], parser.parse(b[1])) for b in self.bindings)
-    self.body = parser.parse(self.body)
-    return self
-  def tag_loop_label(self, tagger):
-    self.bindings = tuple((b[0], tagger.tag_loop_label(b[1])) for b in self.bindings)
-    self.body = tagger.tag_loop_label(self.body)
-    return self
-  def to_sexpression(self):
-    return (self.__class__, to_sexpression(self.bindings))+to_sexpression(self.body)
   def cont(self, cont, solver):
     vars = tuple(b[0] for b in self.bindings)
     values = tuple(b[1] for b in self.bindings)
     return  solver.cont(((RecursiveFunctionForm,((vars,)+self.body)),)+values, cont)
-    return let_cont
+
   def __repr__(self):
     return 'letr %s: %s'%(repr(self.bindings), self.body)
   
@@ -633,14 +623,6 @@ class FunctionForm(SpecialForm):
     return result
 
 function = FunctionForm
-
-def letr(bindings, *body):
-  name = 'letr'
-  symbol = 'letr'
-  if isinstance(bindings, dict): raise Error
-  vars = tuple(b[0] for b in bindings)
-  values = tuple(b[1] for b in bindings)
-  return RecursiveFunctionForm((vars,)+ body)(*values)
 
 class RecursiveFunctionForm(FunctionForm): 
   def cont(self, cont, solver):

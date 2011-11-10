@@ -244,16 +244,16 @@ class Var(Command):
     
   def __add__(self, other): 
     from dao.builtins.arith import add
-    return add(self, other)
+    return (add, self, other)
   def __sub__(self, other): 
     from dao.builtins.arith import sub
-    return sub(self, other)
+    return (sub, self, other)
   def __radd__(self, other): 
     from dao.builtins.arith import add
-    return add(other, self)
+    return (add, other, self)
   def __rsub__(self, other): 
     from dao.builtins.arith import sub
-    return sub(other, self)
+    return (sub, other, self)
 
 class RuleHeadCopyVar(Var):
   var2index = {}

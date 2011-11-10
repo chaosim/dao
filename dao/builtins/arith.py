@@ -50,7 +50,7 @@ class BuiltinUnary(builtin.BuiltinFunction):
 binary = builtin.builtin(BuiltinBinary)
 unary = builtin.builtin(BuiltinUnary)
 
-@builtin.function('not_', 'not')
+@builtin.function('not_', 'not_')
 def not_(value):
   return not value
 
@@ -100,7 +100,7 @@ def or_(x, y): return operator.or_(x, y)
 
 @builtin.function('iter')
 def iter(x): return operator.iter(x) 
-@unary('neg', '-')
+@unary('neg', 'neg')
 def neg(x): return operator.neg(x)  
 @unary('pos', '+')
 def pos(x): return operator.pos(x)  

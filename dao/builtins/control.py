@@ -93,10 +93,10 @@ def or_p(solver, cont, *calls):
   if len(calls)==0:  
     yield value_cont(None, cont), True
   call0 = deref(calls[0], solver.env)
-  if isinstance(call0, CommandCall) and call0.operator==if_p: # A -> B; C
-    if_clause = deref(call0.operand[0], solver.env)
-    then_clause = deref(call0.operand[1], solver.env)
-    calls = (and_p(if_clause, cut, then_clause),)+calls[1:]
+  if call0[0]==if_p: # A -> B; C
+    if_clause = deref(call0[1], solver.env)
+    then_clause = deref(call0[2], solver.env)
+    calls = ((and_p, if_clause, (Cut, ), then_clause),)+calls[1:]
   for call in calls:
     yield solver.cont(call, cont), True
 
@@ -121,7 +121,7 @@ def if_p(solver, cont, if_clause, then_clause):
     yield solver.cont(then_clause, cont), True
   yield solver.cont(if_clause, if_p_cont), True
 
-@builtin.macro('not', 'not!')  
+@builtin.macro('not_p', 'not_p')  
 def not_p(solver, cont, call):
   call = deref(call, solver.env)
   for c, x in solver.exp_run_cont(call, cont):
