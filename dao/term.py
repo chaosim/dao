@@ -373,28 +373,27 @@ class CommandCall(Command):
   def __eq__(self, other): 
     return isinstance(other, self.__class__) and self.operator==other.operator and self.operand==other.operand
   
+def evaluate_arguments(solver, cont, exps):
+  if len(exps)==0: 
+    yield cont, []
+  else:
+    @mycont(cont)
+    def argument_cont(value, solver):
+      @mycont(cont)
+      def gather_cont(values, solver):
+          for c, v in cont([value]+values, solver): 
+            yield c, v
+      return evaluate_arguments(solver, gather_cont, exps[1:])
+    yield solver.cont(exps[0], argument_cont), True
+      
 class Function(Command):
   memorable = True
   
   def evaluate_cont(self, solver, cont, exps):
-    def evaluate_arguments(exps, cont):
-        if len(exps)==0: 
-          yield cont, []
-        else:
-          @mycont(cont)
-          def argument_cont(value, solver):
-            @mycont(cont)
-            def gather_cont(values, solver):
-                for c, v in cont([value]+values, solver): 
-                  yield c, v
-            return evaluate_arguments(exps[1:], gather_cont)
-          yield solver.cont(exps[0], argument_cont), True
-    
     @mycont(cont)
     def apply_cont(values, solver): 
       return self.run(solver, cont, values)
-    
-    return evaluate_arguments(exps, apply_cont)
+    return evaluate_arguments(solver, apply_cont, exps)
 
 class Macro(Command): 
   

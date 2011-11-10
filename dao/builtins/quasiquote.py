@@ -1,35 +1,75 @@
 from dao import builtin
 from dao.builtin import Builtin, Function
 from dao.term import CommandCall
+from dao.solve import DaoSyntaxError, mycont
 
 # quasiquote and backquote
 
-def eval_quasiquote(solver, cont, item):
-  if isinstance(item, list):
-    yield cont, [eval_quasiquote(solver, cont, x) for x in item]
-  if isinstance(item, tuple):
-    yield cont, [eval_quasiquote(solver, cont, x) for x in item]
-  try:
-    item_eval_quasiquote = item.eval_quasiquote
-  except:
-    
-    (solver, cont, item):
+## dao and t language
+## (if (> i 1) i (+ i 1))
+##`(if  ,i>1: ,i; else ,i+1)
 
-##@builtin.macro('quasiquote')
-##def quasiquote(solver, cont, item):
-##  if isinstance(item, list):
-##    if item[0]==backquote:
-##      if len(item)!=2: raise Exception
-##      if quote_level==0:
-##        return solver.solve(item[1], cont)
-##      else: 
-##        return quasiquote(item[1], quote_level-1)
-##    else:
-##      
-##  if isinstance(item, tuple):
-##    return tuple(quasiquote(x) for x in item)
-##  yield solver.cont(func, lambda value, solver:
-##    ((cont, True) for _ in var.unify(value, solver.env))), True
+def evaluate_quasiquote_list_cont(solver, cont, exps):
+  @mycont(cont)
+  def quasi_cont(result, solver):
+    if len(exps)==0: 
+      yield cont, result
+    else:
+      element0 = exps[0]
+      left_cont = evaluate_quasiquote_list_cont(solver, cont, exps[1:])
+      if element0==():
+        yield left_cont, result+((),)
+        return
+      if not isinstance(element0, tuple):
+        if element0==unquote or element0==unquote_slice:
+          raise DaoSyntaxError
+        else: 
+          yield left_cont, result+(element0,)
+          return
+      elif len(element0)==2:
+        if element0[0]==unquote:
+          @mycont(quasi_cont)
+          def gather_cont(value, solver):
+            yield left_cont, result+(value,)
+          yield solver.cont(element0[1], gather_cont), True
+          return
+        elif element0[0]==unquote_slice:
+          @mycont(quasi_cont)
+          def gather_cont(value, solver):
+            yield left_cont, result+value
+          yield solver.cont(element0[1], gather_cont), True
+          return
+      elif element0[0]==unquote or element0[0]==unquote_slice:
+        raise DaoSyntaxError
+      @mycont(quasi_cont)
+      def gather_cont(value, solver):
+        yield left_cont, result+(value,)
+      yield evaluate_quasiquote_list_cont(solver, gather_cont, element0), ()
+  return quasi_cont
+
+@builtin.macro('quasiquote')
+def quasiquote(solver, cont, item):
+  if not isinstance(item, tuple) or item==():
+    yield cont, item
+    return
+  elif len(item)==2:
+    if item[0]==unquote:
+      yield solver.cont(item[1], cont), True
+      return
+    elif item[0]==unquote_slice:
+      raise DaoSyntaxError
+  elif item[0]==unquote or item[0]==unquote_slice:
+    raise DaoSyntaxError
+  
+  yield evaluate_quasiquote_list_cont(solver, cont, item), ()
+
+@builtin.macro('unquote')
+def unquote(solver, cont, *args):
+  raise DaoSyntaxError
+
+@builtin.macro('unquote_slice')
+def unquote_slice(solver, cont, *args):
+  raise DaoSyntaxError
 
 ##Back when JAR first suggested making quasiquote standard, I transcribed
 ##my quasiquote implementation from the C-coded reader into Scheme-coded
@@ -89,9 +129,6 @@ def eval_quasiquote(solver, cont, item):
 ##   (ferror 'unquote
 ##      "unquote-splice form ,@~s not valid outside of quasiquote"
 ##      x))
-
-##(if (> i 1) i (+ i 1))
-##`(if  ,i>1: ,i; else ,i+1)
 
 ##;; usage:  (qq (x y (uq (+ 1 2)) (uq@ (list 1 2 3))))
 ##  ;;  ==>  (x y 3 1 2 3)
