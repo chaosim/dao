@@ -609,7 +609,7 @@ def make_rules(rules):
 class FunctionForm(SpecialForm):
   symbol = 'function'
   def __init__(self, *rules):
-    self.rules = tuple( (tuple(rule[0]),)+tuple(rule[1:]) for rule in rules)
+    self.rules = tuple((tuple(rule[0]),)+tuple(rule[1:]) for rule in rules)
     
   def ___parse___(self, parser):
     self.rules = tuple(parser.parse(rule) for rule in self.rules)
@@ -624,7 +624,7 @@ class FunctionForm(SpecialForm):
     func = UserFunction(arity2rules, signature2rules, solver.env, recursive=False)
     return value_cont(func, cont)
   def __eq__(self, other):
-    return isinstance(other, FunctionForm) and self.arity2rules==other.arity2rules
+    return isinstance(other, FunctionForm) and self.rules==other.rules
   def __repr__(self):
     result = 'func('
     for rule in self.rules:

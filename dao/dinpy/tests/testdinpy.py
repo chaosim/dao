@@ -195,43 +195,43 @@ class TestFun:
   def test_at(self):
     at1 = at(i)[1](j)[2][3](x,y)[4]
     eq_(preparse(at1), 
-        AtForm([((i,),[[1]]), ((j,),[[2],[3]]),((x,y),[[4]])])) 
+        AtForm((((i,),((1,),)), ((j,),((2,),(3,),)),((x,y),((4,),))))) 
   def test_at2(self):
-    eq_(preparse(at[prin(1)]), AtForm([(None,[[prin(1)]])]))
+    eq_(preparse(at[prin(1)]), AtForm(((None,((prin(1),),)),)))
   def test1(self):
-    eq_(preparse(fun. a(x)[prin(1)]), replace_def(a, (x,), [[prin(1)]], UserFunction))
+    eq_(preparse(fun. a(x)[prin(1)]), replace_def(a, (x,), ((prin(1),),), UserFunction))
   def test_eval_a_x(self):
-    eq_(eval([fun. a(x)[prin(x), x], a(1)]), 1)
+    eq_(eval(do[fun. a(x)[prin(x), x], a(1)]), 1)
   def test2(self):
-    eq_(preparse(fun. a(x)[prin(1)]), replace_def(a, (x,), [[prin(1)]], UserFunction))
+    eq_(preparse(fun. a(x)[prin(1)]), replace_def(a, (x,), ((prin(1),),), UserFunction))
   def test_eval_a_x2(self):
     #assert 0, 'repace_def rethink'
     x = v.x
-    eq_(eval([fun. a(x)[prin(x), x], a(1),
+    eq_(eval(do[fun. a(x)[prin(x), x], a(1),
               fun. a(x)[prin(-x), -x], a(1)]), -1)
-    #eq_(eval([fun. a(x)[prin(x), x], a(1),
-              #fun. a(x, i)[prin(-x, i), -x], a(3), a(1, 2)]), -1)
+    eq_(eval(do[fun. a(x)[prin(x), x], a(1),
+              fun. a(x, i)[prin(-x, i), -x], a(3), a(1, 2)]), -1)
   def test3(self):
     eq_(preparse(fun. a(x)>= [prin(1)]), 
         append_def(a, (x,), [(prin(1),)], special.UserFunction))
   def test4(self):
     eq_(preparse(fun. a(x)>= at[prin(1)]), 
-        append_def(a, (x,), [[prin(1)]], special.UserFunction))
+        append_def(a, (x,), ((prin(1),),), special.UserFunction))
   def test41(self):
     eq_(preparse(fun. a(x)>= at[prin(1)][prin(2)]), 
-        append_def(a, (x,), [[prin(1)],[prin(2)]], special.UserFunction))
+        append_def(a, (x,), ((prin(1),),(prin(2),),), special.UserFunction))
   def test42(self):
     eq_(preparse(fun. a(x)<= at[prin(1)]),
-        insert_def(a, (x,), [[prin(1)]], special.UserFunction))
+        insert_def(a, (x,), ((prin(1),),), special.UserFunction))
   def test5(self):
     eq_(preparse(fun. a== at()[prin(1)]), 
         special.set(a, special.FunctionForm(((), prin(1)))))
   def test6(self):
     eq_(preparse(fun. a>= at()[prin(1)]), 
-        special.begin(append_def(a, (), [[prin(1)]], special.UserFunction)))
+        special.begin(append_def(a, (), ((prin(1),),), special.UserFunction)))
   def test61(self):
     eq_(preparse(fun. a<= at()[prin(1)]), 
-        special.begin(insert_def(a, (), [[prin(1)]], special.UserFunction)))
+        special.begin(insert_def(a, (), ((prin(1),),), special.UserFunction)))
   def test7(self):
     eq_(preparse(-fun. a/3),abolish(a,3))
   def test8(self):
