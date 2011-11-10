@@ -1,4 +1,4 @@
-This is Dao 0.7.3
+This is Dao 0.7.4
 ============================
 
 What would happen when lisp meets prolog in python?  
@@ -57,20 +57,16 @@ f1
 0
 
 ----------------------------
-What's new in dao 0.7.3?
+What's new in dao 0.7.4?
 ----------------------------
 
-*Release date:  2011-11-4
+*Release date:  2011-11-10
 
 * new in code:
-  * memo the result of after running command to suppoort left recursive and to speedup.
-  * use signatures of rule head to cut down the rules to unify with.
-  * samples\sexpression.py pass all tests in dao\tests\testsexpression.py.
-  * rename builtin.function2 to builtin.predicate
-
-* chinese document is almost finished: 
-  * add document about samples\sexpression.py in chinese document
-  * other modification and update in document.
+  * quasiquote, unquote, unquote_slicing is implemented.
+  * directly evaluate sexpression in solver
+  * some builtins for define, set and get global, outer and local var
+  * lisp style macro: expand and eval on UserMacro
 
 See the file "news.txt" for what's new in all releases.
 

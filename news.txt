@@ -1,4 +1,16 @@
 ----------------------------
+What's new in dao 0.7.4?
+----------------------------
+
+*Release date:  2011-11-10
+
+* new in code:
+  * quasiquote, unquote, unquote_slicing is implemented.
+  * directly evaluate sexpression in solver
+  * some builtins for define, set and get global, outer and local var
+  * lisp style macro: expand and eval on UserMacro
+
+----------------------------
 What's new in dao 0.7.3?
 ----------------------------
 

@@ -1,6 +1,1 @@
-²ÜÐÇÃ÷(simeon.chaos@gmail.com)£ºthe creator of dao
-
-The contributing authors list is below, thanks a lot:
-  Christophe Delord: some code for term and unify in his pylog was used, which is replaced by the prolog in pypy now.
-  who wrote the code for prolog in pypy, espcially for prolog in pypy.
-  Yigal Duppen, some code for builtins in his Psyche is ported to dao.
+æ›¹æ˜Ÿæ˜Ž Caoxingming (simeon.chaos@gmail.com)
