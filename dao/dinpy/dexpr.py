@@ -6,7 +6,7 @@
 
 from dao.builtins import arith
 from dao import special
-from dao.solve import run_mode, interactive, dao_repr
+from dao.solve import run_mode, interactive, dao_repr, to_sexpression
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
 
 all = ['DinpySyntaxError']
@@ -65,6 +65,7 @@ class _SymbolExpression:
     if run_mode() is interactive:
       code = interactive_parser().parse(self)
       code = interactive_tagger().tag_loop_label(code)
+      code = to_sexpression(code)
       result = interactive_solver().eval(code)
       return repr(result) if result is not None else ''
     else: return self.____repr____()
@@ -251,6 +252,7 @@ class _lshift(_Binary):
     if run_mode() is interactive:
       code = interactive_parser().parse(self)
       code = interactive_tagger().tag_loop_label(code)
+      code = to_sexpression(code)
       result = interactive_solver().eval(code)
       return repr(result) if result is not None else ''
     else: return self.____repr____()

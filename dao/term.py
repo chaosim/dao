@@ -354,6 +354,7 @@ class CommandCall(Command):
     if run_mode() is interactive:
       code = interactive_parser().parse(self)
       code = interactive_tagger().tag_loop_label(code)
+      code = to_sexpression(code)
       result = interactive_solver().eval(code)
       return repr(result) if result is not None else ''
     return '%s(%s)'%(self.operator, 

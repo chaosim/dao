@@ -1,7 +1,7 @@
 from dao import builtin
 from dao.term import Var, ClosureVar, deref, getvalue, CommandCall
 import operator
-from dao.solve import run_mode, interactive
+from dao.solve import run_mode, interactive, to_sexpression
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
 
 class OperatorCall(CommandCall): pass
@@ -24,6 +24,7 @@ class BinaryCall(OperatorCall):
     if run_mode() is interactive:
       code = interactive_parser().parse(self)
       code = interactive_tagger().tag_loop_label(code)
+      code = to_sexpression(code)
       result = interactive_solver().eval(code)
       return repr(result) if result is not None else ''
     x = _operator_repr(self.operand[0], self.operator)

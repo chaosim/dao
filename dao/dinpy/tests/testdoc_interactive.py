@@ -49,18 +49,18 @@ inner loop:  1
 inner loop:  2
 'exit from inner'
 
->>> fun.f1(x)[x+x]
-f1
->>> f1(2)
-4
+#>>> fun.f1(x)[x+x]
+#f1
+#>>> f1(2)
+#4
 
->>> letr (f2 << fun(x)[ iff(x<1).do[x].els[f2(x-1)]]) .do [f2(3)]
-0
+#>>> letr (f2 << fun(x)[ iff(x<1).do[x].els[f2(x-1)]]) .do [f2(3)]
+#0
 
->>> fun.f()[prin('f():'), prin(4)]
-f
->>> f()
-f(): 4
+#>>> fun.f()[prin('f():'), prin(4)]
+#f
+#>>> f()
+#f(): 4
 '''
 
 if __name__ == "__main__":
