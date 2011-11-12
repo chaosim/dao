@@ -5,8 +5,8 @@ from dao import builtin
 
 @builtin.macro()
 def contain(solver, cont, container, member): 
-  container = getvalue(container, solver.env)
-  member = getvalue(member, solver.env)
+  container = getvalue(container, solver.env, {})
+  member = getvalue(member, solver.env, {})
   if isinstance(member, Var):
     for x in container:
       for _ in unify(member, x, solver.env):

@@ -131,8 +131,8 @@ def equal(solver, cont, left, right):
 def arith_predicate(binary, name, symbol):
   @builtin.macro(name, symbol)
   def pred(solver, cont, var0, var1):
-    if binary(getvalue(var0, solver.env), 
-                getvalue(var1, solver.env)):
+    if binary(getvalue(var0, solver.env, {}), 
+                getvalue(var1, solver.env, {})):
       yield cont, True
   return pred
 

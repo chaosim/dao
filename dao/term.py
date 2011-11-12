@@ -129,7 +129,7 @@ class Command(BaseCommand):
       
     @mycont(cont)
     def memo_result_cont(value, solver):
-      result_head = getvalue(values, solver.env)
+      result_head = getvalue(values, solver.env, {})
       result = result_head, solver.parse_state, value
       solver.sign_state2results.setdefault(sign_state, []).append(result)
       # TODO: prevent backtracking for greedy
@@ -151,7 +151,7 @@ class Var(Command):
     self.name = name
     
   def apply(self, solver, *exps):
-    return self.getvalue(solver.env).apply(solver, *exps)
+    return self.getvalue(solver.env, {}).apply(solver, *exps)
   
   def match(self, other): return True
         
@@ -197,11 +197,15 @@ class Var(Command):
       self.setvalue(result, env)
     return result
   
-  def getvalue(self, env):
-    result = self.deref(env)
-    if not isinstance(result, Var): 
-      result = getvalue(result, env)
-    return result
+  def getvalue(self, env, memo):
+    try: return memo[self]
+    except:
+      result = self.deref(env)
+      if not isinstance(result, Var): 
+        memo[self] = result
+        result = getvalue(result, env, memo)
+      memo[self ] = result
+      return result
   
   def take_value(self, env):
     envValue = env[self]
@@ -235,12 +239,12 @@ class Var(Command):
   def __hash__(self): return hash(id(self))
   
   def closure(self, env):
-    value = self.getvalue(env)
+    value = self.getvalue(env, {})
     if value is self: return self
     else: return ClosureVar(self, value)
   
   def cont(self, cont, solver):
-    return value_cont(self.getvalue(solver.env), cont)
+    return value_cont(self.getvalue(solver.env, {}), cont)
     
   def __add__(self, other): 
     from dao.builtins.arith import add
@@ -276,10 +280,14 @@ class DummyVar(Var):
       
   def deref(self, env): return self
   
-  def getvalue(self, env):
-    binding = env[self]
-    if binding is self: return binding
-    return getvalue(binding, env)
+  def getvalue(self, env, memo):
+    try: return memo[self]
+    except:
+      result = env[self]
+      if result is not self: 
+        result = getvalue(result, env, memo)
+      memo[self] = result
+      return result
   
   def take_value(self, env):
     binding = env[self]
@@ -303,7 +311,12 @@ class ClosureVar(Var):
     return unify(self.value, other, env, occurs_check)
 
   def deref(self, env): return self
-  def getvalue(self, env): return getvalue(self.value, env)
+  def getvalue(self, env, memo):
+    try: return memo[self]
+    except:
+      result = getvalue(self.value, env, memo)
+      memo[self] = result
+      return result
   def setvalue(self, value): self.var.setvalue(value)
 
   def copy(self, memo):
@@ -313,7 +326,7 @@ class ClosureVar(Var):
       return newvar
     
   def closure(self, env):
-    value = self.var.getvalue(env)
+    value = self.var.getvalue(env, {})
     if value is self.var: return self.var
     else: return ClosureVar(self.var, value)
     
@@ -433,9 +446,9 @@ class Cons:
     if head==self.head and tail==self.tail: return self
     return Cons(head, tail)
 
-  def getvalue(self, env):
-    head = getvalue(self.head, env)
-    tail = getvalue(self.tail, env)
+  def getvalue(self, env, memo):
+    head = getvalue(self.head, env, memo)
+    tail = getvalue(self.tail, env, memo)
     if head==self.head and tail==self.tail:
       return self
     return Cons(head, tail)

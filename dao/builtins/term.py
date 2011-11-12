@@ -7,11 +7,11 @@ from dao.solve import mycont
 
 @builtin.macro()
 def getvalue(solver, cont, item):
-  yield cont, term.getvalue(item, solver.env)
+  yield cont, term.getvalue(item, solver.env, {})
   
 @builtin.macro('getvalue_default', 'getvalue@')
 def getvalue_default(solver, cont, item, default=None):
-  value = term.getvalue(item, solver.env)
+  value = term.getvalue(item, solver.env, {})
   if isinstance(value, Var): value = default
   yield cont, value
   
@@ -24,11 +24,11 @@ def is_ground(term):
   
 @builtin.macro('ground')
 def ground(solver, cont, item):
-  yield cont, is_ground(term.getvalue(item, solver.env))
+  yield cont, is_ground(term.getvalue(item, solver.env, {}))
   
 @builtin.macro('ground_p', 'ground!')
 def ground_p(solver, cont, item):
-  if is_ground(term.getvalue(item, solver.env)): yield cont, True
+  if is_ground(term.getvalue(item, solver.env, {})): yield cont, True
   
 @builtin.macro()
 def setvalue(solver, cont, var, value):
@@ -38,7 +38,7 @@ def setvalue(solver, cont, var, value):
   assert isinstance(var, Var)
   @mycont(cont)
   def setvalue_cont(value, solver):
-    old = var.getvalue(solver.env)
+    old = var.getvalue(solver.env, {})
     var.setvalue(value, solver.env)
     yield cont, True
     var.setvalue(old, solver.env)
@@ -188,29 +188,29 @@ def unbind(solver, cont, arg):
   
 @builtin.macro('isinteger', 'isinteger!')
 def isinteger(solver, cont, arg):
-  yield cont, isinstance(getvalue(arg, env), int)
+  yield cont, isinstance(getvalue(arg, env, {}), int)
 
 @builtin.macro('isinteger_p', 'isinteger!')
 def isinteger_p(solver, cont, arg):
-  if isinstance(getvalue(arg, env), int): yield cont, True
+  if isinstance(getvalue(arg, env, {}), int): yield cont, True
 
 @builtin.macro('isfloat', 'isfloat')
 def isfloat(solver, cont, arg):
-  yield cont, isinstance(getvalue(arg, env), float)
+  yield cont, isinstance(getvalue(arg, env, {}), float)
 
 @builtin.macro('isfloat_p', 'isfloat!')
 def isfloat_p(solver, cont, arg):
-  if isinstance(getvalue(arg, env), float): yield cont, True
+  if isinstance(getvalue(arg, env, {}), float): yield cont, True
 
 @builtin.macro('isnumber', 'isnumber')
 def isnumber(solver, cont, arg):
-  yield cont, isinstance(getvalue(arg, env), int) \
-              or isinstance(getvalue(arg, env), float)
+  yield cont, isinstance(getvalue(arg, env, {}), int) \
+              or isinstance(getvalue(arg, env, {}), float)
 
 @builtin.macro('isnumber_p', 'isnumber!')
 def isnumber_p(solver, cont, arg):
-  if isinstance(getvalue(arg, env), int) \
-     or isinstance(getvalue(arg, env), float): 
+  if isinstance(getvalue(arg, env, {}), int) \
+     or isinstance(getvalue(arg, env, {}), float): 
     yield cont, True
 
 @builtin.function('istuple?')
@@ -221,11 +221,11 @@ def islist(x): return isinstance(x, list)
 
 @builtin.macro('iscons')
 def iscons(solver, cont, arg):
-  if isinstance(getvalue(arg, env), Cons): yield cont, True
+  if isinstance(getvalue(arg, env, {}), Cons): yield cont, True
 
 @builtin.macro('iscons_p', 'iscons!')
 def iscons_p(solver, cont, arg):
-  if isinstance(getvalue(arg, env), Cons): yield cont, True
+  if isinstance(getvalue(arg, env, {}), Cons): yield cont, True
 
 @builtin.function('cons_f', 'iscons?')
 def is_cons(x): return isinstance(x, Cons)

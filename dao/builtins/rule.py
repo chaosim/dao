@@ -22,7 +22,7 @@ def remove_memo_arity(solver, rules, arity):
   
 @builtin.macro()
 def abolish(solver, cont, rules, arity):
-  rules = getvalue(rules, solver.cont)
+  rules = getvalue(rules, solver.env, {})
   if not isinstance(rules, UserFunction) and not isinstance(rules, UserMacro):
     raise ValueError(rules)
   arity = deref(arity, solver.cont)
@@ -42,7 +42,7 @@ def abolish(solver, cont, rules, arity):
 
 @builtin.macro('assert')
 def assert_(solver, cont, rules, head, body, klass=UserFunction):
-  rules = getvalue(rules, solver.env)
+  rules = getvalue(rules, solver.env, {})
   if not isinstance(rules, klass): raise ValueError(rules)
   arity = len(head)
   arity_rules = rules.arity2rules.setdefault(arity, [])
@@ -67,7 +67,7 @@ def assert_(solver, cont, rules, head, body, klass=UserFunction):
 
 @builtin.macro('asserta')
 def asserta(solver, cont, rules, head, body, klass=UserFunction):
-  rules = getvalue(rules, solver.env)
+  rules = getvalue(rules, solver.env, {})
   if not isinstance(rules, klass): raise ValueError(rules)
   arity = len(head)
   arity_rules = rules.arity2rules.setdefault(arity, [])
@@ -117,7 +117,7 @@ def remove_memo_head(solver, rules, head):
   
 @builtin.macro('append_def')
 def append_def(solver, cont, rules, head, bodies, klass=UserFunction):
-  rules = getvalue(rules, solver.env)
+  rules = getvalue(rules, solver.env, {})
   if not isinstance(rules, klass): raise ValueError(rules)
   arity = len(head)
   arity_rules = rules.arity2rules.setdefault(arity, [])
@@ -144,7 +144,7 @@ def append_def(solver, cont, rules, head, bodies, klass=UserFunction):
 
 @builtin.macro('insert_def')
 def insert_def(solver, cont, rules, head, bodies, klass=UserFunction):
-  rules = getvalue(rules, solver.env)
+  rules = getvalue(rules, solver.env, {})
   if not isinstance(rules, klass): raise ValueError(rules)
   arity = len(head)
   arity_rules = rules.arity2rules.setdefault(arity, [])
@@ -179,7 +179,7 @@ def deepcopy(d):
 # replace the rules which the head can match with.
 @builtin.macro('replace')
 def replace(solver, cont, rules, head, body, klass=UserFunction):
-  rules = getvalue(rules, solver.env)
+  rules = getvalue(rules, solver.env, {})
   if not isinstance(rules, klass): raise ValueError(rules)
   arity = len(head)
   arity_rules = rules.arity2rules.setdefault(arity, [])
@@ -227,7 +227,7 @@ def replace(solver, cont, rules, head, body, klass=UserFunction):
 # replace or define the rules which the head can match with.
 @builtin.macro('replace_def')
 def replace_def(solver, cont, rules, head, bodies, klass=UserFunction):
-  rules = getvalue(rules, solver.env)
+  rules = getvalue(rules, solver.env, {})
   if isinstance(rules, Var):
     new_rules = [(head,)+tuple(body) for body in bodies]
     arity2rules, signature2rules = make_rules(new_rules)
@@ -308,7 +308,7 @@ def replace_def(solver, cont, rules, head, bodies, klass=UserFunction):
 #   removed from the database.
 @builtin.macro('retract')
 def retract(solver, cont, rules, head):
-  rules = getvalue(rules, solver.env)
+  rules = getvalue(rules, solver.env, {})
   if not isinstance(rules, klass): raise ValueError(rules)
   arity = len(head)
   if arity not in rules.arity_rules: 
@@ -343,7 +343,7 @@ def retract(solver, cont, rules, head):
 # All  rules for  which head  unifies with head are removed.
 @builtin.macro('retractall')
 def retractall(solver, cont, rules, head, klass=UserFunction):
-  rules = getvalue(rules, solver.env)
+  rules = getvalue(rules, solver.env, {})
   if not isinstance(rules, klass): raise ValueError
   arity = len(head)
   if arity not in rules.arity_rules: 
@@ -383,7 +383,7 @@ def retractall(solver, cont, rules, head, klass=UserFunction):
 # remove all rules which head matched with.
 @builtin.macro('remove')
 def remove(solver, cont, rules, head, klass=UserFunction):
-  rules = getvalue(rules, solver.env)
+  rules = getvalue(rules, solver.env, {})
   if not isinstance(rules, klass): raise ValueError
   arity = len(head)
   if arity not in rules.arity2rules: 

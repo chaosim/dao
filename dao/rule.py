@@ -24,12 +24,12 @@ class Rule(object):
       solver.env = env
     subst = {}
     sign_state = (call_data.command, call_data.signatures), solver.parse_state
-    values = getvalue(values, solver.env)
+    values = getvalue(values, solver.env, {})
     for _ in unify_list_rule_head(values, self.head, solver.env, subst):
       @mycont(cont)
       def rule_done_cont(value, solver):
         self.body
-        env_values = tuple(getvalue(v, solver.env) for v in subst.values())
+        env_values = tuple(getvalue(v, solver.env, {}) for v in subst.values())
         generators = tuple(set_bindings(caller_env.bindings, k, v) 
                            for k, v in zip(subst.keys(), env_values))
         for _ in apply_generators(generators):

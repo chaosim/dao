@@ -185,7 +185,7 @@ class FormTraveller(object):
   # prevent __getattr__
   def closure(self, env): return self
   def deref(self, env): return self
-  def getvalue(self, env): return self
+  def getvalue(self, env, memo): return self
   
   def __repr__(self): 
     if run_mode() is interactive:

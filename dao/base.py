@@ -130,13 +130,13 @@ def deref(x, env):
     else: return x
   return x_deref(env)
   
-def getvalue(x, env):
+def getvalue(x, env, memo):
   try: x_getvalue = x.getvalue
   except AttributeError: 
-    if isinstance(x, list): return [getvalue(e, env) for e in x]
-    elif isinstance(x, tuple): return tuple(getvalue(e, env) for e in x)
+    if isinstance(x, list): return [getvalue(e, env, memo) for e in x]
+    elif isinstance(x, tuple): return tuple(getvalue(e, env, memo) for e in x)
     else: return x
-  return x_getvalue(env)
+  return x_getvalue(env, memo)
 
 # one shot generators with return result list
 def apply_generators_list(generators): 

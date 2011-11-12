@@ -240,7 +240,7 @@ def greedy_repeat_result_cont(item, cont, matched_times, matched_list, template,
   @mycont(cont)
   def repeat_cont(value, solver):
     matched = [False]
-    if matched_times>0: matched_list.append(getvalue(template, solver.env))
+    if matched_times>0: matched_list.append(getvalue(template, solver.env, {}))
     next_cont = greedy_repeat_result_cont(item, cont, matched_times+1, 
                                           matched_list, template, result)
     @mycont(next_cont)
@@ -257,7 +257,7 @@ def nongreedy_repeat_result_cont(item, cont, matched_times, matched_list, templa
   @mycont(cont)
   def repeat_cont(value, solver):
     if matched_times>0: 
-      matched_list1 = matched_list+[getvalue(template, solver.env)]
+      matched_list1 = matched_list+[getvalue(template, solver.env, {})]
     else: matched_list1 = matched_list
     next_cont = nongreedy_repeat_result_cont(item, cont, 
                   matched_times+1, matched_list1, template, result)
@@ -269,7 +269,7 @@ def nongreedy_repeat_result_cont(item, cont, matched_times, matched_list, templa
 def lazy_repeat_result_cont(item, cont, matched_times, matched_list, template, result):
   @mycont(cont)
   def repeat_cont(value, solver):
-    if matched_times>0: matched_list.append(getvalue(template, solver.env))
+    if matched_times>0: matched_list.append(getvalue(template, solver.env, {}))
     for _ in unify(result, matched_list, solver.env): 
       yield cont, True
     next_cont = lazy_repeat_result_cont(item, cont, matched_times+1, matched_list, template, result)
@@ -452,7 +452,7 @@ def greedy_times_result_cont(item, expect_times, cont, matched_times,
   if isinstance(expect_times, int):
     @mycont(cont)
     def times_cont(value, solver):
-      if matched_times>0: matched_list.append(getvalue(template, solver.env))
+      if matched_times>0: matched_list.append(getvalue(template, solver.env, {}))
       if expect_times==matched_times:
         for _ in unify(result, matched_list, solver.env):
           yield cont, True
@@ -462,7 +462,7 @@ def greedy_times_result_cont(item, expect_times, cont, matched_times,
   else:
     @mycont(cont)
     def times_cont(value, solver):
-      if matched_times>0: matched_list.append(getvalue(template, solver.env))
+      if matched_times>0: matched_list.append(getvalue(template, solver.env, {}))
       matched = [False]
       next_cont = greedy_times_result_cont(item, expect_times, cont, 
                     matched_times+1, matched_list, template, result)
@@ -482,7 +482,7 @@ def nongreedy_times_result_cont(item, expect_times, cont,
   if isinstance(expect_times, int):
     @mycont(cont)
     def times_cont(value, solver):
-      if matched_times>0: matched_list.append(getvalue(template, solver.env))
+      if matched_times>0: matched_list.append(getvalue(template, solver.env, {}))
       if expect_times==matched_times:
         for _ in unify(result, matched_list, solver.env):
           yield cont, True
@@ -494,7 +494,7 @@ def nongreedy_times_result_cont(item, expect_times, cont,
     @mycont(cont)
     def times_cont(value, solver):
       if matched_times>0: 
-        matched_list1 = matched_list+[getvalue(template, solver.env)]
+        matched_list1 = matched_list+[getvalue(template, solver.env, {})]
       else: matched_list1 = matched_list
       next_cont = nongreedy_times_result_cont(item, expect_times, cont, 
                     matched_times+1, matched_list1, template, result)
@@ -509,7 +509,7 @@ def lazy_times_result_cont(item, expect_times, cont,
   if isinstance(expect_times, int):
     @mycont(cont)
     def times_cont(value, solver):
-      if matched_times>0: matched_list.append(getvalue(template, solver.env))
+      if matched_times>0: matched_list.append(getvalue(template, solver.env, {}))
       if expect_times==matched_times:
         for _ in unify(result, matched_list, solver.env):
           yield cont, True
@@ -519,7 +519,7 @@ def lazy_times_result_cont(item, expect_times, cont,
   else:
     @mycont(cont)
     def times_cont(value, solver):
-      if matched_times>0: matched_list.append(getvalue(template, solver.env))
+      if matched_times>0: matched_list.append(getvalue(template, solver.env, {}))
       for _ in unify(expect_times, matched_times, solver.env):
         for _ in unify(result, matched_list, solver.env): 
           yield cont, True
@@ -539,7 +539,7 @@ def make_times(item, expect_times, template=None, result=None, mode=nongreedy):
     if mode==greedy:
       @matcher('times')
       def times_bultin(solver, cont, item):
-        expectTimes1 = getvalue(expect_times, solver.env)
+        expectTimes1 = getvalue(expect_times, solver.env, {})
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
           elif expectTimes1==0: 
@@ -550,7 +550,7 @@ def make_times(item, expect_times, template=None, result=None, mode=nongreedy):
     elif mode==nongreedy:
       @matcher('times')
       def times_bultin(solver, cont, item):
-        expectTimes1 = getvalue(expect_times, solver.env)
+        expectTimes1 = getvalue(expect_times, solver.env, {})
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
           elif expectTimes1==0: 
@@ -561,7 +561,7 @@ def make_times(item, expect_times, template=None, result=None, mode=nongreedy):
     else:# mode==lazy:
       @matcher('times')
       def times_bultin(solver, cont, item): 
-        expectTimes1 = getvalue(expect_times, solver.env)
+        expectTimes1 = getvalue(expect_times, solver.env, {})
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
           elif expectTimes1==0: 
@@ -573,7 +573,7 @@ def make_times(item, expect_times, template=None, result=None, mode=nongreedy):
     if mode==greedy:
       @matcher('times')
       def times_bultin(solver, cont, item, template, result):  
-        expectTimes1 = getvalue(expect_times, solver.env)
+        expectTimes1 = getvalue(expect_times, solver.env, {})
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
           elif expectTimes1==0: 
@@ -586,7 +586,7 @@ def make_times(item, expect_times, template=None, result=None, mode=nongreedy):
     elif mode==nongreedy:
       @matcher('times')
       def times_bultin(solver, cont, item, template, result): 
-        expectTimes1 = getvalue(expect_times, solver.env)
+        expectTimes1 = getvalue(expect_times, solver.env, {})
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
           elif expectTimes1==0: 
@@ -599,7 +599,7 @@ def make_times(item, expect_times, template=None, result=None, mode=nongreedy):
     else: # mode==lazy
       @matcher('times')
       def times_bultin(solver, cont, item, template, result): 
-        expectTimes1 = getvalue(expect_times, solver.env)
+        expectTimes1 = getvalue(expect_times, solver.env, {})
         if isinstance(expectTimes1, int):
           if expectTimes1<0: raise Error
           elif expectTimes1==0: 
@@ -613,7 +613,7 @@ def make_times(item, expect_times, template=None, result=None, mode=nongreedy):
 @matcher()
 def times_more(solver, cont, item, expect_times, template=None, result=None, mode=nongreedy): 
   item = deref(item, solver.env)
-  expect_times = getvalue(expect_times, solver.env)
+  expect_times = getvalue(expect_times, solver.env, {})
   template = deref(template, solver.env)
   result = deref(result, solver.env)
   if not isinstance(expect_times, int): raise ValueError(expect_times)
@@ -627,7 +627,7 @@ def times_more(solver, cont, item, expect_times, template=None, result=None, mod
     else: temp_result = None
     @mycont(cont)
     def times_more_cont(value, solver):
-      matched_list = getvalue(temp_result, solver.env) if result is not None else None
+      matched_list = getvalue(temp_result, solver.env, {}) if result is not None else None
       yield make_repeat_cont(solver, cont, item, 0, matched_list, template, result, mode), value
     yield solver.cont(make_times(item, expect_times, template, temp_result), times_more_cont), True
 
@@ -672,7 +672,7 @@ def greedy_times_less_result_cont(item, expect_times, cont, matched_times,
       matched_list, template, result):
   @mycont(cont)
   def times_cont(value, solver):
-    if matched_times>0: matched_list.append(getvalue(template, solver.env))
+    if matched_times>0: matched_list.append(getvalue(template, solver.env, {}))
     if expect_times==matched_times:
       for _ in unify(result, matched_list, solver.env):
         yield cont, True
@@ -694,7 +694,7 @@ def nongreedy_times_less_result_cont(item, expect_times, cont,
       matched_times, matched_list, template, result):
   @mycont(cont)
   def times_cont(value, solver):
-    if matched_times>0: matched_list1 = matched_list+[getvalue(template, solver.env)]
+    if matched_times>0: matched_list1 = matched_list+[getvalue(template, solver.env, {})]
     else: matched_list1 = matched_list
     if expect_times==matched_times:
       for _ in unify(result, matched_list1, solver.env):
@@ -712,7 +712,7 @@ def lazy_times_less_result_cont(item, expect_times, cont,
       matched_times, matched_list, template, result):
   @mycont(cont)
   def times_cont(value, solver):
-    if matched_times>0: matched_list.append(getvalue(template, solver.env))
+    if matched_times>0: matched_list.append(getvalue(template, solver.env, {}))
     if expect_times==matched_times:
       for _ in unify(result, matched_list, solver.env):
         yield cont, True
@@ -748,7 +748,7 @@ def make_times_less_cont(solver, cont, item, expect_times,
 @matcher()
 def times_less(solver, cont, item, expect_times, template=None, result=None, mode=nongreedy): 
   item = deref(item, solver.env)
-  expect_times = getvalue(expect_times, solver.env)
+  expect_times = getvalue(expect_times, solver.env, {})
   template = deref(template, solver.env)
   result = deref(result, solver.env)
   if not isinstance(expect_times, int): raise ValueError(expect_times)
@@ -803,7 +803,7 @@ def make_times_between(item, min, max, template=None, result=None, mode=nongreed
     for c, _ in solver.exp_run_cont(make_times(item, min, template, temp1, mode), cont):
       for c, _ in solver.exp_run_cont((times_less, item, max-min, template, temp2, mode), cont):
         if result is not None:
-          matched_list = getvalue(temp1, solver.env)+getvalue(temp2, solver.env)
+          matched_list = getvalue(temp1, solver.env, {})+getvalue(temp2, solver.env, {})
           for _ in unify(result, matched_list, solver.env):
             yield c, True
         else: yield cont, True
@@ -889,7 +889,7 @@ def make_seplist(item, separator, template=None, result=None,
         def seplist_bultin(solver, cont, item, separator):
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
-          expectTimes1 = getvalue(expect_times, solver.env)
+          expectTimes1 = getvalue(expect_times, solver.env, {})
           if isinstance(expectTimes1, int):
             if expectTimes1<0: raise Error
             elif expectTimes1==0: 
@@ -903,7 +903,7 @@ def make_seplist(item, separator, template=None, result=None,
         def seplist_bultin(solver, cont, item, separator):
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
-          expectTimes1 = getvalue(expect_times, solver.env)
+          expectTimes1 = getvalue(expect_times, solver.env, {})
           if isinstance(expectTimes1, int):
             if expectTimes1<0: raise Error
             elif expectTimes1==0: 
@@ -917,7 +917,7 @@ def make_seplist(item, separator, template=None, result=None,
         def seplist_bultin(solver, cont, item, separator): 
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
-          expectTimes1 = getvalue(expect_times, solver.env)
+          expectTimes1 = getvalue(expect_times, solver.env, {})
           if isinstance(expectTimes1, int):
             if expectTimes1<0: raise Error
             elif expectTimes1==0: 
@@ -932,7 +932,7 @@ def make_seplist(item, separator, template=None, result=None,
         def seplist_bultin(solver, cont, item, separator, template, result):  
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
-          expectTimes1 = getvalue(expect_times, solver.env)
+          expectTimes1 = getvalue(expect_times, solver.env, {})
           if isinstance(expectTimes1, int):
             if expectTimes1<0: raise Error
             elif expectTimes1==0: 
@@ -947,7 +947,7 @@ def make_seplist(item, separator, template=None, result=None,
         def seplist_bultin(solver, cont, item, separator, template, result): 
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
-          expectTimes1 = getvalue(expect_times, solver.env)
+          expectTimes1 = getvalue(expect_times, solver.env, {})
           if isinstance(expectTimes1, int):
             if expectTimes1<0: raise Error
             elif expectTimes1==0: 
@@ -962,7 +962,7 @@ def make_seplist(item, separator, template=None, result=None,
         def seplist_bultin(solver, cont, item, separator, template, result): 
           separator1 = deref(separator, solver.env) 
           item1 = deref(item, solver.env) 
-          expectTimes1 = getvalue(expect_times, solver.env)
+          expectTimes1 = getvalue(expect_times, solver.env, {})
           if isinstance(expectTimes1, int):
             if expectTimes1<0: raise Error
             elif expectTimes1==0: 
@@ -997,7 +997,7 @@ def make_seplist_times_more(item, separator, expect_times, template=None, result
     prefix_list = make_seplist(item, separator, template1, temp_result1, expect_times, mode)
     for c, v in solver.exp_run_cont(prefix_list, cont):
       if result1 is not None:
-        matched_list = getvalue(temp_result1, solver.env)
+        matched_list = getvalue(temp_result1, solver.env, {})
       else: matched_list = None
       next_cont = make_repeat_cont(solver, cont, (and_p, separator1, item1), 
                     0, matched_list, template1, result1, mode)
@@ -1090,7 +1090,7 @@ def make_seplist_times_between(item, separator, min, max, template=None, result=
     for c, _ in solver.exp_run_cont(seplist_times(item, separator, min, template, temp1, mode), cont):
       for c, _ in solver.exp_run_cont(times_less(item+separator, max-min, template, temp2, mode), cont):
         if result is not None:
-          matched_list = getvalue(temp1, solver.env)+getvalue(temp2, solver.env)
+          matched_list = getvalue(temp1, solver.env, {})+getvalue(temp2, solver.env, {})
           for _ in unify(result, matched_list, solver.env):
             yield cont, True
         else: yield cont, True
