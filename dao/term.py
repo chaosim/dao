@@ -2,7 +2,7 @@
 
 # depend dao.solve only.
 
-from dao.solve import value_cont, mycont
+from dao.solve import value_cont, mycont, BaseCommand
 
 # below is for dinpy.
 from dao.solve import run_mode, interactive
@@ -79,7 +79,7 @@ def hash_parse_state(parse_state):
   try: return parse_state[1]
   except: return id(parse_state)
 
-class Command(object):
+class Command(BaseCommand):
   ''' the base class for all the callable object in the dao system.'''
   memorable = False
   
@@ -328,6 +328,9 @@ class CommandCall(Command):
   def __init__(self, operator, *operand):
     self.operator = operator
     self.operand = operand
+    if not isinstance(operator, Var):
+      self.is_global = operator.is_global
+    else: self.is_global = False
     
   def to_sexpression(self):
     return (to_sexpression(self.operator),)+tuple(to_sexpression(x) for x in self.operand)
@@ -341,12 +344,6 @@ class CommandCall(Command):
     self.operand = tagger.tag_loop_label(self.operand)
     return self
 
-  #def cont(self, cont, solver):
-    #@mycont(cont)
-    #def evaluate_cont(op, solver): 
-      #return op.evaluate_cont(solver, cont, self.operand)
-    #return solver.cont(self.operator, evaluate_cont)
-      
   def closure(self, env):
     return CommandCall(self.operator, *[closure(x, env) for x in self.operand])
   
@@ -375,13 +372,13 @@ class CommandCall(Command):
   
 def evaluate_arguments(solver, cont, exps):
   if len(exps)==0: 
-    yield cont, []
+    yield cont, ()
   else:
     @mycont(cont)
     def argument_cont(value, solver):
       @mycont(cont)
       def gather_cont(values, solver):
-          for c, v in cont([value]+values, solver): 
+          for c, v in cont((value,)+values, solver): 
             yield c, v
       return evaluate_arguments(solver, gather_cont, exps[1:])
     yield solver.cont(exps[0], argument_cont), True

@@ -15,7 +15,7 @@ class ContinuationFunction(Builtin, Function):
 @builtin.macro('callcc', 'call/cc')
 def callcc(solver, cont, fun):
   ''' call with current continuation '''
-  yield solver.cont((fun, ContinuationFunction(cont)), cont), fun
+  yield solver.cont((fun, ContinuationFunction(cont, '', '', False)), cont), fun
 
 # finding all solutions to a goal
 
@@ -97,8 +97,10 @@ def or_p(solver, cont, *calls):
     if_clause = deref(call0[1], solver.env)
     then_clause = deref(call0[2], solver.env)
     calls = ((and_p, if_clause, (Cut, ), then_clause),)+calls[1:]
+  env = solver.env
   for call in calls:
     yield solver.cont(call, cont), True
+    solver.env = env
 
 @builtin.macro('first_p', 'first!')
 def first_p(solver, cont, *calls):

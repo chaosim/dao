@@ -1,14 +1,11 @@
-﻿todo: quasiquote and backquote
-
-todo： correctly arrange and search env, global env，builtin env
-todo： better use module
+﻿todo： better use module
+todo: T language
+  todo: grammar
 
 todo:  replace environment with active record
 
-todo： manage builtin with module
-
-todo: T language
-  todo: grammar
+todo: explore the possibility of lazy evaluation
+  # 2011-11-12: I find a expression is saved in env for a var when debugging.
 
 todo: 可以根据历史选择和最近选择优选下一次的规则分支。
 
@@ -21,6 +18,12 @@ todo: natural language programming
 todo: 汉语编程
   过滤 缀词，冗余词
 
+================================================================================================================
+
+done 2011-11-10: quasiquote and backquote
+
+done 2011-11-10: manage builtin with module
+done 2011-11-9: correctly arrange and search env, global env，builtin env
 done: more builtins
   cancel: serialized assign
   done 2011-11-6:  global var assign, outer assign, local assign

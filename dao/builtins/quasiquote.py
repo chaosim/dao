@@ -21,7 +21,7 @@ def evaluate_quasiquote_list_cont(solver, cont, exps):
         yield left_cont, result+((),)
         return
       if not isinstance(element0, tuple):
-        if element0==unquote or element0==unquote_slice:
+        if element0==unquote or element0==unquote_splice:
           raise DaoSyntaxError
         else: 
           yield left_cont, result+(element0,)
@@ -33,13 +33,13 @@ def evaluate_quasiquote_list_cont(solver, cont, exps):
             yield left_cont, result+(value,)
           yield solver.cont(element0[1], gather_cont), True
           return
-        elif element0[0]==unquote_slice:
+        elif element0[0]==unquote_splice:
           @mycont(quasi_cont)
           def gather_cont(value, solver):
             yield left_cont, result+value
           yield solver.cont(element0[1], gather_cont), True
           return
-      elif element0[0]==unquote or element0[0]==unquote_slice:
+      elif element0[0]==unquote or element0[0]==unquote_splice:
         raise DaoSyntaxError
       @mycont(quasi_cont)
       def gather_cont(value, solver):
@@ -56,9 +56,9 @@ def quasiquote(solver, cont, item):
     if item[0]==unquote:
       yield solver.cont(item[1], cont), True
       return
-    elif item[0]==unquote_slice:
+    elif item[0]==unquote_splice:
       raise DaoSyntaxError
-  elif item[0]==unquote or item[0]==unquote_slice:
+  elif item[0]==unquote or item[0]==unquote_splice:
     raise DaoSyntaxError
   
   yield evaluate_quasiquote_list_cont(solver, cont, item), ()
@@ -67,8 +67,8 @@ def quasiquote(solver, cont, item):
 def unquote(solver, cont, *args):
   raise DaoSyntaxError
 
-@builtin.macro('unquote_slice')
-def unquote_slice(solver, cont, *args):
+@builtin.macro('unquote_splice')
+def unquote_splice(solver, cont, *args):
   raise DaoSyntaxError
 
 ##Back when JAR first suggested making quasiquote standard, I transcribed

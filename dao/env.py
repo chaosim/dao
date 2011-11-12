@@ -31,6 +31,7 @@ class ExtendEnvironment(Environment):
     self.bindings, self.outer = bindings, outer 
   def __getitem__(self, var):
     if var in self.bindings: return self.bindings[var]
+    if self.outer is None: return var
     return self.outer[var]
   def __setitem__(self, var, value):
     self.bindings[var] = value
@@ -69,12 +70,19 @@ class BlockEnvironment(ExtendEnvironment):
 class NotExistVariable(Exception):
   def __init__(self, var): 
     self.var = var 
+  def __repr__(self):
+    return '%s'%self.var
+  __str__ = __repr__
   
 class ModuleEnvironment(ExtendEnvironment): 
-  
+  def __init__(self, bindings, outer, name):
+    self.bindings = bindings
+    self.outer = outer
+    self.name = name
+    
   def lookup(self, var):
     try: return self.bindings[var]
     except: raise NotExistVariable(var)
     
-  def _repr(self): return 'MEnv%s'%self.bindings
+  def _repr(self): return 'MEnv(%s)'%self.name
   

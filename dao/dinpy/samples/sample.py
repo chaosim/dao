@@ -221,7 +221,7 @@ fun. sexpression == at
     [bracketExpression(Expr)]
     [puncExpression(Expr)],
     
-fun. stringExpression(X) [number(X)] [dqstring(X)] [uLetterdigitString(X)],
+fun. stringExpression(X) [integer(X)] [dqstring(X)] [uLetterdigitString(X)],
 
 fun. bracketExpression (ExprList)
     [char('(')+spaces0(_)+sexpressionList(ExprList)+spaces0(_)+char(')')]

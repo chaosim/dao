@@ -8,7 +8,7 @@ from dao.special import function, let, letr, macro, begin, eval_
 from dao.builtins.arith import add
 from dao.builtins.parser import set_text, parse_text
 from dao.builtins.parser import step, left, next_char, position, subtext, goto, skip
-from dao.builtins.terminal import char, number, eoi, literal, letter 
+from dao.builtins.terminal import char, integer, eoi, literal, letter 
 from dao.builtins.terminal import dqstring, sqstring, spaces, uLetterdigitString
 from dao.builtins.matcher import nullword, optional, parallel
 from dao.builtins.matcher import any, some, times, times_more, times_less, seplist
@@ -80,9 +80,9 @@ class Testterminal:
     
   def test_number(self):
     x, y, z = Var('y'), Var('x'), Var('z')
-    eq_(eval(begin(parse_text(number(x), '2'), x)), 2)
-    eq_(eval(begin(parse_text(number(y), '234'), y)), 234)
-    eq_(eval(begin(parse_text(number(z), '0232'), z)), 154) #0ctal
+    eq_(eval(begin(parse_text(integer(x), '2'), x)), 2)
+    eq_(eval(begin(parse_text(integer(y), '234'), y)), 234)
+    eq_(eval(begin(parse_text(integer(z), '0232'), z)), 154) #0ctal
     
   def test_literal(self):
     eq_(eval(parse_text(literal('if'), 'if')), True)
@@ -191,7 +191,7 @@ class TestParallel:
   def test_parallel(self):
     x = Var('x')
     eq_(eval(parse_text(parallel(letter(x), char(x)), 'a')), 'a')
-    assert_raises(NoSolutionFound, eval, parse_text(parallel(number(x), char('3')), '2'))
+    assert_raises(NoSolutionFound, eval, parse_text(parallel(integer(x), char('3')), '2'))
     
   def testparallelRule(self):
     x, s, gt, lt = Var('x'), Var('s'), Var('>'), Var('<')

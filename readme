@@ -8,18 +8,25 @@ Dinpy arises!
 Dao is the new generation programming system implemented by a functional logic solver, 
 unifying code with data, grammar with program, logic with functional, compiling with running.
 
+----------------------------
+What's new in dao 0.7.4?
+----------------------------
+
+*Release date:  2011-11-10
+
+* new in code:
+  * quasiquote, unquote, unquote_slicing is implemented.
+  * directly evaluate sexpression in solver
+  * some builtins for define, set and get global, outer and local var
+  * lisp style macro: expand and eval on UserMacro
+
+See the file "news.txt" for what's new in all releases.
+
 ------------------
 How to use Dao?
 ------------------
 
-!!! This readme in ReStructureText format does not works in pypi. 
-    What's wrong with this(see dao\readme and dao\setup.py)?
-    I don't find the reason even after reading pypi tutorial, google and trying a lot ways. 
-    If any one know please show me how to fix it (simeon.chaos@gmail.com) and thanks a lot.
-
-See the "get start" in the <http://code.google.com/p/daot/w/list> to get started with dao and dinpy.
 See <http://packages.python.org/daot> for document about dao and dinpy. 
-See the tests, and you'll get some information about the interface and use cases.
 
 Have a look at running Dinpy in interactive mode in the python shell below::
 
@@ -55,20 +62,6 @@ f1
 4
 >>> letr (f2 << fun(x)[ iff(x<1).do[x].els[f2(x-1)]]) .do [f2(3)]
 0
-
-----------------------------
-What's new in dao 0.7.4?
-----------------------------
-
-*Release date:  2011-11-10
-
-* new in code:
-  * quasiquote, unquote, unquote_slicing is implemented.
-  * directly evaluate sexpression in solver
-  * some builtins for define, set and get global, outer and local var
-  * lisp style macro: expand and eval on UserMacro
-
-See the file "news.txt" for what's new in all releases.
 
 -------------------------
 Download and install
@@ -167,3 +160,9 @@ This dao distribution contains GNU General Public Licensed (GPLed) code.
 All trademarks referenced herein are property of their respective holders. 
 
 That's all, folks!
+
+!!! This readme in ReStructureText format does not works in pypi. 
+    What's wrong with this(see dao\readme and dao\setup.py)?
+    I don't find the reason even after reading pypi tutorial, google and trying a lot ways. 
+    If any one know please show me how to fix it (simeon.chaos@gmail.com) and thanks a lot.
+

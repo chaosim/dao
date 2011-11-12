@@ -16,6 +16,7 @@ from dao.builtins.matcher import *
 from dao.builtins.terminal import *
 from dao.builtins.rule import *
 from dao.builtins.term import *
+from dao.builtins.quasiquote import *
 
 set_run_mode(noninteractive)
 
@@ -92,7 +93,7 @@ _ = DummyVar('_')
 sexpression_rules = [
   
   (atom_expression, function(
-    ([X], number(X)),
+    ([X], integer(X)),
     ([X], dqstring(X)),
     ([X], symbol(X))
     )),
@@ -103,9 +104,9 @@ sexpression_rules = [
   
   (puncExpression, function(
     ([L(quote, Expr)], and_p(char("'"), sexpression(Expr))),
-    ([('quasiquote', Expr)], and_p(char("`"), sexpression(Expr))),
-    ([('unquote-splicing', Expr)], and_p(literal(",@"), sexpression(Expr))),
-    ([('unquote', Expr)], and_p(char(","), sexpression(Expr))))),
+    ([L(quasiquote, Expr)], and_p(char("`"), sexpression(Expr))),
+    ([L(unquote_splice, Expr)], and_p(literal(",@"), sexpression(Expr))),
+    ([L(unquote, Expr)], and_p(char(","), sexpression(Expr))))),
   
   (sexpressionList, function(
     ([Cons(Expr, ExprList)], and_p(sexpression(Expr), spaces_on_condition(), sexpressionList(ExprList))),
@@ -163,7 +164,7 @@ def parse_eval(grammar, text):
 eval = parse_eval
 
 grammar = Grammar(sexpression(Expr), sexpression_rules, Expr)
-grammar1 = Grammar(number(Expr), sexpression_rules, Expr)
+grammar1 = Grammar(integer(Expr), sexpression_rules, Expr)
 grammar2 = Grammar(sexpressionList(Expr), sexpression_rules, Expr)
 
 # use the eval_parse_result to eval in parse at the end.

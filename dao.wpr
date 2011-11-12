@@ -12,6 +12,7 @@ proj.directory-list = [{'dirloc': loc('.'),
                         'watch_for_changes': True}]
 proj.file-type = 'shared'
 testing.auto-test-file-specs = ('e:\\dao\\dao\\tests\\test*.py',
+                                'e:\\dao\\dao\\t\\tests\\test*.py',
                                 'e:\\dao\\dao\\builtins\\tests\\test*.py',
                                 'e:\\dao\\dao\\dinpy\\tests\\test*.py')
 testing.test-framework = {None: 'nose',

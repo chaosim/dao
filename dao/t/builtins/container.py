@@ -1,10 +1,10 @@
 from dao.env import ModuleEnvironment
 from dao.term import var
-from dao.builtin import collocet_builtins_to_module
-from dao.t.builtins.globalenv import global_env
+from dao.t.builtins.globalenv import global_env, collocet_builtins
 
 from dao.builtins.container import *
+from dao.builtins.quasiquote import *
 
-container = ModuleEnvironment({}, None)
+container = ModuleEnvironment({}, None, 'container')
 global_env[var('container')] = container
-collocet_builtins_to_module(globals(), global_env, container)
+collocet_builtins(globals(), global_env, container)

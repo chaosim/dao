@@ -143,6 +143,17 @@ uLetterdigitString0 = string__on_predicate(_letter_digit_test, '_letterdigitTest
 spaces0 = string_in(space_string, once_more=False, repr_string='spaces0')
 spaces = string_in(space_string, repr_string='spaces')
 
+from dao.term import DummyVar
+from dao.builtins.control import and_p
+
+def wrap_spaces0(item):
+  _ = DummyVar('_')
+  return and_p(spaces0(_), item, spaces0(_))
+
+def wrap_spaces(item):
+  _ = DummyVar('_')
+  return and_p(spaces(_), item, spaces(_))
+
 def quote_string(quote, name):
   def func(solver, cont,  arg0):
     #assert isinstance(arg0, Var) and arg0.free(solver.env)
@@ -167,7 +178,7 @@ dqstring = quote_string('"', 'doublequotestring')
 sqstring = quote_string("'", 'singlequotestring')
 
 @matcher()
-def number(solver, cont,  arg0): 
+def integer(solver, cont,  arg0): 
   text, pos = solver.parse_state
   length = len(text)
   if pos>=length: return
@@ -182,6 +193,27 @@ def number(solver, cont,  arg0):
     solver.parse_state = text, p
     yield cont,  True
     solver.parse_state = text, pos
+
+@matcher()
+def float(solver, cont,  arg0): 
+  text, pos = solver.parse_state
+  length = len(text)  
+  if pos>=length: return
+  if not '0'<=text[pos]<='9' and text[pos]!='.': return
+  p = pos
+  while p<length and '0'<=text[p]<='9': p += 1
+  if p<length and text[p]=='.': p += 1
+  while p<length and '0'<=text[p]<='9': p += 1
+  if p<length-1 and text[p] in 'eE': p+=2
+  while p<length and '0'<=text[p]<='9': p += 1
+  if text[pos:p]=='.': return
+  val = eval(text[pos:p])
+  for _ in unify(arg0, val, solver.env):
+    solver.parse_state = text, p
+    yield cont,  True
+    solver.parse_state = text, pos
+
+number = float
 
 @matcher()
 def literal(solver, cont,  arg0):

@@ -1,0 +1,148 @@
+details of history:
+
+
+===================================================================================================
+----------------------------
+What's new in dao 0.7.4?
+----------------------------
+
+*Release date:  2011-11-10
+
+* new in code:
+  * quasiquote, unquote, unquote_slicing is implemented.
+  * directly evaluate sexpression in solver
+  * some builtins for define, set and get global, outer and local var
+  * lisp style macro: expand and eval on UserMacro
+
+----------------------------
+What's new in dao 0.7.3?
+----------------------------
+
+*Release date:  2011-11-4
+
+* new in code:
+  * memo the result of after running command to suppoort left recursive and to speedup.
+  * use signatures of rule head to cut down the rules to unify with.
+  * samples\sexpression.py pass all tests in dao\tests\testsexpression.py.
+  * rename builtin.function2 to builtin.predicate
+
+* chinese document is almost finished: 
+  * add document about samples\sexpression.py in chinese document
+  * other modification and update in document.
+
+
+----------------------------
+What's new in dao 0.7.2?
+----------------------------
+
+*Release date:  2011-10-27
+
+* new in code:
+  * refactor findall, call, once
+  * fix a bug that prevent some backtracking in optional
+  * fix the bug caused by getvalue/setvalue.
+     the bug masks the internal generated variable for function argumnet when return and causes error in some situations.
+
+* chinese document is almost finished: 
+  * new chapter: function, macro
+  * more about logic command in document(zh)
+
+----------------------------
+What's new in dao 0.7.1
+----------------------------
+
+*Release date:  2011-10-28
+
+fix bugs
+  * a big bug in 0.7.0 in assign when dinpy run in interactive mode is fixed
+some new builtins in builtins/term.py
+
+
+----------------------------
+What's new in dao 0.7.0?
+----------------------------
+
+*Release date:  2011-10-26
+
+    the code is rewriten completely by the improved techinque which is used by yieldprolog(http://yieldprolog.sourceforge.net). Yield statement is used to implement unify and backctracking of logic engine, besides, all continuations become functions, by remove class definition. So dao have a great speed up in its run now, and I believe that it can be used in real project. 
+    A language dinpy that uses dao's solver as the core is implemented. Dinpy is embeded in python, and dinpy have the features that both lisp and prolog provided.
+    Some documents about dao and dinpy are written.
+
+----------------------------
+What's new in dao 0.6.2? 
+----------------------------
+
+environment(env), substition(subst) and trail play together(which was called heap before). module was reimplemented by ModuleEnvironment?. new builtin: setvalue, catch, throw in lisp style, old catch and throw become try, raise. block and return-from, unwind-protect.
+
+----------------------------
+What's new in dao 0.6.1? 
+----------------------------
+
+Release date: 2011.3.18
+
+Grand unified theory in programming language is realized: Code is unified with data; grammar is unified with program; logic is unified with function; compiling is unified with running.
+
+add some absent builtins: repeat(control.py), throw, catch(in exception.py), standard compare(in unify.py, no standard_cmp is coded, so they is commented). macro which return macro can implement so called parameterized rules. see TestParameterize? in builtins\tests\testparser.py . tests about dynamic grammar modify interface to parse. don't use class Streamer, only maintain a member called stream in evaluator. don't give any assumption on the content of the stream. builtins in matchterm.py have no demand on the interface of stream. Stream and Line Stream are comptible with terminal.py. Other terminals can be write based on the interface of class Stream in builtins\parser.py. Other
+
+terminals aware of line can be write based on the class LineStream in builins\lineparserpy.
+If needed, other streams and terminals can be added. some tests(dao\tests\testsexpression\Test_eval_while_parsing) is added to demo the power of the dynamics of the parsing.
+
+----------------------------
+What's new in dao 0.6.0? 
+----------------------------
+
+Release date: 2011-3-14
+
+core
+
+a lisp style evaluator is implemented, which can eval expressions which is a hybrid of lisp forms and prolog terms.
+means that dao can eval rules with logic variables.
+function is a super concept of lambda, because function can be defined by mutilple rules with logic varialbes in caller form and rule body.
+macro is similar to function except that macro is called with its arguments which are not evaluated beforhand.
+the evaluator and parser is integrated. so you can use the evaluator as a parser and includes forms like (eval parsedResult) in the parse rules.
+can parse and eval lisp sexpression.
+implemented by double continuation include success cont(scont) and fail cont(fcont), borrowed and modified heavily from pypy prolog
+the evaluator loop is like lisp's metacirlar eval method.
+
+builtins
+
+prolog builtins
+logic control, unify, type, metacall, findall, format, atom, term, arithpred
+for parsing
+parser, terminal(char, number, letter, ...), matchterm(optional, any, some, times, seplist, ...)
+arithmetic operation
+callcc
+module
+
+----------------------------
+What's new in 0.1.3 
+----------------------------
+
+# Released date: 2007.6
+
+
+1 precedence of the elements and rules is processed correctly.
+
+2 Condition, which can be used to exclude ambiguous parsed result in Kleene star, E+E|E*E, if-then-else and the like, can be put in the rule.
+
+3 Adding and removing rule dynamically is permitted and the features of elements are computed according to the revision of the grammar.
+
+4 Multiply,Division and Cons are added to termlib.py.
+
+----------------------------
+What's new in 0.1.2? 
+----------------------------
+
+Simpler code and run faster
+
+Many things is cut from the source, like ascenders, augmentGrammar, but the parser can run faster now( profileParse.py run in 0.99s).
+
+Precedency is processed and pass all tests.
+
+----------------------------
+What's new in 0.1.1?
+----------------------------
+
+# Released date: 2007.5
+
+Big refactor of the code: remove many stuffs: such as ascenderRuleses, descenderRuleses, firstSegments, lastSegments, beforeSegments, followSegments, MinimizeSegments?, fitFollowBefore etc. All tests which is neccessary to parse passed, including precedence tests. The program runs faster now.

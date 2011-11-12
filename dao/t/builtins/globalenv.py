@@ -1,19 +1,32 @@
-from dao.env import GlobalEnvironment
+from dao.env import GlobalEnvironment, ModuleEnvironment
+from dao.solve import BaseCommand
+from dao.term import Command
+from dao.special import SpecialForm
 
 global_env = GlobalEnvironment({})
 
 from dao.base import is_subclass
 from dao.term import var
 
-def collocet_builtins_to_module(globls, global_env, module): 
+def get_var(builtin, name):
+  try: symbol = builtin.symbol
+  except:
+    try: symbol = builtin.name
+    except: symbol = name
+  return var(symbol)
+  
+def collocet_builtins(globls, global_env, module): 
   for name, obj in globls.items():
-    if isinstance(obj, Command):
-      try: symbol = obj.symbol
-      except:
-        try: symbol = obj.name
-        except: symbol = name
-      v = var(symbol)
+    if isinstance(obj, Command) or is_subclass(obj, SpecialForm):
+      v = get_var(obj, name)
       module[v] = obj
-      try: is_global = obj.is_global
-      except: is_global = False
-      if is_global: global_env[v] = obj
+      if obj.is_global: global_env[v] = obj
+      
+t = ModuleEnvironment({}, global_env, 't')
+grammar = ModuleEnvironment({}, global_env, 'gammar')
+sexpression = ModuleEnvironment({}, global_env, 'sexpression')
+classic = ModuleEnvironment({}, global_env, 'classic')
+global_env[var('t')] = t
+t[var('grammar')] = grammar
+grammar[var('sexpression')] = sexpression
+grammar[var('classic')] = classic

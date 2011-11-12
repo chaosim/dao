@@ -54,7 +54,7 @@ unary = builtin.builtin(BuiltinUnary)
 def not_(value):
   return not value
 
-@binary('lt', '<')
+@binary('lt', '<', is_global=True)
 def lt(x, y): return operator.lt(x, y)  
 @binary('le', '<=')
 def le(x, y): return operator.le(x, y)  
@@ -71,7 +71,7 @@ def ge(x, y): return operator.ge(x, y)
 def getattr(x, y): return operator.getattr(x, y)  
 @binary('getitem', '[ ]')
 def getitem(x, y): return operator.getitem(x, y)
-@binary('add', '+')
+@binary('add', '+', is_global=True)
 def add(x, y): return operator.add(x, y)  
 @binary('sub','-')
 def sub(x, y): return operator.sub(x, y)  
@@ -143,5 +143,5 @@ le_p = arith_predicate(operator.le, 'le_p', '<=!')
 gt_p = arith_predicate(operator.gt, 'gt_p', '>!')
 ge_p = arith_predicate(operator.ge, 'ge_p', '>=!')
 
-#arith_builtins = builtin.collocet_builtins_to_module(globals())
+#arith_builtins = builtin.collocet_builtins(globals())
 #print arith_builtins

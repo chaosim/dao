@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from dao.term import CommandCall, Function, Macro, closure, Var, ClosureVar, Command
+from dao.term import CommandCall, Function, Macro, closure, Var, ClosureVar#, Command
 from dao.term import apply_generators, rule_head_signatures
 from dao.rule import Rule, RuleList
 from dao.solve import value_cont, mycont, tag_unwind, DaoSyntaxError, to_sexpression
+from dao.solve import BaseCommand
 from dao.env import BlockEnvironment
 from dao.builtins.arith import eq, not_
 from dao.builtins.container import iter_next, make_iter
@@ -18,7 +19,8 @@ pyset = set
 class ParserForm(object): 
   def ___parse___(self, parser): return self
 
-class SpecialForm(Command, ParserForm):
+class SpecialForm(BaseCommand, ParserForm):
+  is_global = True
 
   def __call__(self, *exps): return CommandCall(self, *exps)
   def __add__(self, other): return begin(self, other)
@@ -704,7 +706,8 @@ def eval_(solver, cont, exp):
     yield solver.cont(value, cont), value
   yield solver.cont(exp, eval_cont), True
   
-from dao.env import ModuleEnvironment  
+from dao.env import ModuleEnvironment 
+
 class module(SpecialForm):
   def __init__(self, *body):
     #[module ...]
@@ -719,12 +722,39 @@ class module(SpecialForm):
     return (module, )+to_sexpression(self.body)
   def cont(self, cont, solver):
     old_env = solver.env
-    env = solver.env = ModuleEnvironment({}, old_env)
+    env = solver.env = ModuleEnvironment({}, old_env, '')
     @mycont(cont)
     def module_done_cont(value, solver): 
       solver.env = old_env
+      env.outer = None
       yield cont, env
     return solver.exps_cont(self.body, module_done_cont)
+
+class in_module(SpecialForm):
+  def __init__(self, module_env, *body):
+    #[module ...]
+    self.module_env, self.body = module_env, body
+  def ___parse___(self, parser):
+    self.body = parser.parse(self.body)
+    return self
+  def tag_loop_label(self, tagger):
+    self.body = tagger.tag_loop_label(self.body)
+    return self
+  def to_sexpression(self):
+    self.body = to_sexpression(self.body)
+    return (in_module, self.module_env)+self.body
+  def cont(self, cont, solver):
+    env = self.module_env
+    while env.outer is not solver.global_env:
+      env = env.outer
+    env.outer = old_env = solver.env
+    solver.env = self.module_env
+    @mycont(cont)
+    def in_module_done_cont(value, solver): 
+      solver.env = old_env
+      env.outer = solver.global_env
+      yield cont, value
+    return solver.exps_cont(self.body, in_module_done_cont)
 
 @builtin.macro('from_', 'from')
 def from_(solver, cont, module, var):  

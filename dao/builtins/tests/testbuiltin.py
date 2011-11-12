@@ -161,14 +161,14 @@ class TestTermConstruct:
   def test_copy_term(self):
     eq_(eval(begin(copy_term(L("abc", 1), x), x)), L("abc", 1))
     
-from dao.builtins.quasiquote import quasiquote, unquote, unquote_slice
+from dao.builtins.quasiquote import quasiquote, unquote, unquote_splice
 class TestQuasiquote:
   def test_simple1(self):
     eq_(eval(quasiquote(1)), 1)
   def test_unquote1(self):
     eq_(eval(quasiquote(unquote(add(1,1)))), 2)
   def test_unquote_slice1(self):
-    assert_raises(DaoSyntaxError, eval, quasiquote(unquote_slice(add(1,1))))
+    assert_raises(DaoSyntaxError, eval, quasiquote(unquote_splice(add(1,1))))
   def test_tuple1(self):
     eq_(eval(quasiquote((1,))), (1,))
     eq_(eval(quasiquote((1,2))), (1,2))
@@ -176,7 +176,7 @@ class TestQuasiquote:
   def test_unquote_add(self):
     eq_(eval(quasiquote((unquote(add(1,1)),2))), (2,2))
   def test_unquote_slice(self):
-    eq_(eval(quasiquote((unquote(add(1,1)),unquote_slice(quote((3,4)))))), (2,3,4))
+    eq_(eval(quasiquote((unquote(add(1,1)),unquote_splice(quote((3,4)))))), (2,3,4))
   def test_too_many_unquote(self):
    assert_raises(DaoSyntaxError, eval, quasiquote((unquote(unquote(add(1,1))),2)))
   

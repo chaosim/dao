@@ -7,6 +7,8 @@
 from dao.env import GlobalEnvironment
 from dao.base import is_subclass
 
+class BaseCommand: pass
+
 class CutException(Exception): pass
 class DaoStopIteration(Exception): pass
 
