@@ -293,9 +293,7 @@ class DummyVar(Var):
     return take_value(binding, env)
   
   def closure(self, env):
-    value = self.getvalue(env, {})
-    if value is self: return self
-    else: return DummyClosureVar(self, value)
+    return self
   
   def free(self, env): return True  
   def __eq__(self, other): return self.__class__ == other.__class__
@@ -312,6 +310,7 @@ class ClosureVar(Var):
     return unify(self.value, other, env, occurs_check)
 
   def deref(self, env): return self
+  
   def getvalue(self, env, memo):
     try: return memo[self]
     except:
@@ -336,15 +335,15 @@ class ClosureVar(Var):
   def __repr__(self): return '(%s:%s)'%(self.var, self.value)
   def __eq__(self, other): return self.var is other
 
-class DummyClosureVar(ClosureVar):
-  def unify(self, other, env, occurs_check=False):
-    return unify(self.var, other, env, occurs_check)
-  def deref(self, env): return self.var
-  def free(self, env): return True
-  def closure(self, env):
-    value = self.var.getvalue(env, {})
-    if value is self.var: return self.var
-    else: return DummyClosureVar(self.var, value)
+#class DummyClosureVar(ClosureVar):
+  #def unify(self, other, env, occurs_check=False):
+    #return unify(self.var, other, env, occurs_check)
+  #def deref(self, env): return self.var
+  #def free(self, env): return True
+  #def closure(self, env):
+    #value = self.var.getvalue(env, {})
+    #if value is self.var: return self.var
+    #else: return DummyClosureVar(self.var, value)
 
 from dao.solve import to_sexpression
 
@@ -411,7 +410,7 @@ class Function(Command):
       # don't pass value by DummyVar
       # see sample: some(statement(_stmt), _stmt, stmt_list)
       if isinstance(exps[0] , DummyVar): 
-        yield argument_cont, closure(exps[0], solver.env)
+        yield argument_cont, exps[0] 
       else: yield solver.cont(exps[0], argument_cont), True
   
   def evaluate_cont(self, solver, cont, exps):
