@@ -247,4 +247,17 @@ class TestMacro:
     eq_(preparse(macro. a== at()[prin(1)]), 
         special.set(a, special.MacroForm(((), prin(1)))))
     
+class TestSample:
+  def test_hello(self):
+    from dao.dinpy.samples import hello
+  def test_interactive(self):
+    from dao.solve import set_run_mode, interactive
+    set_run_mode(mode=interactive)
+    from dao.dinpy.samples import interactive
+  def test_parse_interactive(self):
+    from dao.solve import set_run_mode, interactive
+    set_run_mode(mode=interactive)
+    from dao.dinpy.samples import parse_interactive
+  def test_sample(self):
+    from dao.dinpy.samples import sample
 

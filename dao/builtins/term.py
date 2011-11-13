@@ -171,11 +171,11 @@ def bound_p(solver, cont, var):
     yield cont, True
   
 @builtin.macro('unbind')
-def unbind(solver, cont, arg):
+def unbind(solver, cont, var):
   if isinstance(var, ClosureVar): var = var.var
-  env0 = solver.env
+  env = solver.env
   bindings = []
-  while env is not None:
+  while env is not solver.global_env:
     try: 
       bindings.append((env.bindings, env.bindings[var]))
     except: pass

@@ -1,5 +1,6 @@
 from dao.dinpy import *
 
+print unbind(x)
 print free(x)
 print unify(x,1)
 print free(x)
