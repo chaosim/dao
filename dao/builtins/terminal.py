@@ -107,8 +107,10 @@ uletter = char_on_predicate(lambda char: char=='_' or ('a'<=char<='z') or ('A'<=
 _letter_digit_test = (lambda char: char=='_' or 
                     ('0'<=char<='9') or ('a'<=char<='z') or ('A'<=char<='Z'))
 u_letter_digit = char_on_predicate(_letter_digit_test, '_letterdigitChar')
-space_string = ' \t\r\n'
+space_string = ' \t' #\r\n
+white_space_string = ' \t\r\n'
 space = char_in(space_string, repr_string='spacesChar')
+whitespace = char_in(white_space_string, repr_string='spacesChar')
 
 def string__on_predicate(test, name='', onceMore=True):
   def func(solver, cont,  arg):
@@ -142,6 +144,8 @@ uLetterdigitString = string__on_predicate(_letter_digit_test, '_letterdigitStrin
 uLetterdigitString0 = string__on_predicate(_letter_digit_test, '_letterdigitTestString0', False)
 spaces0 = string_in(space_string, once_more=False, repr_string='spaces0')
 spaces = string_in(space_string, repr_string='spaces')
+white_spaces0 = string_in(white_space_string, once_more=False, repr_string='white_spaces0')
+white_spaces = string_in(white_space_string, repr_string='white_spaces')
 
 from dao.term import DummyVar
 from dao.builtins.control import and_p

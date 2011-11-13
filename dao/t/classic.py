@@ -22,7 +22,7 @@ from dao.builtins.quasiquote import quasiquote, unquote, unquote_splice
 from dao.builtins.arith import ge_p, gt_p
 
 from dao.t.builtins.globalenv import classic as classic_module
-from dao.t.operator import operator
+from dao.t.operator import operator, left, right
 
 # variables
 
@@ -31,8 +31,8 @@ x, y, z, = vars('x, y, z')
 var1, exp, exp1, exp2, exp_list, stmt, stmt_list = vars(
   'var1, exp, exp1, exp2, exp_list, stmt, stmt_list')
 code, result = vars('code, result')
-op, op_name, prior, prior1, prior2, prior3, assoc, assoc1, assoc12 = vars(
-  'op, op_name, prior, prior1, prior2, prior3, assoc, assoc1, assoc12')
+op, op_name, prior, prior1, prior2, assoc, assoc1, assoc2 = vars(
+  'op, op_name, prior, prior1, prior2, assoc, assoc1, assoc2')
 
 # function names
 
@@ -43,14 +43,25 @@ assign_statement, expression_statement = vars('assign_statement, expression_stat
 expression, dec_inc_expression, binary_expression, assign_expression  = vars(
   'expression, dec_inc_expression, binary_expression, assign_expression')
 
+assign,  = vars(
+  'assign')
+
 sign, dec_inc, number, string, identifier, atom = vars('sign, dec_inc, number, string, identifier, atom')
 binary_operator, op_func = vars('binary_operator, op_func')
 
 # dummies
 
-_, _stmt = dummies('_, _stmt')
+_, _type, _exp, _stmt = dummies('_, _type, _exp, _stmt')
 
 # classic grammar definitions
+
+# statement type
+(st_expression, st_assign, st_loop, st_block, st_if, st_case, st_let, st_defun, st_defmacro
+ ) = range(9)
+
+# expression type
+(et_comma, et_list, et_tuple, et_assign, et_unary, et_inc_dec, et_binary, et_augment_assign,
+  et_number, et_string, et_identifier, et_atom) = range(12)
 
 defines = in_module(classic_module,
 
@@ -59,58 +70,64 @@ define(program, function(
   )),  
 
 define(statement_list, function(
-  ([code], some(statement(_stmt), _stmt, stmt_list, greedy), 
+  ([code], some(and_p(spaces0(_), statement(_stmt, _type)), _stmt, stmt_list, greedy), 
            set(stmt_list, pycall(tuple, stmt_list)), 
            concat((begin,), stmt_list, code)),
   )),  
 
 define(statement, function(
-  ([stmt], expression_statement(stmt)),
-  ([stmt], assign_statement(stmt)),
-  )),  
-
-define(assign_statement, function(
-  ([exp], #prin('assign_statement', position()),
-          assign_expression(exp), spaces0(_), or_p(eoi, char(';'))),
-  )),  
-
-define(assign_expression, function(
-  ([(set, var1, exp)], #prin('id1', position()), 
-      identifier(var1), #prin('id2'), 
-      wrap_spaces0(char('=')),  #prin('='), 
-      expression(exp, _)),
-  )),  
-
-define(expression_statement, function(
-  ([exp], expression(exp, _)+spaces0(_), #prin('expression_statement', position()), 
+  # expression statement
+  ([exp, st_expression],  expression(exp, _type)+spaces0(_), #prin('expression_statement', position()), 
        or_p(eoi, char(';')), #prin('finish expression_statement', position())
        ),
+  # assign statement
+  ([exp, st_assign], #prin('assign_statement', position()),
+         expression(exp, et_assign),
+          spaces0(_), 
+          or_p(eoi, char(';'))),
   )),  
 
 define(expression, function(
-  ([exp, 100], atom(exp)),
-  ([exp, 90], # prin('dec_inc_expression', position()), 
-          dec_inc_expression(exp)),
-  ([exp, prior], # prin('binary_expression', position()), 
-          binary_expression(exp, prior)),
+  # assign expression
+  ([exp, et_assign], #prin('assign_statement', position()),
+         assign(exp),
+         ),
+  
+  ([exp, et_number], number(exp)),
+  ([exp, et_string], string(exp)),
+  ([exp, et_identifier],  #prin('in_id1'), 
+                          identifier(exp)),
+  ([exp, et_atom], atom(exp)),
+  ([exp, et_binary], expression(exp, et_binary, prior, assoc)),
+  ([exp, et_atom, 90, left], expression(exp, et_atom)),
+  
+  ([exp, et_inc_dec], # prin('dec_inc_expression', position()), 
+                      dec_inc_expression(exp)),
+  
+  # binary expression
+  ([(op_func, exp1, exp2), et_binary, prior2, assoc], 
+     expression(exp1, _type, prior1, assoc1),
+     spaces0(_), 
+     operator(2, op_name, prior, assoc, op_func), gt_p(prior1, prior), 
+     spaces0(_),
+     expression(exp2, _type, prior2, assoc2), gt_p(prior, prior2),
+     ),  
   )),  
 
-define(binary_expression, function(
-  ([(op_func, exp1, exp2), prior2], 
-     expression(exp1, prior1), 
-     operator(2, op_name, prior2, assoc1, op_func), gt_p(prior1, prior2), 
-     expression(exp2, prior3, assoc1), ge_p(prior2, prior3),
-     ),
-  )),  
+define(assign, function(
+  ([exp], identifier(var1), #prin('id2'), 
+          wrap_spaces0(char('=')), #prin('='), 
+          expression(exp, _)),
+  )),
 
 define(atom, function(
   ([exp], number(exp)),
   ([exp], string(exp)),
   ([exp], identifier(exp)),
-  )),  
+  )),
 
 define(number, function(
-  ([exp], spaces0(_), sign(op), spaces0(_), 
+  ([exp], sign(op), #spaces0(_), 
           terminal.number(exp2), 
           is_(exp, op(exp2))),
   )),
@@ -125,15 +142,16 @@ define(string, function(
   )),  
 
 define(identifier, function(
-  ([exp], terminal.uLetterdigitString(exp2), is_(exp, pycall(var, exp2))), #prin('in_id'), 
+  ([exp], terminal.uLetterdigitString(_exp), #prin('in_id'), 
+          is_(exp, pycall(var, _exp))), 
   )),
 
 define(dec_inc_expression, function(
-  ([(set, var1, (op, var1, 1))], identifier(var1), dec_inc(op)),
+  ([(set, var1, (op, var1, 1))], identifier(var1), spaces0(_), dec_inc(op)),
   )),
 
 define(dec_inc, function(
-  ([arith.add], wrap_spaces0(literal('++'))),
-  ([arith.sub], wrap_spaces0(literal('--')))
+  ([arith.add], literal('++')),
+  ([arith.sub], literal('--'))
   ))
 )

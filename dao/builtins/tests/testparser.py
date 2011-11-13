@@ -9,7 +9,7 @@ from dao.builtins.arith import add
 from dao.builtins.parser import set_text, parse_text
 from dao.builtins.parser import step, left, next_char, position, subtext, goto, skip
 from dao.builtins.terminal import char, integer, eoi, literal, letter 
-from dao.builtins.terminal import dqstring, sqstring, spaces, uLetterdigitString
+from dao.builtins.terminal import dqstring, sqstring, spaces, white_spaces, uLetterdigitString
 from dao.builtins.matcher import nullword, optional, parallel
 from dao.builtins.matcher import any, some, times, times_more, times_less, seplist
 from dao.builtins.matcher import lazy, times_between
@@ -96,7 +96,7 @@ class Testterminal:
   def test_spaces(self):
     x ,y  = Var('x'), Var('y')
     eq_(eval(begin(parse_text(spaces(x), ' '), x)), " ")
-    eq_(eval(begin(parse_text(spaces(y), "\r\t\n"), y)), "\r\t\n")
+    eq_(eval(begin(parse_text(white_spaces(y), "\r\t\n"), y)), "\r\t\n")
 
   def test_uLetterdigit(self):
     x ,y  = Var('x'), Var('y')

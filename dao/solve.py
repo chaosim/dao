@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+# exp: expression 
+# exps: expression list
 # env: environment
 # cont: continution 
 # parse_state: parse_state such as text used by the matchers which do parsing
@@ -194,8 +196,6 @@ def set_run_mode(mode=interactive, solver=None, tagger=None, parser=None):
     _run_mode = noninteractive
   
 class Solver:
-  # exp: expression 
-  # exps: expression list
   
   def __init__(self, global_env, env, parse_state, stop_cont):
     self.global_env = global_env
@@ -211,9 +211,6 @@ class Solver:
     self.call_path = []
   
   def eval(self, exp):
-    #if isinstance(exp, list) or isinstance(exp, tuple):
-      #from dao.special import begin
-      #exp = begin(*exp)
     for x in self.solve(exp): return x
     raise NoSolutionFound(exp)
     
@@ -282,8 +279,8 @@ class Solver:
         del parent[cg]
 
   def cont(self, exp, cont): 
-    if isinstance(exp, tuple): #isinstance(exp, list) or 
-      if is_subclass(exp[0], object): # SpecialForm
+    if isinstance(exp, tuple): 
+      if is_subclass(exp[0], BaseCommand): # SpecialForm
         form = exp[0](*exp[1:])
         return form.cont(cont, self)
       else:

@@ -99,8 +99,8 @@ sexpression_rules = [
     )),
   
   (bracketExpression, function(
-    ([ExprList], and_p(char('('), spaces0(_), sexpressionList(ExprList), spaces0(_), char(')'))),
-    ([ExprList], and_p(char('['), spaces0(_), sexpressionList(ExprList), spaces0(_), char(']'))))),
+    ([ExprList], and_p(char('('), white_spaces0(_), sexpressionList(ExprList), white_spaces0(_), char(')'))),
+    ([ExprList], and_p(char('['), white_spaces0(_), sexpressionList(ExprList), white_spaces0(_), char(']'))))),
   
   (puncExpression, function(
     ([L(quote, Expr)], and_p(char("'"), sexpression(Expr))),
@@ -113,12 +113,12 @@ sexpression_rules = [
     ([nil], null))),
   
   (sexpression1, function(
-    ([Expr], and_p(spaces0(_), sexpressionList(Expr), spaces0(_))))),
+    ([Expr], and_p(white_spaces0(_), sexpressionList(Expr), white_spaces0(_))))),
   
   (spaces_on_condition, function(
     ([], or_p(if_p(and_p(not_lead_chars('([])'), not_follow_chars('([])'), not_p(eoi)),
                    spaces(_)),
-          spaces0(_) ) ) ) ),
+          white_spaces0(_) ) ) ) ),
   
   (sexpression, function(
      # dynamic grammar arises!

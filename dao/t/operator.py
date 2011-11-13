@@ -63,7 +63,7 @@ assoc_dict = [{
 '<<': right
 }]
 
-op_fsm = [
+operator_fsms = [
 # unary operator
 FSM(priority_dict[0].keys()), 
 # binary operator
@@ -72,7 +72,7 @@ FSM(priority_dict[1].keys())]
 @matcher()
 def operator(solver, cont, arity, symbol, prior, assoc, operation): 
   arity = getvalue(arity, solver.env, {})
-  symbol = getvalue(arity, solver.env, {})
+  symbol = getvalue(symbol, solver.env, {})
   text, pos = solver.parse_state
   if not isinstance(symbol, Var) and text[pos:].startswith(symbol): 
     for _ in unify(assoc, get_assoc(op_str), solver.env):
@@ -82,7 +82,7 @@ def operator(solver, cont, arity, symbol, prior, assoc, operation):
           yield cont, op_str
           solver.parser_state = text, pos
     return
-  length = op_fsms[arity].match(text[pos])
+  length = operator_fsms[arity-1].match(text[pos:])
   if length==0: return
   else:
     op_str = text[pos:pos+length]

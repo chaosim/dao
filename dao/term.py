@@ -296,10 +296,38 @@ class DummyVar(Var):
     return self
   
   def free(self, env): return True  
-  def __eq__(self, other): return self.__class__ == other.__class__
+  
+  #def __eq__(self, other): return self.__class__ == other.__class__
+
+class NullVar(Var):
+  def __init__(self, name='__v', index=0): Var.__init__(self, name)
+  
+  def unify_rule_head(self, head, env, subst):
+    yield True
+      
+  def unify(self, other, env, occurs_check=False):
+    yield True
+    
+  def deref(self, env): return self
+  
+  def getvalue(self, env, memo):
+    return self
+  
+  def take_value(self, env):
+    return self
+  
+  def closure(self, env):
+    return self
+  
+  def free(self, env): return True  
+  
+  def __eq__(self, other): return True
+
+__null_var = NullVar('__')
 
 def vars(names): return [var(x.strip()) for x in names.split(',')]
 def dummies(names): return [dummy(x.strip()) for x in names.split(',')]
+def nulls(names): return [__null_var for x in names.split(',')]
 
 class ClosureVar(Var):
   def __init__(self, var, value):

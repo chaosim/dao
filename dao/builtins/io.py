@@ -17,7 +17,8 @@ def readlines(file):
 
 @builtin.function('prin', 'print')
 def prin(*args):
-  for arg in args: print arg,
+  for arg in args: 
+    print arg,
 
 @builtin.function()
 def println(*args):

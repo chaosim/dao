@@ -1,5 +1,17 @@
 details of history:
 
+2011-11-13 14:56:41 : 
+add NullVar, which do nothing when unify.
+
+-------------------------
+2011-11-13 14:55:37 
+organize the type hierachy of statement and expression
+
+---------------
+2011-11-13 11:40:26 : 
+git * dinpy/samples become tests
+dinpy/samples: hello.py, interactive.py, parse_interactive.py, sample.py become tests in testdinpy.py
+
 2011-11-13 11:36:38
 dinpy/samples become tests
 
