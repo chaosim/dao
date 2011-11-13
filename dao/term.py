@@ -193,8 +193,6 @@ class Var(Command):
     if next is None: return envValue
     if next is self: return next
     result = deref(next, env)
-    if result is not envValue and not isinstance(envValue, RuleHeadCopyVar): 
-      self.setvalue(result, env)
     return result
   
   def getvalue(self, env, memo):
@@ -274,9 +272,9 @@ def dummy(name):
 class DummyVar(Var):
   def __init__(self, name='_v', index=0): Var.__init__(self, name)
   
-  def unify_rule_head(self, other, callee_env, caller_env, varset): 
-    for x in self.unify(other, callee_env):
-      yield varset | set([self])
+  def unify_rule_head(self, head, env, subst):
+    subst[self] = copy_rule_head(head, env)
+    yield True
       
   def deref(self, env): return self
   
@@ -294,7 +292,10 @@ class DummyVar(Var):
     if binding is self: return binding
     return take_value(binding, env)
   
-  def closure(self, env): return self
+  def closure(self, env):
+    value = self.getvalue(env, {})
+    if value is self: return self
+    else: return DummyClosureVar(self, value)
   
   def free(self, env): return True  
   def __eq__(self, other): return self.__class__ == other.__class__
@@ -334,6 +335,16 @@ class ClosureVar(Var):
   
   def __repr__(self): return '(%s:%s)'%(self.var, self.value)
   def __eq__(self, other): return self.var is other
+
+class DummyClosureVar(ClosureVar):
+  def unify(self, other, env, occurs_check=False):
+    return unify(self.var, other, env, occurs_check)
+  def deref(self, env): return self.var
+  def free(self, env): return True
+  def closure(self, env):
+    value = self.var.getvalue(env, {})
+    if value is self.var: return self.var
+    else: return DummyClosureVar(self.var, value)
 
 from dao.solve import to_sexpression
 
@@ -383,27 +394,31 @@ class CommandCall(Command):
   def __eq__(self, other): 
     return isinstance(other, self.__class__) and self.operator==other.operator and self.operand==other.operand
   
-def evaluate_arguments(solver, cont, exps):
-  if len(exps)==0: 
-    yield cont, ()
-  else:
-    @mycont(cont)
-    def argument_cont(value, solver):
-      @mycont(cont)
-      def gather_cont(values, solver):
-          for c, v in cont((value,)+values, solver): 
-            yield c, v
-      return evaluate_arguments(solver, gather_cont, exps[1:])
-    yield solver.cont(exps[0], argument_cont), True
       
 class Function(Command):
   memorable = True
+  def evaluate_arguments(self, solver, cont, exps):
+    if len(exps)==0: 
+      yield cont, ()
+    else:
+      @mycont(cont)
+      def argument_cont(value, solver):
+        @mycont(cont)
+        def gather_cont(values, solver):
+            for c, v in cont((value,)+values, solver): 
+              yield c, v
+        return self.evaluate_arguments(solver, gather_cont, exps[1:])
+      # don't pass value by DummyVar
+      # see sample: some(statement(_stmt), _stmt, stmt_list)
+      if isinstance(exps[0] , DummyVar): 
+        yield argument_cont, closure(exps[0], solver.env)
+      else: yield solver.cont(exps[0], argument_cont), True
   
   def evaluate_cont(self, solver, cont, exps):
     @mycont(cont)
     def apply_cont(values, solver): 
       return self.run(solver, cont, values)
-    return evaluate_arguments(solver, apply_cont, exps)
+    return self.evaluate_arguments(solver, apply_cont, exps)
 
 class Macro(Command): 
   

@@ -9,5 +9,12 @@ class Test_teval:
     eq_(teval('-123.5e-6'), -0.0001235)
     eq_(teval('"-1"'), "-1")
     eq_(teval('a'), var('a'))
+  def test2(self):
+    eq_(teval('+1 ; -1'), -1)
+    eq_(teval('-123.5e-6; +1; -1'), -1)
+    eq_(teval('"-1" ;  1'), 1)
+    #eq_(teval('a; a;'), var('a'))
+  def test3(self):
+    eq_(teval('a = 1;'), 1)
   def test6(self):
     eq_(teval('a--'), 'a')

@@ -30,6 +30,7 @@ __all__ = [
 ##  'py', 'some', 'any', 'may'
 ]
 
+from dao import term
 from dao.pysyntax import *
 from dao.dinpy import dexpr
 from dao.dinpy.dexpr import _VarSymbol, _DummyVarSymbol
@@ -156,6 +157,9 @@ class SymbolForm(object):
   def __iter__(self): return iter(self.__symbols__)
 var = lead(SymbolForm)
 
+#@builtin.predicate('getvar')
+#def getvar(solver, cont, name, klass=Var): 
+  #yield cont, varcache(term.getvalue(name, solver.env, {}), klass)
 @builtin.function('getvar')
 def getvar(name, klass=Var): 
   return varcache(name, klass)
@@ -171,7 +175,7 @@ def getvar(name, klass=Var):
 # put.a = 1, put.i.j==(1,2)
 put = element('put',
   # put.i.j<<(1,2)
-  (getattr(__._)+assign(vv.x, getvar(__._)))[1:]%vv.x*vv.vars
+  (getattr(__._)+assign(vv.x, getvar(getvalue(__._))))[1:]%vv.x*vv.vars
         +lshift(vv.value)+eoi
         +pycall(special.set_list, vv.vars, pycall(preparse,vv.value))
   )

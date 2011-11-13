@@ -1,6 +1,11 @@
-﻿todo： better use module
+﻿2011-11-13 09:10:22: 
+
+todo： better use module
 todo: T language
   todo: grammar
+
+todo: memo builtins' result
+ # necessary:   sign(op), number(exp2) -> (may(char('+')), number) | (char('-'), number)
 
 todo:  replace environment with active record
 

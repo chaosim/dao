@@ -14,6 +14,7 @@ class Rule(object):
     return Rule(self.head, tagger.tag_loop_label(self.body))
   
   def apply(self, solver, cont, values, call_data):
+    parse_state = solver.parse_state
     caller_env = solver.env
     env = call_data.env
     call_path = solver.call_path[:]
@@ -23,7 +24,7 @@ class Rule(object):
       env.bindings = {}
       solver.env = env
     subst = {}
-    sign_state = (call_data.command, call_data.signatures), solver.parse_state
+    sign_state = (call_data.command, call_data.signatures), parse_state
     values = getvalue(values, solver.env, {})
     for _ in unify_list_rule_head(values, self.head, solver.env, subst):
       @mycont(cont)
@@ -36,12 +37,13 @@ class Rule(object):
           solver.env = caller_env
           solver.call_path = call_path
           yield cont, value
+          solver.parse_state = parse_state
         solver.env = caller_env
         solver.call_path = call_path
       yield solver.exps_cont(self.body, rule_done_cont), True
     solver.env = caller_env 
     solver.call_path = call_path
-      
+    solver.parse_state = parse_state  
     
   def copy(self): return Rule(self.head, self.body)
   

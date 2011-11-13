@@ -16,17 +16,28 @@ def contain(solver, cont, container, member):
 
 @builtin.macro()
 def length(solver, cont, sequence, leng):
-  sequence = deref(sequence, solver.env)
+  sequence = getvalue(sequence, solver.env, {})
   if isinstance(sequence, Var): error.throw_instantiation_error()
-  leng = deref(leng, solver.env)
+  leng = getvalue(leng, solver.env, {})
   for _ in unify(len(sequence), leng, solver.env): 
     yield cont, True
 
+
+def starstwith(x, y):
+  try: x_startswith = x.startswith
+  except: return x[:len(y)]== y
+  return x_startswith(y)
+
+def endswith(x, y):
+  try: x_endswith = x.endswith
+  except: return x[len(x)-len(y):]== y
+  return x_endswith(y)
+
 @builtin.macro()
 def concat(solver, cont, sequence1, sequence2, result):
-  sequence1 = deref(sequence1, solver.env)
-  sequence2 = deref(sequence2, solver.env)
-  result = deref(result, solver.env)
+  sequence1 = getvalue(sequence1, solver.env, {})
+  sequence2 = getvalue(sequence2, solver.env, {})
+  result = getvalue(result, solver.env, {})
   if isinstance(sequence1, Var):
     index = 0
     if isinstance(sequence2, Var):
@@ -35,11 +46,11 @@ def concat(solver, cont, sequence1, sequence2, result):
           for __ in sequence2.unify(result[index:], solver.env):
             yield cont, True
     else:
-      if result.endswith(sequence2):
+      if endswith(result, sequence2):
         for _ in sequence1.unify(result[:len(sequence2)], solver.env): yield cont, True
   else:
     if isinstance(sequence2, Var):
-      if result.startswith(sequence1):
+      if startswith(result, sequence1):
         for _ in sequence2.unify(result[len(sequence1):], solver.env): yield cont, True
     else:
       for _ in unify(result, sequence1+sequence2, solver.env): yield cont, True

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from dao.term import Command, Function, Macro, CommandCall
+from dao.solve import mycont
 
 class Builtin: 
   def __init__(self, function, name, symbol, is_global):
@@ -21,6 +22,20 @@ class BuiltinFunction(Builtin, Function):
   memorable = _memorable
   def __call__(self, *exps):
     return CommandCall(self, *exps)
+  
+  def evaluate_arguments(self, solver, cont, exps):
+    if len(exps)==0: 
+      yield cont, ()
+    else:
+      @mycont(cont)
+      def argument_cont(value, solver):
+        @mycont(cont)
+        def gather_cont(values, solver):
+            for c, v in cont((value,)+values, solver): 
+              yield c, v
+        return self.evaluate_arguments(solver, gather_cont, exps[1:])
+      yield solver.cont(exps[0], argument_cont), True
+      
   def apply(self, solver, cont, values, signatures):
     yield cont, self.function(*values)
     
