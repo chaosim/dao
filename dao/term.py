@@ -232,7 +232,7 @@ class Var(Command):
   
   def free(self, env): return isinstance(self.deref(env), Var)
   
-  def __repr__(self): return '%s'%self.name
+  def __repr__(self):  return '%s'%self.name
   def __eq__(self, other): return self is other
   def __hash__(self): return hash(id(self))
   
@@ -258,19 +258,16 @@ class Var(Command):
     return (sub, other, self)
 
 class RuleHeadCopyVar(Var):
-  var2index = {}
   def __init__(self, var):
     self.name = var.name
-    self.index = self.var2index.get(var, 0)
-    self.var2index[var] = self.index+1
-  def __repr__(self): return '$%s_%s'%(self.name, self.index)
+  def __repr__(self): return '$%s'%self.name
 
 _dummycache = {}
 def dummy(name):
   return _dummycache.setdefault(name, DummyVar(name))
 
 class DummyVar(Var):
-  def __init__(self, name='_v', index=0): Var.__init__(self, name)
+  def __init__(self, name='_v'): Var.__init__(self, name)
   
   def unify_rule_head(self, head, env, subst):
     subst[self] = copy_rule_head(head, env)
@@ -298,9 +295,9 @@ class DummyVar(Var):
   def free(self, env): return True  
   
   #def __eq__(self, other): return self.__class__ == other.__class__
-
+  
 class NullVar(Var):
-  def __init__(self, name='__v', index=0): Var.__init__(self, name)
+  def __init__(self): pass
   
   def unify_rule_head(self, head, env, subst):
     yield True
@@ -322,12 +319,14 @@ class NullVar(Var):
   def free(self, env): return True  
   
   def __eq__(self, other): return True
-
-__null_var = NullVar('__')
+  
+  def __repr__(self):  return '__'
+  
+__null_var = NullVar()
 
 def vars(names): return [var(x.strip()) for x in names.split(',')]
 def dummies(names): return [dummy(x.strip()) for x in names.split(',')]
-def nulls(names): return [__null_var for x in names.split(',')]
+def nullvars(count): return [__null_var for x in range(count)]
 
 class ClosureVar(Var):
   def __init__(self, var, value):

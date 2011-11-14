@@ -34,7 +34,8 @@ class quote(SpecialForm):
   def __init__(self, exp): self.exp = exp
   def to_sexpression(self):
     return (quote, to_sexpression(self.exp))
-  def cont(self, cont, solver): return value_cont(self.exp, cont)
+  def cont(self, cont, solver): 
+    return value_cont(self.exp, cont)
   def __eq__(self, other): return self.exp==other.exp
   def __repr__(self): 
     if run_mode()==interactive:
@@ -587,7 +588,7 @@ class lambda_(SpecialForm):
   
 def make_rules(rules):
   arity2rules, arity2signatures = {}, {}
-  for i, rule in enumerate(rules):
+  for rule in rules:
     head = rule[0]
     rule = Rule(head, rule[1:])
     arity = len(head)
@@ -595,7 +596,7 @@ def make_rules(rules):
     if arity==0: continue
     for signature in rule_head_signatures(head):
       arity_signature = arity2signatures.setdefault(arity, {})
-      arity_signature.setdefault(signature, pyset()).add(i)
+      arity_signature.setdefault(signature, pyset()).add(len(arity2rules[arity])-1)
   return arity2rules, arity2signatures
 
 class FunctionForm(SpecialForm):
@@ -670,6 +671,7 @@ class Rules:
     arity = len(values)
     if arity==0:
       rule_list = RuleList(self.arity2rules[0])
+      if len(rule_list)==0: return
     else:
       arity2rules = self.arity2rules[arity]
       sign2index = self.signature2rules[arity]
@@ -680,11 +682,13 @@ class Rules:
           var_sign = signature[0], Var
           index_set &= sign2index.get(var_sign, pyset())|\
                        sign2index.get(signature, pyset())
+      if len(index_set)==0: return
       rule_list = list(index_set)
       rule_list.sort()
       rule_list = RuleList([arity2rules[i] for i in rule_list])
     call_data = CallData(self, signatures, self.env, self.recursive)
-    return rule_list.apply(solver, cont, values, call_data)
+    for c, v in rule_list.apply(solver, cont, values, call_data):
+      yield c, v
           
 class UserFunction(Rules,  Function):
   memorable = True

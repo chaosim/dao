@@ -62,7 +62,7 @@ def set_bindings(bindings, var, value):
     bindings[var] = value
     yield True
     bindings[var] = old
-  except:
+  except KeyError:
     bindings[var] = value
     yield True
     del bindings[var]

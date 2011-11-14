@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+
+from dao.term import unify
 from dao import builtin
 from dao.fsm import FSM
 from dao.builtins.matcher import matcher
@@ -9,7 +12,8 @@ operation_dict = [{
 '+':pos
 },{
 # binary operator
-'+':add
+'+':add,
+'*':mul
 }]
 
 priority_dict = [{
@@ -86,9 +90,9 @@ def operator(solver, cont, arity, symbol, prior, assoc, operation):
   if length==0: return
   else:
     op_str = text[pos:pos+length]
-    for _ in unify(prior, get_priority(op_str), solver.env):
-      for _ in unify(assoc, get_assoc(op_str), solver.env):
-        for _ in unify(operation, get_operation(op_str), solver.env):
+    for _ in unify(prior, get_priority(op_str, arity), solver.env):
+      for _ in unify(assoc, get_association(op_str, arity), solver.env):
+        for _ in unify(operation, get_operation(op_str, arity), solver.env):
           for _ in unify(symbol, op_str, solver.env):
             solver.parser_state = text, pos+length
             yield cont, op_str
@@ -108,8 +112,7 @@ def get_association(symbol, arity):
 association = builtin.function()(get_association)
 
 def get_operation(symbol, arity): 
-  try: return assoc_dict[arity-1][symbol]
-  except: return left
+  return operation_dict[arity-1][symbol]
 
 operation = builtin.function()(get_operation)
 

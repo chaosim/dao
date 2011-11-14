@@ -3,17 +3,19 @@
 '''
 >>> from dao.dinpy import *
 
+>>> quote(i)
+i
+
+>>> quote(i/i+i*1)
+i/i+i*1
+
+>>> quote((i+i)*(i+1))
+(i+i)*(i+1)
+
 >>> i<<0
 0
 >>> lshift(i, 1)
 0
-
->>> quote(i)
-i
->>> quote(i/i+i*1)
-i/i+i*1
->>> quote((i+i)*(i+1))
-(i+i)*(i+1)
 
 >>> let(i<<1).do[prin(i)]
 1

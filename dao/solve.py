@@ -277,6 +277,7 @@ class Solver:
         cg = cont_gen
         cont_gen = parent[cont_gen]
         del parent[cg]
+      #except GeneratorExit: raise
 
   def cont(self, exp, cont): 
     if isinstance(exp, tuple): 

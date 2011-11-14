@@ -17,5 +17,9 @@ class Test_teval:
     eq_(teval('a; a;'), var('a'))
   def test3(self):
     eq_(teval('a = 1;'), 1)
+  def test4(self):
+    eq_(teval('1+1;'), 2)
+  def test5(self):
+    eq_(teval('1+2*3;'), 7)
   def test6(self):
     eq_(teval('a--'), 'a')

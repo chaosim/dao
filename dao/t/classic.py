@@ -3,7 +3,7 @@
 from dao import term
 from dao.builtins import arith
 from dao.term import Cons, nil, conslist as L, cons2tuple 
-from dao.term import var, vars, dummies #, Command, CommandCall
+from dao.term import var, vars, dummies, nullvars #, Command, CommandCall
 from dao.special import function, eval_, from_, quote, in_module, set, begin
 from dao.solve import to_sexpression
 
@@ -53,6 +53,8 @@ binary_operator, op_func = vars('binary_operator, op_func')
 
 _, _type, _exp, _stmt = dummies('_, _type, _exp, _stmt')
 
+__, __type, __prior, __assoc = nullvars(4)
+
 # classic grammar definitions
 
 # statement type
@@ -70,48 +72,63 @@ define(program, function(
   )),  
 
 define(statement_list, function(
-  ([code], some(and_p(spaces0(_), statement(_stmt, _type)), _stmt, stmt_list, greedy), 
+  ([code], some(and_p(spaces0(_), statement(_stmt, __type)), _stmt, stmt_list, greedy), 
            set(stmt_list, pycall(tuple, stmt_list)), 
            concat((begin,), stmt_list, code)),
   )),  
 
 define(statement, function(
   # expression statement
-  ([exp, st_expression],  expression(exp, _type)+spaces0(_), #prin('expression_statement', position()), 
+  ([exp, st_expression],  
+       #prin('expression_statement:', position()), 
+       expression(exp, __type),
+       spaces0(_), prin(exp),
        or_p(eoi, char(';')), #prin('finish expression_statement', position())
        ),
   # assign statement
   ([exp, st_assign], #prin('assign_statement', position()),
          expression(exp, et_assign),
           spaces0(_), 
-          or_p(eoi, char(';'))),
+          or_p(eoi, char(';')),
+          #prin('end assign', position()), 
+          ),
   )),  
 
 define(expression, function(
   # assign expression
-  ([exp, et_assign], #prin('assign_statement', position()),
-         assign(exp),
-         ),
+  ([exp, et_assign], 
+     #prin('assign expression:', position()),
+     assign(exp),
+  ),
   
+  # binary expression
+  ([exp, et_binary], 
+     #prin('binary expression', position()),
+     expression(exp, et_binary, __prior, __assoc)),
+  
+  ([(op_func, exp1, exp2), et_binary, prior2, assoc], 
+     #prin('binary expression again', position()),
+     expression(exp1, __type, prior1, assoc1),
+     spaces0(_), 
+     operator(2, op_name, prior, assoc, op_func), gt_p(prior1, prior), 
+     spaces0(_),
+     expression(exp2, __type, prior2, assoc2), gt_p(prior2, prior),
+     prin(op_func, exp1, exp2),
+     ),  
+
+  # increment and decrement expresson
+  ([exp, et_inc_dec], # prin('dec_inc_expression', position()), 
+                      dec_inc_expression(exp)),
+  
+  # atom expression
+  ([exp, et_atom], atom(exp)),
+  ([exp, et_atom, 90, left], expression(exp, et_atom)),
+
   ([exp, et_number], number(exp)),
   ([exp, et_string], string(exp)),
   ([exp, et_identifier],  #prin('in_id1'), 
                           identifier(exp)),
-  ([exp, et_atom], atom(exp)),
-  ([exp, et_binary], expression(exp, et_binary, prior, assoc)),
-  ([exp, et_atom, 90, left], expression(exp, et_atom)),
   
-  ([exp, et_inc_dec], # prin('dec_inc_expression', position()), 
-                      dec_inc_expression(exp)),
-  
-  # binary expression
-  ([(op_func, exp1, exp2), et_binary, prior2, assoc], 
-     expression(exp1, _type, prior1, assoc1),
-     spaces0(_), 
-     operator(2, op_name, prior, assoc, op_func), gt_p(prior1, prior), 
-     spaces0(_),
-     expression(exp2, _type, prior2, assoc2), gt_p(prior, prior2),
-     ),  
   )),  
 
 define(assign, function(

@@ -1,5 +1,30 @@
 details of history:
 
+2011-11-14 12:25:50 : 
+change the __repr__ of Var by mistake when adding NullVar, fix it.
+
+2011-11-14 11:57:04 : 
+fix the warnings: GeneratorExit ignored
+try: 
+  ...
+  yield ...
+except: ... # except KeyError, or any specific exception class.
+
+2011-11-14 11:30:19 
+1+1 => 2
+
+2011-11-14 10:27:43 : 
+bug: in make_rules, the index of arity2signatures is wrong
+  for i, rule in enumerate(rules):
+  ...
+for signature in rule_head_signatures(head):
+      arity_signature = arity2signatures.setdefault(arity, {})
+      arity_signature.setdefault(signature, pyset()).add(i) #fix: i ==>  len(arity2rules[arity]-1
+
+2011-11-13 15:09:45 : 
+git* add NullVar
+add NullVar, which do nothing and always succeed when unify.
+
 2011-11-13 14:56:41 : 
 add NullVar, which do nothing when unify.
 
@@ -17,8 +42,7 @@ dinpy/samples become tests
 
 -----------------------
 2011-11-13 11:15:20 
-git commit 
-* fix the bug in passing DummyVar as function's arguments
+git* fix the bug in passing DummyVar as function's arguments
 
 bug with closure var and is_, which is from passing DummyVar as function's arguments, see previous commit message for more informations.
 solution: pass BuiltinPredicate by DummarVar itself, pass BuiltinFunction by value of DummyVar.

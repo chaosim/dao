@@ -63,10 +63,11 @@ def define(solver, cont, var, value):
       old = bindings[var]
       yield cont, value
       binsings[old] = value
-    except:
+    except KeyError:
       bindings[var] = value
       yield cont, value
       del bindings[var]
+      
   yield solver.cont(value, define_cont), True
 
 @builtin.macro()
