@@ -118,6 +118,7 @@ class Command(BaseCommand):
     memo_results = solver.sign_state2results.get(sign_state)
     env = solver.env
     if memo_results is not None:
+      if memo_results==[]: return
       for _, c in sign_state2cont:
         if c.cont_order>cont.cont_order: continue
         for result_head, reached_parse_state, value in memo_results:
@@ -126,9 +127,11 @@ class Command(BaseCommand):
             solver.parse_state = reached_parse_state
             yield c, value
       solver.env = env 
-      
+    
+    have_result = [False]
     @mycont(cont)
     def memo_result_cont(value, solver):
+      have_result[0] = True
       result_head = getvalue(values, solver.env, {})
       result = result_head, solver.parse_state, value
       solver.sign_state2results.setdefault(sign_state, []).append(result)
@@ -139,6 +142,8 @@ class Command(BaseCommand):
     if len(sign_state2cont)==1: 
       for c, v in self.apply(solver, memo_result_cont, values, signatures):
         yield c, v
+      if not have_result[0]:
+        solver.sign_state2results[sign_state] = []
 
 class Symbol: pass
 

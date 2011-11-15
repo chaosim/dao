@@ -9,7 +9,7 @@ from dao.solve import to_sexpression
 
 from dao import builtin
 
-from dao.builtins.io import prin
+from dao.builtins.io import prin, println
 from dao.builtins.control import and_p, or_p, if_p, not_p
 from dao.builtins.parser import position
 from dao.builtins.matcher import null, optional, make_some as some, greedy
@@ -31,8 +31,10 @@ x, y, z, = vars('x, y, z')
 var1, exp, exp1, exp2, exp_list, stmt, stmt_list = vars(
   'var1, exp, exp1, exp2, exp_list, stmt, stmt_list')
 code, result = vars('code, result')
-op, op_name, prior, prior1, prior2, assoc, assoc1, assoc2 = vars(
-  'op, op_name, prior, prior1, prior2, assoc, assoc1, assoc2')
+op, op_name, op_name2, op_func, op_func2, et_type1, et_type2 = vars(
+  'op, op_name, op_name2, op_func, op_func2, et_type1, et_type2')
+prior, prior1, prior2, prior3, assoc, assoc1, assoc2, assoc3 = vars(
+  'prior, prior1, prior2, prior3, assoc, assoc1, assoc2, assoc3')
 
 # function names
 
@@ -47,7 +49,7 @@ assign,  = vars(
   'assign')
 
 sign, dec_inc, number, string, identifier, atom = vars('sign, dec_inc, number, string, identifier, atom')
-binary_operator, op_func = vars('binary_operator, op_func')
+binary_operator = vars('binary_operator, op_func')
 
 # dummies
 
@@ -82,16 +84,17 @@ define(statement, function(
   ([exp, st_expression],  
        #prin('expression_statement:', position()), 
        expression(exp, __type),
-       spaces0(_), prin(exp),
-       or_p(eoi, char(';')), #prin('finish expression_statement', position())
+       spaces0(_), #prin(exp),
+       or_p(eoi, char(';')), 
+       #prin('finish expression_statement', position())
        ),
-  # assign statement
-  ([exp, st_assign], #prin('assign_statement', position()),
-         expression(exp, et_assign),
-          spaces0(_), 
-          or_p(eoi, char(';')),
-          #prin('end assign', position()), 
-          ),
+  ## assign statement
+  #([exp, st_assign], #prin('assign_statement', position()),
+         #expression(exp, et_assign),
+          #spaces0(_), 
+          #or_p(eoi, char(';')),
+          ##prin('end assign', position()), 
+          #),
   )),  
 
 define(expression, function(
@@ -107,13 +110,19 @@ define(expression, function(
      expression(exp, et_binary, __prior, __assoc)),
   
   ([(op_func, exp1, exp2), et_binary, prior2, assoc], 
-     #prin('binary expression again', position()),
-     expression(exp1, __type, prior1, assoc1),
+     println('b', position()),
+     expression(exp1, et_type1, prior1, assoc1),
+     println('be', position()),
      spaces0(_), 
+     println('bes', position()),
      operator(2, op_name, prior, assoc, op_func), gt_p(prior1, prior), 
+     println('beso', position()),
      spaces0(_),
-     expression(exp2, __type, prior2, assoc2), gt_p(prior2, prior),
-     prin(op_func, exp1, exp2),
+     println('besos', position()),
+     expression(exp2, et_type2, prior2, assoc2), gt_p(prior2, prior),
+     println(op_func, exp1, exp2, 'at:', position()),
+     not_p(and_p(operator(2, op_name2, prior3, assoc3, op_func2), gt_p(prior3, prior))),
+     println('end'),
      ),  
 
   # increment and decrement expresson
@@ -146,7 +155,9 @@ define(atom, function(
 define(number, function(
   ([exp], sign(op), #spaces0(_), 
           terminal.number(exp2), 
-          is_(exp, op(exp2))),
+          is_(exp, op(exp2)),
+          println('num')),
+  
   )),
 
 define(sign, function(

@@ -79,12 +79,13 @@ def operator(solver, cont, arity, symbol, prior, assoc, operation):
   symbol = getvalue(symbol, solver.env, {})
   text, pos = solver.parse_state
   if not isinstance(symbol, Var) and text[pos:].startswith(symbol): 
-    for _ in unify(assoc, get_assoc(op_str), solver.env):
-      for _ in unify(operation, get_operation(op_str), solver.env):
-        for _ in unify(symbol, op_str, solver.env):
-          solver.parser_state = text, pos+length
-          yield cont, op_str
-          solver.parser_state = text, pos
+    for _ in unify(assoc, get_association(symbol, arity), solver.env):
+      for _ in unify(operation, get_operation(symbol, arity), solver.env):
+        for _ in unify(operation, get_operation(symbol, arity), solver.env):
+          solver.parse_state = text, pos+len(symbol)
+          print 'operator'
+          yield cont, symbol
+          solver.parse_state = text, pos
     return
   length = operator_fsms[arity-1].match(text[pos:])
   if length==0: return
@@ -94,9 +95,10 @@ def operator(solver, cont, arity, symbol, prior, assoc, operation):
       for _ in unify(assoc, get_association(op_str, arity), solver.env):
         for _ in unify(operation, get_operation(op_str, arity), solver.env):
           for _ in unify(symbol, op_str, solver.env):
-            solver.parser_state = text, pos+length
+            solver.parse_state = text, pos+length
+            print 'operator'
             yield cont, op_str
-            solver.parser_state = text, pos
+            solver.parse_state = text, pos
 
 def get_priority(symbol, arity): 
   try: return priority_dict[arity-1][symbol]

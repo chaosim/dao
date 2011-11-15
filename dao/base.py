@@ -88,15 +88,12 @@ def apply_generators(generators):
     try:
       generators[i].next()
       if i==length-1:
-        #generators[i].close()
         yield True
         return
       else: i += 1
     except StopIteration:
-      #generators[i].close()
       if i==0: return
       i -= 1
-    #except GeneratorExit: raise
 
 def unify(x, y, env, occurs_check=False):
   try: x_unify = x.unify

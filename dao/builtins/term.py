@@ -62,7 +62,7 @@ def define(solver, cont, var, value):
     try:
       old = bindings[var]
       yield cont, value
-      binsings[old] = value
+      bindings[old] = value
     except KeyError:
       bindings[var] = value
       yield cont, value

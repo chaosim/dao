@@ -1,11 +1,13 @@
-﻿2011-11-13 09:10:22: 
-
-todo： better use module
-todo: T language
+﻿todo: T language
   todo: grammar
 
 todo: memo builtins' result
  # necessary:   sign(op), number(exp2) -> (may(char('+')), number) | (char('-'), number)
+
+todo: succeed continution, fail continuation and compiler
+todo: no list, tuples, only Cons
+todo: module become object?
+  # lookup var in base module
 
 todo:  replace environment with active record
 
@@ -25,6 +27,7 @@ todo: 汉语编程
 
 ================================================================================================================
 
+done 2011-08-23 11:02:28： better use module
 done 2011-11-10: quasiquote and backquote
 
 done 2011-11-10: manage builtin with module

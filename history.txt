@@ -1,7 +1,18 @@
 details of history:
 
+2011-11-15 14:34:30 
+bug fix: memo result don't meme fail of rules.
+    if len(sign_state2cont)==1: 
+      for c, v in self.apply(solver, memo_result_cont, values, signatures):
+        yield c, v
+      if not have_result[0]:   # update 2011-11-15 14:35:26 
+        solver.sign_state2results[sign_state] = []
+
+2011-11-15 12:45:23 
+t\operator.py bad mistake: solver.parse_state mispelled: solver.parser_state
+
 2011-11-14 12:25:50 : 
-change the __repr__ of Var by mistake when adding NullVar, fix it.
+git* change the __repr__ of Var by mistake when adding NullVar, fix it.
 
 2011-11-14 11:57:04 : 
 fix the warnings: GeneratorExit ignored
