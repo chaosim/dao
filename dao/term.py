@@ -48,14 +48,11 @@ def unify_rule_head(value, head, env, subst):
 def unify_list_rule_head(values, args, env, subst):
   # don't need to check the equality of the length of arguments
   # has been done in rules.apply for finding rule list
-  
   for _ in apply_generators(tuple(unify_rule_head(x, y, env, subst) 
                             for x, y in zip(values, args))):
     yield True
       
 def signature(x):
-  '''signature return a binary tuple, first value tell whether x is Var,
-second value is a hashable value'''
   if isinstance(x, Var): return Var
   elif isinstance(x, list) or isinstance(x, tuple): 
     return (False, (tuple, len(x)))
@@ -101,43 +98,50 @@ class Command(BaseCommand):
     # lazy : reverse the order of sign_state2cont
     memo = False
     i = 0
-    for path, c in sign_state2cont:
-      if cont==sign_state2cont: 
+    for path, c, env, vals in sign_state2cont:
+      if cont==c: 
         memo = True
         break
-      if len(solver.call_path)<=path: # lazy: >
+      if len(solver.call_path)<=len(path): # lazy: >
         i += 1
-      continue
+        continue
       for x, y in zip(path, solver.call_path):
         if x!=y: break
-      else: break 
+      else: 
+        if len(path)==len(solver.call_path) and cont.cont_order<c.order:
+          break 
       i += 1
     if not memo:
-        sign_state2cont.insert(i, (solver.call_path, cont))
-    
+        sign_state2cont.insert(i, (solver.call_path, cont, solver.env, values))
     memo_results = solver.sign_state2results.get(sign_state)
-    env = solver.env
     if memo_results is not None:
       if memo_results==[]: return
-      for _, c in sign_state2cont:
+      old_env = solver.env
+      for _, c, env, vals in sign_state2cont:
         if c.cont_order>cont.cont_order: continue
-        for result_head, reached_parse_state, value in memo_results:
-          solver.env = env.extend()
-          for _ in unify(values, result_head, solver.env):
+        for result_head, reached_parse_state, value, memo in memo_results:
+          solver.env = env.extend(memo)
+          for _ in unify(vals, result_head, solver.env):
             solver.parse_state = reached_parse_state
             yield c, value
-      solver.env = env 
+      solver.env = old_env 
     
     have_result = [False]
     @mycont(cont)
     def memo_result_cont(value, solver):
+      self
       have_result[0] = True
-      result_head = getvalue(values, solver.env, {})
-      result = result_head, solver.parse_state, value
+      memo = {}
+      result_head = getvalue(values, solver.env, memo)
+      result = result_head, solver.parse_state, value, memo
       solver.sign_state2results.setdefault(sign_state, []).append(result)
+      old_env = solver.env
       # TODO: prevent backtracking for greedy
-      for _, c in sign_state2cont:
-        yield c, value
+      for _, c, env, vals in sign_state2cont:
+        solver.env = env.extend(memo)
+        for _ in unify_list(vals, result_head, solver.env):
+          yield c, value
+      solver.env = old_env
         
     if len(sign_state2cont)==1: 
       for c, v in self.apply(solver, memo_result_cont, values, signatures):
@@ -193,12 +197,9 @@ class Var(Command):
     
   def deref(self, env):
     envValue = env[self]
+    if envValue is self: return envValue
     if not isinstance(envValue, Var): return envValue
-    next = env.bindings.get(envValue, None)
-    if next is None: return envValue
-    if next is self: return next
-    result = deref(next, env)
-    return result
+    return deref(envValue, env)
   
   def getvalue(self, env, memo):
     try: return memo[self]
@@ -232,9 +233,6 @@ class Var(Command):
       newvar = memo[self] = self.new()
       return newvar
     
-  def new(self): 
-    return self.__class__(self.name)
-  
   def free(self, env): return isinstance(self.deref(env), Var)
   
   def __repr__(self):  return '%s'%self.name
@@ -263,9 +261,12 @@ class Var(Command):
     return (sub, other, self)
 
 class RuleHeadCopyVar(Var):
+  class_index = 1
   def __init__(self, var):
     self.name = var.name
-  def __repr__(self): return '$%s'%self.name
+    self.index = RuleHeadCopyVar.class_index
+    RuleHeadCopyVar.class_index += 1
+  def __repr__(self): return '$%s_%s'%(self.name, self.index)
 
 _dummycache = {}
 def dummy(name):
@@ -298,8 +299,6 @@ class DummyVar(Var):
     return self
   
   def free(self, env): return True  
-  
-  #def __eq__(self, other): return self.__class__ == other.__class__
   
 class NullVar(Var):
   def __init__(self): pass
@@ -367,16 +366,6 @@ class ClosureVar(Var):
   def __repr__(self): return '(%s:%s)'%(self.var, self.value)
   def __eq__(self, other): return self.var is other
 
-#class DummyClosureVar(ClosureVar):
-  #def unify(self, other, env, occurs_check=False):
-    #return unify(self.var, other, env, occurs_check)
-  #def deref(self, env): return self.var
-  #def free(self, env): return True
-  #def closure(self, env):
-    #value = self.var.getvalue(env, {})
-    #if value is self.var: return self.var
-    #else: return DummyClosureVar(self.var, value)
-
 from dao.solve import to_sexpression
 
 class CommandCall(Command):
@@ -425,7 +414,6 @@ class CommandCall(Command):
   def __eq__(self, other): 
     return isinstance(other, self.__class__) and self.operator==other.operator and self.operand==other.operand
   
-      
 class Function(Command):
   memorable = True
   def evaluate_arguments(self, solver, cont, exps):

@@ -1,6 +1,7 @@
 ﻿todo: T language
   todo: grammar
 
+todo garbage collect in memo of result.
 todo: memo builtins' result
  # necessary:   sign(op), number(exp2) -> (may(char('+')), number) | (char('-'), number)
 

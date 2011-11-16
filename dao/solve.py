@@ -134,7 +134,7 @@ def dao_repr(exp):
 
 def make_solver():
   global_env = GlobalEnvironment({})
-  env = global_env.extend()
+  env = global_env.extend({})
   return Solver(global_env, env, None, None)
 
 def to_sexpression(exp):
@@ -302,6 +302,6 @@ class Solver:
         return self.cont(exps[0], cont)
       else:
         @mycont(cont)
-        def last_cont(value, solver):
-          yield solver.cont(exps[-1], cont), value
-        return self.exps_cont(exps[:-1], last_cont)
+        def left_cont(value, solver):
+          yield solver.exps_cont(exps[1:], cont), value
+        return self.cont(exps[0], left_cont)

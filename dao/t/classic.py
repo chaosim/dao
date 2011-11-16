@@ -110,19 +110,22 @@ define(expression, function(
      expression(exp, et_binary, __prior, __assoc)),
   
   ([(op_func, exp1, exp2), et_binary, prior2, assoc], 
-     println('b', position()),
+     #println('b', position()),
+     #println(op_func, exp1, 'at:', position()),
      expression(exp1, et_type1, prior1, assoc1),
-     println('be', position()),
+     #println('be', position()),
      spaces0(_), 
-     println('bes', position()),
+     #println('bes', position()),
      operator(2, op_name, prior, assoc, op_func), gt_p(prior1, prior), 
-     println('beso', position()),
+     #println('beso', position()),     
+     #println(op_func, exp1, 'at:', position()),
      spaces0(_),
-     println('besos', position()),
+     #println('besos', position()),
      expression(exp2, et_type2, prior2, assoc2), gt_p(prior2, prior),
-     println(op_func, exp1, exp2, 'at:', position()),
+     #println(op_func, exp1, exp2, 'at:', position()),
+     #println('why'),
      not_p(and_p(operator(2, op_name2, prior3, assoc3, op_func2), gt_p(prior3, prior))),
-     println('end'),
+     #println('end'),
      ),  
 
   # increment and decrement expresson
@@ -131,7 +134,9 @@ define(expression, function(
   
   # atom expression
   ([exp, et_atom], atom(exp)),
-  ([exp, et_atom, 90, left], expression(exp, et_atom)),
+  ([exp, et_atom, 90, left], 
+     atom(exp) # expression(exp, et_atom)
+     ),
 
   ([exp, et_number], number(exp)),
   ([exp, et_string], string(exp)),
@@ -156,8 +161,8 @@ define(number, function(
   ([exp], sign(op), #spaces0(_), 
           terminal.number(exp2), 
           is_(exp, op(exp2)),
-          println('num')),
-  
+          #println('num', position())
+          ),  
   )),
 
 define(sign, function(
@@ -170,7 +175,7 @@ define(string, function(
   )),  
 
 define(identifier, function(
-  ([exp], terminal.uLetterdigitString(_exp), #prin('in_id'), 
+  ([exp], terminal.identifier(_exp), #prin('in_id'), 
           is_(exp, pycall(var, _exp))), 
   )),
 

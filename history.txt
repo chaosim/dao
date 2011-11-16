@@ -1,7 +1,62 @@
 details of history:
 
+2011-11-16 21:18:15 
+two whole days, just for miss information in left recursive memo!!!
+  sign_state2cont.insert(i, (solver.call_path, cont, solver.env, ***values***))
+        for _ in unify_list(vals, result_head, solver.env):
+
+2011-11-16 14:50:15 
+bug fix:
+Var:: deref(self, env):
+
+    next = env.bindings.get(envValue, None)
+    if next is None: return envValue
+    if next is self: return next
+    result = deref(next, env)
+====>
+    envValue = env[self]
+    if envValue is self: return envValue
+    if not isinstance(envValue, Var): return envValue
+    return deref(envValue, env)
+
+2011-11-16 10:30:07 
+index RuleHeadCopyVar correctly
+  class_index = 1
+  def __init__(self, var):
+    self.name = var.name
+    self.index = RuleHeadCopyVar.class_index
+    RuleHeadCopyVar.class_index += 1
+
+2011-11-16 10:02:05 
+remove Var.new()
+
+2011-11-16 08:18:13 
+yesterday, 1+2*3 parse finished, but return no result with var in env.
+
+2011-11-15 20:41:51 
+bug fix: not_p restore solver.parse_state when fail.
+def not_p(solver, cont, call):
+  call = deref(call, solver.env)
+  parse_state = solver.parse_state
+  for c, x in solver.exp_run_cont(call, cont):
+    solver.parse_state = parse_state
+    return
+  #solver.parse_state = parse_state
+  yield cont, True
+
+2011-11-15 20:23:24 
+     else: 
+++       *** if len(path)==len(solver.call_path) and cont.cont_order<c.order: *** # 
+          break 
+
+2011-11-15 20:23:24 
+bug fix: save env in memo sign_state2cont.insert(i, (solver.call_path, cont, **solver.env**))
+ 
+2011-11-15 16:16:18 
+bug fix: classic.py: identifier use terminal.uLetterdigitString by mistake. add termial.identifier.
+
 2011-11-15 14:34:30 
-bug fix: memo result don't meme fail of rules.
+git* bug fix: memo result don't memo fail of rules.
     if len(sign_state2cont)==1: 
       for c, v in self.apply(solver, memo_result_cont, values, signatures):
         yield c, v

@@ -86,6 +86,7 @@ def char_on_predicate(test, name=''):
   def func(solver, cont, arg0):
     #assert isinstance(arg0, Var) and arg0.free(solver.env)
     text, pos = solver.parse_state
+    if pos>=len(text): return
     c = text[pos]
     if not test(c): return
     for _ in unify(arg0, c, solver.env):
@@ -222,13 +223,25 @@ number = float
 @matcher()
 def literal(solver, cont,  arg0):
   arg0 = deref(arg0, solver.env)
-  assert isinstance(arg0, str)
   text, pos = solver.parse_state
+  if text[pos:].startswith(arg0):
+    solver.parse_state = text, pos+len(arg0)
+    yield cont,  True
+    solver.parse_state = text, pos
+    
+@matcher()
+def identifier(solver, cont, arg):
+  text, pos = solver.parse_state
+  length = len(text)
+  if pos>=length: return
   p = pos
-  for char in arg0:
-    if p>=len(text): return
-    if char!=text[p]: return
+  if text[p]!='_' and not 'a'<=text[p]<='z' and not 'A'<=text[p]<='Z': 
+    return
+  p += 1
+  while p<length and (text[p]=='_' or 'a'<=text[p]<='z' or 'A'<=text[p]<='Z'
+                       '0'<=text[p]<='9'): 
     p += 1
-  solver.parse_state = text, p
-  yield cont,  True
-  solver.parse_state = text, pos
+  for _ in unify(arg, text[pos:p], solver.env):
+    solver.parse_state = text, p
+    yield cont,  text[pos:p]
+    solver.parse_state = text, pos

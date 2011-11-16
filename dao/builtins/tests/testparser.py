@@ -2,18 +2,20 @@ from nose.tools import eq_, assert_raises
 
 from dao.term import Var, DummyVar, Cons, nil, conslist as L, vars
 from dao.solve import eval, preparse, NoSolutionFound, to_sexpression, make_solver
-from dao.builtins.control import fail, or_p, and_p, not_p, cut
-
 from dao.special import function, let, letr, macro, begin, eval_
+
+from dao.builtins.control import fail, or_p, and_p, not_p, cut
 from dao.builtins.arith import add
 from dao.builtins.parser import set_text, parse_text
 from dao.builtins.parser import step, left, next_char, position, subtext, goto, skip
-from dao.builtins.terminal import char, integer, eoi, literal, letter 
+from dao.builtins.terminal import char, integer, eoi, literal, letter, digit 
 from dao.builtins.terminal import dqstring, sqstring, spaces, white_spaces, uLetterdigitString
 from dao.builtins.matcher import nullword, optional, parallel
 from dao.builtins.matcher import any, some, times, times_more, times_less, seplist
 from dao.builtins.matcher import lazy, times_between
 from dao.builtins.container import contain
+from dao.builtins.io import println
+
 from dao.util import *
 
 from dao.solve import set_run_mode, noninteractive
@@ -397,12 +399,36 @@ class TestLeftRecursive:
     #assert 0, 'temporary mask'
     E = Var('E')
     ruleList = [(E,function( 
-                     ((), E()+char('a')),
-                     ((), char('b')),
+                     ((), #println('e1'), 
+                          E(), 
+                          #println('e2'), 
+                          char('a'), 
+                          #println('e3')
+                          ),
+                     ((), char('b'), 
+                          #println('eb')
+                          ),
                      ))]
     eq_(eval(letr(ruleList, parse_text(E()+eoi,  'b'))), True)
     eq_(eval(letr(ruleList, parse_text(E()+eoi,  'ba'))), True)
     eq_(eval(letr(ruleList, parse_text(E()+eoi,  'baa'))), True)
+  def testDirectLeftRecursiveWithArguments(self):
+    #assert 0, 'temporary mask'
+    E, X = Var('E'), Var('X')
+    ruleList = [(E,function( 
+                     ((), #println('e1'), 
+                          E(), 
+                          #println('e2'), 
+                          digit(X), 
+                          #println('e3', X)
+                          ),
+                     ((), char('b'), 
+                          #println('eb')
+                          ),
+                     ))]
+    #eq_(eval(letr(ruleList, parse_text(E()+eoi,  'b'))), True)
+    #eq_(eval(letr(ruleList, parse_text(E()+eoi,  'b1'))), True)
+    eq_(eval(letr(ruleList, parse_text(E()+eoi,  'b123'))), True)
   def testIndirectLeftRecursive(self):
     #assert 0, 'temporary mask'
     A, B, C = vars('A, B, C')

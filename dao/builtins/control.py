@@ -126,6 +126,9 @@ def if_p(solver, cont, if_clause, then_clause):
 @builtin.macro('not_p', 'not_p')  
 def not_p(solver, cont, call):
   call = deref(call, solver.env)
+  parse_state = solver.parse_state
   for c, x in solver.exp_run_cont(call, cont):
+    solver.parse_state = parse_state
     return
+  #solver.parse_state = parse_state
   yield cont, True

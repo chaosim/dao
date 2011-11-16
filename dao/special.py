@@ -629,7 +629,7 @@ function = FunctionForm
 
 class RecursiveFunctionForm(FunctionForm): 
   def cont(self, cont, solver):
-    newEnv = solver.env.extend()
+    newEnv = solver.env.extend({})
     solver.env = newEnv
     arity2rules, signature2rules = make_rules(self.rules)
     func = UserFunction(arity2rules, signature2rules, newEnv, recursive=True)

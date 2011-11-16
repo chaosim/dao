@@ -13,6 +13,7 @@ operation_dict = [{
 },{
 # binary operator
 '+':add,
+'-':sub,
 '*':mul
 }]
 
@@ -69,21 +70,22 @@ assoc_dict = [{
 
 operator_fsms = [
 # unary operator
-FSM(priority_dict[0].keys()), 
+FSM(operation_dict[0].keys()), 
 # binary operator
-FSM(priority_dict[1].keys())]
+FSM(operation_dict[1].keys())]
 
 @matcher()
 def operator(solver, cont, arity, symbol, prior, assoc, operation): 
   arity = getvalue(arity, solver.env, {})
   symbol = getvalue(symbol, solver.env, {})
   text, pos = solver.parse_state
-  if not isinstance(symbol, Var) and text[pos:].startswith(symbol): 
+  if not isinstance(symbol, Var):
+    if not text[pos:].startswith(symbol): return
     for _ in unify(assoc, get_association(symbol, arity), solver.env):
       for _ in unify(operation, get_operation(symbol, arity), solver.env):
         for _ in unify(operation, get_operation(symbol, arity), solver.env):
           solver.parse_state = text, pos+len(symbol)
-          print 'operator'
+          #print 'operator'
           yield cont, symbol
           solver.parse_state = text, pos
     return
@@ -96,7 +98,7 @@ def operator(solver, cont, arity, symbol, prior, assoc, operation):
         for _ in unify(operation, get_operation(op_str, arity), solver.env):
           for _ in unify(symbol, op_str, solver.env):
             solver.parse_state = text, pos+length
-            print 'operator'
+            #print 'operator'
             yield cont, op_str
             solver.parse_state = text, pos
 

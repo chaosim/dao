@@ -8,6 +8,7 @@ class Test_teval:
     eq_(teval('-1'), -1)
     eq_(teval('-123.5e-6'), -0.0001235)
     eq_(teval('"-1"'), "-1")
+  def test1_2(self):
     eq_(teval('a'), var('a'))
   def test2_0(self):
     eq_(teval('+1 ; -1'), -1)

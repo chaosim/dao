@@ -17,9 +17,9 @@ class Rule(object):
     parse_state = solver.parse_state
     caller_env = solver.env
     env = call_data.env
-    call_path = solver.call_path[:]
-    solver.call_path.append(self)
-    if not call_data.recursive: solver.env = env.extend()
+    call_path = solver.call_path
+    solver.call_path = solver.call_path+[self]
+    if not call_data.recursive: solver.env = env.extend({})
     else: 
       env.bindings = {}
       solver.env = env

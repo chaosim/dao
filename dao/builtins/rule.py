@@ -318,8 +318,8 @@ def retract(solver, cont, rules, head):
   index = 0
   while index<len(arity_rules):
     rule = arity_rules[index]
-    caller_env = solver.env.extend()
-    callee_env = caller_env.extend()
+    caller_env = solver.env.extend({})
+    callee_env = caller_env.extend({})
     for _ in unify_list_rule_head(head, rule.head, callee_env, caller_env, set()):
       rule = arity_rules[index]
       del arity_rules[index]
@@ -356,8 +356,8 @@ def retractall(solver, cont, rules, head, klass=UserFunction):
   index = 0
   changed = False
   while index<len(arity_rules):
-    caller_env = solver.env.extend()
-    callee_env = caller_env.extend()
+    caller_env = solver.env.extend({})
+    callee_env = caller_env.extend({})
     unified = False
     for _ in unify_list_rule_head(head, rule.head, callee_env, caller_env, set()):
       unified = True

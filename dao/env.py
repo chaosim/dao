@@ -1,8 +1,8 @@
 ##from dao.term import UEntity
 
 class Environment:
-  def extend(self):
-    return ExtendEnvironment({}, self)
+  def extend(self, bindings):
+    return ExtendEnvironment(bindings, self)
   
   def __repr__(self): 
     result = '' 
