@@ -5,6 +5,7 @@ from dao.builtins import arith
 from dao.term import Cons, nil, conslist as L, cons2tuple 
 from dao.term import var, vars, dummies, nullvars #, Command, CommandCall
 from dao.special import function, eval_, from_, quote, in_module, set, begin
+from dao.special import let
 from dao.solve import to_sexpression
 
 from dao import builtin
@@ -12,10 +13,10 @@ from dao import builtin
 from dao.builtins.io import prin, println
 from dao.builtins.control import and_p, or_p, if_p, not_p
 from dao.builtins.parser import position
-from dao.builtins.matcher import null, optional, make_some as some, greedy
+from dao.builtins.matcher import null, optional, make_some as some, make_seplist as seplist, greedy
 from dao.builtins.container import concat, pytuple
 from dao.builtins import terminal
-from dao.builtins.terminal import char, spaces0, spaces, wrap_spaces0, eoi, literal
+from dao.builtins.terminal import char, spaces0, spaces, wrap_spaces0, wrap_spaces, eoi, literal
 from dao.builtins.terminal import dqstring, not_lead_chars, not_follow_chars
 from dao.builtins.term import setvalue, pycall, is_, define
 from dao.builtins.quasiquote import quasiquote, unquote, unquote_splice
@@ -28,8 +29,9 @@ from dao.t.operator import operator, left, right
 
 x, y, z, = vars('x, y, z')
 
-var1, exp, exp1, exp2, exp_list, stmt, stmt_list = vars(
-  'var1, exp, exp1, exp2, exp_list, stmt, stmt_list')
+name, var1 = vars('name, var1')
+exp, exp1, exp2, exp_list, stmt, stmt_list, body = vars(
+  'exp, exp1, exp2, exp_list, stmt, stmt_list, body')
 code, result = vars('code, result')
 op, op_name, op_name2, op_func, op_func2, et_type1, et_type2 = vars(
   'op, op_name, op_name2, op_func, op_func2, et_type1, et_type2')
@@ -41,12 +43,13 @@ prior, prior1, prior2, prior3, assoc, assoc1, assoc2, assoc3 = vars(
 statement, statement_list, program = vars('statement, statement_list, program')
 
 assign_statement, expression_statement = vars('assign_statement, expression_statement ')
+statement_end, = vars('statement_end')
 
 expression, dec_inc_expression, binary_expression, assign_expression  = vars(
   'expression, dec_inc_expression, binary_expression, assign_expression')
 
-assign,  = vars(
-  'assign')
+assign, let_bindings, binding = vars(
+  'assign, let_bindings, binding')
 
 sign, dec_inc, number, string, identifier, atom = vars('sign, dec_inc, number, string, identifier, atom')
 binary_operator = vars('binary_operator, op_func')
@@ -60,8 +63,9 @@ __, __type, __prior, __assoc = nullvars(4)
 # classic grammar definitions
 
 # statement type
-(st_expression, st_assign, st_loop, st_block, st_if, st_case, st_let, st_defun, st_defmacro
- ) = range(9)
+(st_expression, st_assign, st_loop, st_block, st_if, st_case, st_let, st_defun, st_defmacro,
+ st_print
+ ) = range(10)
 
 # expression type
 (et_comma, et_list, et_tuple, et_assign, et_unary, et_inc_dec, et_binary, et_augment_assign,
@@ -84,9 +88,7 @@ define(statement, function(
   ([exp, st_expression],  
        #prin('expression_statement:', position()), 
        expression(exp, __type),
-       spaces0(_), #prin(exp),
-       or_p(eoi, char(';')), 
-       #prin('finish expression_statement', position())
+       statement_end(),
        ),
   ## assign statement
   #([exp, st_assign], #prin('assign_statement', position()),
@@ -95,7 +97,37 @@ define(statement, function(
           #or_p(eoi, char(';')),
           ##prin('end assign', position()), 
           #),
+  # print statement
+  ([(prin, exp), st_print],
+      literal('print'), spaces(_), expression(exp, __type),
+      statement_end(),
+      ),
+  # let statement
+  ([(let, exp1, body), st_let],
+      #prin('let statement:', position()),
+      literal('let'), 
+      #prin('let2', position()), 
+      spaces(_), 
+      #prin('let3', position()), 
+      let_bindings(exp1), wrap_spaces(literal('do')), statement(body, __type),
+      statement_end(),
+      )
   )),  
+
+define(let_bindings, function(
+  # assign expression
+  ([exp], 
+     #prin('let_bindings:', position()),
+     seplist(binding(_exp), wrap_spaces0(char(',')), _exp, exp)
+  ),
+  )),
+
+define(binding, function(
+  ([(var1, exp)], identifier(var1), #prin('id2'),
+          #is_(var, pycall(var, name)),
+          wrap_spaces0(char('=')), #prin('='), 
+          expression(exp, _)),
+  )),
 
 define(expression, function(
   # assign expression
@@ -146,7 +178,8 @@ define(expression, function(
   )),  
 
 define(assign, function(
-  ([exp], identifier(var1), #prin('id2'), 
+  ([(set, var1, exp)], identifier(var1), #prin('id2'),
+          #is_(var, pycall(var, name)),
           wrap_spaces0(char('=')), #prin('='), 
           expression(exp, _)),
   )),
@@ -186,5 +219,13 @@ define(dec_inc_expression, function(
 define(dec_inc, function(
   ([arith.add], literal('++')),
   ([arith.sub], literal('--'))
-  ))
+  )),
+
+define(statement_end, function(
+  ([], spaces0(_), # prin(exp),
+       or_p(eoi, char(';')), 
+       # prin('finish expression_statement', position())
+       )
+  )),
+
 )

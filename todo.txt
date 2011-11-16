@@ -1,14 +1,14 @@
 ﻿todo: T language
   todo: grammar
 
-todo garbage collect in memo of result.
+todo: garbage collect in memo of result.
 todo: memo builtins' result
  # necessary:   sign(op), number(exp2) -> (may(char('+')), number) | (char('-'), number)
 
 todo: succeed continution, fail continuation and compiler
 todo: no list, tuples, only Cons
-todo: module become object?
-  # lookup var in base module
+todo: module become object? object oriented with module.
+  # lookup var in base module, base module becomes super class.
 
 todo:  replace environment with active record
 
