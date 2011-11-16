@@ -14,6 +14,7 @@ operation_dict = [{
 # binary operator
 '+':add,
 '-':sub,
+'<':lt, '<=':le, '==':eq,
 '*':mul
 }]
 

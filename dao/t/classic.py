@@ -124,32 +124,69 @@ define(statement_body, function(
   
   # loop statement
   ([exp, st_loop],
-      literal('loop'), spaces(_),
+      println('loop statement start:', position(), left_text()),
+      literal('loop'),
       println('loop statement:', position()),
       is_(label, get_label()),
-      push_label('loop times', label),
-      loop_times(exp, label),
-      pop_label('loop times')
+      or_p( loop(exp, label),
+            loop_times(exp, label),
+          ),
       ),
   
   # expression statement
   ([exp, st_expression],  
-       #prin('expression_statement:', position()), 
+       println('expression_statement:', position()), 
        expression(exp, __type),
        ),
   
   )),  
 
+define(loop, function(
+  # loop
+  ([exp, label], 
+      println('loop:', position()),
+      push_label('loop', label),
+      spaces0(_), char(':'), spaces0(_),
+      println('loop:', left_text()),
+      statement_list(exp1),
+      or_p(
+        if_p(and_p(wrap_spaces(literal('until')), expression(exp2, __type)),
+           is_(exp, make_loop_until(label, exp1, exp2))),
+        if_p(and_p(wrap_spaces(literal('while')), expression(exp2, __type)),
+           is_(exp, make_loop_while(label, exp1, exp2))),
+        is_(exp, make_loop(label, exp1))),
+      pop_label('loop'),
+      not_p(and_p(spaces(_), or_p(literal('until'), literal('while')))), 
+  ),
+  )),
+
 define(loop_times, function(
-  # assign expression
+  # loop times
   ([exp, label], 
       println('loop_times:', position()),
-      expression(exp1, __type), spaces(_), literal('times'), spaces0(_), char(':'), spaces0(_),
+      push_label('loop times', label),
+      spaces(_), expression(exp1, __type), spaces(_), literal('times'), spaces0(_), char(':'), spaces0(_),
       println('loop_times:', left_text()),
       statement_list(exp2),
       is_(exp, make_loop_times(label, exp1, exp2)),
+      pop_label('loop times'),
   ),
   )),
+
+#define(loop_until, function(
+  ## loop until
+  #([exp, label], 
+      #println('loop:', position()),
+      #push_label('loop', label),
+      #spaces0(_), char(':'), spaces0(_),
+      #println('loop:', left_text()),
+      #statement_list(exp1),
+      #wrap_spaces('until'),
+      #expression(exp2, __type),
+      #is_(exp, make_loop_until(label, exp1, exp2)),
+      #pop_label('loop'),
+  #),
+  #)),
 
 define(let_bindings, function(
   # assign expression
@@ -160,7 +197,7 @@ define(let_bindings, function(
   )),
 
 define(binding, function(
-  ([(var1, exp)], identifier(var1), #prin('id2'),
+  ([(var1, exp)], varname(var1), #prin('id2'),
           #is_(var, pycall(var, name)),
           wrap_spaces0(char('=')), #prin('='), 
           expression(exp, _)),
@@ -169,15 +206,16 @@ define(binding, function(
 define(statement_end, function(
   ([], spaces0(_), # prin(exp),
        or_p(eoi, char(';')), 
-       # prin('finish expression_statement', position())
+       println('stmt end', position(), left_text())
        )
   )),
 
 define(expression, function(
   # assign expression
   ([exp, et_assign], 
-     #prin('assign expression:', position()),
+     println('assign expression fsfdfd:', position()),
      assign(exp),
+     println('assign expression2:', exp, left_text()),
   ),
   
   # binary expression
@@ -217,12 +255,12 @@ define(expression, function(
   ([exp, et_number], number(exp)),
   ([exp, et_string], string(exp)),
   ([exp, et_identifier],  #prin('in_id1'), 
-                          identifier(exp)),
+                          varname(exp)),
   
   )),  
 
 define(assign, function(
-  ([(set, var1, exp)], identifier(var1), #prin('id2'),
+  ([(set, var1, exp)], varname(var1), #prin('id2'),
           #is_(var, pycall(var, name)),
           wrap_spaces0(char('=')), #prin('='), 
           expression(exp, _)),
@@ -231,7 +269,7 @@ define(assign, function(
 define(atom, function(
   ([exp], number(exp)),
   ([exp], string(exp)),
-  ([exp], identifier(exp)),
+  ([exp], varname(exp)),
   )),
 
 define(number, function(
@@ -251,13 +289,13 @@ define(string, function(
   ([exp], dqstring(exp)),
   )),  
 
-define(identifier, function(
-  ([exp], terminal.identifier(_exp), #prin('in_id'), 
+define(varname, function(
+  ([exp], identifier(_exp), #prin('in_id'), 
           is_(exp, pycall(var, _exp))), 
   )),
 
 define(dec_inc_expression, function(
-  ([(set, var1, (op, var1, 1))], identifier(var1), spaces0(_), dec_inc(op)),
+  ([(set, var1, (op, var1, 1))], varname(var1), spaces0(_), dec_inc(op)),
   )),
 
 define(dec_inc, function(

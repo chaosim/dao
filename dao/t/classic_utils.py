@@ -1,10 +1,35 @@
 from dao import builtin
 
 from dao.term import Var, var, vars, dummies, nullvars #, Command, CommandCall
+from dao.term import unify
+pyset = set
 
 from dao.special import begin, set, iff, case, if_, block, exit_block, continue_block
 
-from dao.builtins.arith import eq, sub
+from dao.builtins.arith import eq, sub, not_
+from dao.builtins.matcher import matcher
+
+keywords = pyset(['let', 'do', 'case', 'of', 'while', 'until', 'fun', 'macro', 
+                  'loop', 'if', 'elif', 'else', 'then', 'print'])
+
+@matcher()
+def identifier(solver, cont, arg):
+  text, pos = solver.parse_state
+  length = len(text)
+  if pos>=length: return
+  p = pos
+  if text[p]!='_' and not 'a'<=text[p]<='z' and not 'A'<=text[p]<='Z': 
+    return
+  p += 1
+  while p<length and (text[p]=='_' or 'a'<=text[p]<='z' or 'A'<=text[p]<='Z'
+                       '0'<=text[p]<='9'): 
+    p += 1
+  w = text[pos:p]
+  if w in keywords: return
+  for _ in unify(arg, w, solver.env):
+    solver.parse_state = text, p
+    yield cont,  w
+    solver.parse_state = text, pos
 
 @builtin.function('make_iff')
 def make_iff(test, clause, clauses, els_clause):
@@ -23,29 +48,51 @@ label_surfix = '$'
 new_label_id = 1
 label_stack_dict = {}
 
-@builtin.function('get_label')
-def get_label(): 
+@builtin.predicate('get_label')
+def get_label(solver, cont): 
   global new_label_id
-  label = 'label_%s$'+str(new_label_id)
+  label = 'label_%s$'%str(new_label_id)
   new_label_id += 1
-  return label
+  yield cont, label
+  new_label_id -= 1
 
-@builtin.function('push_label')
-def push_label(control_struct_type, label):
+@builtin.predicate('push_label')
+def push_label(solver, cont, control_struct_type, label):
   label_stack_dict.setdefault(control_struct_type, []).append(label)
-  label_stack_dict.setdefault(None,[]).append(label)
-  
-@builtin.function('pop_label')
-def pop_label(control_struct_type):
-  label_stack_dict[control_struct_type].pop()
+  label_stack_dict.setdefault(None, []).append(label)
+  yield cont, label
+  label = label_stack_dict[control_struct_type].pop()
   label_stack_dict[None].pop()
+      
+@builtin.predicate('pop_label')
+def pop_label(solver, cont, control_struct_type):
+  label = label_stack_dict[control_struct_type].pop()
+  label_stack_dict[None].pop()
+  yield cont, label
+  label_stack_dict[control_struct_type].append(label)
+  label_stack_dict[None].append(label)
+  
+@builtin.function('make_loop')
+def make_loop(label, body): 
+  body = tuple(body)+((continue_block, label),)
+  return (begin, (block, label)+ body)
 
 @builtin.function('make_loop_times')
 def make_loop_times(label, times, body): 
   i = Var('loop_i')
-  start_condition = (if_, (eq, i,0), (exit_block, label), (set, i, (sub, i, 1)))
+  start_condition = (if_, (eq, i, 0), (exit_block, label), (set, i, (sub, i, 1)))
   body = (start_condition,)+tuple(body)+((continue_block, label),)
   return (begin, (set, i, times), (block, label)+ body)
+
+@builtin.function('make_loop_until')
+def make_loop_until(label, body, condition): 
+  #`(block  ,label:{  ,@body;  if not( ,condition) next  ,label} )
+  return (block, label)+ tuple(body)+((if_, (not_, condition), (continue_block, label)),)
+
+@builtin.function('make_loop_while')
+def make_loop_while(label, body, condition): 
+  #`(block  ,label:{  ,@body;  if ,condition then next  ,label} )
+  return (block, label)+ tuple(body)+((if_, condition, (continue_block, label)),)
 
 # variables
 
@@ -64,10 +111,10 @@ statement_body, statement_end, statement_sequence, = vars(
 expression, dec_inc_expression, binary_expression, assign_expression  = vars(
   'expression, dec_inc_expression, binary_expression, assign_expression')
 
-assign, let_bindings, binding, loop_times = vars(
-  'assign, let_bindings, binding, loop_times')
+assign, let_bindings, binding, loop, loop_times = vars(
+  'assign, let_bindings, binding, loop, loop_times')
 
-sign, dec_inc, number, string, identifier, atom = vars('sign, dec_inc, number, string, identifier, atom')
+sign, dec_inc, number, string, varname, atom = vars('sign, dec_inc, number, string, varname, atom')
 binary_operator = vars('binary_operator, op_func')
 
 # classic grammar definitions

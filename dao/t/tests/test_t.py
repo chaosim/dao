@@ -37,3 +37,5 @@ class Test_teval:
     eq_(teval('{1; print "a";}'), None)
   def test12(self):
     eq_(teval('loop 3 times: print "loop"'), None)
+  def test13(self):
+    eq_(teval('i = 0; loop: print "loop";  i++; until i==3'), None)
