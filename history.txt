@@ -1,5 +1,25 @@
 details of history:
 
+2011-11-16 08:47:44 
+more frequent used terminals relating to char and space
+chs0, chs, 
+space, tab, tabspace, whitespace, newline, 
+spaces0, tabs0, tabspaces0, whitespaces0, newlines0, 
+spaces, tabs, tabspaces, whitespaces, newlines.
+ 
+2011-11-16 08:07:11 
+add terminal char2, ch
+
+2011-11-16 22:26:10 
+git* loop-until statement
+
+loop-until statement
+modify:
+  get_label(solver, cont), 
+  push_label(solver, cont, control_struct_type, label), 
+  pop_label(solver, cont, control_struct_type)
+  identifier: don't use keyword as identifier
+
 2011-11-16 22:21:53 
 loop-until statement
 

@@ -128,7 +128,6 @@ binary_operator = vars('binary_operator, op_func')
 (et_comma, et_list, et_tuple, et_assign, et_unary, et_inc_dec, et_binary, et_augment_assign,
   et_number, et_string, et_identifier, et_atom) = range(12)
 
-
 name, var1, stmt_type, label = vars('name, var1, stmt_type, label')
 exp, exp1, exp2, exp3, exp_list, stmt, stmt_list, body = vars(
   'exp, exp1, exp2, exp3, exp_list, stmt, stmt_list, body')

@@ -13,11 +13,53 @@ from dao.builtins.parser import next_char_, left_, parsed_, eoi_, last_char_
 def char(solver, cont, argument): 
   argument = deref(argument, solver.env)
   text, pos = solver.parse_state
-  if pos==len(text): 
-    return
+  if pos==len(text): return
   for _ in unify(argument, text[pos], solver.env):
     solver.parse_state = text, pos+1
     yield cont,  text[pos]
+    solver.parse_state = text, pos
+
+@matcher()
+def char2(solver, cont, argument): 
+  char = deref(argument, solver.env)
+  text, pos = solver.parse_state
+  if pos==len(text): return
+  if text[pos]==char: 
+    solver.parse_state = text, pos+1
+    yield cont,  char
+    solver.parse_state = text, pos
+
+@matcher()
+def ch(solver, cont, char):
+  '''one char'''
+  text, pos = solver.parse_state
+  if pos==len(text): return
+  if text[pos]==char: 
+    solver.parse_state = text, pos+1
+    yield cont,  char
+    solver.parse_state = text, pos
+
+@matcher()
+def chs0(solver, cont, char):
+  '''0 or more char'''
+  text, pos = solver.parse_state
+  p = pos
+  while text[p]==char: p += 1 
+  solver.parse_state = text, p
+  yield cont, text[pos:p]
+  solver.parse_state = text, pos
+
+@matcher()
+def chs(solver, cont, char):
+  '''1 or more char'''
+  text, pos = solver.parse_state
+  if pos==len(text): return
+  if text[pos]!=char: return
+  p = pos+1
+  while text[p]==char: p += 1 
+  if text[pos]==char: 
+    solver.parse_state = text, p
+    yield cont, text[pos:p]
     solver.parse_state = text, pos
 
 @matcher()
@@ -109,9 +151,68 @@ _letter_digit_test = (lambda char: char=='_' or
                     ('0'<=char<='9') or ('a'<=char<='z') or ('A'<=char<='Z'))
 u_letter_digit = char_on_predicate(_letter_digit_test, '_letterdigitChar')
 space_string = ' \t' #\r\n
-white_space_string = ' \t\r\n'
-space = char_in(space_string, repr_string='spacesChar')
-whitespace = char_in(white_space_string, repr_string='spacesChar')
+whitespace_string = ' \t\r\n'
+get_space = char_in(space_string, repr_string='spacesChar')
+get_whitespace = char_in(whitespace_string, repr_string='spacesChar')
+
+@matcher()
+def space(solver, cont):
+  '''one space'''
+  text, pos = solver.parse_state
+  if pos==len(text): return
+  if text[pos]==' ': 
+    solver.parse_state = text, pos+1
+    yield cont, ' '
+    solver.parse_state = text, pos
+space = space()
+
+@matcher()
+def tab(solver, cont):
+  '''one tab'''
+  text, pos = solver.parse_state
+  if pos==len(text): return
+  if text[pos]=='\t': 
+    solver.parse_state = text, pos+1
+    yield cont, '\t'
+    solver.parse_state = text, pos
+space = space()
+
+@matcher()
+def tabspace(solver, cont):
+  '''one space or tab'''
+  text, pos = solver.parse_state
+  if pos==len(text): return
+  if text[pos]==' ' or text[pos]=='\t': 
+    solver.parse_state = text, pos+1
+    yield cont, text[pos]
+    solver.parse_state = text, pos
+tabspace = tabspace()
+
+@matcher()
+def whitespace(solver, cont):
+  '''one space or tab'''
+  text, pos = solver.parse_state
+  if pos==len(text): return
+  if text[pos] in ' \t\r\n': 
+    solver.parse_state = text, pos+1
+    yield cont, text[pos]
+    solver.parse_state = text, pos
+whitespace = whitespace()
+
+@matcher()
+def newline(solver, cont):
+  '''one newline'''
+  text, pos = solver.parse_state
+  if pos==len(text): return
+  if text[pos]=='\r' or text[pos]=='\n':
+    if text[pos+1]=='\r' or text[pos+1]=='\n' and text[pos+1]!=text[pos]:
+      solver.parse_state = text, pos+2
+      yield cont,  text[pos:pos+2]
+    else:
+      solver.parse_state = text, pos+1
+      yield cont,  text[pos:pos+1]
+    solver.parse_state = text, pos
+nl = newline = newline()
 
 def string__on_predicate(test, name='', onceMore=True):
   def func(solver, cont,  arg):
@@ -145,8 +246,128 @@ uLetterdigitString = string__on_predicate(_letter_digit_test, '_letterdigitStrin
 uLetterdigitString0 = string__on_predicate(_letter_digit_test, '_letterdigitTestString0', False)
 spaces0 = string_in(space_string, once_more=False, repr_string='spaces0')
 spaces = string_in(space_string, repr_string='spaces')
-white_spaces0 = string_in(white_space_string, once_more=False, repr_string='white_spaces0')
-white_spaces = string_in(white_space_string, repr_string='white_spaces')
+whitespaces0 = string_in(whitespace_string, once_more=False, repr_string='white_spaces0')
+whitespaces = string_in(whitespace_string, repr_string='white_spaces')
+
+@matcher()
+def spaces0(solver, cont):
+  '''0 or more space'''
+  text, pos = solver.parse_state
+  p = pos
+  while text[p]==' ': p += 1
+  solver.parse_state = text, p
+  yield cont, text[pos:p]
+  solver.parse_state = text, pos
+spaces0 = spaces0()
+
+@matcher()
+def tabs0(solver, cont):
+  '''0 or more tab'''
+  text, pos = solver.parse_state
+  p = pos
+  while text[p]=='\t': p += 1
+  solver.parse_state = text, p
+  yield cont, text[pos:p]
+  solver.parse_state = text, pos
+tabs0 = tabs0()
+
+@matcher()
+def tabspaces0(solver, cont):
+  '''0 or more space or tab'''
+  text, pos = solver.parse_state
+  p = pos
+  while text[p]==' ' or text[p]=='\t': p += 1
+  solver.parse_state = text, p
+  yield cont, text[pos:p]
+  solver.parse_state = text, pos
+tabspaces0 = tabspaces0()
+
+@matcher()
+def whitespaces0(solver, cont):
+  ''' 0 or more space or tab or newline'''
+  text, pos = solver.parse_state
+  p = pos
+  while text[p] in ' \t\r\n': p += 1
+  solver.parse_state = text, p
+  yield cont, text[pos:p]
+  solver.parse_state = text, pos
+whitespaces0 = spaces0()
+
+@matcher()
+def newlines0(solver, cont):
+  ''' 0 or more newline'''
+  text, pos = solver.parse_state
+  p = pos
+  while text[p] in '\r\n': p += 1
+  solver.parse_state = text, p
+  yield cont, text[pos:p]
+  solver.parse_state = text, pos
+newlines0 = newlines0()
+
+@matcher()
+def spaces(solver, cont):
+  '''1 or more space or tab'''
+  text, pos = solver.parse_state
+  if pos==len(text): return
+  if text[pos]!=' ': return
+  p = pos+1
+  while text[p]==' ': p += 1
+  solver.parse_state = text, p
+  yield cont, text[pos:p]
+  solver.parse_state = text, pos
+spaces = spaces()
+
+@matcher()
+def tabs(solver, cont):
+  '''1 or more space or tab'''
+  text, pos = solver.parse_state
+  if pos==len(text): return
+  if text[pos]!='\t': return
+  p = pos+1
+  while text[p]=='\t': p += 1
+  solver.parse_state = text, p
+  yield cont, text[pos:p]
+  solver.parse_state = text, pos
+tabs = tabs()
+
+@matcher()
+def tabspaces(solver, cont):
+  '''1 or more space or tab'''
+  text, pos = solver.parse_state
+  if pos==len(text): return
+  if text[pos]!=' ' and text[pos]!='\t': return
+  p = pos+1
+  while text[p]==' ' or text[p]=='\t': p += 1
+  solver.parse_state = text, p
+  yield cont, text[pos:p]
+  solver.parse_state = text, pos
+tabspaces = tabspaces()
+
+@matcher()
+def whitespaces(solver, cont):
+  ''' 1 or more space or tab or newline'''
+  text, pos = solver.parse_state
+  if pos==len(text): return
+  if text[pos] not in ' \t\r\n': return
+  p = pos+1
+  while text[p] in ' \t\r\n': p += 1
+  solver.parse_state = text, p
+  yield cont, text[pos:p]
+  solver.parse_state = text, pos
+whitespaces = spaces()
+
+@matcher()
+def newlines(solver, cont):
+  ''' 1 or more  newline'''
+  text, pos = solver.parse_state
+  if pos==len(text): return
+  if text[pos] not in '\r\n': return
+  p = pos+1
+  while text[p] in '\r\n': p += 1
+  solver.parse_state = text, p
+  yield cont, text[pos:p]
+  solver.parse_state = text, pos
+whitespaces = spaces()
 
 from dao.term import DummyVar
 from dao.builtins.control import and_p
@@ -222,6 +443,7 @@ number = float
 
 @matcher()
 def literal(solver, cont,  arg0):
+  '''any given instance string'''
   arg0 = deref(arg0, solver.env)
   text, pos = solver.parse_state
   if text[pos:].startswith(arg0):
@@ -231,6 +453,7 @@ def literal(solver, cont,  arg0):
     
 @matcher()
 def identifier(solver, cont, arg):
+  '''underline or letter lead, follow underline, letter or digit''' 
   text, pos = solver.parse_state
   length = len(text)
   if pos>=length: return

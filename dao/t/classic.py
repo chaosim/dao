@@ -133,6 +133,18 @@ define(statement_body, function(
           ),
       ),
   
+  # while-loop statement
+  ([exp, st_loop],
+      #println('while loop statement start:', position(), left_text()),
+      literal('while'),
+      println('while:', position()),
+      expression(exp1, __type), wrap_spaces(literal('loop')), char(':'), spaces0(_),
+      is_(label, get_label()),
+      or_p( loop(exp, label),
+            loop_times(exp, label),
+          ),
+      ),
+  
   # expression statement
   ([exp, st_expression],  
        println('expression_statement:', position()), 
