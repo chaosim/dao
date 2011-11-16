@@ -98,7 +98,7 @@ class Command(BaseCommand):
     # lazy : reverse the order of sign_state2cont
     memo = False
     i = 0
-    for path, c, env, vals in sign_state2cont:
+    for path, c, env, bindings, vals in sign_state2cont:
       if cont==c: 
         memo = True
         break
@@ -112,18 +112,21 @@ class Command(BaseCommand):
           break 
       i += 1
     if not memo:
-        sign_state2cont.insert(i, (solver.call_path, cont, solver.env, values))
+        sign_state2cont.insert(i, (solver.call_path, cont, solver.env, solver.env.bindings, values))
     memo_results = solver.sign_state2results.get(sign_state)
     if memo_results is not None:
       if memo_results==[]: return
       old_env = solver.env
-      for _, c, env, vals in sign_state2cont:
+      for _, c, env, old_bindings, vals in sign_state2cont:
         if c.cont_order>cont.cont_order: continue
         for result_head, reached_parse_state, value, memo in memo_results:
-          solver.env = env.extend(memo)
+          solver.env = env
+          env.bindings = old_bindings.copy()
+          #env.bindings.update(memo)
           for _ in unify(vals, result_head, solver.env):
             solver.parse_state = reached_parse_state
             yield c, value
+          env.bindings = old_bindings
       solver.env = old_env 
     
     have_result = [False]
@@ -137,10 +140,13 @@ class Command(BaseCommand):
       solver.sign_state2results.setdefault(sign_state, []).append(result)
       old_env = solver.env
       # TODO: prevent backtracking for greedy
-      for _, c, env, vals in sign_state2cont:
-        solver.env = env.extend(memo)
+      for _, c, env, old_bindings, vals in sign_state2cont:
+        solver.env = env
+        env.bindings = old_bindings.copy()
+        #env.bindings.update(memo)
         for _ in unify_list(vals, result_head, solver.env):
           yield c, value
+        env.bindings = old_bindings
       solver.env = old_env
         
     if len(sign_state2cont)==1: 

@@ -1,5 +1,23 @@
 details of history:
 
+2011-11-16 15:22:43 
+loop-while tests failed for the bug below, passed after fix it:
+bug fix: 
+	--- solver = env.extend({}) --- 
+        ===>
+        solver.env = env
+        env.bindings = old_bindings.copy()
+        --- #env.bindings.update(memo) ---
+        for _ in unify_list(vals, result_head, solver.env):
+          yield c, value
+        env.bindings = old_bindings
+ 
+2011-11-16 13:35:46 
+debug trick: use fail to stop at som place.
+
+2011-11-16 09:52:06 
+pass all tests after add and modifier terminals
+ 
 2011-11-16 08:47:44 
 more frequent used terminals relating to char and space
 chs0, chs, 

@@ -152,8 +152,8 @@ _letter_digit_test = (lambda char: char=='_' or
 u_letter_digit = char_on_predicate(_letter_digit_test, '_letterdigitChar')
 space_string = ' \t' #\r\n
 whitespace_string = ' \t\r\n'
-get_space = char_in(space_string, repr_string='spacesChar')
-get_whitespace = char_in(whitespace_string, repr_string='spacesChar')
+unify_tabspace = char_in(space_string, repr_string='spacesChar')
+unify_whitespace = char_in(whitespace_string, repr_string='spacesChar')
 
 @matcher()
 def space(solver, cont):
@@ -175,7 +175,7 @@ def tab(solver, cont):
     solver.parse_state = text, pos+1
     yield cont, '\t'
     solver.parse_state = text, pos
-space = space()
+tab = tab()
 
 @matcher()
 def tabspace(solver, cont):
@@ -244,17 +244,18 @@ lowcaseString = string_between('a', 'z')
 uppercaseString = string_between('A', 'Z')
 uLetterdigitString = string__on_predicate(_letter_digit_test, '_letterdigitString')
 uLetterdigitString0 = string__on_predicate(_letter_digit_test, '_letterdigitTestString0', False)
-spaces0 = string_in(space_string, once_more=False, repr_string='spaces0')
-spaces = string_in(space_string, repr_string='spaces')
-whitespaces0 = string_in(whitespace_string, once_more=False, repr_string='white_spaces0')
-whitespaces = string_in(whitespace_string, repr_string='white_spaces')
+unify_tabspaces0 = string_in(space_string, once_more=False, repr_string='spaces0')
+unify_tabspaces = string_in(space_string, repr_string='spaces')
+unify_whitespaces0 = string_in(whitespace_string, once_more=False, repr_string='whitespaces0')
+unify_whitespaces = string_in(whitespace_string, repr_string='whitespaces')
 
 @matcher()
 def spaces0(solver, cont):
   '''0 or more space'''
   text, pos = solver.parse_state
+  length = len(text)
   p = pos
-  while text[p]==' ': p += 1
+  while p<length and text[p]==' ': p += 1
   solver.parse_state = text, p
   yield cont, text[pos:p]
   solver.parse_state = text, pos
@@ -264,41 +265,45 @@ spaces0 = spaces0()
 def tabs0(solver, cont):
   '''0 or more tab'''
   text, pos = solver.parse_state
+  length = len(text)
   p = pos
-  while text[p]=='\t': p += 1
+  while p<length and text[p]=='\t': p += 1
   solver.parse_state = text, p
   yield cont, text[pos:p]
   solver.parse_state = text, pos
 tabs0 = tabs0()
 
 @matcher()
-def tabspaces0(solver, cont):
+def Tabspaces0(solver, cont):
   '''0 or more space or tab'''
   text, pos = solver.parse_state
+  length = len(text)
   p = pos
-  while text[p]==' ' or text[p]=='\t': p += 1
+  while p<length and (text[p]==' ' or text[p]=='\t'): p += 1
   solver.parse_state = text, p
   yield cont, text[pos:p]
   solver.parse_state = text, pos
-tabspaces0 = tabspaces0()
+tabspaces0 = Tabspaces0()
 
 @matcher()
 def whitespaces0(solver, cont):
   ''' 0 or more space or tab or newline'''
   text, pos = solver.parse_state
+  length = len(text)
   p = pos
-  while text[p] in ' \t\r\n': p += 1
+  while p<length and text[p] in ' \t\r\n': p += 1
   solver.parse_state = text, p
   yield cont, text[pos:p]
   solver.parse_state = text, pos
-whitespaces0 = spaces0()
+whitespaces0 = whitespaces0()
 
 @matcher()
 def newlines0(solver, cont):
   ''' 0 or more newline'''
   text, pos = solver.parse_state
+  length = len(text)
   p = pos
-  while text[p] in '\r\n': p += 1
+  while p<length and text[p] in '\r\n': p += 1
   solver.parse_state = text, p
   yield cont, text[pos:p]
   solver.parse_state = text, pos
@@ -331,7 +336,7 @@ def tabs(solver, cont):
 tabs = tabs()
 
 @matcher()
-def tabspaces(solver, cont):
+def Tabspaces(solver, cont):
   '''1 or more space or tab'''
   text, pos = solver.parse_state
   if pos==len(text): return
@@ -341,7 +346,7 @@ def tabspaces(solver, cont):
   solver.parse_state = text, p
   yield cont, text[pos:p]
   solver.parse_state = text, pos
-tabspaces = tabspaces()
+tabspaces = Tabspaces()
 
 @matcher()
 def whitespaces(solver, cont):
@@ -354,7 +359,7 @@ def whitespaces(solver, cont):
   solver.parse_state = text, p
   yield cont, text[pos:p]
   solver.parse_state = text, pos
-whitespaces = spaces()
+whitespaces = whitespaces()
 
 @matcher()
 def newlines(solver, cont):
@@ -367,18 +372,18 @@ def newlines(solver, cont):
   solver.parse_state = text, p
   yield cont, text[pos:p]
   solver.parse_state = text, pos
-whitespaces = spaces()
+newlines = newlines()
 
 from dao.term import DummyVar
 from dao.builtins.control import and_p
 
-def wrap_spaces0(item):
+def wrap_tabspaces0(item):
   _ = DummyVar('_')
-  return and_p(spaces0(_), item, spaces0(_))
+  return and_p(tabspaces0, item, tabspaces0)
 
-def wrap_spaces(item):
+def wrap_tabspaces(item):
   _ = DummyVar('_')
-  return and_p(spaces(_), item, spaces(_))
+  return and_p(tabspaces, item, tabspaces)
 
 def quote_string(quote, name):
   def func(solver, cont,  arg0):

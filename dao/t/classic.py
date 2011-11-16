@@ -8,14 +8,14 @@ from dao.special import let
 from dao.solve import to_sexpression
 
 from dao.builtins.io import prin, println
-from dao.builtins.control import and_p, or_p, if_p, not_p
+from dao.builtins.control import and_p, or_p, if_p, not_p, fail
 from dao.builtins.parser import position, left as left_text
 from dao.builtins.matcher import null, optional
 from dao.builtins.matcher import make_any as any, make_some as some, make_seplist as seplist, greedy
 from dao.builtins.matcher import make_seplist_times_more as seplist_times_more
 from dao.builtins.container import concat, pytuple
 from dao.builtins import terminal
-from dao.builtins.terminal import char, spaces0, spaces, wrap_spaces0, wrap_spaces, eoi, literal
+from dao.builtins.terminal import char, tabspaces0, tabspaces, whitespaces0, wrap_tabspaces0, wrap_tabspaces, eoi, literal
 from dao.builtins.terminal import dqstring, not_lead_chars, not_follow_chars
 from dao.builtins.term import setvalue, pycall, is_, define
 from dao.builtins.quasiquote import quasiquote, unquote, unquote_splice
@@ -39,7 +39,7 @@ __, __type, __prior, __assoc = nullvars(4)
 defines = in_module(classic_module,
 
 define(program, function(
-  ([exp], statement_sequence(exp)+spaces0(_)),
+  ([exp], statement_sequence(exp)+whitespaces0),
   )),  
 
 define(statement_sequence, function(
@@ -50,7 +50,7 @@ define(statement_sequence, function(
   )),  
 
 define(statement_list, function(
-  ([stmt_list], some(and_p(spaces0(_), statement(_stmt, __type)), _stmt, stmt_list, greedy), 
+  ([stmt_list], some(and_p(tabspaces0, statement(_stmt, __type)), _stmt, stmt_list, greedy), 
            ),
   )),  
 
@@ -61,11 +61,18 @@ define(statement, function(
        ),
   )),
 
+define(statement_end, function(
+  ([], tabspaces0, # prin(exp),
+       or_p(eoi, char(';')), 
+       #println('stmt end', position(), left_text())
+       )
+  )),
+
 define(statement_body, function(
   
   # print statement
   ([(prin, exp), st_print],
-      literal('print'), spaces(_), 
+      literal('print'), tabspaces, 
       #println('print2:', left_text()), 
       expression(exp, __type),
       ),
@@ -74,7 +81,7 @@ define(statement_body, function(
   ([exp, st_bracket],
       char('{'), 
       #println('bracket:', left_text()), 
-      wrap_spaces0(statement_sequence(exp)), char('}'),
+      wrap_tabspaces0(statement_sequence(exp)), char('}'),
       ),
     
   # let statement
@@ -82,25 +89,25 @@ define(statement_body, function(
       #prin('let statement:', position()),
       literal('let'), 
       #prin('let2', position()), 
-      spaces(_), 
+      tabspaces, 
       #prin('let3', position()), 
-      let_bindings(exp1), wrap_spaces(literal('do')), statement(body, __type),
+      let_bindings(exp1), wrap_tabspaces(literal('do')), statement(body, __type),
       statement_end(),
       ),
   
   # if-elif-else statement
   ([exp, st_if],
-      literal('if'), spaces(_), expression(exp1, __type), println('if2:', left_text()),
+      literal('if'), tabspaces, expression(exp1, __type), println('if2:', left_text()),
       println('if statement:', position()),
-      wrap_spaces(literal('then')), #println('if12:', position()), 
+      wrap_tabspaces(literal('then')), #println('if12:', position()), 
       statement(exp2, __type), println('if3:', left_text()),
       
-      any(and_p(wrap_spaces(literal('elif')), 
-                expression(_exp1, __type), wrap_spaces(literal('then')),
+      any(and_p(wrap_tabspaces(literal('elif')), 
+                expression(_exp1, __type), wrap_tabspaces(literal('then')),
                 statement(_exp2, __type)),
           (_exp1, _exp2), exp_list),
       #prin('if4:', position()),
-      optional(and_p(wrap_spaces(literal('else')), statement_body(exp3, __type)), greedy),
+      optional(and_p(wrap_tabspaces(literal('else')), statement_body(exp3, __type)), greedy),
       prin('if5:', left_text()),
       is_(exp, make_iff(exp1, exp2, exp_list, exp3)),
       ),
@@ -109,22 +116,21 @@ define(statement_body, function(
   ([exp, st_case],
       literal('case'), 
       println('case statement:', position()),
-      spaces(_), expression(exp1, __type), println('case2:', left_text()),
+      tabspaces, expression(exp1, __type), println('case2:', left_text()),
       
-      some(and_p(wrap_spaces(literal('of')), 
-                seplist_times_more(expression(_x, __type), wrap_spaces0(char(',')), 1, _x, _exp1),
-                wrap_spaces0(literal(':')),
+      some(and_p(wrap_tabspaces(literal('of')), 
+                seplist_times_more(expression(_x, __type), wrap_tabspaces0(char(',')), 1, _x, _exp1),
+                wrap_tabspaces0(literal(':')),
                 some(statement(_x, __type), _x, _exp2)),
           (_exp1, _exp2), exp_list),
       prin('case4:', position()),
-      optional(and_p(wrap_spaces(literal('else')), statement_body(exp3, __type)), greedy),
+      optional(and_p(wrap_tabspaces(literal('else')), statement_body(exp3, __type)), greedy),
       prin('case5:', left_text()),
       is_(exp, make_case(exp1, exp_list, exp3)),
       ),
   
   # loop statement
   ([exp, st_loop],
-      println('loop statement start:', position(), left_text()),
       literal('loop'),
       println('loop statement:', position()),
       is_(label, get_label()),
@@ -137,17 +143,22 @@ define(statement_body, function(
   ([exp, st_loop],
       #println('while loop statement start:', position(), left_text()),
       literal('while'),
-      println('while:', position()),
-      expression(exp1, __type), wrap_spaces(literal('loop')), char(':'), spaces0(_),
+      #println('while ffd:', position()),
+      tabspaces, 
+      expression(exp1, __type), 
+      tabspaces, literal('loop'), tabspaces0, char(':'), tabspaces0,
       is_(label, get_label()),
-      or_p( loop(exp, label),
-            loop_times(exp, label),
-          ),
+      push_label('while', label),
+      #println('while stmts:', position()),
+      statement_list(exp2),
+      #println('while ffdsdsd:', position()),
+      pop_label('while'),      
+      is_(exp, make_while_loop(label, exp1, exp2)),
       ),
   
   # expression statement
   ([exp, st_expression],  
-       println('expression_statement:', position()), 
+       #println('expression_statement:', position()), 
        expression(exp, __type),
        ),
   
@@ -158,17 +169,32 @@ define(loop, function(
   ([exp, label], 
       println('loop:', position()),
       push_label('loop', label),
-      spaces0(_), char(':'), spaces0(_),
+      tabspaces0, char(':'), tabspaces0,
       println('loop:', left_text()),
       statement_list(exp1),
+      println('loop end:', exp1),
       or_p(
-        if_p(and_p(wrap_spaces(literal('until')), expression(exp2, __type)),
+        #println('badenv'),
+        if_p(and_p(tabspaces0, literal('until'), tabspaces, expression(exp2, __type)),
            is_(exp, make_loop_until(label, exp1, exp2))),
-        if_p(and_p(wrap_spaces(literal('while')), expression(exp2, __type)),
-           is_(exp, make_loop_while(label, exp1, exp2))),
-        is_(exp, make_loop(label, exp1))),
+        #println('loop end after until:', position(), left_text()),
+        if_p(and_p( #println('what here:', position(), left_text()),
+                   tabspaces0, literal('while'), tabspaces,
+                   println('what here:', position(), left_text()),
+                   expression(exp2, __type),
+                   println('while ok:', exp1, exp2, position(), left_text())
+                   ),
+           #println('while ok2:', exp1, exp2, position(), left_text()),
+           is_(exp, make_loop_while(label, exp1, exp2)),
+           #is_(exp, (quote, (println, 1))),
+           ),
+        #println('while ok3:', exp1, exp2, position(), left_text()),
+        is_(exp, make_loop(label, exp1)) 
+        ),
+      #println('while ok4:', exp1, exp2, position(), left_text()),
       pop_label('loop'),
-      not_p(and_p(spaces(_), or_p(literal('until'), literal('while')))), 
+      #println('end loop:', make_loop_while(label, exp1, exp2)),
+      #fail
   ),
   )),
 
@@ -177,7 +203,7 @@ define(loop_times, function(
   ([exp, label], 
       println('loop_times:', position()),
       push_label('loop times', label),
-      spaces(_), expression(exp1, __type), spaces(_), literal('times'), spaces0(_), char(':'), spaces0(_),
+      tabspaces, expression(exp1, __type), tabspaces, literal('times'), tabspaces0, char(':'), tabspaces0,
       println('loop_times:', left_text()),
       statement_list(exp2),
       is_(exp, make_loop_times(label, exp1, exp2)),
@@ -190,10 +216,10 @@ define(loop_times, function(
   #([exp, label], 
       #println('loop:', position()),
       #push_label('loop', label),
-      #spaces0(_), char(':'), spaces0(_),
+      #tabspaces0, char(':'), tabspaces0,
       #println('loop:', left_text()),
       #statement_list(exp1),
-      #wrap_spaces('until'),
+      #wrap_tabspaces('until'),
       #expression(exp2, __type),
       #is_(exp, make_loop_until(label, exp1, exp2)),
       #pop_label('loop'),
@@ -204,30 +230,23 @@ define(let_bindings, function(
   # assign expression
   ([exp], 
      #prin('let_bindings:', position()),
-     seplist(binding(_exp), wrap_spaces0(char(',')), _exp, exp)
+     seplist(binding(_exp), wrap_tabspaces0(char(',')), _exp, exp)
   ),
   )),
 
 define(binding, function(
   ([(var1, exp)], varname(var1), #prin('id2'),
           #is_(var, pycall(var, name)),
-          wrap_spaces0(char('=')), #prin('='), 
+          wrap_tabspaces0(char('=')), #prin('='), 
           expression(exp, _)),
-  )),
-
-define(statement_end, function(
-  ([], spaces0(_), # prin(exp),
-       or_p(eoi, char(';')), 
-       println('stmt end', position(), left_text())
-       )
   )),
 
 define(expression, function(
   # assign expression
   ([exp, et_assign], 
-     println('assign expression fsfdfd:', position()),
+     #println('assign expression fsfdfd:', position()),
      assign(exp),
-     println('assign expression2:', exp, left_text()),
+     #println('assign expression2:', exp, left_text()),
   ),
   
   # binary expression
@@ -240,12 +259,12 @@ define(expression, function(
      #println(op_func, exp1, 'at:', position()),
      expression(exp1, et_type1, prior1, assoc1),
      #println('be', position()),
-     spaces0(_), 
+     tabspaces0, 
      #println('bes', position()),
      operator(2, op_name, prior, assoc, op_func), gt_p(prior1, prior), 
      #println('beso', position()),     
      #println(op_func, exp1, 'at:', position()),
-     spaces0(_),
+     tabspaces0,
      #println('besos', position()),
      expression(exp2, et_type2, prior2, assoc2), gt_p(prior2, prior),
      #println(op_func, exp1, exp2, 'at:', position()),
@@ -274,7 +293,7 @@ define(expression, function(
 define(assign, function(
   ([(set, var1, exp)], varname(var1), #prin('id2'),
           #is_(var, pycall(var, name)),
-          wrap_spaces0(char('=')), #prin('='), 
+          wrap_tabspaces0(char('=')), #prin('='), 
           expression(exp, _)),
   )),
 
@@ -285,7 +304,7 @@ define(atom, function(
   )),
 
 define(number, function(
-  ([exp], sign(op), #spaces0(_), 
+  ([exp], sign(op), #tabspaces0, 
           terminal.number(exp2), 
           is_(exp, op(exp2)),
           #println('num', position())
@@ -307,7 +326,7 @@ define(varname, function(
   )),
 
 define(dec_inc_expression, function(
-  ([(set, var1, (op, var1, 1))], varname(var1), spaces0(_), dec_inc(op)),
+  ([(set, var1, (op, var1, 1))], varname(var1), tabspaces0, dec_inc(op)),
   )),
 
 define(dec_inc, function(

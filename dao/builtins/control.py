@@ -96,11 +96,20 @@ def or_p(solver, cont, *calls):
   if call0[0]==if_p: # A -> B; C
     if_clause = deref(call0[1], solver.env)
     then_clause = deref(call0[2], solver.env)
-    calls = ((and_p, if_clause, (Cut, ), then_clause),)+calls[1:]
+    call0 = (and_p, if_clause, (Cut, ), then_clause)
+  #@mycont(cont)
+  #def or_cont(value, solver):  
   env = solver.env
-  for call in calls:
-    yield solver.cont(call, cont), True
-    solver.env = env
+  yield solver.cont(call0, cont), True
+  solver.env = env
+  if len(calls[1:])==1:
+    yield solver.cont(calls[1], cont), True
+  else:
+    yield solver.cont((or_p, )+calls[1:], cont), True
+  #solver.env = env
+  #yield or_cont, True
+  #or_cont.cut = True
+  
 
 @builtin.macro('first_p', 'first!')
 def first_p(solver, cont, *calls):

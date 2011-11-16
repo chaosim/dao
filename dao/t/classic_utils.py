@@ -87,12 +87,17 @@ def make_loop_times(label, times, body):
 @builtin.function('make_loop_until')
 def make_loop_until(label, body, condition): 
   #`(block  ,label:{  ,@body;  if not( ,condition) next  ,label} )
-  return (block, label)+ tuple(body)+((if_, (not_, condition), (continue_block, label)),)
+  return (block, label)+tuple(body)+((if_, (not_, condition), (continue_block, label)),)
 
 @builtin.function('make_loop_while')
 def make_loop_while(label, body, condition): 
   #`(block  ,label:{  ,@body;  if ,condition then next  ,label} )
-  return (block, label)+ tuple(body)+((if_, condition, (continue_block, label)),)
+  return (block, label)+tuple(body)+((if_, condition, (continue_block, label)),)
+
+@builtin.function('make_while_loop')
+def make_while_loop(label, condition, body): 
+  start_condition = (if_, (not_, condition), (exit_block, label))
+  return (block, label, start_condition)+tuple(body)+((continue_block, label),)
 
 # variables
 

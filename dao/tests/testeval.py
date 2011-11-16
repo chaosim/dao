@@ -16,9 +16,19 @@ from dao.builtins.arith import gt, eq, sub, mul, add, div
 from dao.builtins.term import define
 
 from dao.util import *
+from dao.solve import to_sexpression
+from dao.builtins.terminal import eoi, Eoi, tabspaces0, tabspaces, Tabspaces0, Tabspaces
 
 from dao.solve import set_run_mode, noninteractive
 set_run_mode(noninteractive)
+
+class Test_to_sexpression:
+  def test_eoi(self):
+    eq_(to_sexpression(eoi), (Eoi, ))    
+  def test_tabspaces0(self):
+    eq_(to_sexpression(tabspaces0), (Tabspaces0, ))    
+  def test_tabspaces(self):
+    eq_(to_sexpression(tabspaces), (Tabspaces, ))    
 
 class TestSimple:
   def testInteger(self):
