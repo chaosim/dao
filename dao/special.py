@@ -466,7 +466,7 @@ class EachForm(RepeatForm):
     return 'EachForm(%s, %s,%s)'%(repr(self.vars), self.iterator, self.body)
 
 class exit(ParserForm):
-  def __init__(self, value=None, type=None, level=0, label=None): 
+  def __init__(self, value=None, type=None, level=1, label=None): 
     self.value, self.type, self.level, self.label = value, type, level, label
   def tag_loop_label(self, tagger):
     if self.label is None:

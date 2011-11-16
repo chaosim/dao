@@ -9,8 +9,8 @@ from dao.special import begin, set, iff, case, if_, block, exit_block, continue_
 from dao.builtins.arith import eq, sub, not_
 from dao.builtins.matcher import matcher
 
-keywords = pyset(['let', 'do', 'case', 'of', 'while', 'until', 'fun', 'macro', 
-                  'loop', 'if', 'elif', 'else', 'then', 'print'])
+keywords = pyset(['let', 'do', 'case', 'of', 'while', 'where', 'until', 'fun', 'macro', 'block',
+                  'loop', 'if', 'elif', 'else', 'then', 'print', 'break', 'redo', 'pass', 'return'])
 
 @matcher()
 def identifier(solver, cont, arg):
@@ -49,28 +49,35 @@ new_label_id = 1
 label_stack_dict = {}
 
 @builtin.predicate('get_label')
-def get_label(solver, cont): 
+def get_label(solver, cont, label=None): 
+  if isinstance(label, str): yield cont, label
   global new_label_id
-  label = 'label_%s$'%str(new_label_id)
+  new_label = 'label_%s$'%str(new_label_id)
   new_label_id += 1
-  yield cont, label
+  if isinstance(label, Var):
+    for _ in unify(label, new_label, solver.env):
+      yield cont, new_label
+  else: 
+    yield cont, new_label
   new_label_id -= 1
+
+#get_label = builtin.predicate('get_label')(take_label)
 
 @builtin.predicate('push_label')
 def push_label(solver, cont, control_struct_type, label):
   label_stack_dict.setdefault(control_struct_type, []).append(label)
-  label_stack_dict.setdefault(None, []).append(label)
+  label_stack_dict.setdefault('', []).append(label)
   yield cont, label
   label = label_stack_dict[control_struct_type].pop()
-  label_stack_dict[None].pop()
+  label_stack_dict[''].pop()
       
 @builtin.predicate('pop_label')
 def pop_label(solver, cont, control_struct_type):
   label = label_stack_dict[control_struct_type].pop()
-  label_stack_dict[None].pop()
+  label_stack_dict[''].pop()
   yield cont, label
   label_stack_dict[control_struct_type].append(label)
-  label_stack_dict[None].append(label)
+  label_stack_dict[''].append(label)
   
 @builtin.function('make_loop')
 def make_loop(label, body): 
@@ -99,6 +106,33 @@ def make_while_loop(label, condition, body):
   start_condition = (if_, (not_, condition), (exit_block, label))
   return (block, label, start_condition)+tuple(body)+((continue_block, label),)
 
+@builtin.function('make_break')
+def make_break(label, level, word1, word2, value): 
+  if isinstance(label, Var):
+    control_type = ''
+    if not isinstance(word1, Var):
+      control_type = word1
+      if not isinstance(word2, Var):
+        control_type += ' '+ word2
+    if isinstance(level, Var): 
+      level = 1
+    label = label_stack_dict[control_type][-level]
+  if isinstance(value, Var): value = None
+  return exit_block(label, value)
+
+@builtin.function('make_redo')
+def make_redo(label, level, word1, word2): 
+  if isinstance(label, Var):
+    control_type = ''
+    if not isinstance(word1, Var):
+      control_type = word1
+      if not isinstance(word2, Var):
+        control_type += ' '+ word2
+    if isinstance(level, Var): 
+      level = 1
+    label = label_stack_dict[control_type][-level]
+  return continue_block(label)
+
 # variables
 
 x, y, z, = vars('x, y, z')
@@ -126,14 +160,14 @@ binary_operator = vars('binary_operator, op_func')
 
 # statement type
 (st_expression, st_assign, st_loop, st_block, st_if, st_case, st_let, st_defun, st_defmacro,
- st_print, st_bracket, st_sequence
- ) = range(12)
+ st_print, st_bracket, st_sequence, st_pass, st_break, st_redo, st_block
+ ) = range(16)
 
 # expression type
 (et_comma, et_list, et_tuple, et_assign, et_unary, et_inc_dec, et_binary, et_augment_assign,
   et_number, et_string, et_identifier, et_atom) = range(12)
 
-name, var1, stmt_type, label = vars('name, var1, stmt_type, label')
+w1, w2, name, var1, stmt_type, label, digit1 = vars('w1, w2, name, var1, stmt_type, label, digit1')
 exp, exp1, exp2, exp3, exp_list, stmt, stmt_list, body = vars(
   'exp, exp1, exp2, exp3, exp_list, stmt, stmt_list, body')
 code, result = vars('code, result')

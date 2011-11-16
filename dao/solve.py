@@ -21,6 +21,13 @@ class DaoUncaughtThrow(Exception):
 class  DaoSyntaxError(Exception):
   pass
 
+class DaoError(Exception):
+  def __init__(self, message): 
+    self.message = message
+  def __repr__(self): 
+    return self.message
+  __str__ = __repr__
+
 class NoSolutionFound:
   cont_order = 0 # just use it accidently
   def __init__(self, exp): 

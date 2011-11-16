@@ -274,7 +274,7 @@ def tabs0(solver, cont):
 tabs0 = tabs0()
 
 @matcher()
-def Tabspaces0(solver, cont):
+def _Tabspaces0(solver, cont):
   '''0 or more space or tab'''
   text, pos = solver.parse_state
   length = len(text)
@@ -283,7 +283,7 @@ def Tabspaces0(solver, cont):
   solver.parse_state = text, p
   yield cont, text[pos:p]
   solver.parse_state = text, pos
-tabspaces0 = Tabspaces0()
+tabspaces0 = _Tabspaces0()
 
 @matcher()
 def whitespaces0(solver, cont):
@@ -336,7 +336,7 @@ def tabs(solver, cont):
 tabs = tabs()
 
 @matcher()
-def Tabspaces(solver, cont):
+def _Tabspaces(solver, cont):
   '''1 or more space or tab'''
   text, pos = solver.parse_state
   if pos==len(text): return
@@ -346,7 +346,41 @@ def Tabspaces(solver, cont):
   solver.parse_state = text, p
   yield cont, text[pos:p]
   solver.parse_state = text, pos
-tabspaces = Tabspaces()
+tabspaces = _Tabspaces()
+
+@matcher()
+def pad_tabspaces(solver, cont):
+  '''if not leading space, 1 or more space or tab'''
+  text, pos = solver.parse_state
+  if pos==len(text): return
+  if text[pos]!=' ' and text[pos]!='\t': 
+    if text[pos-1]!=' ' and text[pos]!='\t': return
+    yield cont, text[pos]
+    return
+  p = pos+1
+  while text[p]==' ' or text[p]=='\t': p += 1
+  solver.parse_state = text, p
+  yield cont, text[pos:p]
+  solver.parse_state = text, pos
+pad_tabspaces = pad_tabspaces()
+
+@matcher()
+def tabspaces_if_need(solver, cont):
+  '''1 or more tabspace not before punctuation'''
+  text, pos = solver.parse_state
+  if pos==len(text): 
+    yield cont, ''
+    return
+  if text[pos] not in ' \t': 
+    if pos+1==len(text) or text[pos+1] in '\'",;:.{}[]()!?\r\n':
+      yield cont, text[pos]
+    return
+  p = pos+1
+  while text[p] in '\r\n': p += 1
+  solver.parse_state = text, p
+  yield cont, text[pos:p]
+  solver.parse_state = text, pos
+tabspaces_if_need = tabspaces_if_need()
 
 @matcher()
 def whitespaces(solver, cont):
@@ -384,6 +418,7 @@ def wrap_tabspaces0(item):
 def wrap_tabspaces(item):
   _ = DummyVar('_')
   return and_p(tabspaces, item, tabspaces)
+
 
 def quote_string(quote, name):
   def func(solver, cont,  arg0):
@@ -462,13 +497,27 @@ def identifier(solver, cont, arg):
   text, pos = solver.parse_state
   length = len(text)
   if pos>=length: return
-  p = pos
-  if text[p]!='_' and not 'a'<=text[p]<='z' and not 'A'<=text[p]<='Z': 
+  if text[pos]!='_' and not 'a'<=text[pos]<='z' and not 'A'<=text[pos]<='Z': 
     return
-  p += 1
+  p = pos+1
   while p<length and (text[p]=='_' or 'a'<=text[p]<='z' or 'A'<=text[p]<='Z'
                        '0'<=text[p]<='9'): 
     p += 1
+  for _ in unify(arg, text[pos:p], solver.env):
+    solver.parse_state = text, p
+    yield cont,  text[pos:p]
+    solver.parse_state = text, pos
+
+@matcher()
+def word(solver, cont, arg):
+  '''word of letters''' 
+  text, pos = solver.parse_state
+  length = len(text)
+  if pos>=length: return
+  if not 'a'<=text[pos]<='z' and not 'A'<=text[pos]<='Z': 
+    return
+  p = pos+1
+  while p<length and ('a'<=text[p]<='z' or 'A'<=text[p]<='Z'): p += 1
   for _ in unify(arg, text[pos:p], solver.env):
     solver.parse_state = text, p
     yield cont,  text[pos:p]

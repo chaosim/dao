@@ -1,7 +1,19 @@
 details of history:
 
+2011-11-16 20:04:28 
+git* block statement, redo statement
+
+2011-11-16 19:35:58 
+break statement
+
+2011-11-16 15:37:12 
+pass statement
+
+2011-11-16 19:04:58 
+builtin error for debug
+ 
 2011-11-16 15:22:43 
-loop-while tests failed for the bug below, passed after fix it:
+git* loop-while tests failed for the bug below, passed after fix it:
 bug fix: 
 	--- solver = env.extend({}) --- 
         ===>
@@ -19,7 +31,7 @@ debug trick: use fail to stop at som place.
 pass all tests after add and modifier terminals
  
 2011-11-16 08:47:44 
-more frequent used terminals relating to char and space
+git* more frequent used terminals relating to char and space
 chs0, chs, 
 space, tab, tabspace, whitespace, newline, 
 spaces0, tabs0, tabspaces0, whitespaces0, newlines0, 

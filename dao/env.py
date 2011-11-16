@@ -22,7 +22,7 @@ class GlobalEnvironment(Environment):
     self.bindings[var] = value
   def lookup_exit_cont(self, label, cont, form_value, solver): 
     raise Exception('block %s does not exist.'%label)
-  def lookup_next_cont(self, label, cont, form_value, solver): 
+  def lookup_next_cont(self, label, cont, solver): 
     raise Exception('block %s does not exist.'%label)
   def _repr(self): return 'GENV%s'%self.bindings
     

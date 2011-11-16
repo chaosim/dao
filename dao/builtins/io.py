@@ -4,6 +4,10 @@ from dao import builtin
 # intput and output
 
 @builtin.function()
+def format(format_string, *args):
+  return format_string%args
+
+@builtin.function()
 def read(file):
   return file.read()
 

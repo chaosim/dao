@@ -3,6 +3,7 @@ from dao import builtin
 from dao.solve import CutException, mycont
 from dao.builtin import Builtin, Function
 from dao.term import CommandCall
+from dao.solve import DaoError
 
 # control predicates
 
@@ -44,6 +45,10 @@ def once(solver, cont, pred):
   for c, x in solver.exp_run_cont(getvalue(pred, solver.env, {}), cont):
     yield c, x
     return
+
+@builtin.function('succeed')
+def error(*args): 
+  raise DaoError(' '.join([repr(x) for x in args]))
 
 @builtin.macro('succeed')
 def Succeed(solver, cont): 

@@ -4,19 +4,19 @@ from dao import term
 from dao.builtins import arith
 from dao.term import Cons, nil, conslist as L, cons2tuple 
 from dao.special import function, eval_, from_, quote, in_module, set, begin
-from dao.special import let
+from dao.special import let, block
 from dao.solve import to_sexpression
 
 from dao.builtins.io import prin, println
-from dao.builtins.control import and_p, or_p, if_p, not_p, fail
+from dao.builtins.control import and_p, or_p, if_p, not_p, fail, succeed, error
 from dao.builtins.parser import position, left as left_text
 from dao.builtins.matcher import null, optional
 from dao.builtins.matcher import make_any as any, make_some as some, make_seplist as seplist, greedy
 from dao.builtins.matcher import make_seplist_times_more as seplist_times_more
 from dao.builtins.container import concat, pytuple
 from dao.builtins import terminal
-from dao.builtins.terminal import char, tabspaces0, tabspaces, whitespaces0, wrap_tabspaces0, wrap_tabspaces, eoi, literal
-from dao.builtins.terminal import dqstring, not_lead_chars, not_follow_chars
+from dao.builtins.terminal import ch, char, tabspaces0, tabspaces, whitespaces0, wrap_tabspaces0, wrap_tabspaces, eoi, literal
+from dao.builtins.terminal import dqstring, not_lead_chars, not_follow_chars, digit, pad_tabspaces, word, tabspaces_if_need
 from dao.builtins.term import setvalue, pycall, is_, define
 from dao.builtins.quasiquote import quasiquote, unquote, unquote_splice
 from dao.builtins.arith import ge_p, gt_p
@@ -84,6 +84,18 @@ define(statement_body, function(
       wrap_tabspaces0(statement_sequence(exp)), char('}'),
       ),
     
+  # block statement
+  ([exp, st_block],
+      literal('block'),optional(and_p(tabspaces, identifier(label))), 
+      tabspaces0, ch(':'),tabspaces0, 
+      #println('bracket:', left_text()), 
+      push_label('', get_label(label)),
+      statement_list(stmt_list),
+      set(stmt_list, pycall(tuple, stmt_list)),
+      concat((block, label), stmt_list, exp),
+      pop_label(''),
+      ),
+    
   # let statement
   ([(let, exp1, body), st_let],
       #prin('let statement:', position()),
@@ -97,42 +109,43 @@ define(statement_body, function(
   
   # if-elif-else statement
   ([exp, st_if],
-      literal('if'), tabspaces, expression(exp1, __type), println('if2:', left_text()),
-      println('if statement:', position()),
+      literal('if'), tabspaces, expression(exp1, __type), #println('if2:', left_text()),
+      #println('if statement:', position()),
       wrap_tabspaces(literal('then')), #println('if12:', position()), 
-      statement(exp2, __type), println('if3:', left_text()),
+      statement(exp2, __type), #println('if3:', left_text()),
       
       any(and_p(wrap_tabspaces(literal('elif')), 
                 expression(_exp1, __type), wrap_tabspaces(literal('then')),
                 statement(_exp2, __type)),
           (_exp1, _exp2), exp_list),
       #prin('if4:', position()),
+      #error(),
       optional(and_p(wrap_tabspaces(literal('else')), statement_body(exp3, __type)), greedy),
-      prin('if5:', left_text()),
+      #prin('if5:', left_text()),
       is_(exp, make_iff(exp1, exp2, exp_list, exp3)),
       ),
   
   # case statement
   ([exp, st_case],
       literal('case'), 
-      println('case statement:', position()),
-      tabspaces, expression(exp1, __type), println('case2:', left_text()),
+      #println('case statement:', position()),
+      tabspaces, expression(exp1, __type), #println('case2:', left_text()),
       
       some(and_p(wrap_tabspaces(literal('of')), 
                 seplist_times_more(expression(_x, __type), wrap_tabspaces0(char(',')), 1, _x, _exp1),
                 wrap_tabspaces0(literal(':')),
                 some(statement(_x, __type), _x, _exp2)),
           (_exp1, _exp2), exp_list),
-      prin('case4:', position()),
+      #prin('case4:', position()),
       optional(and_p(wrap_tabspaces(literal('else')), statement_body(exp3, __type)), greedy),
-      prin('case5:', left_text()),
+      #prin('case5:', left_text()),
       is_(exp, make_case(exp1, exp_list, exp3)),
       ),
   
   # loop statement
   ([exp, st_loop],
       literal('loop'),
-      println('loop statement:', position()),
+      #println('loop statement:', position()),
       is_(label, get_label()),
       or_p( loop(exp, label),
             loop_times(exp, label),
@@ -162,17 +175,54 @@ define(statement_body, function(
        expression(exp, __type),
        ),
   
+  # expression statement
+  ([succeed, st_pass],  
+       #println('expression_statement:', position()), 
+       literal('pass'),
+       ),
+  
+  # expression statement
+  ([exp, st_break],  
+       literal('break'), #println('break:', position()), 
+       tabspaces_if_need, optional(
+         or_p( identifier(exp1), 
+               and_p(optional(and_p(digit(digit1), tabspaces, literal('levels'))),
+                     optional(pad_tabspaces, and_p(word(w1), optional(and_p(tabspaces, word(w2)))))
+                     ) ) ),
+       #println('break2:', position()),
+       optional(expression(exp2, __type)),
+       #println('break3:', position()),
+       #fail,
+       is_(exp, make_break(exp1, digit1, w1, w2, exp2)) 
+       ),
+  
+  # expression statement
+  ([exp, st_redo],  
+       literal('redo'), 
+       #println('redo:', position()), 
+       tabspaces_if_need, optional(
+         or_p( identifier(exp1), 
+               and_p(optional(and_p(digit(digit1), tabspaces, literal('levels'))),
+                     optional(pad_tabspaces, and_p(word(w1), optional(and_p(tabspaces, word(w2)))))
+                     ) ) ),
+       #println('redo2:', position()),
+       #optional(expression(exp2, __type)),
+       #println('redo3:', position()),
+       #fail,
+       is_(exp, make_redo(exp1, digit1, w1, w2)) 
+       ),
+  
   )),  
 
 define(loop, function(
   # loop
   ([exp, label], 
-      println('loop:', position()),
+      #println('loop:', position()),
       push_label('loop', label),
       tabspaces0, char(':'), tabspaces0,
-      println('loop:', left_text()),
+      #println('loop:', left_text()),
       statement_list(exp1),
-      println('loop end:', exp1),
+      #println('loop end:', exp1),
       or_p(
         #println('badenv'),
         if_p(and_p(tabspaces0, literal('until'), tabspaces, expression(exp2, __type)),
@@ -180,17 +230,18 @@ define(loop, function(
         #println('loop end after until:', position(), left_text()),
         if_p(and_p( #println('what here:', position(), left_text()),
                    tabspaces0, literal('while'), tabspaces,
-                   println('what here:', position(), left_text()),
+                   #println('what here:', position(), left_text()),
                    expression(exp2, __type),
-                   println('while ok:', exp1, exp2, position(), left_text())
+                   #println('while ok:', exp1, exp2, position(), left_text())
                    ),
            #println('while ok2:', exp1, exp2, position(), left_text()),
            is_(exp, make_loop_while(label, exp1, exp2)),
            #is_(exp, (quote, (println, 1))),
            ),
-        #println('while ok3:', exp1, exp2, position(), left_text()),
         is_(exp, make_loop(label, exp1)) 
         ),
+      #println('while ok3:', exp1, exp2, position(), left_text()),
+      #error('in loop'),
       #println('while ok4:', exp1, exp2, position(), left_text()),
       pop_label('loop'),
       #println('end loop:', make_loop_while(label, exp1, exp2)),
@@ -201,30 +252,15 @@ define(loop, function(
 define(loop_times, function(
   # loop times
   ([exp, label], 
-      println('loop_times:', position()),
+      #println('loop_times:', position()),
       push_label('loop times', label),
       tabspaces, expression(exp1, __type), tabspaces, literal('times'), tabspaces0, char(':'), tabspaces0,
-      println('loop_times:', left_text()),
+      #println('loop_times:', left_text()),
       statement_list(exp2),
       is_(exp, make_loop_times(label, exp1, exp2)),
       pop_label('loop times'),
   ),
   )),
-
-#define(loop_until, function(
-  ## loop until
-  #([exp, label], 
-      #println('loop:', position()),
-      #push_label('loop', label),
-      #tabspaces0, char(':'), tabspaces0,
-      #println('loop:', left_text()),
-      #statement_list(exp1),
-      #wrap_tabspaces('until'),
-      #expression(exp2, __type),
-      #is_(exp, make_loop_until(label, exp1, exp2)),
-      #pop_label('loop'),
-  #),
-  #)),
 
 define(let_bindings, function(
   # assign expression

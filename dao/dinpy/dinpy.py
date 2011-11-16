@@ -377,7 +377,7 @@ each = element('each',
 @builtin.function('make_exit')
 def make_exit(type, level, label, value):
   type = None if isinstance(type, Var) else type
-  level = 0 if isinstance(level, Var) else level
+  level = 1 if isinstance(level, Var) else level
   label = None if isinstance(label, Var) else label
   return special.exit(preparse(value), type, level, label)
 
