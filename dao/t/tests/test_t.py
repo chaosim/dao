@@ -29,3 +29,11 @@ class Test_teval:
     eq_(teval('print 1'), None)
   def test8(self):
     eq_(teval('let a = 1, b = 2 do print a+b'), None)
+  def test9(self):
+    eq_(teval('if 1 then print 1; else print "other"'), None)
+  def test10(self):
+    eq_(teval('case 1 of 1: print 1; of 2: print 2; else print "other"'), None)
+  def test11(self):
+    eq_(teval('{1; print "a";}'), None)
+  def test12(self):
+    eq_(teval('loop 3 times: print "loop"'), None)

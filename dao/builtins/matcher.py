@@ -820,7 +820,7 @@ class seplist(Matcher):
 def make_seplist(item, separator, template=None, result=None, 
             expect_times=None, mode=nongreedy):
   if expect_times==0: return nullword
-  elif expect_times==1: return item
+  elif expect_times==1 and result is None: return item
   if expect_times is None:
     if result is None:
       if mode==greedy:
@@ -985,8 +985,8 @@ class seplist_times_more(Matcher):
 def make_seplist_times_more(item, separator, expect_times, template=None, result=None, mode=nongreedy):
   @matcher('seplist_times_more')
   def seplist_bultin(solver, cont, item, separator, template, result):
-    expect_times = deref(expect_times, solver.env)
-    if not isinstance(expect_times, int): raise ValueError(expect_times)
+    expect_times1 = deref(expect_times, solver.env)
+    if not isinstance(expect_times1, int): raise ValueError(expect_times)
     result1 = deref(result, solver.env)
     if result1 is not None:
       template1 = deref(template, solver.env)
@@ -994,14 +994,17 @@ def make_seplist_times_more(item, separator, expect_times, template=None, result
     else: 
       template1 = None
       temp_result = None
-    prefix_list = make_seplist(item, separator, template1, temp_result1, expect_times, mode)
-    for c, v in solver.exp_run_cont(prefix_list, cont):
+    temp_result = Var('temp')
+    prefix_list = make_seplist(item, separator, template1, temp_result, expect_times1, mode)
+    @mycont(cont)
+    def seplist_times_more_cont(value, solver):
       if result1 is not None:
-        matched_list = getvalue(temp_result1, solver.env, {})
+        matched_list = getvalue(temp_result, solver.env, {})
       else: matched_list = None
-      next_cont = make_repeat_cont(solver, cont, (and_p, separator1, item1), 
+      next_cont = make_repeat_cont(solver, cont, (and_p, separator, item), 
                     0, matched_list, template1, result1, mode)
-      yield next_cont, v
+      yield next_cont, value
+    yield solver.cont(prefix_list, seplist_times_more_cont), True
   return (seplist_bultin, item, separator, template, result)
 
 class seplist_times_less(Matcher):

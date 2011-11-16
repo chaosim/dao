@@ -251,7 +251,7 @@ def make_iff_cont(then, clauses, els, cont):
       else: ifcont = make_iff_cont(clauses[0][1], clauses[1:], els, cont)
       yield solver.cont(clauses[0][0], ifcont), value
   return iff_cont
-  
+
 class iff(SpecialForm):
   name = 'iff'
   symbol = 'iff'
@@ -349,6 +349,8 @@ class CaseForm(SpecialForm):
     result += ''.join('of %s: %s; '%(repr(k), repr(v)) for k,v in self.cases.items())
     result += 'els %s'%self.els
     return result
+
+case = CaseForm
 
 class RepeatForm(ParserForm): pass
 

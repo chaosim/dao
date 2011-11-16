@@ -5,6 +5,9 @@ todo: garbage collect in memo of result.
 todo: memo builtins' result
  # necessary:   sign(op), number(exp2) -> (may(char('+')), number) | (char('-'), number)
 
+todo: first set for matcher  compute when create command, not when calling command, without using solver.env
+  done 2011-11-2: first set for matcher
+
 todo: succeed continution, fail continuation and compiler
 todo: no list, tuples, only Cons
 todo: module become object? object oriented with module.

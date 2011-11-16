@@ -1,7 +1,22 @@
 details of history:
 
+2011-11-16 17:27:50 
+git* loop-times statement
+ 
+2011-11-16 14:35:01 
+case statement
+
+2011-11-16 12:06:21 
+if-elif-else statement
+
+2011-11-16 09:31:29 
+git* let statement
+
+2011-11-16 09:00:29 
+print statement
+
 2011-11-16 21:18:15 
-two whole days, just for miss information in left recursive memo!!!
+git* two whole days, just for miss information in left recursive memo!!!
   sign_state2cont.insert(i, (solver.call_path, cont, solver.env, ***values***))
         for _ in unify_list(vals, result_head, solver.env):
 
