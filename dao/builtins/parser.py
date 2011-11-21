@@ -137,9 +137,9 @@ def skip(solver, cont, n=1): # return element after skip
   solver.parse_state = text, pos
 
 @matcher()
-def left(solver, cont):
+def left(solver, cont, length=None):
   text, pos = solver.parse_state
-  yield cont, text[pos:]
+  yield cont, text[pos:pos+length if length is not None else None]
 
 @builtin.nomemo
 @matcher()

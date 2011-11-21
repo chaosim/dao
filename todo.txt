@@ -1,6 +1,8 @@
 ﻿todo: T language
   todo: grammar
 
+todo profiling the dao
+
 todo: garbage collect in memo of result.
 todo: memo builtins' result
  # necessary:   sign(op), number(exp2) -> (may(char('+')), number) | (char('-'), number)
@@ -8,7 +10,10 @@ todo: memo builtins' result
 todo: first set for matcher  compute when create command, not when calling command, without using solver.env
   done 2011-11-2: first set for matcher
 
+todo: compile to python 
+  todo: use python var as t var
 todo: succeed continution, fail continuation and compiler
+  # fail continuation may be not needed when compile to python
 todo: no list, tuples, only Cons
 todo: module become object? object oriented with module.
   # lookup var in base module, base module becomes super class.
@@ -18,7 +23,7 @@ todo:  replace environment with active record
 todo: explore the possibility of lazy evaluation
   # 2011-11-12: I find a expression is saved in env for a var when debugging.
 
-todo: 可以根据历史选择和最近选择优选下一次的规则分支。
+todo: select next choice on the history and recent choice 
 
 todo: more special forms, builtins.
   todo: for/start/end/step
@@ -26,8 +31,8 @@ todo: more special forms, builtins.
 todo: natural language programming
   overlook superfluous words 
 
-todo: 汉语编程
-  过滤 缀词，冗余词
+todo: chinese programming
+  filter, decoration word, superfluous words
 
 ================================================================================================================
 

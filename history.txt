@@ -1,5 +1,22 @@
 details of history:
 
+2011-11-21 10:11:28 
+block comment builtin
+
+2011-11-17 10:35:34 
+coding for function, macro definition and remove
+syntax error is cheched, now debuging the grammar.
+
+2011-11-16 20:10:48 
+git* block, redo, break, pass, error, pad_tabspaces, tabspaces_if_needed
+
+block statement, redo statement
+break statement
+pass statement
+
+builtin error for debug
+builtin format
+
 2011-11-16 20:04:28 
 git* block statement, redo statement
 

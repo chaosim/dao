@@ -1,5 +1,27 @@
 from dao import builtin
 
+from dao import term
+from dao.builtins import arith
+from dao.term import Cons, nil, conslist as L, cons2tuple 
+from dao.special import function, eval_, from_, quote, in_module, set, begin
+from dao.special import let, block
+from dao.solve import to_sexpression
+
+from dao.builtins.io import prin, println
+from dao.builtins.control import and_p, or_p, if_p, not_p, fail, succeed, error
+from dao.builtins.parser import position, left as left_text
+from dao.builtins.matcher import null, optional
+from dao.builtins.matcher import make_any as any, make_some as some, make_seplist as seplist, greedy
+from dao.builtins.matcher import make_seplist_times_more as seplist_times_more
+from dao.builtins.container import concat, pytuple
+from dao.builtins import terminal
+from dao.builtins.terminal import ch, char, tabspaces0, tabspaces, whitespaces0, wrap_tabspaces0, wrap_tabspaces, eoi, literal
+from dao.builtins.terminal import dqstring, not_lead_chars, not_follow_chars, digit, pad_tabspaces, word, tabspaces_if_need
+from dao.builtins.terminal import follow_char
+from dao.builtins.term import setvalue, pycall, is_, define
+from dao.builtins.quasiquote import quasiquote, unquote, unquote_splice
+from dao.builtins.arith import ge_p, gt_p
+
 from dao.term import Var, var, vars, dummies, nullvars #, Command, CommandCall
 from dao.term import unify
 pyset = set
@@ -9,8 +31,55 @@ from dao.special import begin, set, iff, case, if_, block, exit_block, continue_
 from dao.builtins.arith import eq, sub, not_
 from dao.builtins.matcher import matcher
 
-keywords = pyset(['let', 'do', 'case', 'of', 'while', 'where', 'until', 'fun', 'macro', 'block',
-                  'loop', 'if', 'elif', 'else', 'then', 'print', 'break', 'redo', 'pass', 'return'])
+keywords = pyset(['let', 'recur', 'do', 'case', 'of', 'while', 'when', 'until', 'block',
+                  'loop', 'if', 'elif', 'else', 'print', 'break', 'redo', 'pass', 'return',
+                  'fun', 'macro', 'on'])
+
+# variables
+
+x, y, z, = vars('x, y, z')
+
+from dao.t.operator import operator, left, right
+
+# function names
+
+statement, statement_list, program = vars('statement, statement_list, program')
+
+assign_statement, expression_statement = vars('assign_statement, expression_statement ')
+statement_body, statement_end, statement_sequence, = vars(
+  'statement_body, statement_end, statement_sequence')
+
+expression, dec_inc_expression, binary_expression, assign_expression  = vars(
+  'expression, dec_inc_expression, binary_expression, assign_expression')
+
+assign, let_bindings, binding, loop, loop_times = vars(
+  'assign, let_bindings, binding, loop, loop_times')
+
+fun_macro_define, fun_macro_remove, fun_macro_remove_item, fun_macro_define_body = vars(
+  'fun_macro_define, fun_macro_remove, fun_macro_remove_item, fun_macro_define_body')
+
+sign, dec_inc, number, string, varname, atom = vars('sign, dec_inc, number, string, varname, atom')
+binary_operator = vars('binary_operator, op_func')
+
+# classic grammar definitions
+
+# statement type
+(st_expression, st_assign, st_loop, st_block, st_if, st_case, st_let, st_function, st_macro,
+ st_print, st_curly_bracket, st_sequence, st_pass, st_break, st_redo, st_block
+ ) = range(16)
+
+# expression type
+(et_comma, et_list, et_tuple, et_assign, et_unary, et_inc_dec, et_binary, et_augment_assign,
+  et_number, et_string, et_identifier, et_atom, et_parenthesis) = range(13)
+
+w1, w2, name, var1, stmt_type, label, digit1 = vars('w1, w2, name, var1, stmt_type, label, digit1')
+exp, exp1, exp2, exp3, exp_list, stmt, stmt_list, body = vars(
+  'exp, exp1, exp2, exp3, exp_list, stmt, stmt_list, body')
+code, result = vars('code, result')
+op, op_name, op_name2, op_func, op_func2, et_type1, et_type2, def_type = vars(
+  'op, op_name, op_name2, op_func, op_func2, et_type1, et_type2, def_type')
+prior, prior1, prior2, prior3, assoc, assoc1, assoc2, assoc3 = vars(
+  'prior, prior1, prior2, prior3, assoc, assoc1, assoc2, assoc3')
 
 @matcher()
 def identifier(solver, cont, arg):
@@ -133,46 +202,67 @@ def make_redo(label, level, word1, word2):
     label = label_stack_dict[control_type][-level]
   return continue_block(label)
 
-# variables
+@builtin.function('make_definition')
+def make_definition(exp, def_type):
+  pass
 
-x, y, z, = vars('x, y, z')
+@builtin.function('update_matched_definition')
+def update_matched_definition(exp, def_type):
+  pass
 
-from dao.t.operator import operator, left, right
+@builtin.function('replace_whole_definition')
+def replace_whole_definition(exp, def_type):
+  pass
 
-# function names
+@builtin.function('append_definition')
+def append_definition(exp, def_type):
+  pass
 
-statement, statement_list, program = vars('statement, statement_list, program')
+@builtin.function('insert_definition')
+def insert_definition(exp, def_type):
+  pass
 
-assign_statement, expression_statement = vars('assign_statement, expression_statement ')
-statement_body, statement_end, statement_sequence, = vars(
-  'statement_body, statement_end, statement_sequence')
+@builtin.function('make_remove_expression')
+def make_remove_expression(exp, def_type):
+  pass
 
-expression, dec_inc_expression, binary_expression, assign_expression  = vars(
-  'expression, dec_inc_expression, binary_expression, assign_expression')
+@builtin.function('make_remove_item1')
+def make_remove_item1(exp):
+  pass
 
-assign, let_bindings, binding, loop, loop_times = vars(
-  'assign, let_bindings, binding, loop, loop_times')
+@builtin.function('make_remove_item2')
+def make_remove_item2(exp):
+  pass
 
-sign, dec_inc, number, string, varname, atom = vars('sign, dec_inc, number, string, varname, atom')
-binary_operator = vars('binary_operator, op_func')
+@builtin.function('make_remove_item3')
+def make_remove_item3(exp):
+  pass
 
-# classic grammar definitions
+@builtin.macro('block_comment')
+def block_comment(solver, cont, start, end):
+  '''embedable block comment'''
+  text, pos = solver.parse_state
+  length = len(text)
+  startlen = len(start)
+  endlen = len(end)
+  if pos==length: return
+  if not text[pos:].startswith(start):
+    return
+  level = 1
+  p = pos+1
+  while p<length:
+    if text[p:].startswith(end):
+      level -= 1
+      p += endlen
+      if level==0: break
+    elif text[p:].startswith(start):
+      level += 1
+      p += startlen
+    else:
+      p += 1
+  else: return
+  solver.parse_state = text, p
+  yield cont, text[pos:p]
+  solver.parse_state = text, pos
 
-# statement type
-(st_expression, st_assign, st_loop, st_block, st_if, st_case, st_let, st_defun, st_defmacro,
- st_print, st_bracket, st_sequence, st_pass, st_break, st_redo, st_block
- ) = range(16)
-
-# expression type
-(et_comma, et_list, et_tuple, et_assign, et_unary, et_inc_dec, et_binary, et_augment_assign,
-  et_number, et_string, et_identifier, et_atom) = range(12)
-
-w1, w2, name, var1, stmt_type, label, digit1 = vars('w1, w2, name, var1, stmt_type, label, digit1')
-exp, exp1, exp2, exp3, exp_list, stmt, stmt_list, body = vars(
-  'exp, exp1, exp2, exp3, exp_list, stmt, stmt_list, body')
-code, result = vars('code, result')
-op, op_name, op_name2, op_func, op_func2, et_type1, et_type2 = vars(
-  'op, op_name, op_name2, op_func, op_func2, et_type1, et_type2')
-prior, prior1, prior2, prior3, assoc, assoc1, assoc2, assoc3 = vars(
-  'prior, prior1, prior2, prior3, assoc, assoc1, assoc2, assoc3')
-
+t_default_block_comment = block_comment('/.', './')

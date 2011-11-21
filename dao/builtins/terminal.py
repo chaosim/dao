@@ -30,6 +30,14 @@ def char2(solver, cont, argument):
     solver.parse_state = text, pos
 
 @matcher()
+def char3(solver, cont): 
+  text, pos = solver.parse_state
+  if pos==len(text): return
+  solver.parse_state = text, pos+1
+  yield cont, text[pos]
+  solver.parse_state = text, pos
+
+@matcher()
 def ch(solver, cont, char):
   '''one char'''
   text, pos = solver.parse_state
@@ -86,17 +94,30 @@ def not_lead_chars(solver, cont, chars):
 @matcher()
 def follow_chars(solver, cont, chars):
   chars = deref(chars, solver.env)
-  assert isinstance(chars, str)
-  if not eoi_(solver.parse_state) \
-     and next_char_(solver.parse_state) not in chars: 
+  if eoi_(solver.parse_state) or\
+     next_char_(solver.parse_state) not in chars: 
+    return
+  yield cont,  True
+
+@matcher()
+def follow_char(solver, cont, char):
+  char = deref(char, solver.env)
+  if eoi_(solver.parse_state) or\
+     next_char_(solver.parse_state)!=char: 
     return
   yield cont,  True
 
 @matcher()
 def not_follow_chars(solver, cont, chars):
   chars = deref(chars, solver.env)
-  assert isinstance(chars, str)
   if not eoi_(solver.parse_state) and next_char_(solver.parse_state) in chars: 
+    return
+  yield cont,  True
+
+@matcher()
+def not_follow_char(solver, cont, char):
+  char = deref(char, solver.env)
+  if not eoi_(solver.parse_state) and next_char_(solver.parse_state)==char: 
     return
   yield cont,  True
 
@@ -154,6 +175,19 @@ space_string = ' \t' #\r\n
 whitespace_string = ' \t\r\n'
 unify_tabspace = char_in(space_string, repr_string='spacesChar')
 unify_whitespace = char_in(whitespace_string, repr_string='spacesChar')
+
+@matcher()
+def any_chars_except(solver, cont, except_chars):
+  '''any chars until meet except_chars'''
+  text, pos = solver.parse_state
+  length = len(text)
+  p = pos
+  while 1:
+    if p == length or text[p] in except_chars: 
+      solver.parse_state = text, p
+      yield cont, text[p]
+      solver.parse_state = text, pos
+    p += 1
 
 @matcher()
 def space(solver, cont):
@@ -366,7 +400,7 @@ pad_tabspaces = pad_tabspaces()
 
 @matcher()
 def tabspaces_if_need(solver, cont):
-  '''1 or more tabspace not before punctuation'''
+  '''1 or more tabspace not before punctuation '",;:.{}[]()!?\r\n '''
   text, pos = solver.parse_state
   if pos==len(text): 
     yield cont, ''
@@ -381,6 +415,25 @@ def tabspaces_if_need(solver, cont):
   yield cont, text[pos:p]
   solver.parse_state = text, pos
 tabspaces_if_need = tabspaces_if_need()
+
+@matcher()
+def tabspaces_unless(solver, cont, chars):
+  '''1 or more tabspace if not before chars, else 0 or more tabspace '''
+  chars = deref(chars, solver.env)
+  text, pos = solver.parse_state
+  if pos==len(text): 
+    yield cont, ''
+    return
+  if text[pos] not in ' \t': 
+    if pos+1==len(text) or text[pos+1] in chars:
+      yield cont, text[pos]
+    return
+  p = pos+1
+  while text[p] in '\r\n': p += 1
+  solver.parse_state = text, p
+  yield cont, text[pos:p]
+  solver.parse_state = text, pos
+tabspaces_unless = tabspaces_unless()
 
 @matcher()
 def whitespaces(solver, cont):

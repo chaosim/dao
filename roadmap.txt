@@ -1,0 +1,48 @@
+the roadmap of dao from past to future
+
+done: try yield statement with rule choices, failed.
+done: using pylog
+  #bindings, term, unify
+done: mushroom parser, deprecated.
+  # first set, follow set, ascender, descender, rtn(recursive transition net)
+done: pypy prolog 1
+  # single continuation, no trampoline?
+done: pypy prolog 2
+  # two continuation
+done: integrate prolog with lisp
+  # borrow the code from "Lisp In Small Piece"
+done: dynamic parsing by eval while parsing.
+  # test and demo in sexpresson.py
+done: try left recursive, failed.
+  # use two continuation and the framework of pypy prolog
+  # It's not first time to try left recursive.
+done: integrate pypy prolog with YieldProlog.
+done: remove subst, use env only
+done: left recursive
+  # memo similar to chart parsing, use continuation heavily.
+  # the nth times try: 5 times or more? succeed at last!
+done: true lisp style macro. 
+done: solve sexpressioin directly in solver
+done: quasite, unquote, unquote splice
+
+doing: t language
+
+todo: optimization
+  todo: garbage collect in memo of result.
+  todo: first set for matcher  compute when create command, not when calling command, without using solver.env
+
+todo: towards true compiler
+  todo:  replace environment with active record
+  todo: no list, tuples, only Cons
+  todo: succeed continution, fail continuation
+    todo: build the graph of continuations
+    todo: virtual machine with register: scont, fcont, env, value, stack, parse_state
+    todo: interpret instruction in python
+
+todo: object oriented programming
+  # using module as object or class?
+
+todo: natural language programming
+  todo english programming
+  todo: chinese programming
+

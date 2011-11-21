@@ -1,29 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from dao import term
-from dao.builtins import arith
-from dao.term import Cons, nil, conslist as L, cons2tuple 
-from dao.special import function, eval_, from_, quote, in_module, set, begin
-from dao.special import let, block
-from dao.solve import to_sexpression
-
-from dao.builtins.io import prin, println
-from dao.builtins.control import and_p, or_p, if_p, not_p, fail, succeed, error
-from dao.builtins.parser import position, left as left_text
-from dao.builtins.matcher import null, optional
-from dao.builtins.matcher import make_any as any, make_some as some, make_seplist as seplist, greedy
-from dao.builtins.matcher import make_seplist_times_more as seplist_times_more
-from dao.builtins.container import concat, pytuple
-from dao.builtins import terminal
-from dao.builtins.terminal import ch, char, tabspaces0, tabspaces, whitespaces0, wrap_tabspaces0, wrap_tabspaces, eoi, literal
-from dao.builtins.terminal import dqstring, not_lead_chars, not_follow_chars, digit, pad_tabspaces, word, tabspaces_if_need
-from dao.builtins.term import setvalue, pycall, is_, define
-from dao.builtins.quasiquote import quasiquote, unquote, unquote_splice
-from dao.builtins.arith import ge_p, gt_p
+from dao.t.classic_utils import *
 
 from dao.t.builtins.globalenv import classic as classic_module
-
-from dao.t.classic_utils import *
 
 # dummies
 from dao.term import dummies
@@ -32,20 +11,54 @@ _, _x, _type, _exp, _exp1, _exp2, _stmt = dummies('_, _x, _type, _exp, _exp1, _e
 
 __, __type, __prior, __assoc = nullvars(4)
 
+block_comment = t_default_block_comment
 
 # =====================================================
-# classic grammaar for t language
+# classic grammar for t language
 
 defines = in_module(classic_module,
 
 define(program, function(
-  ([exp], statement_sequence(exp)+whitespaces0),
+  ([exp], phrases(exp, 0), eoi), # indent: 0
   )),  
+
+define(phrases, function(
+  ([exp, indent], any(phrase(_exp, indent), _exp, exp, greedy), eoi),
+  )),  
+
+define(phrase, function(
+  ([exp, indent], and_p(any(noncode_line(), None, None, greedy),
+                any(statement_line(_exp, indent), _exp, exp, greedy), eoi),
+  )),  
+
+define(line_head_spaces, tabspaces0),
+
+define(noncode_line, function(
+  ([], tabspaces0, or_p(nl, eoi)),
+  ([], tabspaces0, line_comment(),or_p(nl, eoi)),
+  ([], tabspaces0, block_comment, tabspaces0, or_p(nl, eoi)),
+  )),
+
+define(statement_line, function(
+  ([exp, indent], spaces(indent), statement_body(),statement_end()),
+  )),
+
+define(line_comment, function(
+  ([], tabspaces0, literal('//'), any_chars_except('\r\n')), nl),
+  )),
 
 define(statement_sequence, function(
   ([exp], statement_list(stmt_list), 
       set(stmt_list, pycall(tuple, stmt_list)),
       concat((begin,), stmt_list, exp)           
+      ),
+  )),  
+
+define(statement_block, function(
+  ([stmt_list], 
+      statement_block_limiter(left, block_limiter_type), #indent/unindent 
+      statement_list(stmt_list, block_limiter_type),
+      statement_block_limiter(right, block_limiter_type)
       ),
   )),  
 
@@ -63,7 +76,12 @@ define(statement, function(
 
 define(statement_end, function(
   ([], tabspaces0, # prin(exp),
-       or_p(eoi, char(';')), 
+       or_p(eoi, 
+            and_p(char(';'), not_p(and_p(in_loop(), follow(loop_end_condition(loop_type))))),
+            newline, 
+            follow(statement_block_limiter(right, lt_bracket)),
+            and_p(in_loop(), follow(loop_end_condition(loop_type))
+            ), 
        #println('stmt end', position(), left_text())
        )
   )),
@@ -77,23 +95,25 @@ define(statement_body, function(
       expression(exp, __type),
       ),
   
-  # bracket statement
-  ([exp, st_bracket],
-      char('{'), 
-      #println('bracket:', left_text()), 
-      wrap_tabspaces0(statement_sequence(exp)), char('}'),
+  # indent group statement
+  ([exp, st_indent_group],
+      statement_block(exp1),
+      is_(exp, make_begin(exp1))
+      ),
+    
+  # line group statement
+  ([exp, st_line_group],
+      statement_block(exp1),
+      is_(exp, make_begin(exp1))
       ),
     
   # block statement
   ([exp, st_block],
       literal('block'),optional(and_p(tabspaces, identifier(label))), 
-      tabspaces0, ch(':'),tabspaces0, 
-      #println('bracket:', left_text()), 
-      push_label('', get_label(label)),
-      statement_list(stmt_list),
-      set(stmt_list, pycall(tuple, stmt_list)),
-      concat((block, label), stmt_list, exp),
-      pop_label(''),
+      push_label('block', get_label(label)),
+      statement_block(stmt_list),
+      pop_label('block'),
+      is_(exp, make_block(block, label, stmt_list),
       ),
     
   # let statement
@@ -114,7 +134,7 @@ define(statement_body, function(
       wrap_tabspaces(literal('then')), #println('if12:', position()), 
       statement(exp2, __type), #println('if3:', left_text()),
       
-      any(and_p(wrap_tabspaces(literal('elif')), 
+      any(and_p(wrap_tabspaces(literal('elsif')), 
                 expression(_exp1, __type), wrap_tabspaces(literal('then')),
                 statement(_exp2, __type)),
           (_exp1, _exp2), exp_list),
@@ -175,13 +195,13 @@ define(statement_body, function(
        expression(exp, __type),
        ),
   
-  # expression statement
+  # pass statement
   ([succeed, st_pass],  
        #println('expression_statement:', position()), 
        literal('pass'),
        ),
   
-  # expression statement
+  # break statement
   ([exp, st_break],  
        literal('break'), #println('break:', position()), 
        tabspaces_if_need, optional(
@@ -196,7 +216,7 @@ define(statement_body, function(
        is_(exp, make_break(exp1, digit1, w1, w2, exp2)) 
        ),
   
-  # expression statement
+  # redo statement
   ([exp, st_redo],  
        literal('redo'), 
        #println('redo:', position()), 
@@ -212,7 +232,75 @@ define(statement_body, function(
        is_(exp, make_redo(exp1, digit1, w1, w2)) 
        ),
   
+  # function statement
+  ([exp, st_function],  
+       literal('fun'), 
+       println('fun:', position(), left_text(5)), 
+       or_p(fun_macro_define(exp, st_function),
+            fun_macro_remove(exp, st_function),
+            ),
+       ),
+  
+  # macro statement
+  ([exp, st_macro],  
+       literal('macro'), 
+       #println('fun:', position()), 
+       or_p(fun_macro_define(exp, st_macro),
+            fun_macro_remove(exp, st_macro),
+            ),
+       ),
+  
   )),  
+
+define(fun_macro_define, function(
+  ([exp, def_type], 
+    or_p( 
+      and_p(tabspaces0, follow_char('('), fun_macro_define_body(exp1),
+        is_(exp, make_definition(exp1, def_type)) ),
+      and_p(tabspaces, varname(var1), 
+        println('def_name:', position(), left_text(5)), 
+        or_p(
+          and_p(tabspaces0, fun_macro_define_body(exp1),
+                is_(exp, update_matched_definition(exp1, def_type)) ),
+          and_p(tabspaces0, ch('='), fun_macro_define_body(exp1),
+                is_(exp,  replace_whole_definition(exp1, def_type)) ),
+          and_p(tabspaces0, ch('+'), fun_macro_define_body(exp1),
+                is_(exp, append_definition(exp1, def_type)) ),
+          and_p(tabspaces0, ch('%'), fun_macro_define_body(exp1),
+                is_(exp, insert_definition(exp1, def_type)) ),
+         )
+        )
+      )
+  ),
+  )),
+
+define(fun_macro_define_body, function(
+  ([exp], 
+    tabspaces0, expression(exp1, et_parenthesis), tabspaces0, ch(':'), tabspaces0, statement_sequence(exp2)
+  ),
+  )),
+
+define(fun_macro_remove, function(
+  ([exp, def_type], 
+    wrap_tabspaces0(ch('-')), 
+    seplist(fun_macro_remove_item(_exp), wrap_tabspaces0(ch(',')), _exp, exp1, 1, greedy),
+    is_(exp, make_remove_expression(exp1, def_type)),
+  ),
+  )),
+
+define(fun_macro_remove_item, function(
+  ([exp, def_type], 
+    or_p(and_p(varname(exp1), is_(exp, make_remove_item1(exp1))),
+         and_p(varname(exp1), 
+               wrap_tabspaces0(ch('/')), 
+               expression(exp2,__type),
+               make_remove_item2(exp1, exp2)),
+         and_p(varname(exp1), 
+               some(and_p(tabspaces0, expression(_exp, et_parenthesis)), _exp, exp2),
+               make_remove_item3(exp1, exp2))
+        ),
+  )
+  )),
 
 define(loop, function(
   # loop

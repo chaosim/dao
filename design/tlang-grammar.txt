@@ -1,14 +1,97 @@
+statement:
+  * expression statement
+  * pass
+  * break # break label with 5; break 2 levels with 5; break 2 levels loop/times; break; break with 5
+  * return # return 5
+  * redo # redo label; redo 2 levels; redo 2 levels loop/times
+  * module
+    * in
+    * use
+ 
+  * let, let recur
+    * let recursive
+  * case
+  * loop
+    * while
+    * infinite loop
+    * loop times
+    * loop until
+    * loop when
+    * for in
+    * for from to by
+    * for init till by
+  * bracket {} 
+  * block
+  * label 
+  * if-elif-else
+  * exception
+    * catch/throw
+    * try/except/finally
+    * protect/finally
+  * fun
+  * macro
+    define: fun a: ()        
+    redefine: fun a=
+    append: fun a+
+    insert: fun a%
+    remove: fun -a
+    
+expression: 
+  * atom
+    * identifier
+    * number
+    * string
+      " ..."
+      """ ..."""
+  comma separated
+  unary
+    operator: ++, --
+      + - ++, -- ! *(kleene star, surfix), +(one more, surfix)
+  * binary: + *, <, <=, ==
+    operator:  
+  ternary
+  * assign
+  ()
 
-operator and expression
-++a, --a -(++a) +(++a)
-a += 3
-3(5+4) 3x+4y
+  list [...]
+  tuple #[]
+  dictionary #{}
+  function call
+  attribute access
+  [] index  
+  string template:  %()s, %()r, %()d, %name, %()/s, %a/b, %a/b, %a/n
 
-合一: a :=: b;
-不能合一: a :\:
+  quasiquote, unquote, unquote splice: ` , ,@
 
-谓词: 加感叹号，只是个习惯而已
-a =! b a >! b
+comment
+
+dynamic syntax
+  syntax
+
+== samples ==============================================================
+
+while 1:
+    while 1:
+        while 1:
+            print 1
+
+while 1: while 1: while 1: print 1; if x: print x
+
+while 1:
+   while 1:
+       while 1: print
+   print 1
+   print 2
+
+loop:
+    print 'hello'
+by 3 times
+
+loop:
+    print 'hello'
+until x=3
+
+loop: loop: print 3; print 3
 
 赋值
 ------
@@ -17,20 +100,33 @@ a, b = list1
 a, b = 1, 2
 a = b = 1 #串连赋值
 a, b := a+b, a+b # 串行赋值
+a += 3
 
 分支
-if a>1 do: print 1
-if a>1 print 1
-if a>1 do: print 1; else: print 2
+if a>1: print 1
+if a>1: print 1; else: print 2
 
-if a>1 do: print 1
+if a>1: 
+    if a>2: if a>3: print 1; else: print 1
+    else: print 1
+else: print 1
+
+if a>1: 
+    if a>2: 
+        if a>3: print 1; 
+        else: print 1
+    else: print 1
+else: print 1
+
+if a>1: print 1
 else: print 2
 
 if a>1: print 1
-else if a>2: print 2
-else: print 3
+elif a>2: print 2
+else print 3
 
-if a>1: print 1; else [ if a>2: print2; else: print 3 ]
+if a>1: print 1; 
+else: [ if a>2: print 2; else: print 3 ]
 
 情况
 case x:
@@ -39,43 +135,66 @@ case x:
   3: print 3
 
 case x:
-  1,2: print 1
-  3,4: print 2
+  1; 2: print 1
+  3; 4: print 2
   else: print 3
 
 case x, y:
-  (1, 2): print 1
-  (3, 4): print 2
-
-case x of 1: print 1; of 2: print 2; else: print 3
+  1,2: print 1
+  3,4: print 2
+  5,6;7,8: print 3
+case x   of 1: print 1;     of 2: print 2;     else: print 3
 
 块
-block a: print 1; print 2; if a>1: break a; print 3 
+block a: { print 1; print 2; [ if i>1: break a ]; print 3 } 
 
 循环
 --------
-loop: print x
+loop: print x 
+loop: print y
 
 loop: 
   print x
 
-loop 3 times: print x
+loop: print x by 3 times
 
-loop: print x until x=5
+loop: 
+  x = 1; loop: print x; x++ until x=5
 
-loop: print x while x=5
+loop: print x; x++ when x<5
 
-while x=5 loop: print x
+while x=5, y=6 and z=7: loop: print x until x<5
+while x=5, y=6 or z=7: print x
 
-unless x=5 loop: print x
+loop: print a; loop print b
 
-loop/a: print 1; exit a with 1 
+while 1: print a; while 2: print b
 
-loop: loop: print a; exit 2 layer with 1
+while 1 print a
+while 1: print b
 
-loop: [ loop: print 1; until 1 ]; exit 
+block: loop: print 1; exit a with 1 
+block a: print 1
 
-for i=0 till i<5 by i++: print i; next for
+loop: loop: print a; exit 2 layers with 1 by 3 times
+loop: print 1; loop: print 2
+loop: print 1; print 2
+
+i = 0; while i<3: i++;
+loop: i = 0; while i<3: i++
+loop: i = 0; if i>3: break
+loop: i++; i++; print i
+ 
+loop: [ loop: print 1 until 1; exit ] 
+loop: { loop: print 1 until 1; exit }
+
+for i=0 till i<5 by i++: 
+{ print i; redo for 
+}
+
+for i=0 till i<5 by i++: 
+  print i
+  redo for
 
 for i from 10 down to 0: print i
 for i from 10 down to 0 by 2: print i
@@ -85,54 +204,61 @@ for i from 0 to 10 by 2: print i
 
 try: print a; except: print b; finally: print c
 
-catch a: print 1; throw: a with 1
+catch a: print 1; throw a with 1
 
-try: print a; always: print 1
-
-pytry: print; except Error, e: print; finally: print c
+protect: print a; always: print 1
 
 函数, 宏
 
-let, rec let
-where, rec where
+let a=1; b=2 do: print a 
+let a=1; b=2 do: print a
 
-let a=1, b=2 do print a 
-let a=1; b=2 do print a
+let recur a=1; b=2 do: print a
 
-rec let a=1, b=2 do print a
+memo@: // memo the result after excute command. 
 
-do print a  rec where a=1, b=2
+fun a : on (): print 1; on (x): print 2 // replace matched definition
 
-memo@ : memo the result after excute command. 
+fun a : on (): [fun b(): return 1 ] print 1; on (x): print 2 // replace matched definition
 
-// default no arguments, same as fun a(): print
-fun a: print a  // default :=
-fun a:= print a // replace definition
+fun a : on (): print 1; on (x): print 2 // replace matched definition
 
-fun a:^ print a  // insert before
+fun a = on (): print 1  // replace whole definition
 
-fun a:! print a // append after
+fun a +  on (): print a  // append after
+
+fun a % on (): print a // insert before
 
 fun b(x y): print 2
 
-fun b (x, y): print 2
-      (i):^ print 1
-      (1,2):= print 3
+fun(x, y): print 2
 
-fun b:= (x, y): print 2
-        (i):^ print 2
-        (): print 3     
+fun: on (x, y): print 1; on (1,2): print 2
 
-fun (x): print 1; print 2
-    (x, y): print 1
+fun b: 
+  (x, y): print 2
+  (i): print 1
+  (1,2): print 3
+
+fun b: 
+  (x, y): 
+      print 2
+  (i): 
+      print 1
+  (1,2): 
+      print 3
+
+fun: 
+  (x): print 1; print 2
+  (x, y): print 1
 
 // remove definitions
 
-del fun a
+fun - a, b, c
 
-del fun a/3
+fun - a/3, b/2, c/f(1)
 
-del fun a head: (x, y), (x) 
+fun - a(x, y)(x),  b(x,y), c/2, d 
 
 macro: same grammar with function.
 
@@ -171,62 +297,38 @@ use a/* if test(*)
 动态语法
 --------
 
-write(x):
-  'write'; expression(x); print x
+fun write(x):
+  'write' expression(x); print x
 
 statement(x):! write(x)
 
 binary(x, add):! operator('-', add,  precedence(grammar.operator.add))
 
-statement:
-  expression staement
-  let
-  recursive let
-  where
-  case
-  loop
-  while
-  fun
-  macro
-  block
-  label 
-  break # break label with 5; break 2 levels with 5; break 2 levels loop/times; break; break with 5
-  return # return 5
-  redo # redo label; redo 2 levels; redo 2 levels loop/times
+fun a (): print f(); print 2; fun a(): print 2; (x): pass; fun (): return 1
 
-expression: 
-  number
-  string
-  comma separated
-  unary
-  binary
-  ternary
-  ()
+fun a (): print; (): print 1; (): print 3
 
-  list [...]
-  tuple #[]
-  dictionary #{}
-  function call
-  attribute access  
+{/dhfjhdf: dsjfh}
+[/dsfhjk, dsfh, dsfhh, dsfhj]
+(/12,3)
 
-number: integer, float
+(/1)+(/2)+(/3)
 
-string: "...", """  """
-string template:  %()s, %()r, %()d, %name, %()/s, %a/b, %a/b, %a/n
+[print a, print b, print c]
 
-comment = function() [ // + any(char(_))+eol] #到行尾
-                     [ /. + any(char_)) + ./] # embeddable
- 
+//
+// gfgfhgf
+/..................................................
+................./......../.................../
 
-while 1 do:
-    while 1 do:
-        while 1 do:
-            print 1
+print // some comments here
 
-while 1 do:
-   while 1 do:
-       while 1 
-do:
-   print 1
-   print 2
+operator and expression
+-a++  +a--
+
+合一: a :=: b;
+不能合一: a :\:
+
+谓词: 加感叹号，只是个习惯而已
+a=!b, a>!b
 
