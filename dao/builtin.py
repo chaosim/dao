@@ -38,19 +38,22 @@ class BuiltinFunction(Builtin, Function):
   
   def evaluate_arguments(self, solver, cont, exps):
     if len(exps)==0: 
-      yield cont, ()
+      solver.scont = cont
+      return ()
     else:
       @mycont(cont)
       def argument_cont(value, solver):
         @mycont(cont)
         def gather_cont(values, solver):
-            for c, v in cont((value,)+values, solver): 
-              yield c, v
+          solver.scont = cont
+          return (value,)+values
         return self.evaluate_arguments(solver, gather_cont, exps[1:])
-      yield solver.cont(exps[0], argument_cont), True
+      solver.scont = solver.cont(exps[0], argument_cont)
+      return True
       
   def apply(self, solver, cont, values, signatures):
-    yield cont, self.function(*values)
+    solver.scont = cont
+    return self.function(*values)
 
   # compile
   

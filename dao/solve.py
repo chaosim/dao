@@ -73,12 +73,13 @@ def mycont(cont):
 @tag_lookup(done_lookup)
 @tag_unwind(done_unwind)
 @mycont(NoSolutionFound)
-def done(value, solver): yield done, value
+def done(value, solver): return value
 
 def value_cont(exp, cont):
   @mycont(cont)
-  def value_cont(value, solver): 
-    return cont(exp, solver)
+  def value_cont(value, solver):
+    solver.scont = cont
+    return exp
   return value_cont
 
 def cut(cont_gen): 
@@ -207,7 +208,7 @@ class Solver:
   def __init__(self, global_env, env, parse_state, stop_cont):
     self.global_env = global_env
     self.env = env
-    self.stop_cont = stop_cont
+    self.fcont = self.scont = self.stop_cont = stop_cont
     self.parse_state = parse_state
     self.solved = False
     
@@ -222,7 +223,7 @@ class Solver:
     raise NoSolutionFound(exp)
     
   def solve(self, exp, stop_cont=done):
-    for _, result in self.exp_run_cont(exp, stop_cont):
+    for result in self.exp_run_cont(exp, stop_cont):
       yield result
       
   def solve_exps(self, exps, stop_cont=done):
@@ -246,45 +247,16 @@ class Solver:
   def run_cont(self, cont, stop_cont, value=None):
     self1 = self
     self = Solver(self.global_env, self.env, self.parse_state, stop_cont)
-    stop_cont = self.stop_cont 
-    root = cont_gen = cont(value, self)
-    cut_gen = {}
-    cut_gen[cont_gen] = cut(cont)
-    parent = {}
+    stop_cont = self.stop_cont
+    self.scont = cont
     while 1:
-      try: 
-        c, v  = cont_gen.next()
-        if self.solved or c is stop_cont: 
-          env, parse_state = self1.env, self1.parse_state
-          self1.env, self1.parse_state = self.env, self.parse_state
-          yield c, v
-          self1.env, self1.parse_state = env, parse_state
-        else:
-          cg = c(v, self)
-          cut_gen[cg] = cut(c)
-          parent[cg] = cont_gen
-          cont_gen = cg
-      except StopIteration:
-        if cont_gen is root: return
-        else: 
-          cg = cont_gen
-          cont_gen = parent[cont_gen]
-          del parent[cg]
-      except CutException: # go after StopIteration!
-        while not cut_gen[cont_gen] and cont_gen is not root:
-          cont_gen.close()
-          del cut_gen[cont_gen]
-          cg = cont_gen
-          cont_gen = parent[cont_gen]
-          del parent[cg]
-        if cont_gen is root:  
-          cont_gen.close()
-          return
-        cont_gen.close()
-        cg = cont_gen
-        cont_gen = parent[cont_gen]
-        del parent[cg]
-      #except GeneratorExit: raise
+      value  = self.scont(value, self)
+      if self.solved or self.scont is stop_cont: 
+        env, parse_state = self1.env, self1.parse_state
+        self1.env, self1.parse_state = self.env, self.parse_state
+        yield value
+        if self.fcont is stop_cont: return
+        self.scont = self.fcont
 
   def cont(self, exp, cont): 
     if isinstance(exp, tuple): 
@@ -310,5 +282,6 @@ class Solver:
       else:
         @mycont(cont)
         def left_cont(value, solver):
-          yield solver.exps_cont(exps[1:], cont), value
+          solver.scont = solver.exps_cont(exps[1:], cont)
+          return value
         return self.cont(exps[0], left_cont)

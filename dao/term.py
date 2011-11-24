@@ -18,39 +18,46 @@ from dao.base import closure
 # unify, deref, getvalue, match, closure, unify_rule_head
 # copy, copy_rule_head, signature
 
-def unify_rule_head(value, head, env, subst):
+def unify_rule_head(value, head, solver, subst):
   if isinstance(head, Var): 
+    env = solver.env
     if isinstance(value, Var):
       subst[value] = head.copy_rule_head(env)
-      yield True
+      return True
     else:
       try: 
         old = env.bindings[head]
         env.bindings[head] = value
-        yield True
-        env.bindings[head] = old
+        old_fcont = solver.fcont
+        def fcont(value, solver):
+          env.bindings[var] = old
+          solver.fcont = old_fcont
+        solver.fcont = fcont
+        return True
       except:
         env.bindings[head] = value
-        yield True
-        del env.bindings[head]
+        old_fcont = solver.fcont
+        def fcont(value, solver):
+          del env.bindings[var]
+          solver.fcont = old_fcont
+        solver.fcont = fcont
+        return True
   else:
     try: 
-      for _ in value.unify_rule_head(head, env, subst): 
-        yield True
+      return value.unify_rule_head(head, solver, subst)
     except AttributeError: 
       if (isinstance(head, list) or isinstance(head, tuple)) \
           and (isinstance(value, list) or isinstance(value, tuple)):
-        if len(value)!=len(head): return
-        for _ in unify_list_rule_head(value, head, env, subst): 
-          yield True
-      elif value==head: yield True
+        if len(value)!=len(head): return False
+        return unify_list_rule_head(value, head, solver, subst) 
+      elif value==head: return True
 
-def unify_list_rule_head(values, args, env, subst):
+def unify_list_rule_head(values, args, solver, subst):
   # don't need to check the equality of the length of arguments
   # has been done in rules.apply for finding rule list
-  for _ in apply_generators(tuple(unify_rule_head(x, y, env, subst) 
-                            for x, y in zip(values, args))):
-    yield True
+  for x, y in zip(values, args):
+    if not unify_rule_head(x, y, solver, subst): return False
+  return True
       
 def signature(x):
   if isinstance(x, Var): return Var
@@ -86,74 +93,75 @@ class Command(BaseCommand):
   def run(self, solver, cont, values):
     signatures = rule_head_signatures(values)
     
-    if solver.parse_state is None or not self.memorable:
-      for c, v in self.apply(solver, cont, values, signatures):
-        yield c, v
-      return
+    if 1:#solver.parse_state is None or not self.memorable:
+      return self.apply(solver, cont, values, signatures)
       
-    sign_state  = ((self, signatures), hash_parse_state(solver.parse_state))
-    sign_state2cont = solver.sign_state2cont.setdefault(sign_state, [])
+    #sign_state  = ((self, signatures), hash_parse_state(solver.parse_state))
+    #sign_state2cont = solver.sign_state2cont.setdefault(sign_state, [])
     
-    # TODO: greedy, nongreedy, lazy mode
-    # lazy : reverse the order of sign_state2cont
-    memo = False
-    i = 0
-    for path, c, env, bindings, vals in sign_state2cont:
-      if cont==c: 
-        memo = True
-        break
-      if len(solver.call_path)<=len(path): # lazy: >
-        i += 1
-        continue
-      for x, y in zip(path, solver.call_path):
-        if x!=y: break
-      else: 
-        if len(path)==len(solver.call_path) and cont.cont_order<c.order:
-          break 
-      i += 1
-    if not memo:
-        sign_state2cont.insert(i, (solver.call_path, cont, solver.env, solver.env.bindings, values))
-    memo_results = solver.sign_state2results.get(sign_state)
-    if memo_results is not None:
-      if memo_results==[]: return
-      old_env = solver.env
-      for _, c, env, old_bindings, vals in sign_state2cont:
-        if c.cont_order>cont.cont_order: continue
-        for result_head, reached_parse_state, value, memo in memo_results:
-          solver.env = env
-          env.bindings = old_bindings.copy()
-          #env.bindings.update(memo)
-          for _ in unify(vals, result_head, solver.env):
-            solver.parse_state = reached_parse_state
-            yield c, value
-          env.bindings = old_bindings
-      solver.env = old_env 
+    ## TODO: greedy, nongreedy, lazy mode
+    ## lazy : reverse the order of sign_state2cont
+    #memo = False
+    #i = 0
+    #for path, c, env, bindings, vals in sign_state2cont:
+      #if cont==c: 
+        #memo = True
+        #break
+      #if len(solver.call_path)<=len(path): # lazy: >
+        #i += 1
+        #continue
+      #for x, y in zip(path, solver.call_path):
+        #if x!=y: break
+      #else: 
+        #if len(path)==len(solver.call_path) and cont.cont_order<c.order:
+          #break 
+      #i += 1
+    #if not memo:
+        #sign_state2cont.insert(i, (solver.call_path, cont, solver.env, solver.env.bindings, values))
+    #memo_results = solver.sign_state2results.get(sign_state)
+    #if memo_results is not None:
+      #if memo_results==[]: return
+      #old_env = solver.env
+      #for _, c, env, old_bindings, vals in sign_state2cont:
+        #if c.cont_order>cont.cont_order: continue
+        #for result_head, reached_parse_state, value, memo in memo_results:
+          #solver.env = env
+          #env.bindings = old_bindings.copy()
+          ##env.bindings.update(memo)
+          #for _ in unify(vals, result_head, solver.env):
+            #solver.parse_state = reached_parse_state
+            #yield c, value
+          #env.bindings = old_bindings
+      #solver.env = old_env 
     
-    have_result = [False]
-    @mycont(cont)
-    def memo_result_cont(value, solver):
-      self
-      have_result[0] = True
-      memo = {}
-      result_head = getvalue(values, solver.env, memo)
-      result = result_head, solver.parse_state, value, memo
-      solver.sign_state2results.setdefault(sign_state, []).append(result)
-      old_env = solver.env
-      # TODO: prevent backtracking for greedy
-      for _, c, env, old_bindings, vals in sign_state2cont:
-        solver.env = env
-        env.bindings = old_bindings.copy()
-        #env.bindings.update(memo)
-        for _ in unify_list(vals, result_head, solver.env):
-          yield c, value
-        env.bindings = old_bindings
-      solver.env = old_env
+    #have_result = [False]
+    #@mycont(cont)
+    #def memo_result_cont(value, solver):
+      #self
+      #have_result[0] = True
+      #memo = {}
+      #result_head = getvalue(values, solver.env, memo)
+      #result = result_head, solver.parse_state, value, memo
+      #solver.sign_state2results.setdefault(sign_state, []).append(result)
+      #old_env = solver.env
+      ## TODO: prevent backtracking for greedy
+      #for _, c, env, old_bindings, vals in sign_state2cont:
+        #solver.env = env
+        #env.bindings = old_bindings.copy()
+        ##env.bindings.update(memo)
+        #for _ in unify_list(vals, result_head, solver.env):
+          #yield c, value
+        #env.bindings = old_bindings
+      #solver.env = old_env
         
-    if len(sign_state2cont)==1: 
-      for c, v in self.apply(solver, memo_result_cont, values, signatures):
-        yield c, v
-      if not have_result[0]:
-        solver.sign_state2results[sign_state] = []
+    #if len(sign_state2cont)==1:
+      #old_fcont = solver.fcont
+      #def fcont(value, solver):
+        #if not have_result[0]:
+          #solver.sign_state2results[sign_state] = []
+        #solver.fcont = old_fcont
+      #solver.fcont = fcont
+      #return self.apply(solver, memo_result_cont, values, signatures)
 
 class Symbol: pass
 
@@ -194,7 +202,7 @@ class Var(Command):
       
   def unify_rule_head(self, head, env, subst):
     subst[self] = copy_rule_head(head, env)
-    yield True
+    return True
   def copy_rule_head(self, env):
     try: return env.bindings[self]
     except KeyError:
@@ -424,20 +432,24 @@ class Function(Command):
   memorable = True
   def evaluate_arguments(self, solver, cont, exps):
     if len(exps)==0: 
-      yield cont, ()
+      solver.scont = cont
+      return ()
     else:
       @mycont(cont)
       def argument_cont(value, solver):
         @mycont(cont)
         def gather_cont(values, solver):
-            for c, v in cont((value,)+values, solver): 
-              yield c, v
+            solver.scont = cont
+            return (value,)+values
         return self.evaluate_arguments(solver, gather_cont, exps[1:])
       # don't pass value by DummyVar
       # see sample: some(statement(_stmt), _stmt, stmt_list)
       if isinstance(exps[0] , DummyVar): 
-        yield argument_cont, exps[0] 
-      else: yield solver.cont(exps[0], argument_cont), True
+        solver.scont = argument_cont
+        return exps[0] 
+      else: 
+        solver.scont = solver.cont(exps[0], argument_cont)
+        return True
   
   def evaluate_cont(self, solver, cont, exps):
     @mycont(cont)
@@ -474,11 +486,10 @@ class Cons:
     if self.__class__!=other.__class__: return False
     return match(self.head, other.head) and match(self.tail, other.tail)
 
-  def unify_rule_head(self, other, env, subst):
+  def unify_rule_head(self, other, solver, subst):
     if self.__class__!=other.__class__: return
-    for _ in unify_rule_head(self.head, other.head, env, subst):
-      for _ in unify_rule_head(self.tail, other.tail, env, subst):
-        yield True
+    return unify_rule_head(self.head, other.head, solver, subst) and\
+           unify_rule_head(self.tail, other.tail, solver, subst)
           
   def copy_rule_head(self, env):
     head = copy_rule_head(self.head, env)

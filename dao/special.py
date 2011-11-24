@@ -81,7 +81,8 @@ class set(SpecialForm):
     @mycont(cont)
     def set_cont(value, solver):
       solver.env.bindings[self.var] = value
-      yield cont, value
+      solver.scont = cont
+      return value
     return solver.cont(self.exp, set_cont)
   def compile_to_cont(self, cont, compiler):
     return SetCont(self.var, compiler.compile_to_cont(self.exp, cont))
@@ -108,7 +109,8 @@ class set_list(SpecialForm):
       if len(values)!=len(self.vars): raise ValueError(values)
       for var, value in zip(self.vars, values):
         solver.env[var] = value
-      yield cont, None
+      solver.scont = cont
+      return None
     return solver.cont(self.exp, set_cont)
   def __eq__(self, other): return self.vars==other.vars and self.exp==other.exp
   def __repr__(self): return "set(%s %s)"%(self.vars, self.exp)
@@ -156,8 +158,8 @@ class set_outer(SpecialForm):
       while env is not None:
         try: 
           env.bindings[var] = value
-          yield cont, value
-          return
+          solver.scont = cont
+          return value
         except KeyError: env = env.outer
       env = env or solver.env.outer
       env.bindings[self.var] = value 
@@ -202,7 +204,8 @@ class set_global(SpecialForm):
     @mycont(cont)
     def set_cont(value, solver):
       self.global_env.bindings[var] = value
-      yield cont, value
+      solver.scont = cont
+      return value
     return solver.cont(self.exp, set_cont)
   def __eq__(self, other): return self.var==other.var and self.exp==other.exp
   def __repr__(self): return "set_global(%s, %s)"%(self.var, self.exp)
@@ -237,9 +240,15 @@ class begin(SpecialForm):
 def make_if_cont(then, els, cont):
   @mycont(cont)
   def if_cont(value, solver):
-    if value: yield solver.cont(then, cont), value
-    elif els is not None: yield solver.cont(els, cont), value
-    else: yield cont, None
+    if value: 
+      solver.scont = solver.cont(then, cont)
+      return value
+    elif els is not None: 
+      solver.scont = solver.cont(els, cont)
+      return value
+    else: 
+      solver.scont = cont
+      return None
   return if_cont
 
 class if_(SpecialForm):
@@ -266,11 +275,14 @@ class if_(SpecialForm):
 def make_iff_cont(then, clauses, els, cont):
   @mycont(cont)
   def iff_cont(value, solver):
-    if value: yield solver.cont(then, cont), value
+    if value: 
+      solver.scont = solver.cont(then, cont)
+      return value
     else:
       if len(clauses)==1: ifcont = make_if_cont(clauses[0][1], els, cont)
       else: ifcont = make_iff_cont(clauses[0][1], clauses[1:], els, cont)
-      yield solver.cont(clauses[0][0], ifcont), value
+      solver.scont = solver.cont(clauses[0][0], ifcont)
+      return value
   return iff_cont
 
 class iff(SpecialForm):
@@ -322,8 +334,8 @@ class pytry(SpecialForm):
     @mycont(cont)
     def pytry_cont(value, solver):
       try:
-        for c, value in solver.exp_run_cont(self.body, cont):
-          yield c, value
+        for value in solver.exp_run_cont(self.body, cont):
+          value
       except self.exception, e: 
         for c, v in solver.exp_run_cont(self.ex_clause, cont):
           yield c, v
@@ -361,7 +373,8 @@ class CaseForm(SpecialForm):
     def case_cont(value, solver):
       try: exps = self.cases[value]
       except:  exps = self.els
-      yield solver.exps_cont(exps, cont), value
+      solver.scont = solver.exps_cont(exps, cont)
+      return value
     return solver.cont(self.test, case_cont)
   def __eq__(self, other):
     return self.test==other.test and self.cases==other.cases and self.els==other.els
@@ -694,7 +707,9 @@ class Rules:
     arity = len(values)
     if arity==0:
       rule_list = RuleList(self.arity2rules[0])
-      if len(rule_list)==0: return
+      if len(rule_list)==0: 
+        solver.scont = solver.fcont
+        return
     else:
       arity2rules = self.arity2rules[arity]
       sign2index = self.signature2rules[arity]
@@ -705,13 +720,14 @@ class Rules:
           var_sign = signature[0], Var
           index_set &= sign2index.get(var_sign, pyset())|\
                        sign2index.get(signature, pyset())
-      if len(index_set)==0: return
+      if len(index_set)==0: 
+        solver.scont = solver.fcont
+        return
       rule_list = list(index_set)
       rule_list.sort()
       rule_list = RuleList([arity2rules[i] for i in rule_list])
     call_data = CallData(self, signatures, self.env, self.recursive)
-    for c, v in rule_list.apply(solver, cont, values, call_data):
-      yield c, v
+    return rule_list.apply(solver, cont, values, call_data)
           
 class UserFunction(Rules,  Function):
   memorable = True
@@ -730,8 +746,10 @@ class UserMacro(Rules,  Macro):
 def eval_(solver, cont, exp):
   @mycont(cont)
   def eval_cont(value, solver): 
-    yield solver.cont(value, cont), value
-  yield solver.cont(exp, eval_cont), True
+    solver.scont = solver.cont(value, cont)
+    return value
+  solver.scont = solver.cont(exp, eval_cont)
+  return True
   
 from dao.env import ModuleEnvironment 
 

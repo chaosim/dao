@@ -61,14 +61,26 @@ def define(solver, cont, var, value):
     bindings = solver.env.bindings
     try:
       old = bindings[var]
-      yield cont, value
-      bindings[old] = value
+      old_fcon = solver.fcont
+      def fcont(value, solver):
+        bindings[var] = old
+        solver.fcont = old_fcon
+      solver.fcont = fcont
+      solver.scont = cont
+      return value
     except KeyError:
       bindings[var] = value
-      yield cont, value
-      del bindings[var]
+      old_fcon = solver.fcont
+      def fcont(value, solver):
+        del bindings[old]
+        solver.fcont = old_fcon
+      solver.fcont = fcont
+      solver.scont = cont
+      return value
       
-  yield solver.cont(value, define_cont), True
+      
+  solver.scont = solver.cont(value, define_cont)
+  return True
 
 @builtin.macro()
 def define_outer(solver, cont, var, value):
