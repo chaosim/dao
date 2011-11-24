@@ -200,8 +200,8 @@ class Var(Command):
       for result in unify(self, other, env, occurs_check):
         yield True
       
-  def unify_rule_head(self, head, env, subst):
-    subst[self] = copy_rule_head(head, env)
+  def unify_rule_head(self, head, solver, subst):
+    subst[self] = copy_rule_head(head, solver.env)
     return True
   def copy_rule_head(self, env):
     try: return env.bindings[self]

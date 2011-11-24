@@ -253,7 +253,7 @@ class TestCallccBlockCatch:
                             prin(2), prin(3)))), 1)
   def testcallcc(self):
     from dao.solve import done
-    eq_(eval(callcc(lambda_([k], k(2)))), 2)
+    eq_(eval(callcc(lambda_([k], k(2)))), (2,))
 ##    eq_(eval(callcc(callcc)), done)
     #assert 0, '((call/cc call/cc) (call/cc call/cc)) infinite loop.'
     #eq_(eval('((call/cc call/cc) (call/cc call/cc))'), Integer(2))

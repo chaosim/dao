@@ -331,19 +331,35 @@ class pytry(SpecialForm):
   def to_sexpression(self):
     return (pytry,)+to_sexpression((self.body, self.exception, self.ex_clause, self.final))
   def cont(self, cont, solver):
-    @mycont(cont)
+    old_fcont1 = solver.fcont
+    try_cont_gen = solver.exp_run_cont(self.body, cont)
     def pytry_cont(value, solver):
       try:
-        for value in solver.exp_run_cont(self.body, cont):
-          value
+        solver.scont, v = try_cont_gen.next()
+        return v
+      except StopIteration:
+        solver.scont = old_fcont1
+        return value
       except self.exception, e: 
-        for c, v in solver.exp_run_cont(self.ex_clause, cont):
-          yield c, v
+        except_cont_gen = solver.exp_run_cont(self.ex_clause, cont)
+        old_fcont2 = solver.fcont
+        def except_cont(value, solver):
+          try: 
+            solver.scont, v = except_cont_gen.next()
+            return v
+          except StopIteration:
+            solver.scont = old_fcont2
+            return value
+        solver.scont = solver.fcont = except_cont
+        return value
       finally:
-        if self.final is None: return
-        for c, value in solver.exp_run_cont(self.final, cont):
-          yield c, value
-    return pytry_cont    
+        if self.final is None: 
+          self.scont = cont
+          return value
+        solver.scont = solver.cont(self.final, cont)
+        return value
+    return pytry_cont
+
   def __eq__(self, other):
     return self.clauses==other.clauses and self.els==other.els
   def __repr__(self):
@@ -738,7 +754,8 @@ class UserMacro(Rules,  Macro):
   def apply(self, solver, cont, values, signatures):
     @mycont(cont)
     def eval_macro_result_cont(value, solver):
-      yield solver.cont(value, cont), value
+      solver.scont = solver.cont(value, cont)
+      return value
     return Rules.apply(self, solver, eval_macro_result_cont, values, signatures)
   def __repr__(self): return 'macro(%s)'%repr(self.arity2rules)
   
@@ -772,7 +789,8 @@ class module(SpecialForm):
     def module_done_cont(value, solver): 
       solver.env = old_env
       env.outer = None
-      yield cont, env
+      solver.scont = cont
+      return env
     return solver.exps_cont(self.body, module_done_cont)
 
 class in_module(SpecialForm):
@@ -798,7 +816,8 @@ class in_module(SpecialForm):
     def in_module_done_cont(value, solver): 
       solver.env = old_env
       env.outer = solver.global_env
-      yield cont, value
+      solver.scont = cont
+      return value
     return solver.exps_cont(self.body, in_module_done_cont)
 
 @builtin.macro('from_', 'from')
@@ -806,8 +825,10 @@ def from_(solver, cont, module, var):
   if isinstance(var, ClosureVar): var = var.var
   @mycont(cont)
   def from_module_cont(module, solver):
-    yield cont, module.lookup(var)
-  yield solver.cont(module, from_module_cont), module
+    solver.scont = cont
+    return module.lookup(var)
+  solver.scont = solver.cont(module, from_module_cont)
+  return module
   
 class block(SpecialForm):
   def __init__(self, label, *body):
@@ -851,7 +872,8 @@ class exit_block(SpecialForm):
     @mycont(cont)
     def exit_block_cont(value, solver):
       exit_cont =  env.lookup_exit_cont(self.label, cont, value, solver)
-      yield exit_cont, value
+      solver.scont = exit_cont
+      return value
     return solver.cont(self.form, exit_block_cont)
   def __eq__(self, other):
     return self.label==other.label and self.form==other.form
@@ -868,7 +890,8 @@ class continue_block(SpecialForm):
     @mycont(cont)
     def continue_block_cont(value, solver):
       next_cont =  env.lookup_next_cont(self.label, cont, solver)
-      yield next_cont, value
+      solver.scont = next_cont
+      return value
     return continue_block_cont
   def __eq__(self, other): return self.label==other.label
   def __repr__(self): return 'continue_block(%s)'%self.label
@@ -884,7 +907,8 @@ def label_cont_lookup(cont, tag, stop_cont, solver):
   if tag==cont.tag:
     @mycont(cont)
     def throwing_cont(value, solver): 
-      yield unwind(stop_cont, value, tag, cont, solver), value
+      solver.scont = unwind(stop_cont, value, tag, cont, solver)
+      return value
     solver.env = cont.env
     return solver.cont(stop_cont.form, throwing_cont)
   else: return lookup(cont, tag, stop_cont, solver)
@@ -909,9 +933,12 @@ class catch(SpecialForm):
       solver.env = env # not necessary?
       @tag_lookup(label_cont_lookup)
       @mycont(cont)
-      def label_cont(value, solver): yield cont, value
+      def label_cont(value, solver): 
+        solver.scont = cont
+        return value
       label_cont.tag, label_cont.env = tag, env
-      yield solver.exps_cont(self.body, label_cont), True
+      solver.scont = solver.exps_cont(self.body, label_cont)
+      return True
     catch_cont.env = solver.env  
     return solver.cont(self.tag, catch_cont)
   def __repr__(self): return 'block(%s)'%self.body
@@ -932,7 +959,8 @@ class throw(SpecialForm):
   def cont(self, cont, solver):
     @mycont(cont)
     def throw_cont(tag, solver): 
-      yield lookup(throw_cont, tag, throw_cont, solver), True
+      solver.scont = lookup(throw_cont, tag, throw_cont, solver)
+      return True
     throw_cont.form, throw_cont.env = self.form, solver.env
     return solver.cont(self.tag, throw_cont)
   
@@ -966,15 +994,19 @@ class unwind_protect(SpecialForm):
       solver.env = env
       @mycont(cont0)
       def unwind_cont(value, solver):
-        yield unwind(cont0, form_value, tag, stop_cont, solver, next_cont), form_value
+        solver.scont = unwind(cont0, form_value, tag, stop_cont, solver, next_cont)
+        return form_value
       return solver.exps_cont(self.cleanup, unwind_cont)
     
     @tag_unwind(unwind_protect_cont_unwind)
     @mycont(cont0)
     def unwind_protect_cont(value, solver):      
       @mycont(cont0)
-      def protect_return_cont(_, solver): yield cont0, value
+      def protect_return_cont(_, solver): 
+        solver.scont = cont0
+        return value
       solver.env = env
-      yield solver.exps_cont(self.cleanup, protect_return_cont), True
+      solver.scont = solver.exps_cont(self.cleanup, protect_return_cont)
+      return True
       
     return solver.cont(self.form, unwind_protect_cont)

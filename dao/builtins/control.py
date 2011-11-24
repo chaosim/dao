@@ -11,12 +11,14 @@ from dao.solve import DaoError
 
 class ContinuationFunction(Builtin, Function):
   def apply(self, solver, cont, values, signatures):
-    return self.function(values[0], solver)
+    solver.scont = cont
+    return self.function(values, solver)
       
 @builtin.macro('callcc', 'call/cc')
 def callcc(solver, cont, fun):
   ''' call with current continuation '''
-  yield solver.cont((fun, ContinuationFunction(cont, '', '', False)), cont), fun
+  solver.scont = solver.cont((fun, ContinuationFunction(cont, '', '', False)), cont)
+  return fun
 
 # finding all solutions to a goal
 

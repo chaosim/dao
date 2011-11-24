@@ -223,7 +223,7 @@ class Solver:
     raise NoSolutionFound(exp)
     
   def solve(self, exp, stop_cont=done):
-    for result in self.exp_run_cont(exp, stop_cont):
+    for _, result in self.exp_run_cont(exp, stop_cont):
       yield result
       
   def solve_exps(self, exps, stop_cont=done):
@@ -254,7 +254,7 @@ class Solver:
       if self.solved or self.scont is stop_cont: 
         env, parse_state = self1.env, self1.parse_state
         self1.env, self1.parse_state = self.env, self.parse_state
-        yield value
+        yield self.scont, value
         if self.fcont is stop_cont: return
         self.scont = self.fcont
 
