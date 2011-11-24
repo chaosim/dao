@@ -3,6 +3,9 @@
 from dao.term import Command, Function, Macro, CommandCall
 from dao.solve import mycont
 
+# compile
+from dao.compiler import code
+
 class Builtin: 
   def __init__(self, function, name, symbol, is_global):
     if name is None: name = function.__name__
@@ -15,9 +18,19 @@ class Builtin:
   def __eq__(self, other): 
     return isinstance(other, self.__class__) and self.function==other.function
   def __repr__(self): return '<%s>'%(self.name)
-
+  
+  # compile
+  
+  def code(self): return self.name
+  
 _memorable = False
 
+class BuiltinFunctionCont:
+  def __init__(self, operator, operands):
+    self.operator, self.operands = operator, operands
+  def code(self):
+    return '%s(%s)'%(code(self.operator), ', '.join([code(x) for x in self.operands]))
+    
 class BuiltinFunction(Builtin, Function):
   memorable = _memorable
   def __call__(self, *exps):
@@ -38,6 +51,25 @@ class BuiltinFunction(Builtin, Function):
       
   def apply(self, solver, cont, values, signatures):
     yield cont, self.function(*values)
+
+  # compile
+  
+  def compile_to_cont(self, cont, compiler):
+    return BuiltinFunctionCont(self, cont)
+  
+    
+class BuiltinPredicateCont:
+  def __init__(self, operator, operands):
+    self.operator, self.operands = operator, operands
+  def code(self):
+    return '''
+def builtin_predicate_fun():
+  for values in apply_generator_fun_list([%s]):
+    for x in %s(*values):
+      yield x
+for x in builtin_predicate_fun():
+  print x
+'''%(', '.join([code(x) for x in self.operands]), code(self.operator))
     
 class BuiltinPredicate(Builtin, Function):
   memorable = _memorable
@@ -46,13 +78,31 @@ class BuiltinPredicate(Builtin, Function):
   def apply(self, solver, cont, values, signatures):
     return self.function(solver, cont, *values)
   
+  def compile_to_cont(self, operands, compiler):
+    return BuiltinPredicateCont(self, operands)
+  
+class BuiltinMacroCont:
+  def __init__(self, operator, operands):
+    self.operator, self.operands = operator, operands
+  def code(self):
+    return '''
+def builtin_macro_fun():
+  for x in %s(%s):
+    yield x
+for x in builtin_macro_fun():
+  print x
+'''%(
+      code(self.operator), ', '.join([code(x) for x in self.operands]))
+    
 class BuiltinMacro(Builtin, Macro):
   memorable = _memorable
   def __call__(self, *exps):
     return CommandCall(self, *exps)
   def apply(self, solver, cont, exps, signatures):
     return self.function(solver, cont, *exps)
-  
+  def compile_to_cont(self, operands, compiler):
+    return BuiltinMacroCont(self, operands)
+    
 def builtin(klass):
   def builtin(name=None, symbol=None, **kw):
     def makeBuiltin(func):

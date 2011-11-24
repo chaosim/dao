@@ -4,6 +4,10 @@ import operator
 from dao.solve import run_mode, interactive, to_sexpression
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
 
+# compile
+
+from dao.compiler import code
+
 class OperatorCall(CommandCall): pass
 
 _op_precedence = {'lt':10, 'le':10, 'eq':10, 'ne':10, 'ge':10,'gt':10,
@@ -41,8 +45,17 @@ class UnaryCall(OperatorCall):
     x = _operator_repr(self.operand[0], self.operator)
     return '%s%s'%(self.operator.symbol, x)
 
+class BuiltinBinaryCont:
+  def __init__(self, operator, operands):
+    self.operator, self.operands = operator, operands
+  def code(self):
+    return '%s(%s, %s)'%(code(self.operator), code(self.operands[0]), code(self.operands[1]))
+    
 class BuiltinBinary(builtin.BuiltinFunction):
   def __call__(self, x, y): return BinaryCall(self, x, y)
+  def compile_to_cont(self, cont, compiler):
+    return BuiltinBinaryCont(self, cont)
+  def code(self): return self.name
 
 class BuiltinUnary(builtin.BuiltinFunction):
   def __call__(self, x): return UnaryCall(self, x)
@@ -129,10 +142,10 @@ def equal(solver, cont, left, right):
     yield cont, True
 
 def arith_predicate(binary, name, symbol):
-  @builtin.macro(name, symbol)
-  def pred(solver, cont, var0, var1):
-    if binary(getvalue(var0, solver.env, {}), 
-                getvalue(var1, solver.env, {})):
+  @builtin.predicate(name, symbol)
+  def pred(solver, cont, value0, value1):
+    if binary(value0, 
+                value1):
       yield cont, True
   return pred
 

@@ -95,6 +95,9 @@ def apply_generators(generators):
       if i==0: return
       i -= 1
 
+def unify_after_compile(x, y):
+  if x==y: yield True
+  
 def unify(x, y, env, occurs_check=False):
   try: x_unify = x.unify
   except AttributeError: 
@@ -215,3 +218,20 @@ def closure(exp, env):
     else: return exp
   return exp_closure(env)
 
+def apply_generator_fun_list(fun_args_list):
+  i = 0
+  length = len(fun_args_list)
+  gen_list[0] = [fun_args_list[0][0](*fun_args_list[0][1:])]+[None]*(length-1)
+  result = [None]*length
+  while 1:
+    try: 
+      result[i] = gen_list[i].next()
+      if i==length-1:
+        yield result
+      else:
+        i += 1
+        gen_list[i] = fun_args_list[i][0](*fun_args_list[i][1:])
+    except StopIteration:
+      if i==0: return
+      else: i -= 1
+      

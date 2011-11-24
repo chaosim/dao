@@ -298,7 +298,7 @@ class Solver:
         return self.cont(exp[0], evaluate_cont)
     else:
       if is_subclass(exp, object):
-         return value_cont(exp, cont)
+        return value_cont(exp, cont)
       try: exp_cont = exp.cont
       except: return value_cont(exp, cont)
       return exp_cont(cont, self)

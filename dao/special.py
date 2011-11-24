@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+pyset = set
+
 from dao.term import CommandCall, Function, Macro, closure, Var, ClosureVar#, Command
 from dao.term import apply_generators, rule_head_signatures
 from dao.rule import Rule, RuleList
@@ -13,7 +15,8 @@ from dao import builtin
 from dao.solve import run_mode, set_run_mode, interactive, noninteractive
 from dao.solve import interactive_parser, interactive_tagger
 
-pyset = set
+# compile
+from dao.compiler import ValueCont, code
 
 # special forms: quote, begin, if, eval, let, lambda, function, macro, module
 class ParserForm(object): 
@@ -36,6 +39,8 @@ class quote(SpecialForm):
     return (quote, to_sexpression(self.exp))
   def cont(self, cont, solver): 
     return value_cont(self.exp, cont)
+  def compile_to_cont(self, cont, compiler):
+    return ValueCont(self.exp, cont)
   def __eq__(self, other): return self.exp==other.exp
   def __repr__(self): 
     if run_mode()==interactive:
@@ -50,6 +55,12 @@ class quote(SpecialForm):
 
 # do not restore the value of var in assign
 # if need to restore, use define instead.
+
+class SetCont:
+  def __init__(self, var, exp):
+    self.var, self.exp = var, exp
+  def code(self):
+    return '%s = %s'%(code(self.var), code(self.exp))
 
 # assign var in the most inner env
 class set(SpecialForm):
@@ -72,6 +83,8 @@ class set(SpecialForm):
       solver.env.bindings[self.var] = value
       yield cont, value
     return solver.cont(self.exp, set_cont)
+  def compile_to_cont(self, cont, compiler):
+    return SetCont(self.var, compiler.compile_to_cont(self.exp, cont))
   def __eq__(self, other): return self.var==other.var and self.exp==other.exp
   def __repr__(self): return "set(%s, %s)"%(self.var, self.exp)
 assign = set
@@ -194,6 +207,12 @@ class set_global(SpecialForm):
   def __eq__(self, other): return self.var==other.var and self.exp==other.exp
   def __repr__(self): return "set_global(%s, %s)"%(self.var, self.exp)
 
+class BeginCont:
+  def __init__(self, exps):
+    self.exps = exps
+  def code(self):
+    return '; '.join([code(x) for x in self.exps])
+    
 class begin(SpecialForm):
   name = 'begin'
   def __init__(self, *exps):
@@ -208,6 +227,8 @@ class begin(SpecialForm):
     return (begin, )+to_sexpression(self.exps)
   def cont(self, cont, solver): 
     return solver.exps_cont(self.exps, cont)
+  def compile_to_cont(self, cont, compiler): 
+    return BeginCont(compiler.compile_to_cont(x, cont) for x in self.exps)
   def __eq__(self, other): 
     return self.exps==other.exps
   def __repr__(self):

@@ -55,6 +55,8 @@ def Succeed(solver, cont):
   yield cont, True
 succeed = Succeed()
 
+#Succeed.compile_to_cont 
+
 @builtin.macro('fail')
 def Fail(solver, cont):  
   if 0: yield cont, True

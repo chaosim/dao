@@ -19,7 +19,7 @@ from dao.builtins.term import isvar, nonvar, is_, define, nonvar_p, isvar_p
 from dao.solve import set_run_mode, noninteractive
 set_run_mode(noninteractive)
 
-from dao.compiler import compile2file
+from dao.compiler import compile
 
 class TestControl:
   def test_fail(self):
@@ -29,7 +29,23 @@ class TestControl:
     eq_(eval(let([(f,function([[1], succeed]))], f(x))), True)
 
   def test_Or(self):
-    eq_(eval(or_p(fail, succeed)), True)
+    eq_(compile(or_p(fail, succeed)), '''
+    def or_p(call1, call2):
+      for x in call1:
+        yield x
+      for x in call2:
+        yield x
+    def fail():
+      if 0: yield True
+    def succeed():
+      yield True
+    for x in or_p(fail, succeed):
+      yield x
+    ''')
+    
+  def test_Or(self):
+    eq_(compile(or_p(fail, succeed)), 
+        '''for x in or_p(fail, succeed): yield x''')
     
   def test_and(self):
     eq_(eval(succeed&succeed), True)
@@ -57,10 +73,7 @@ class TestControl:
     assert_raises(NoSolutionFound, eval, if_p(fail, succeed))
     assert_raises(NoSolutionFound, eval, if_p(fail, fail))
 
-class TestArithpred:
-  def test_eq_p(self):
-    from dao.builtins.arith import eq_p
-    compile2file(eq_p(1, 1), 'le_p.py')
+class xTestArithpred:
   def test_is(self):
     eq_(eval(is_(x, 1)), True)
   def test_define_recursive(self):
@@ -75,7 +88,7 @@ class TestArithpred:
     eq_(eval(between(1, 3, 2)), True)
     eq_(eval(between(1, 3, x)), True)
 
-class TestTypePredicate:
+class xTestTypePredicate:
   def test_ground(self):
     eq_(eval(ground_p(1)), True)
     assert_raises(NoSolutionFound, eval, ground_p(Var('')))
@@ -92,7 +105,7 @@ class TestTypePredicate:
     assert_raises(NoSolutionFound, eval, isvar_p(L(1)))
     assert_raises(NoSolutionFound, eval, nonvar_p(x))
     
-class Testunify:
+class xTestunify:
   def test1(self):
     eq_(eval(unify(x, 1)), True)
   def test2(self):
@@ -100,20 +113,20 @@ class Testunify:
   def test3(self):
     eq_(eval(notunify(2, L(1))), True)
     
-class TestMetacall:
+class xTestMetacall:
   def testcall(self):
     eq_(eval(call(unify(x, 1))), True)
     eq_(eval(is_(x, quote(prin(1)))&call(x)), None)
   def testonce(self):
     eq_(eval(findall(once(prin('1, ')|prin('2, ')))), True)
     
-class Testfindall:
+class xTestfindall:
   def test_findall(self):
     x, y, z = Var('x'), Var('y'), Var('z')
     eq_(eval(let([(f, function(((), 2), ((), 3)))], 
                findall(is_(x, f()), x, y), y)), [2, 3])
     
-class TestRule:
+class xTestRule:
   def test_abolish(self):
     from dao.builtins.rule import abolish
     eq_(eval(let([(f,function([[1], 1]))], abolish(f, 1))), {})
@@ -134,7 +147,7 @@ class TestRule:
 from dao.builtins.container import concat, subsequence
 from dao.builtins.container import length, contain
 
-class TestStringConstruct:
+class xTestStringConstruct:
   def test_string_length(self):
     eq_(eval(length("abc", x)), True)
   def test_string_length2(self):
@@ -162,12 +175,12 @@ class TestStringConstruct:
     
 
 from dao.builtins.term import copy_term
-class TestTermConstruct:
+class xTestTermConstruct:
   def test_copy_term(self):
     eq_(eval(begin(copy_term(L("abc", 1), x), x)), L("abc", 1))
     
 from dao.builtins.quasiquote import quasiquote, unquote, unquote_splice
-class TestQuasiquote:
+class xTestQuasiquote:
   def test_simple1(self):
     eq_(eval(quasiquote(1)), 1)
   def test_unquote1(self):
