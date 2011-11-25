@@ -103,30 +103,26 @@ class RuleList(list):
     return RuleList([tagger.tag_loop_label(rule) for rule in self])
   
   def apply(self, solver, values, call_data):
+    old_fcont = solver.fcont
+    @mycont(old_fcont)
+    def rules_cut_cont(value, solver):
+      solver.scont = old_fcont
+    rules_cut_cont.cut = True
+    solver.fcont = rules_cut_cont
     if len(self)>2:
       cont = solver.scont
-      old_fcont = solver.fcont
-      @mycont(old_fcont)
+      @mycont(rules_cut_cont)
       def fcont(value, solver):
         solver.scont = cont
-        if solver.cut_level==0:
-          return RuleList(self[1:]).apply(solver, values, call_data)
-        else: 
-          solver.cut_level -= 1
-          solver.scont = old_fcont
+        return RuleList(self[1:]).apply(solver, values, call_data)
       solver.fcont = fcont
     elif len(self)==2:
       cont = solver.scont
-      old_fcont = solver.fcont
-      @mycont(old_fcont)
+      @mycont(rules_cut_cont)
       def fcont(value, solver):
-        solver.fcont = old_fcont
+        solver.fcont = rules_cut_cont
         solver.scont = cont
-        if solver.cut_level==0:
-          return self[1].apply(solver, values, call_data)
-        else:
-          solver.cut_level -= 1
-          solver.scont = old_fcont
+        return self[1].apply(solver, values, call_data)
       solver.fcont = fcont
     return self[0].apply(solver, values, call_data)
     

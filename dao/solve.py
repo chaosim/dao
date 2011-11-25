@@ -223,7 +223,6 @@ class Solver:
     self.parse_state = parse_state
     self.solved = False
     self.failed = False
-    self.cut_level = 0
     
     # used for chart parsing, from bottom to up parsing
     # left recursive is permmited

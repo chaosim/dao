@@ -78,7 +78,19 @@ repeat = Repeat()
   
 @builtin.macro('cut', '!')
 def Cut(solver):
-  solver.cut_level += 1
+  old_fcont = solver.fcont
+  @mycont(old_fcont)
+  def fcont(value, solver):
+    cont = old_fcont
+    while cont is not solver.stop_cont and cont is not solver.fail_stop:
+      try: cont.cut
+      except: 
+        cont = cont.cont
+        continue
+      solver.scont = cont.cont
+      return
+    solver.scont = cont
+  solver.fcont = fcont     
   return True
 cut = Cut()
 

@@ -1,5 +1,25 @@
 details of history:
 
+2011-11-25 16:38:59 
+redo cut feature use method similar to pypy prolog; tests passed.
+def Cut(solver):
+  def fcont(value, solver):
+     while...p:
+      try: cont.cut
+      except: 
+        cont = cont.cont
+        continue
+      solver.scont = cont.cont
+      return
+  in RuleList.apply:
+    def rules_cut_cont(value, solver):
+      solver.scont = old_fcont
+    rules_cut_cont.cut = True
+
+2011-11-25 16:18:06 
+the previous implemention of cut is wrong completely
+remember the cut in pypyprolog
+
 2011-11-25 14:46:50 
 git* prolog'cut in double continuations
 
