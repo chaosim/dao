@@ -66,6 +66,7 @@ def define(solver, var, value):
     try:
       old = bindings[var]
       old_fcon = solver.fcont
+      @mycont(old_fcon)
       def fcont(value, solver):
         bindings[var] = old
         solver.fcont = old_fcon
@@ -75,6 +76,7 @@ def define(solver, var, value):
     except KeyError:
       bindings[var] = value
       old_fcon = solver.fcont
+      @mycont(old_fcon)
       def fcont(value, solver):
         del bindings[old]
         solver.fcont = old_fcon

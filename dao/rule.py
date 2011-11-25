@@ -39,6 +39,7 @@ class Rule(object):
       solver.env = caller_env
       solver.call_path = call_path
       old_fcont = solver.fcont
+      @mycont(old_fcont)
       def fcont(value, solver):
         solver.parse_state = parse_state
         solver.env = caller_env
@@ -48,6 +49,7 @@ class Rule(object):
       solver.scont = cont
       return value
     old_fcont = solver.fcont
+    @mycont(old_fcont)
     def fcont(value, solver):
       solver.env = caller_env 
       solver.call_path = call_path
@@ -73,6 +75,7 @@ def set_bindings(bindings, var, value, solver):
     old = bindings[var]
     bindings[var] = value
     old_fcont = solver.fcont
+    @mycont(old_fcont)
     def fcont(value, solver):
       bindings[var] = old
       solver.scont = old_fcont
@@ -81,6 +84,7 @@ def set_bindings(bindings, var, value, solver):
   except KeyError:
     bindings[var] = value
     old_fcont = solver.fcont
+    @mycont(old_fcont)
     def fcont(value, solver):
       del bindings[var]
       solver.scont = old_fcont
@@ -100,14 +104,20 @@ class RuleList(list):
   
   def apply(self, solver, values, call_data):
     if len(self)>2:
+      cont = solver.scont
       old_fcont = solver.fcont
+      @mycont(old_fcont)
       def fcont(value, solver):
+        solver.scont = cont
         return RuleList(self[1:]).apply(solver, values, call_data)
       solver.fcont = fcont
     elif len(self)==2:
+      cont = solver.scont
       old_fcont = solver.fcont
+      @mycont(old_fcont)
       def fcont(value, solver):
         solver.fcont = old_fcont
+        solver.scont = cont
         return self[1].apply(solver, values, call_data)
       solver.fcont = fcont
     return self[0].apply(solver, values, call_data)

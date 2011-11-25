@@ -66,7 +66,10 @@ def done_unwind(cont, value, tag, stop_cont_cont, solver, next_cont=None):
 def mycont(cont):
   def mycont_tagger(fun):
     fun.cont = cont
-    fun.cont_order = cont.cont_order+1
+    try:
+      fun.cont_order = cont.cont_order+1
+    except:
+      cont(1, None)
     return fun
   return mycont_tagger
  

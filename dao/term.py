@@ -29,6 +29,7 @@ def unify_rule_head(value, head, solver, subst):
         old = env.bindings[head]
         env.bindings[head] = value
         old_fcont = solver.fcont
+        @mycont(old_fcont)
         def fcont(value, solver):
           env.bindings[var] = old
           solver.scont = old_fcont
@@ -37,6 +38,7 @@ def unify_rule_head(value, head, solver, subst):
       except:
         env.bindings[head] = value
         old_fcont = solver.fcont
+        @mycont(old_fcont)
         def fcont(value, solver):
           del env.bindings[var]
           solver.scont = old_fcont
@@ -157,6 +159,7 @@ class Command(BaseCommand):
         
     #if len(sign_state2cont)==1:
       #old_fcont = solver.fcont
+      #@mycont(old_fcont)
       #def fcont(value, solver):
         #if not have_result[0]:
           #solver.sign_state2results[sign_state] = []
@@ -189,6 +192,7 @@ class Var(Command):
       if occurs_check and contain_var(other, self): return False
       self.setvalue(other, env)
       old_fcont = solver.fcont
+      @mycont(old_fcont)
       def fcont(value, solver):
         try: del env.bindings[self] # for DummyVar
         except: pass
@@ -199,6 +203,7 @@ class Var(Command):
       if occurs_check and contain_var(self, other): return
       other.setvalue(self, env)
       old_fcont = solver.fcont
+      @mycont(old_fcont)
       def fcont(value, solver):
         try: del env.bindings[other] # for DummyVar
         except: pass

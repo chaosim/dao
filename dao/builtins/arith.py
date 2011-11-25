@@ -3,6 +3,7 @@ from dao.term import Var, ClosureVar, deref, getvalue, CommandCall
 import operator
 from dao.solve import run_mode, interactive, to_sexpression
 from dao.solve import interactive_solver, interactive_tagger, interactive_parser
+from dao.solve import mycont
 
 # compile
 
@@ -134,8 +135,9 @@ def between(solver, *exps):
     if lower<=mid<=upper: return True
     else: solver.scont = solver.fcont
   result = (x for x in range(lower, upper+1))
-  old_fcont = solver.fcont
   cont = solver.scont
+  old_fcont = solver.fcont
+  @mycont(old_fcont)
   def fcont(value, self):
     try: x = result.next()
     except StopIteration:

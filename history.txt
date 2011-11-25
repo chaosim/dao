@@ -1,5 +1,23 @@
 details of history:
 
+2011-11-25 10:16:50 
+fix bug in callcc: AttributeError cont.order
+def callcc(solver, fun):
+  ''' call with current continuation '''
+  solver.scont = solver.cont((fun, ContinuationFunction(solver.|cont ---> scont|, '', '', False)), solver.scont)
+find the reason by using compare working copy with older version
+
+2011-11-25 09:46:03 
+fix bug: in RuleList.apply:
+  +++ cont = solver.scont
+      ...
+      def fcont(value, solver):
+  +++    solver.scont = cont
+        ...
+
+2011-11-25 09:30:10 
+fix bug: def fcont and cont.order
+
 2011-11-24 07:21:54 
 two continuations
 

@@ -333,6 +333,7 @@ class pytry(SpecialForm):
   def cont(self, cont, solver):
     old_fcont1 = solver.fcont
     try_cont_gen = solver.exp_run_cont(self.body, cont)
+    @mycont(cont)
     def pytry_cont(value, solver):
       try:
         solver.scont, v = try_cont_gen.next()
@@ -343,6 +344,7 @@ class pytry(SpecialForm):
       except self.exception, e: 
         except_cont_gen = solver.exp_run_cont(self.ex_clause, cont)
         old_fcont2 = solver.fcont
+        @mycont(cont)
         def except_cont(value, solver):
           try: 
             solver.scont, v = except_cont_gen.next()

@@ -147,6 +147,8 @@ def subsequence(solver, sequence, before, length, after, sub):
     if length<=0 or length>len(sequence): return
   if not isinstance(after, Var):
     if after<0 or after>len(sequence): return
+  cont = solver.scont
+  @mycont(cont)
   def sub_sequence_cont(value, solver):
     if not isinstance(sub, Var):
       if sub=='': return
