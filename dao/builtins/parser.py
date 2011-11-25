@@ -64,16 +64,24 @@ def parse_sequence(solver, pred, sequence):
   solver.sign_state2cont = {}
   solver.sign_state2results = {}
   solver.parse_state = sequence, 0 #sequence, start position
+  cont = solver.scont
   @mycont(cont)
   def parser_cont(value, solver):
     solver.parse_state = parse_state
     solver.sign_state2cont = sign_state2cont
     solver.sign_state2results = sign_state2results
-    yield cont, value 
-  yield solver.cont(pred, parser_cont), solver.parse_state
-  solver.parse_state = parse_state
-  solver.sign_state2cont = sign_state2cont
-  solver.sign_state2results = sign_state2results
+    solver.scont = cont
+    return value 
+  old_fcont = solver.fcont
+  @mycont(old_fcont)
+  def fcont(value, solver):
+    solver.parse_state = parse_state
+    solver.sign_state2cont = sign_state2cont
+    solver.sign_state2results = sign_state2results
+    solver.scont = old_fcont
+  solver.fcont = fcont
+  solver.scont = solver.cont(pred, parser_cont)
+  return solver.parse_state
 
 parse_text = parse_sequence
   

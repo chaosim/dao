@@ -7,7 +7,7 @@
 # parse_state: parse_state such as text used by the matchers which do parsing
 
 from dao.env import GlobalEnvironment
-from dao.base import is_subclass, tag_loop_label
+from dao.base import is_subclass, tag_loop_label, preparse
 
 class BaseCommand: pass
 

@@ -8,16 +8,24 @@ from dao.term import deref, unify, Var
 from dao import builtin
 from dao.builtins.matcher import matcher
 from dao.builtins.parser import next_char_, left_, parsed_, eoi_, last_char_
+from dao.solve import mycont
 
 @matcher()
 def char(solver, argument): 
   argument = deref(argument, solver.env)
   text, pos = solver.parse_state
-  if pos==len(text): return
-  for _ in unify(argument, text[pos], solver.env):
+  if pos==len(text): 
+    solver.scont = solver.fcont
+    return
+  if unify(argument, text[pos], solver):
     solver.parse_state = text, pos+1
-    yield cont,  text[pos]
-    solver.parse_state = text, pos
+    old_fcont = solver.fcont
+    @mycont(old_fcont)
+    def fcont(value, solver):
+      solver.parse_state = text, pos
+      solver.scont = old_fcont
+    solver.fcont = fcont
+    return text[pos]
 
 @matcher()
 def char2(solver, argument): 

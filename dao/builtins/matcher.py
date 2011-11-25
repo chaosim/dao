@@ -179,20 +179,30 @@ class MatcherOr(Matcher):
 @nomemo
 @matcher()
 def Nullword(solver): 
-  yield cont,  True
+  return True
 
 null = nullword = Nullword()
 
 @matcher()
 def optional(solver, item, mode=nongreedy):
+  cont = solver.scont
   item_matched = [False]
   @mycont(cont)
   def optional_cont(value, solver):
     item_matched[0] = True
-    yield cont, value
-  yield solver.cont(item, optional_cont), True
-  if mode!=greedy  or (mode==greedy and not item_matched[0]):
-    yield cont, True
+    solver.scont = cont
+    return value
+  old_fcont = solver.fcont
+  @mycont(old_fcont)
+  def fcont(value, solver):
+    solver.fcont = old_fcont
+    if mode!=greedy  or (mode==greedy and not item_matched[0]):
+      solver.scont = cont
+      return True
+    else: solver.scont = old_fcont
+  solver.fcont = fcont  
+  solver.scont = solver.cont(item, optional_cont)
+  return True
   
 may = optional
 

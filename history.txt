@@ -1,7 +1,18 @@
 details of history:
 
+2011-11-25 17:26:31 
+git* some parser builtins: char, nullword, optional, parse_sequence
+tips: 
+  char:
+   unify(... solver.---env---
+  optional:
+    def fcont(value, solver):
+        ....
+	!!! +++ else: solver.scont = old_fcont
+    
 2011-11-25 17:05:33 
-another cut: CutOr, only cut Or
+git* another cut: CutOr, only cut Or
+no tests given
 
 2011-11-25 16:38:59 
 git* redo cut feature use method similar to pypy prolog; tests passed.
