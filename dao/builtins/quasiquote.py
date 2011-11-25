@@ -9,14 +9,14 @@ from dao.solve import DaoSyntaxError, mycont
 ## (if (> i 1) i (+ i 1))
 ##`(if  ,i>1: ,i; else ,i+1)
 
-def evaluate_quasiquote_list_cont(solver, cont, exps):
+def evaluate_quasiquote_list_cont(solver, exps):
   @mycont(cont)
   def quasi_cont(result, solver):
     if len(exps)==0: 
       yield cont, result
     else:
       element0 = exps[0]
-      left_cont = evaluate_quasiquote_list_cont(solver, cont, exps[1:])
+      left_cont = evaluate_quasiquote_list_cont(solver, exps[1:])
       if element0==():
         yield left_cont, result+((),)
         return
@@ -48,7 +48,7 @@ def evaluate_quasiquote_list_cont(solver, cont, exps):
   return quasi_cont
 
 @builtin.macro('quasiquote')
-def quasiquote(solver, cont, item):
+def quasiquote(solver, item):
   if not isinstance(item, tuple) or item==():
     yield cont, item
     return
@@ -61,14 +61,14 @@ def quasiquote(solver, cont, item):
   elif item[0]==unquote or item[0]==unquote_splice:
     raise DaoSyntaxError
   
-  yield evaluate_quasiquote_list_cont(solver, cont, item), ()
+  yield evaluate_quasiquote_list_cont(solver, item), ()
 
 @builtin.macro('unquote')
-def unquote(solver, cont, *args):
+def unquote(solver, *args):
   raise DaoSyntaxError
 
 @builtin.macro('unquote_splice')
-def unquote_splice(solver, cont, *args):
+def unquote_splice(solver, *args):
   raise DaoSyntaxError
 
 ##Back when JAR first suggested making quasiquote standard, I transcribed

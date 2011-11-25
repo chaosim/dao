@@ -22,7 +22,7 @@ def char(argument):
     set_parse_state((text, pos))
 
 @matcher()
-def char2(solver, cont, argument): 
+def char2(solver, argument): 
   char = deref(argument, solver.env)
   text, pos = solver.parse_state
   if pos==len(text): return
@@ -32,7 +32,7 @@ def char2(solver, cont, argument):
     solver.parse_state = text, pos
 
 @matcher()
-def char3(solver, cont): 
+def char3(solver): 
   text, pos = solver.parse_state
   if pos==len(text): return
   solver.parse_state = text, pos+1
@@ -40,7 +40,7 @@ def char3(solver, cont):
   solver.parse_state = text, pos
 
 @matcher()
-def ch(solver, cont, char):
+def ch(solver, char):
   '''one char'''
   text, pos = solver.parse_state
   if pos==len(text): return
@@ -50,7 +50,7 @@ def ch(solver, cont, char):
     solver.parse_state = text, pos
 
 @matcher()
-def chs0(solver, cont, char):
+def chs0(solver, char):
   '''0 or more char'''
   text, pos = solver.parse_state
   p = pos
@@ -60,7 +60,7 @@ def chs0(solver, cont, char):
   solver.parse_state = text, pos
 
 @matcher()
-def chs(solver, cont, char):
+def chs(solver, char):
   '''1 or more char'''
   text, pos = solver.parse_state
   if pos==len(text): return
@@ -73,28 +73,28 @@ def chs(solver, cont, char):
     solver.parse_state = text, pos
 
 @matcher()
-def Eoi(solver, cont):
+def Eoi(solver):
   '''end of parse_state'''
   if solver.parse_state[1]>=len(solver.parse_state[0]): 
     yield cont,  True
 eoi = Eoi()
 
 @matcher()
-def lead_chars(solver, cont, chars):
+def lead_chars(solver, chars):
   chars = deref(chars, solver.env)
   assert isinstance(chars, str)
   if last_char_(solver.parse_state) not in chars: return
   yield cont,  True
 
 @matcher()
-def not_lead_chars(solver, cont, chars):
+def not_lead_chars(solver, chars):
   chars = deref(chars, solver.env)
   assert isinstance(chars, str)
   if last_char_(solver.parse_state) in chars: return
   yield cont,  True
 
 @matcher()
-def follow_chars(solver, cont, chars):
+def follow_chars(solver, chars):
   chars = deref(chars, solver.env)
   if eoi_(solver.parse_state) or\
      next_char_(solver.parse_state) not in chars: 
@@ -102,7 +102,7 @@ def follow_chars(solver, cont, chars):
   yield cont,  True
 
 @matcher()
-def follow_char(solver, cont, char):
+def follow_char(solver, char):
   char = deref(char, solver.env)
   if eoi_(solver.parse_state) or\
      next_char_(solver.parse_state)!=char: 
@@ -110,45 +110,45 @@ def follow_char(solver, cont, char):
   yield cont,  True
 
 @matcher()
-def not_follow_chars(solver, cont, chars):
+def not_follow_chars(solver, chars):
   chars = deref(chars, solver.env)
   if not eoi_(solver.parse_state) and next_char_(solver.parse_state) in chars: 
     return
   yield cont,  True
 
 @matcher()
-def not_follow_char(solver, cont, char):
+def not_follow_char(solver, char):
   char = deref(char, solver.env)
   if not eoi_(solver.parse_state) and next_char_(solver.parse_state)==char: 
     return
   yield cont,  True
 
-def lead_string(solver, cont, string):
+def lead_string(solver, string):
   strArgument = deref(strArgument, solver.env)
   assert isinstance(strArgument, str)
   if not parsed_(solver.parse_state).endwith(strArgument):return
   yield cont,  True
 
 @matcher()
-def not_lead_string(solver, cont, string):
+def not_lead_string(solver, string):
   string = string.deref(solver.env)
   if parsed_(solver.parse_state).endwith(string): return
   solver.value = True  
 
-def follow_string(solver, cont, strArgument):
+def follow_string(solver, strArgument):
   strArgument = strArgument.deref(solver.env)
   assert isinstance(strArgument, String)
   if not left_(solver.parse_state).startswith(strArgument.name): raise UnifyFail
   solver.value = True
 
 @matcher()
-def not_follow_string(solver, cont, string):
+def not_follow_string(solver, string):
   string = string.deref(solver.env)
   if left_(solver.parse_state).startswith(string.name): return
   solver.value = True  
 
 def char_on_predicate(test, name=''):
-  def func(solver, cont, arg0):
+  def func(solver, arg0):
     #assert isinstance(arg0, Var) and arg0.free(solver.env)
     text, pos = solver.parse_state
     if pos>=len(text): return
@@ -179,7 +179,7 @@ unify_tabspace = char_in(space_string, repr_string='spacesChar')
 unify_whitespace = char_in(whitespace_string, repr_string='spacesChar')
 
 @matcher()
-def any_chars_except(solver, cont, except_chars):
+def any_chars_except(solver, except_chars):
   '''any chars until meet except_chars'''
   text, pos = solver.parse_state
   length = len(text)
@@ -192,7 +192,7 @@ def any_chars_except(solver, cont, except_chars):
     p += 1
 
 @matcher()
-def space(solver, cont):
+def space(solver):
   '''one space'''
   text, pos = solver.parse_state
   if pos==len(text): return
@@ -203,7 +203,7 @@ def space(solver, cont):
 space = space()
 
 @matcher()
-def tab(solver, cont):
+def tab(solver):
   '''one tab'''
   text, pos = solver.parse_state
   if pos==len(text): return
@@ -214,7 +214,7 @@ def tab(solver, cont):
 tab = tab()
 
 @matcher()
-def tabspace(solver, cont):
+def tabspace(solver):
   '''one space or tab'''
   text, pos = solver.parse_state
   if pos==len(text): return
@@ -225,7 +225,7 @@ def tabspace(solver, cont):
 tabspace = tabspace()
 
 @matcher()
-def whitespace(solver, cont):
+def whitespace(solver):
   '''one space or tab'''
   text, pos = solver.parse_state
   if pos==len(text): return
@@ -236,7 +236,7 @@ def whitespace(solver, cont):
 whitespace = whitespace()
 
 @matcher()
-def newline(solver, cont):
+def newline(solver):
   '''one newline'''
   text, pos = solver.parse_state
   if pos==len(text): return
@@ -251,7 +251,7 @@ def newline(solver, cont):
 nl = newline = newline()
 
 def string__on_predicate(test, name='', onceMore=True):
-  def func(solver, cont,  arg):
+  def func(solver,  arg):
     #assert isinstance(arg, Var) and arg.free(solver.env)
     text, pos = solver.parse_state
     string = ''
@@ -286,7 +286,7 @@ unify_whitespaces0 = string_in(whitespace_string, once_more=False, repr_string='
 unify_whitespaces = string_in(whitespace_string, repr_string='whitespaces')
 
 @matcher()
-def spaces0(solver, cont):
+def spaces0(solver):
   '''0 or more space'''
   text, pos = solver.parse_state
   length = len(text)
@@ -298,7 +298,7 @@ def spaces0(solver, cont):
 spaces0 = spaces0()
 
 @matcher()
-def tabs0(solver, cont):
+def tabs0(solver):
   '''0 or more tab'''
   text, pos = solver.parse_state
   length = len(text)
@@ -310,7 +310,7 @@ def tabs0(solver, cont):
 tabs0 = tabs0()
 
 @matcher()
-def _Tabspaces0(solver, cont):
+def _Tabspaces0(solver):
   '''0 or more space or tab'''
   text, pos = solver.parse_state
   length = len(text)
@@ -322,7 +322,7 @@ def _Tabspaces0(solver, cont):
 tabspaces0 = _Tabspaces0()
 
 @matcher()
-def whitespaces0(solver, cont):
+def whitespaces0(solver):
   ''' 0 or more space or tab or newline'''
   text, pos = solver.parse_state
   length = len(text)
@@ -334,7 +334,7 @@ def whitespaces0(solver, cont):
 whitespaces0 = whitespaces0()
 
 @matcher()
-def newlines0(solver, cont):
+def newlines0(solver):
   ''' 0 or more newline'''
   text, pos = solver.parse_state
   length = len(text)
@@ -346,7 +346,7 @@ def newlines0(solver, cont):
 newlines0 = newlines0()
 
 @matcher()
-def spaces(solver, cont):
+def spaces(solver):
   '''1 or more space or tab'''
   text, pos = solver.parse_state
   if pos==len(text): return
@@ -359,7 +359,7 @@ def spaces(solver, cont):
 spaces = spaces()
 
 @matcher()
-def tabs(solver, cont):
+def tabs(solver):
   '''1 or more space or tab'''
   text, pos = solver.parse_state
   if pos==len(text): return
@@ -372,7 +372,7 @@ def tabs(solver, cont):
 tabs = tabs()
 
 @matcher()
-def _Tabspaces(solver, cont):
+def _Tabspaces(solver):
   '''1 or more space or tab'''
   text, pos = solver.parse_state
   if pos==len(text): return
@@ -385,7 +385,7 @@ def _Tabspaces(solver, cont):
 tabspaces = _Tabspaces()
 
 @matcher()
-def pad_tabspaces(solver, cont):
+def pad_tabspaces(solver):
   '''if not leading space, 1 or more space or tab'''
   text, pos = solver.parse_state
   if pos==len(text): return
@@ -401,7 +401,7 @@ def pad_tabspaces(solver, cont):
 pad_tabspaces = pad_tabspaces()
 
 @matcher()
-def tabspaces_if_need(solver, cont):
+def tabspaces_if_need(solver):
   '''1 or more tabspace not before punctuation '",;:.{}[]()!?\r\n '''
   text, pos = solver.parse_state
   if pos==len(text): 
@@ -419,7 +419,7 @@ def tabspaces_if_need(solver, cont):
 tabspaces_if_need = tabspaces_if_need()
 
 @matcher()
-def tabspaces_unless(solver, cont, chars):
+def tabspaces_unless(solver, chars):
   '''1 or more tabspace if not before chars, else 0 or more tabspace '''
   chars = deref(chars, solver.env)
   text, pos = solver.parse_state
@@ -438,7 +438,7 @@ def tabspaces_unless(solver, cont, chars):
 tabspaces_unless = tabspaces_unless()
 
 @matcher()
-def whitespaces(solver, cont):
+def whitespaces(solver):
   ''' 1 or more space or tab or newline'''
   text, pos = solver.parse_state
   if pos==len(text): return
@@ -451,7 +451,7 @@ def whitespaces(solver, cont):
 whitespaces = whitespaces()
 
 @matcher()
-def newlines(solver, cont):
+def newlines(solver):
   ''' 1 or more  newline'''
   text, pos = solver.parse_state
   if pos==len(text): return
@@ -476,7 +476,7 @@ def wrap_tabspaces(item):
 
 
 def quote_string(quote, name):
-  def func(solver, cont,  arg0):
+  def func(solver,  arg0):
     #assert isinstance(arg0, Var) and arg0.free(solver.env)
     text, pos = solver.parse_state
     if pos>=len(text): return
@@ -499,7 +499,7 @@ dqstring = quote_string('"', 'doublequotestring')
 sqstring = quote_string("'", 'singlequotestring')
 
 @matcher()
-def integer(solver, cont,  arg0): 
+def integer(solver,  arg0): 
   text, pos = solver.parse_state
   length = len(text)
   if pos>=length: return
@@ -516,7 +516,7 @@ def integer(solver, cont,  arg0):
     solver.parse_state = text, pos
 
 @matcher()
-def float(solver, cont,  arg0): 
+def float(solver,  arg0): 
   text, pos = solver.parse_state
   length = len(text)  
   if pos>=length: return
@@ -537,7 +537,7 @@ def float(solver, cont,  arg0):
 number = float
 
 @matcher()
-def literal(solver, cont,  arg0):
+def literal(solver,  arg0):
   '''any given instance string'''
   arg0 = deref(arg0, solver.env)
   text, pos = solver.parse_state
@@ -547,7 +547,7 @@ def literal(solver, cont,  arg0):
     solver.parse_state = text, pos
     
 @matcher()
-def identifier(solver, cont, arg):
+def identifier(solver, arg):
   '''underline or letter lead, follow underline, letter or digit''' 
   text, pos = solver.parse_state
   length = len(text)
@@ -564,7 +564,7 @@ def identifier(solver, cont, arg):
     solver.parse_state = text, pos
 
 @matcher()
-def word(solver, cont, arg):
+def word(solver, arg):
   '''word of letters''' 
   text, pos = solver.parse_state
   length = len(text)

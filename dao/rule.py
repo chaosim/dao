@@ -13,7 +13,7 @@ class Rule(object):
   def tag_loop_label(self, tagger):
     return Rule(self.head, tagger.tag_loop_label(self.body))
   
-  def apply(self, solver, cont, values, call_data):
+  def apply(self, solver, values, call_data):
     parse_state = solver.parse_state
     caller_env = solver.env
     env = call_data.env
@@ -29,6 +29,7 @@ class Rule(object):
     if not unify_list_rule_head(values, self.head, solver, subst):
       solver.scont = solver.fcont
       return
+    cont = solver.scont
     @mycont(cont)
     def rule_done_cont(value, solver):
       self.body
@@ -51,7 +52,7 @@ class Rule(object):
       solver.env = caller_env 
       solver.call_path = call_path
       solver.parse_state = parse_state  
-      solver.fcont = old_fcont
+      solver.scont = old_fcont
     solver.fcont = fcont
     solver.scont = solver.exps_cont(self.body, rule_done_cont)
     return True
@@ -74,7 +75,7 @@ def set_bindings(bindings, var, value, solver):
     old_fcont = solver.fcont
     def fcont(value, solver):
       bindings[var] = old
-      solver.fcont = old_fcont
+      solver.scont = old_fcont
     solver.fcont = fcont
     return True
   except KeyError:
@@ -82,7 +83,7 @@ def set_bindings(bindings, var, value, solver):
     old_fcont = solver.fcont
     def fcont(value, solver):
       del bindings[var]
-      solver.fcont = old_fcont
+      solver.scont = old_fcont
     solver.fcont = fcont
     return True
     
@@ -97,19 +98,19 @@ class RuleList(list):
   def tag_loop_label(self, tagger):
     return RuleList([tagger.tag_loop_label(rule) for rule in self])
   
-  def apply(self, solver, cont, values, call_data):
+  def apply(self, solver, values, call_data):
     if len(self)>2:
       old_fcont = solver.fcont
       def fcont(value, solver):
-        return RuleList(self[1:]).apply(solver, cont, values, call_data)
+        return RuleList(self[1:]).apply(solver, values, call_data)
       solver.fcont = fcont
     elif len(self)==2:
       old_fcont = solver.fcont
       def fcont(value, solver):
         solver.fcont = old_fcont
-        return self[1].apply(solver, cont, values, call_data)
+        return self[1].apply(solver, values, call_data)
       solver.fcont = fcont
-    return self[0].apply(solver, cont, values, call_data)
+    return self[0].apply(solver, values, call_data)
     
   def __repr__(self): 
     return 'RuleList[%s]'%' '.join([repr(rule) for rule in self])

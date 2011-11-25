@@ -82,7 +82,7 @@ prior, prior1, prior2, prior3, assoc, assoc1, assoc2, assoc3 = vars(
   'prior, prior1, prior2, prior3, assoc, assoc1, assoc2, assoc3')
 
 @matcher()
-def identifier(solver, cont, arg):
+def identifier(solver, arg):
   text, pos = solver.parse_state
   length = len(text)
   if pos>=length: return
@@ -118,7 +118,7 @@ new_label_id = 1
 label_stack_dict = {}
 
 @builtin.predicate('get_label')
-def get_label(solver, cont, label=None): 
+def get_label(solver, label=None): 
   if isinstance(label, str): yield cont, label
   global new_label_id
   new_label = 'label_%s$'%str(new_label_id)
@@ -133,7 +133,7 @@ def get_label(solver, cont, label=None):
 #get_label = builtin.predicate('get_label')(take_label)
 
 @builtin.predicate('push_label')
-def push_label(solver, cont, control_struct_type, label):
+def push_label(solver, control_struct_type, label):
   label_stack_dict.setdefault(control_struct_type, []).append(label)
   label_stack_dict.setdefault('', []).append(label)
   yield cont, label
@@ -141,7 +141,7 @@ def push_label(solver, cont, control_struct_type, label):
   label_stack_dict[''].pop()
       
 @builtin.predicate('pop_label')
-def pop_label(solver, cont, control_struct_type):
+def pop_label(solver, control_struct_type):
   label = label_stack_dict[control_struct_type].pop()
   label_stack_dict[''].pop()
   yield cont, label
@@ -239,7 +239,7 @@ def make_remove_item3(exp):
   pass
 
 @builtin.macro('block_comment')
-def block_comment(solver, cont, start, end):
+def block_comment(solver, start, end):
   '''embedable block comment'''
   text, pos = solver.parse_state
   length = len(text)

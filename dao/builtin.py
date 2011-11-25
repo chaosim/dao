@@ -26,18 +26,19 @@ class Builtin:
 _memorable = False
 
 class BuiltinFunctionCont:
-  def __init__(self, operator, operands):
-    self.operator, self.operands = operator, operands
+  def __init__(self, operator, args):
+    self.operator, self.args = operator, args
   def code(self):
-    return '%s(%s)'%(code(self.operator), ', '.join([code(x) for x in self.operands]))
+    return '%s(%s)'%(code(self.operator), ', '.join([code(x) for x in self.args]))
     
 class BuiltinFunction(Builtin, Function):
   memorable = _memorable
-  def __call__(self, *exps):
-    return CommandCall(self, *exps)
+  def __call__(self, *args):
+    return CommandCall(self, *args)
   
-  def evaluate_arguments(self, solver, cont, exps):
-    if len(exps)==0: 
+  def evaluate_arguments(self, solver, args):
+    cont = solver.scont
+    if len(args)==0: 
       solver.scont = cont
       return ()
     else:
@@ -47,12 +48,13 @@ class BuiltinFunction(Builtin, Function):
         def gather_cont(values, solver):
           solver.scont = cont
           return (value,)+values
-        return self.evaluate_arguments(solver, gather_cont, exps[1:])
-      solver.scont = solver.cont(exps[0], argument_cont)
+        solver.scont = gather_cont
+        return self.evaluate_arguments(solver, args[1:])
+      solver.scont = solver.cont(args[0], argument_cont)
       return True
       
-  def apply(self, solver, cont, values, signatures):
-    solver.scont = cont
+  def apply(self, solver, values, signatures):
+    #solver.scont = cont
     return self.function(*values)
 
   # compile
@@ -62,8 +64,8 @@ class BuiltinFunction(Builtin, Function):
   
     
 class BuiltinPredicateCont:
-  def __init__(self, operator, operands):
-    self.operator, self.operands = operator, operands
+  def __init__(self, operator, args):
+    self.operator, self.args = operator, args
   def code(self):
     return '''
 def builtin_predicate_fun():
@@ -72,21 +74,21 @@ def builtin_predicate_fun():
       yield x
 for x in builtin_predicate_fun():
   print x
-'''%(', '.join([code(x) for x in self.operands]), code(self.operator))
+'''%(', '.join([code(x) for x in self.args]), code(self.operator))
     
 class BuiltinPredicate(Builtin, Function):
   memorable = _memorable
-  def __call__(self, *exps):
-    return CommandCall(self, *exps)
-  def apply(self, solver, cont, values, signatures):
-    return self.function(solver, cont, *values)
+  def __call__(self, *args):
+    return CommandCall(self, *args)
+  def apply(self, solver, values, signatures):
+    return self.function(solver, *values)
   
-  def compile_to_cont(self, operands, compiler):
-    return BuiltinPredicateCont(self, operands)
+  def compile_to_cont(self, args, compiler):
+    return BuiltinPredicateCont(self, args)
   
 class BuiltinMacroCont:
-  def __init__(self, operator, operands):
-    self.operator, self.operands = operator, operands
+  def __init__(self, operator, args):
+    self.operator, self.args = operator, args
   def code(self):
     return '''
 def builtin_macro_fun():
@@ -95,16 +97,16 @@ def builtin_macro_fun():
 for x in builtin_macro_fun():
   print x
 '''%(
-      code(self.operator), ', '.join([code(x) for x in self.operands]))
+      code(self.operator), ', '.join([code(x) for x in self.args]))
     
 class BuiltinMacro(Builtin, Macro):
   memorable = _memorable
-  def __call__(self, *exps):
-    return CommandCall(self, *exps)
-  def apply(self, solver, cont, exps, signatures):
-    return self.function(solver, cont, *exps)
-  def compile_to_cont(self, operands, compiler):
-    return BuiltinMacroCont(self, operands)
+  def __call__(self, *args):
+    return CommandCall(self, *args)
+  def apply(self, solver, args, signatures):
+    return self.function(solver, *args)
+  def compile_to_cont(self, args, compiler):
+    return BuiltinMacroCont(self, args)
     
 def builtin(klass):
   def builtin(name=None, symbol=None, **kw):

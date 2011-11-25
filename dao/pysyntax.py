@@ -90,7 +90,7 @@ def _lead_element_class(klass):
   return type('Lead'+klass.__name__, klass.__bases__, attrs)
 
 @matcher('syntax_error')
-def syntax_error(solver, cont):
+def syntax_error(solver):
   print dao_repr(_current_form)
   raise DinpySyntaxError()
 
@@ -230,7 +230,7 @@ class FormTraveller(object):
 
 def binary(attr):
   @matcher(names[attr])
-  def func(solver, cont, argument=None): 
+  def func(solver, argument=None): 
     argument = deref(argument, solver.env)
     syntax_result, pos = solver.parse_state
 ##    print  syntax_result, syntax_result[pos][1]
@@ -249,7 +249,7 @@ def binary(attr):
   return func
 
 @matcher('__call__')
-def call(solver, cont, args=None, kwargs=None): 
+def call(solver, args=None, kwargs=None): 
   args = deref(args, solver.env)
   kwargs = deref(kwargs, solver.env)
   syntax_result, pos = solver.parse_state
@@ -273,7 +273,7 @@ def call(solver, cont, args=None, kwargs=None):
 
 def unary(attr):
   @matcher(names[attr])
-  def func(solver, cont): 
+  def func(solver): 
     syntax_result, pos = solver.parse_state
     if pos==len(syntax_result): return
     if syntax_result[pos]!=attr: return

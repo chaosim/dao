@@ -1,5 +1,11 @@
 details of history:
 
+2011-11-24 07:21:54 
+two continuations
+
+2011-11-24 15:21:45 
+compiler
+
 2011-11-21 10:11:28 
 block comment builtin
 
@@ -62,9 +68,9 @@ git* loop-until statement
 
 loop-until statement
 modify:
-  get_label(solver, cont), 
-  push_label(solver, cont, control_struct_type, label), 
-  pop_label(solver, cont, control_struct_type)
+  get_label(solver), 
+  push_label(solver, control_struct_type, label), 
+  pop_label(solver, control_struct_type)
   identifier: don't use keyword as identifier
 
 2011-11-16 22:21:53 
@@ -120,7 +126,7 @@ yesterday, 1+2*3 parse finished, but return no result with var in env.
 
 2011-11-15 20:41:51 
 bug fix: not_p restore solver.parse_state when fail.
-def not_p(solver, cont, call):
+def not_p(solver, call):
   call = deref(call, solver.env)
   parse_state = solver.parse_state
   for c, x in solver.exp_run_cont(call, cont):

@@ -719,7 +719,7 @@ class Rules:
     self.env = env
     self.recursive = recursive
     
-  def apply(self, solver, cont, values, signatures):
+  def apply(self, solver, values, signatures):
     arity = len(values)
     if arity==0:
       rule_list = RuleList(self.arity2rules[0])
@@ -743,7 +743,7 @@ class Rules:
       rule_list.sort()
       rule_list = RuleList([arity2rules[i] for i in rule_list])
     call_data = CallData(self, signatures, self.env, self.recursive)
-    return rule_list.apply(solver, cont, values, call_data)
+    return rule_list.apply(solver, values, call_data)
           
 class UserFunction(Rules,  Function):
   memorable = True
@@ -751,16 +751,19 @@ class UserFunction(Rules,  Function):
   
 class UserMacro(Rules,  Macro):
   memorable = True
-  def apply(self, solver, cont, values, signatures):
+  def apply(self, solver, values, signatures):
+    cont = solver.scont
     @mycont(cont)
     def eval_macro_result_cont(value, solver):
       solver.scont = solver.cont(value, cont)
       return value
-    return Rules.apply(self, solver, eval_macro_result_cont, values, signatures)
+    solver.scont = eval_macro_result_cont
+    return Rules.apply(self, solver, values, signatures)
   def __repr__(self): return 'macro(%s)'%repr(self.arity2rules)
   
 @builtin.predicate('eval')
-def eval_(solver, cont, exp):
+def eval_(solver, exp):
+  cont = solver.scont
   @mycont(cont)
   def eval_cont(value, solver): 
     solver.scont = solver.cont(value, cont)
@@ -821,8 +824,9 @@ class in_module(SpecialForm):
     return solver.exps_cont(self.body, in_module_done_cont)
 
 @builtin.macro('from_', 'from')
-def from_(solver, cont, module, var):  
+def from_(solver, module, var):  
   if isinstance(var, ClosureVar): var = var.var
+  cont = solver.scont
   @mycont(cont)
   def from_module_cont(module, solver):
     solver.scont = cont

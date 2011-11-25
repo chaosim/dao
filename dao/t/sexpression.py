@@ -23,7 +23,7 @@ from dao.t.builtins.globalenv import sexpression as sexpression_module
 _SYMBOL_FORBID_CHARS = '\'`",;.: \r\n\t[]{}()'
 
 @builtin.macro()
-def symbol(solver, cont, result):
+def symbol(solver, result):
   text, pos = solver.parse_state
   if pos>=len(text): return
   char = text[pos]

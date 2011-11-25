@@ -98,31 +98,24 @@ def apply_generators(generators):
 def unify_after_compile(x, y):
   if x==y: yield True
   
-def unify(x, y, env, occurs_check=False):
+def unify(x, y, solver, occurs_check=False):
   try: x_unify = x.unify
   except AttributeError: 
     try: y_unify = y.unify 
     except AttributeError: 
       if (isinstance(x, list) or isinstance(x, tuple))\
           and (isinstance(y, list) or isinstance(y, tuple)):
-        for _ in unify_list(x, y, env, occurs_check):
-          yield True
-      elif x==y: yield True
-      return
-    for _ in y_unify(x, env, occurs_check):
-      yield True
-    return
-  for _ in x_unify(y, env, occurs_check):
-    yield True
+        return unify_list(x, y, solver, occurs_check)
+      else: return x==y
+    return y_unify(x, solver, occurs_check)
+  return x_unify(y, solver, occurs_check)
 
-def unify_list(list1, list2, env, occurs_check=False):
-  '''unify list1 with list2 in env.'''
-  
-  if len(list1)!=len(list2): return
-  
-  for _ in apply_generators(tuple(unify(x, y, env, occurs_check) 
-                            for x, y in zip(list1, list2))):
-    yield True
+def unify_list(list1, list2, solver, occurs_check=False):
+  '''unify list1 with list2 in solver.'''
+  if len(list1)!=len(list2): return False
+  for x, y in zip(list1, list2):
+    if not unify(x, y, solver, occurs_check): return False 
+  return True
     
 def deref(x, env):
   try: x_deref = x.deref

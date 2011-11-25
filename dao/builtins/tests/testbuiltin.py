@@ -33,6 +33,7 @@ class TestControl:
     
   def test_and(self):
     eq_(eval(succeed&succeed), True)
+  def test_and2(self):
     assert_raises(NoSolutionFound, eval, succeed&fail)
     
   def test_not_p(self):

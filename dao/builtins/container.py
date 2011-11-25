@@ -4,7 +4,7 @@ from dao import builtin
 # analysing and construction sequences
 
 @builtin.macro()
-def contain(solver, cont, container, member): 
+def contain(solver, container, member): 
   container = getvalue(container, solver.env, {})
   member = getvalue(member, solver.env, {})
   if isinstance(member, Var):
@@ -15,7 +15,7 @@ def contain(solver, cont, container, member):
     yield cont, True
 
 @builtin.macro()
-def length(solver, cont, sequence, leng):
+def length(solver, sequence, leng):
   sequence = getvalue(sequence, solver.env, {})
   if isinstance(sequence, Var): error.throw_instantiation_error()
   leng = getvalue(leng, solver.env, {})
@@ -34,7 +34,7 @@ def endswith(x, y):
   return x_endswith(y)
 
 @builtin.macro()
-def concat(solver, cont, sequence1, sequence2, result):
+def concat(solver, sequence1, sequence2, result):
   sequence1 = getvalue(sequence1, solver.env, {})
   sequence2 = getvalue(sequence2, solver.env, {})
   result = getvalue(result, solver.env, {})
@@ -135,7 +135,7 @@ class SubSequenceElseContinuation:#(SubSequenceContinuation):
     raise error.UnifyFail()
 
 @builtin.macro()
-def subsequence(solver, cont, sequence, before, length, after, sub):
+def subsequence(solver, sequence, before, length, after, sub):
   sequence = deref(sequence, solver.env)
   before = deref(before, solver.env)
   length = deref(length, solver.env)

@@ -158,7 +158,7 @@ class SymbolForm(object):
 var = lead(SymbolForm)
 
 #@builtin.predicate('getvar')
-#def getvar(solver, cont, name, klass=Var): 
+#def getvar(solver, name, klass=Var): 
   #yield cont, varcache(term.getvalue(name, solver.env, {}), klass)
 @builtin.function('getvar')
 def getvar(name, klass=Var): 

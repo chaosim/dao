@@ -76,7 +76,7 @@ FSM(operation_dict[0].keys()),
 FSM(operation_dict[1].keys())]
 
 @matcher()
-def operator(solver, cont, arity, symbol, prior, assoc, operation): 
+def operator(solver, arity, symbol, prior, assoc, operation): 
   arity = getvalue(arity, solver.env, {})
   symbol = getvalue(symbol, solver.env, {})
   text, pos = solver.parse_state
@@ -122,7 +122,7 @@ def get_operation(symbol, arity):
 operation = builtin.function()(get_operation)
 
 @builtin.function()
-def set_operator(solver, cont, symbol, arity, prior, assoc, operation):
+def set_operator(solver, symbol, arity, prior, assoc, operation):
   op_fsms[arity].add(symbol)
   priority_dict[arity][symbol] = prior
   assoc_dict[arity][symbol] = prior

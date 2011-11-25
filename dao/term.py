@@ -31,7 +31,7 @@ def unify_rule_head(value, head, solver, subst):
         old_fcont = solver.fcont
         def fcont(value, solver):
           env.bindings[var] = old
-          solver.fcont = old_fcont
+          solver.scont = old_fcont
         solver.fcont = fcont
         return True
       except:
@@ -39,7 +39,7 @@ def unify_rule_head(value, head, solver, subst):
         old_fcont = solver.fcont
         def fcont(value, solver):
           del env.bindings[var]
-          solver.fcont = old_fcont
+          solver.scont = old_fcont
         solver.fcont = fcont
         return True
   else:
@@ -90,11 +90,12 @@ class Command(BaseCommand):
   def __call__(self, *args):
     return CommandCall(self, *args)
   
-  def run(self, solver, cont, values):
+  def run(self, solver, values):
+    cont = solver.scont
     signatures = rule_head_signatures(values)
     
     if 1:#solver.parse_state is None or not self.memorable:
-      return self.apply(solver, cont, values, signatures)
+      return self.apply(solver, values, signatures)
       
     #sign_state  = ((self, signatures), hash_parse_state(solver.parse_state))
     #sign_state2cont = solver.sign_state2cont.setdefault(sign_state, [])
@@ -178,27 +179,34 @@ class Var(Command):
   
   def match(self, other): return True
         
-  def unify(self, other, env, occurs_check=False):
+  def unify(self, other, solver, occurs_check=False):
+    env = solver.env
     self = self.deref(env)
     other = deref(other, env)
     if isinstance(self, Var):
       if isinstance(other, Var) and other is self: 
-        yield True
-        return
-      if occurs_check and contain_var(other, self):return
+        return True
+      if occurs_check and contain_var(other, self): return False
       self.setvalue(other, env)
-      yield True
-      try: del env.bindings[self] # for DummyVar
-      except: pass
+      old_fcont = solver.fcont
+      def fcont(value, solver):
+        try: del env.bindings[self] # for DummyVar
+        except: pass
+        solver.scont = old_fcont
+      solver.fcont = fcont
+      return True
     elif isinstance(other, Var):
       if occurs_check and contain_var(self, other): return
       other.setvalue(self, env)
-      yield True
-      try: del env.bindings[other] # for DummyVar
-      except: pass
+      old_fcont = solver.fcont
+      def fcont(value, solver):
+        try: del env.bindings[other] # for DummyVar
+        except: pass
+        solver.scont = old_fcont
+      solver.fcont = fcont
+      return True
     else:
-      for result in unify(self, other, env, occurs_check):
-        yield True
+      return unify(self, other, solver, occurs_check)
       
   def unify_rule_head(self, head, solver, subst):
     subst[self] = copy_rule_head(head, solver.env)
@@ -320,8 +328,8 @@ class NullVar(Var):
   def unify_rule_head(self, head, env, subst):
     yield True
       
-  def unify(self, other, env, occurs_check=False):
-    yield True
+  def unify(self, other, solver, occurs_check=False):
+    return True
     
   def deref(self, env): return self
   
@@ -351,8 +359,8 @@ class ClosureVar(Var):
     self.var, self.value = var, value
     self.name = var.name
   
-  def unify(self, other, env, occurs_check=False):
-    return unify(self.value, other, env, occurs_check)
+  def unify(self, other, solver, occurs_check=False):
+    return unify(self.value, other, solver, occurs_check)
 
   def deref(self, env): return self
   
@@ -430,7 +438,8 @@ class CommandCall(Command):
   
 class Function(Command):
   memorable = True
-  def evaluate_arguments(self, solver, cont, exps):
+  def evaluate_arguments(self, solver, exps):
+    cont = solver.scont
     if len(exps)==0: 
       solver.scont = cont
       return ()
@@ -441,7 +450,8 @@ class Function(Command):
         def gather_cont(values, solver):
             solver.scont = cont
             return (value,)+values
-        return self.evaluate_arguments(solver, gather_cont, exps[1:])
+        solver.scont = gather_cont
+        return self.evaluate_arguments(solver, exps[1:])
       # don't pass value by DummyVar
       # see sample: some(statement(_stmt), _stmt, stmt_list)
       if isinstance(exps[0] , DummyVar): 
@@ -451,19 +461,22 @@ class Function(Command):
         solver.scont = solver.cont(exps[0], argument_cont)
         return True
   
-  def evaluate_cont(self, solver, cont, exps):
+  def evaluate_cont(self, solver, exps):
+    cont = solver.scont
     @mycont(cont)
     def apply_cont(values, solver): 
-      return self.run(solver, cont, values)
-    return self.evaluate_arguments(solver, apply_cont, exps)
+      solver.scont = cont
+      return self.run(solver, values)
+    solver.scont = apply_cont
+    return self.evaluate_arguments(solver, exps)
 
 class Macro(Command): 
   
   memorable = True
   
-  def evaluate_cont(self, solver, cont, exps):
+  def evaluate_cont(self, solver, exps):
     exps1 = [(closure(exp, solver.env)) for exp in exps]
-    return self.run(solver, cont, exps1)
+    return self.run(solver, exps1)
 
 # ----------------------------------
 # Cons, cons, Nil, nil, conslist, cons2tuple
@@ -472,15 +485,13 @@ class Cons:
   def __init__(self, head, tail):
     self.head, self.tail = head, tail
     
-  def unify(self, other, env, occurs_check=False):
+  def unify(self, other, solver, occurs_check=False):
     if isinstance(other, Var): 
-      for x in other.unify(self, env, occurs_check):
-        yield True
+      return other.unify(self, solver, occurs_check)
     else:
-      if self.__class__!=other.__class__: return
-      for x in unify(self.head, other.head, env, occurs_check):
-        for y in unify(self.tail, other.tail, env, occurs_check):
-          yield True
+      if self.__class__!=other.__class__: return False
+      return unify(self.head, other.head, env, occurs_check) and\
+             unify(self.tail, other.tail, env, occurs_check)
 
   def match(self, other):
     if self.__class__!=other.__class__: return False

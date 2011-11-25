@@ -14,7 +14,7 @@ def set_parse_state(parse_state):
   yield solver.parse_state
   current_parse_state = old_parse_state
   
-def set_sequence(solver, cont, text):
+def set_sequence(solver, text):
   parse_state = solver.parse_state
   sign_state2cont = solver.sign_state2cont
   sign_state2results = solver.sign_state2results
@@ -30,7 +30,7 @@ set_text = set_sequence
 
 @builtin.nomemo
 @builtin.macro()
-def parse(solver, cont, predicate, parse_state):
+def parse(solver, predicate, parse_state):
   old_parse_state = solver.parse_state
   sign_state2cont = solver.sign_state2cont
   sign_state2results = solver.sign_state2results
@@ -59,22 +59,22 @@ def parse_sequence(pred, sequence):
 parse_text = parse_sequence
   
 @matcher()
-def get_parse_state(solver, cont):
+def get_parse_state(solver):
   yield cont, solver.parse_state
 
 @matcher()
-def unify_parse_state(solver, cont, parse_state):
+def unify_parse_state(solver, parse_state):
   for _ in unify(parse_state, solver.parse_state, solver.env):
     yield cont, solver.parse_state
 
 @matcher()
-def get_parse_sequence(solver, cont):
+def get_parse_sequence(solver):
   yield cont, solver.parse_state[0]
 
 get_parse_text = get_parse_sequence
 
 @matcher()
-def unify_parse_sequence(solver, cont, sequence):
+def unify_parse_sequence(solver, sequence):
   for _ in unify(sequence, solver.parse_state[0], solver.env):
     yield cont, solver.parse_state[0]
 unify_parse_text = unify_parse_sequence
@@ -103,14 +103,14 @@ def pos_(parse_state):
   return parse_state[1]
 
 @matcher()
-def step(solver, cont, n=1): # return current element before step
+def step(solver, n=1): # return current element before step
   text, pos = solver.parse_state
   solver.parse_state = text, pos+n
   yield cont, text[pos]
   solver.parse_state = text, pos
 
 @matcher()
-def skip(solver, cont, n=1): # return element after skip
+def skip(solver, n=1): # return element after skip
   text, pos = solver.parse_state
   solver.parse_state = text, pos+n
   if pos+n<len(text): yield cont, text[pos+n]
@@ -118,29 +118,29 @@ def skip(solver, cont, n=1): # return element after skip
   solver.parse_state = text, pos
 
 @matcher()
-def left(solver, cont, length=None):
+def left(solver, length=None):
   text, pos = solver.parse_state
   yield cont, text[pos:pos+length if length is not None else None]
 
 @builtin.nomemo
 @matcher()
-def next_element(solver, cont): 
+def next_element(solver): 
   text, pos = solver.parse_state
   yield cont, text[pos]
 next_char = next_element
 
 @matcher()
-def position(solver, cont): 
+def position(solver): 
   yield cont, solver.parse_state[1]
 
 @matcher()
-def sub_sequence(solver, cont, start, end): 
+def sub_sequence(solver, start, end): 
   yield cont, solver.parse_state[0][start:end]
 
 subtext = sub_sequence
 
 @matcher()
-def goto(solver, cont, position):
+def goto(solver, position):
   text, pos = solver.parse_state
   solver.parse_state = text, position
   yield cont, text[position:]

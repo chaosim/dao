@@ -75,6 +75,13 @@ def mycont(cont):
 @mycont(NoSolutionFound)
 def done(value, solver): return value
 
+@tag_lookup(done_lookup)
+@tag_unwind(done_unwind)
+@mycont(NoSolutionFound)
+def fail_done(value, solver): 
+  solver.failed = True
+  return value
+
 def value_cont(exp, cont):
   @mycont(cont)
   def value_cont(value, solver):
@@ -208,9 +215,11 @@ class Solver:
   def __init__(self, global_env, env, parse_state, stop_cont):
     self.global_env = global_env
     self.env = env
-    self.fcont = self.scont = self.stop_cont = stop_cont
+    self.scont = self.stop_cont = stop_cont
+    self.fcont = self.fail_stop = fail_done
     self.parse_state = parse_state
     self.solved = False
+    self.failed = False
     
     # used for chart parsing, from bottom to up parsing
     # left recursive is permmited
@@ -251,11 +260,11 @@ class Solver:
     self.scont = cont
     while 1:
       value  = self.scont(value, self)
+      if self.failed: return
       if self.solved or self.scont is stop_cont: 
         env, parse_state = self1.env, self1.parse_state
         self1.env, self1.parse_state = self.env, self.parse_state
         yield self.scont, value
-        if self.fcont is stop_cont: return
         self.scont = self.fcont
 
   def cont(self, exp, cont): 
@@ -266,7 +275,8 @@ class Solver:
       else:
         @mycont(cont)
         def evaluate_cont(op, solver): 
-          return op.evaluate_cont(solver, cont, exp[1:])
+          solver.scont = cont
+          return op.evaluate_cont(solver, exp[1:])
         return self.cont(exp[0], evaluate_cont)
     else:
       if is_subclass(exp, object):

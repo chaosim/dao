@@ -123,7 +123,7 @@ def abs(x): return operator.abs(x)
 def invert(x): return operator.invert(x)
 
 @builtin.predicate()
-def between(solver, cont, *exps):
+def between(solver, *exps):
   lower, upper, mid = exps
   lower = deref(lower, solver.env)
   if isinstance(lower, Var): error.throw_instantiation_error()
@@ -131,22 +131,34 @@ def between(solver, cont, *exps):
   if isinstance(upper, Var): error.throw_instantiation_error()
   mid = deref(mid, solver.env)
   if not isinstance(mid, Var):
-    if lower<=mid<=upper: yield cont, True
-    else: return
-  for x in range(lower, upper+1):
-    for y in mid.unify(x, solver.env): yield cont, True
+    if lower<=mid<=upper: return True
+    else: solver.scont = solver.fcont
+  result = (x for x in range(lower, upper+1))
+  old_fcont = solver.fcont
+  cont = solver.scont
+  def fcont(value, self):
+    try: x = result.next()
+    except StopIteration:
+      solver.scont = old_fcont
+      return
+    if mid.unify(x, solver): 
+      solver.scont = cont
+      return True
+  solver.scont= solver.fcont = fcont
+    
 
 @builtin.predicate('equal', '=!')
-def equal(solver, cont, left, right):
+def equal(solver, left, right):
   if deref(left, solver.env)==deref(right, solver.env): 
-    yield cont, True
+    return True
+  else:
+    solver.scont = solver.fcont
 
 def arith_predicate(binary, name, symbol):
   @builtin.predicate(name, symbol)
-  def pred(solver, cont, value0, value1):
-    if binary(value0, 
-                value1):
-      yield cont, True
+  def pred(solver, value0, value1):
+    if binary(value0, value1): return True
+    else: solver.scont = solver.fcont
   return pred
 
 eq_p = arith_predicate(operator.eq, 'eq_p', '==!')

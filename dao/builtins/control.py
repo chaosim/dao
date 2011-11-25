@@ -10,97 +10,101 @@ from dao.solve import DaoError
 # call with current continuation
 
 class ContinuationFunction(Builtin, Function):
-  def apply(self, solver, cont, values, signatures):
-    solver.scont = cont
+  def apply(self, solver, values, signatures):
     return self.function(values, solver)
       
 @builtin.macro('callcc', 'call/cc')
-def callcc(solver, cont, fun):
+def callcc(solver, fun):
   ''' call with current continuation '''
-  solver.scont = solver.cont((fun, ContinuationFunction(cont, '', '', False)), cont)
+  solver.scont = solver.cont((fun, ContinuationFunction(solver.cont, '', '', False)), solver.scont)
   return fun
 
 # finding all solutions to a goal
 
 @builtin.macro()
-def findall(solver, cont, goal, template=None, bag=None):
+def findall(solver, goal, template=None, bag=None):
   goal = deref(goal, solver.env)
   if bag is not None:
     result = []
-    for c, x in solver.exp_run_cont(goal, cont):
+    for c, x in solver.exp_run_cont(goal, solver.scont):
       result.append(getvalue(template, solver.env, {}))
-    for x in bag.unify(result, solver.env):
-      yield cont, True
+    return unify(bag, result, solver)
   else:
-    for c, x in solver.exp_run_cont(goal, cont):
+    for c, x in solver.exp_run_cont(goal, solver.scont):
       pass
-    yield cont, True
+    return True
     
 # meta call predicates
 
 @builtin.macro()
-def call(solver, cont, pred): 
-  yield solver.cont(getvalue(pred, solver.env, {}), cont), True
+def call(solver, pred): 
+  solver.scont = solver.cont(getvalue(pred, solver.env, {}), solver.scont)
+  return True
 
 @builtin.macro()
-def once(solver, cont, pred):
-  for c, x in solver.exp_run_cont(getvalue(pred, solver.env, {}), cont):
-    yield c, x
-    return
+def once(solver, pred):
+  for c, x in solver.exp_run_cont(getvalue(pred, solver.env, {}), solver.scont):
+    solver.scont = c
+    return x
 
 @builtin.function('succeed')
 def error(*args): 
   raise DaoError(' '.join([repr(x) for x in args]))
 
 @builtin.macro('succeed')
-def Succeed(solver, cont): 
-  yield cont, True
+def Succeed(solver): 
+  return True
 succeed = Succeed()
 
 #Succeed.compile_to_cont 
 
 @builtin.macro('fail')
-def Fail(solver, cont):  
-  if 0: yield cont, True
-  return
+def Fail(solver):  
+  solver.scont = solver.fcont
 fail = Fail()
 
 @builtin.macro()
-def Repeat(solver, cont):
+def Repeat(solver):
+  cont = solver.scont
   @mycont(cont)
   def repeat_cont(value, solver):
-    while 1: 
-      yield cont, True
+    solver.scont = cont
+    return True
 ##  repeat_cont.cut = True
-  yield repeat_cont, True
+  solver.scont = solver.fcont = repeat_cont
+  return True
 
 repeat = Repeat()
   
 @builtin.macro('cut', '!')
-def Cut(solver, cont):
+def Cut(solver):
   yield cont, True
   raise CutException
 cut = Cut()
 
 @builtin.macro('and_p', '&!')
-def and_p(solver, cont, *calls):
+def and_p(solver, *calls):
+  cont = solver.scont
   if len(calls)==0:  
-    yield value_cont(None, cont), True
+    solver.scont = value_cont(None, cont)
+    return True
   if len(calls)==1:
-    yield solver.cont(calls[0], cont), True
+    solver.scont = solver.cont(calls[0], cont)
+    return True
   else:
     @mycont(cont)
     def and_cont(value, solver): 
-      yield solver.cont(calls[-1], cont), value
-    if len(calls)==2: 
-      yield solver.cont(calls[0], and_cont), True
-    else: 
-      yield solver.exps_cont(calls[:-1], and_cont), True
+      solver.scont = solver.exps_cont(calls[1:], cont)
+      return value
+    solver.scont = solver.cont(calls[0], and_cont)
+    return True
     
 @builtin.macro('or_p', '|!')
-def or_p(solver, cont, *calls):
+def or_p(solver, *calls):
+  cont = solver.scont
   if len(calls)==0:  
-    yield value_cont(None, cont), True
+    solver.scont = value_cont(None, cont)
+    return True
   call0 = deref(calls[0], solver.env)
   if call0[0]==if_p: # A -> B; C
     if_clause = deref(call0[1], solver.env)
@@ -109,44 +113,54 @@ def or_p(solver, cont, *calls):
   #@mycont(cont)
   #def or_cont(value, solver):  
   env = solver.env
-  yield solver.cont(call0, cont), True
-  solver.env = env
-  if len(calls[1:])==1:
-    yield solver.cont(calls[1], cont), True
-  else:
-    yield solver.cont((or_p, )+calls[1:], cont), True
-  #solver.env = env
+  old_fcont = solver.fcont
+  def fcont(value, solver):
+    solver.fcont = old_fcont
+    solver.env = env
+    if len(calls[1:])==1:
+      solver.scont = solver.cont(calls[1], cont)
+      return True
+    else:
+      solver.scont = solver.cont((or_p, )+calls[1:], cont)
+      return True
+    #solver.env = env
+  solver.fcont = fcont
+  solver.scont = solver.cont(call0, cont)
+  return True
   #yield or_cont, True
   #or_cont.cut = True
   
-
 @builtin.macro('first_p', 'first!')
-def first_p(solver, cont, *calls):
-  solved = False
+def first_p(solver, *calls):
+  cont = solver.scont
   for call in calls:
     for c, value in solver.exp_run_cont(call, cont):
-      solved = True
-      yield c, value
-    if solved: return
+      solver.scont = c
+      return value
 
 @builtin.macro('if_p', '->')  
-def if_p(solver, cont, if_clause, then_clause):
+def if_p(solver, if_clause, then_clause):
   # This unusual semantics is part of the ISO and all de-facto Prolog standards.
   # see SWI-Prolog help.
+  cont = solver.scont
   if_clause = deref(if_clause, solver.env)
   then_clause = deref(then_clause, solver.env)
   @mycont(cont)
   def if_p_cont(value, solver):
-##    if not value: return # important! logic predicate if_p decide whether to continue by the fail or succeed of the condition.
-    yield solver.cont(then_clause, cont), True
-  yield solver.cont(if_clause, if_p_cont), True
+    # if not value: return !!! It's is necessary to comment this line
+    # important! logic predicate if_p decide whether to continue 
+    # by the fail or succeed of the condition.
+    solver.scont = solver.cont(then_clause, cont)
+    return True
+  solver.scont = solver.cont(if_clause, if_p_cont)
+  return True
 
 @builtin.macro('not_p', 'not_p')  
-def not_p(solver, cont, call):
+def not_p(solver, call):
   call = deref(call, solver.env)
   parse_state = solver.parse_state
-  for c, x in solver.exp_run_cont(call, cont):
+  for c, x in solver.exp_run_cont(call, solver.scont):
     solver.parse_state = parse_state
-    return
-  #solver.parse_state = parse_state
-  yield cont, True
+    solver.scont = solver.fcont
+    return False
+  return True
