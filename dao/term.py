@@ -495,8 +495,8 @@ class Cons:
       return other.unify(self, solver, occurs_check)
     else:
       if self.__class__!=other.__class__: return False
-      return unify(self.head, other.head, env, occurs_check) and\
-             unify(self.tail, other.tail, env, occurs_check)
+      return unify(self.head, other.head, solver, occurs_check) and\
+             unify(self.tail, other.tail, solver, occurs_check)
 
   def match(self, other):
     if self.__class__!=other.__class__: return False

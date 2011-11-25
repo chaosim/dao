@@ -44,7 +44,7 @@ class Rule(object):
         solver.parse_state = parse_state
         solver.env = caller_env
         solver.call_path = call_path
-        solver.fcont = old_fcont
+        solver.scont = old_fcont
       solver.fcont = fcont
       solver.scont = cont
       return value

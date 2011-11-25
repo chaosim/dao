@@ -1,5 +1,17 @@
 details of history:
 
+2011-11-25 11:15:48 
+fix bug: Rule.apply
+      def fcont(value, solver):
+          ...
+          solver.|fcont ---> scont| = old_fcont
+
+2011-11-25 10:59:25 
+modify builtins\term.py for two continuations
+
+2011-11-25 10:21:48 
+git* fix two bugs in RuleList.apply and callcc
+
 2011-11-25 10:16:50 
 fix bug in callcc: AttributeError cont.order
 def callcc(solver, fun):
@@ -15,8 +27,26 @@ fix bug: in RuleList.apply:
   +++    solver.scont = cont
         ...
 
+2011-11-25 09:10:03 
+git* builtins\control.py, builtins\arith.py pass tests, refactor builtin's signature to remove argument cont
+
+builtins\control.py, builtins\arith.py is modified for double continuations
+refactor builtin's signature, the_builtin(solver, cont, ...) becomes the_builtin.py(solver, ...)
+unify, unify_list is ready for double continuations
+fix a bug in some fconts: solver.scont = old_fcont; instead of solver.fcont = old_fcont
+
 2011-11-25 09:30:10 
 fix bug: def fcont and cont.order
+
+2011-11-24 11:24:00 
+git* all tests in testeval.py except testcut passed.
+
+pytry. eachform, loop form pass tests.
+
+2011-11-24 20:10 
+git* use double continuations, pass many tests
+
+use double continuations, pass many tests: integer, begin, quote, set, eval_, if_, let, letr, function, builtin.function, builtin.predicate, and so on.
 
 2011-11-24 07:21:54 
 two continuations

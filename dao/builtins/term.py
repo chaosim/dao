@@ -7,13 +7,13 @@ from dao.solve import mycont
 
 @builtin.macro()
 def getvalue(solver, item):
-  yield cont, term.getvalue(item, solver.env, {})
+  return term.getvalue(item, solver.env, {})
   
 @builtin.macro('getvalue_default', 'getvalue@')
 def getvalue_default(solver, item, default=None):
   value = term.getvalue(item, solver.env, {})
   if isinstance(value, Var): value = default
-  yield cont, value
+  return value
   
 def is_ground(term):
   if isinstance(term, Var): return False
@@ -24,11 +24,12 @@ def is_ground(term):
   
 @builtin.macro('ground')
 def ground(solver, item):
-  yield cont, is_ground(term.getvalue(item, solver.env, {}))
+  return is_ground(term.getvalue(item, solver.env, {}))
   
 @builtin.macro('ground_p', 'ground!')
 def ground_p(solver, item):
-  if is_ground(term.getvalue(item, solver.env, {})): yield cont, True
+  if is_ground(term.getvalue(item, solver.env, {})): return True
+  else: solver.scont = solver.fcont
   
 @builtin.macro()
 def setvalue(solver, var, value):
@@ -40,9 +41,16 @@ def setvalue(solver, var, value):
   def setvalue_cont(value, solver):
     old = var.getvalue(solver.env, {})
     var.setvalue(value, solver.env)
-    yield cont, True
-    var.setvalue(old, solver.env)
-  yield solver.cont(value, setvalue_cont), True
+    solver.scont = cont
+    old_fcont = solver.fcont
+    @mycont(old_fcont)
+    def fcont(value, solver):
+      var.setvalue(old, solver.env)
+      solver.scont = old_fcont
+    solver.fcont = fcont
+    return True
+  solver.scont = solver.cont(value, setvalue_cont)
+  return True
 
 @builtin.macro('is', '<-')
 def is_(solver, var, func):
@@ -95,12 +103,23 @@ def define_outer(solver, var, value):
     bindings = solver.env.outer.bindings
     try:
       old = bindings[var]
-      yield cont, value
-      binsings[old] = value
+      old_fcon = solver.fcont
+      @mycont(old_fcon)
+      def fcont(value, solver):
+        bindings[var] = old
+        solver.fcont = old_fcon
+      solver.fcont = fcont
+      solver.scont = cont
+      return value
     except:
-      bindings[var] = value
-      yield cont, value
-      del bindings[var]
+      old_fcon = solver.fcont
+      @mycont(old_fcon)
+      def fcont(value, solver):
+        del bindings[old]
+        solver.fcont = old_fcon
+      solver.fcont = fcont
+      solver.scont = cont
+      return value
   yield solver.cont(value, define_cont), True
 
 @builtin.macro()
@@ -112,81 +131,97 @@ def define_global(solver, var, value):
     bindings = solver.global_env.bindings
     try:
       old = bindings[var]
-      yield cont, value
-      binsings[old] = value
+      old_fcon = solver.fcont
+      @mycont(old_fcon)
+      def fcont(value, solver):
+        bindings[var] = old
+        solver.fcont = old_fcon
+      solver.fcont = fcont
+      solver.scont = cont
+      return value
     except:
-      bindings[var] = value
-      yield cont, value
-      del bindings[var]
-  yield solver.cont(value, define_cont), True
+      old_fcon = solver.fcont
+      @mycont(old_fcon)
+      def fcont(value, solver):
+        del bindings[old]
+        solver.fcont = old_fcon
+      solver.fcont = fcont
+      solver.scont = cont
+      return value
+  solver.scont = solver.cont(value, define_cont)
+  return True
 
 @builtin.macro()
 def copy_term(solver, item, copy):
-  for _ in term.unify(copy, term.copy(item, {}), solver.env):
-    yield cont, True
+  return term.unify(copy, term.copy(item, {}), solver)
  
 # comparison and unification of terms
 
 @builtin.macro('unify', '=:=')
 def unify(solver, v0, v1):
-  for _ in term.unify(v0, v1, solver.env): 
-    yield cont, True
+  return term.unify(v0, v1, solver)
 
 @builtin.macro('unify_with_occurs_check')
 def unify_with_occurs_check(solver, v0, v1):
-  for _ in term.unify(v0, v1, solver.env, occurs_check=True): 
-    yield cont, True
+  return term.unify(v0, v1, solver.env, occurs_check=True)
 
 @builtin.macro('notunify', '=\=')
 def notunify(solver, var0, var1):
-  for _ in term.unify(var0, var1, solver.env): 
-    return
-  else: yield cont, True
+  fcont = solver.fcont
+  scont = solver.scont
+  if term.unify(var0, var1, solver.env): 
+    solver.scont = fcont
+    return False
+  else: 
+    solver.scont = scont
+    return True
   
 # type verifications
 
 @builtin.macro('var')
 def isvar(solver, arg):
-  yield cont, isinstance(arg, Var)
+  return isinstance(arg, Var)
 
 @builtin.macro('var', 'var!')
 def isvar_p(solver, arg):
-  if isinstance(arg, Var): yield cont, True
+  if isinstance(arg, Var): return True
+  else: solver.scont = solver.fcont
 
 @builtin.macro('nonvar')
 def nonvar(solver, arg):  
-  yield cont, not isinstance(arg, Var)
+  return not isinstance(arg, Var)
 
 @builtin.macro('nonvar', 'nonvar!')
 def nonvar_p(solver, arg):  
-  if not isinstance(arg, Var): yield cont, True
-
+  if not isinstance(arg, Var): return True
+  else: solver.scont = solver.fcont
+  
 def is_free(var, env):
   if isinstance(var, ClosureVar): var = var.var
   return isinstance(deref(var, env), Var)
   
 @builtin.macro('free')
 def free(solver, arg):
-  yield cont, is_free(arg, solver.env)
+  return is_free(arg, solver.env)
 
 @builtin.macro('free_p', 'free!')
 def free_p(solver, arg):
-  if is_free(arg, solver.env):
-    yield cont, True
+  if is_free(arg, solver.env): return True
+  else: solver.scont = solver.fcont
 
 @builtin.macro('bound')
 def bound(solver, var):
   assert(isinstance(var, Var))
   if isinstance(var, ClosureVar): var = var.var
-  yield cont, solver.env[var] is not var
+  return solver.env[var] is not var
   
 @builtin.macro('bound_p', 'bound!')
 def bound_p(solver, var):
   assert(isinstance(var, Var))
   if isinstance(var, ClosureVar): var = var.var
-  if solver.env[var] is not var:
-    yield cont, True
-  
+  if solver.env[var] is not var: return True
+  else: solver.scont = solver.fcont
+    
 @builtin.macro('unbind')
 def unbind(solver, var):
   if isinstance(var, ClosureVar): var = var.var
@@ -199,36 +234,44 @@ def unbind(solver, var):
     env = env.outer
   for b, _ in bindings:
     del b[var]
-  yield cont, True
-  for b, v in bindings:
-    b[var] = v
+  old_fcont = solver.fcont
+  @mycont(old_fcont)
+  def fcont(value, solver):
+    for b, v in bindings:
+      b[var] = v
+    solver.scont = old_fcont
+  solver.fcont = fcont
+  return True
   
 @builtin.macro('isinteger', 'isinteger!')
 def isinteger(solver, arg):
-  yield cont, isinstance(getvalue(arg, env, {}), int)
+ return isinstance(getvalue(arg, env, {}), int)
 
 @builtin.macro('isinteger_p', 'isinteger!')
 def isinteger_p(solver, arg):
-  if isinstance(getvalue(arg, env, {}), int): yield cont, True
+  if isinstance(getvalue(arg, env, {}), int): return True
+  else: solver.scont = solver.fcont
 
 @builtin.macro('isfloat', 'isfloat')
 def isfloat(solver, arg):
-  yield cont, isinstance(getvalue(arg, env, {}), float)
+  return isinstance(getvalue(arg, env, {}), float)
 
 @builtin.macro('isfloat_p', 'isfloat!')
 def isfloat_p(solver, arg):
-  if isinstance(getvalue(arg, env, {}), float): yield cont, True
+  if isinstance(getvalue(arg, env, {}), float): return True
+  else: solver.scont = solver.fcont
 
 @builtin.macro('isnumber', 'isnumber')
 def isnumber(solver, arg):
-  yield cont, isinstance(getvalue(arg, env, {}), int) \
+  return isinstance(getvalue(arg, env, {}), int) \
               or isinstance(getvalue(arg, env, {}), float)
 
 @builtin.macro('isnumber_p', 'isnumber!')
 def isnumber_p(solver, arg):
   if isinstance(getvalue(arg, env, {}), int) \
      or isinstance(getvalue(arg, env, {}), float): 
-    yield cont, True
+    return True
+  else: solver.scont = solver.fcont
 
 @builtin.function('istuple?')
 def istuple(x):  return isinstance(x, tuple)
@@ -236,13 +279,14 @@ def istuple(x):  return isinstance(x, tuple)
 @builtin.function('islist?')
 def islist(x): return isinstance(x, list)
 
-@builtin.macro('iscons')
-def iscons(solver, arg):
-  if isinstance(getvalue(arg, env, {}), Cons): yield cont, True
-
 @builtin.macro('iscons_p', 'iscons!')
 def iscons_p(solver, arg):
-  if isinstance(getvalue(arg, env, {}), Cons): yield cont, True
+  if isinstance(getvalue(arg, env, {}), Cons): return True
+  else: solver.scont = solver.fcont
+
+@builtin.macro('iscons')
+def iscons2(solver, arg):
+  return isinstance(arg, Cons)
 
 @builtin.function('cons_f', 'iscons?')
 def is_cons(x): return isinstance(x, Cons)

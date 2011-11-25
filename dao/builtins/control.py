@@ -2,7 +2,7 @@ from dao.term import Var, deref, CommandCall, getvalue
 from dao import builtin
 from dao.solve import CutException, mycont
 from dao.builtin import Builtin, Function
-from dao.term import CommandCall
+from dao.term import CommandCall, unify
 from dao.solve import DaoError
 
 # control predicates
