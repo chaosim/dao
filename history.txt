@@ -1,5 +1,33 @@
 details of history:
 
+2011-11-25 14:08:57 
+git* builtins\quasiquote.py and container.py for two continuations
+
+2011-11-25 14:02:01 
+builtins\quasiquote.py for two conitinuations passed tests
+
+2011-11-25 13:39:21 
+modify builtins\quasiquote.py for two conitinuations
+
+2011-11-25 13:35:41 
+modify builtins\container.py for two conitinuations
+pass tests
+
+2011-11-25 11:26:04 
+modify builtins\container.py for two continuations
+remove deprecated SubSequenceUEntitySubContinuation, SubSequenceVarAfterContinuation, SubSequenceElseContinuation
+In subsequence:
+  if ...: return 
+  --->
+    if...: 
+      solver.scont = solver.fcont
+      return
+
+        for _ in unify...:
+          for _ in unify...:
+            yield cont, ...
+   ---> return unify ... and unify ...
+
 2011-11-25 11:15:48 
 fix bug: Rule.apply
       def fcont(value, solver):
