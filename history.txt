@@ -1,7 +1,10 @@
 details of history:
 
+2011-11-25 17:05:33 
+another cut: CutOr, only cut Or
+
 2011-11-25 16:38:59 
-redo cut feature use method similar to pypy prolog; tests passed.
+git* redo cut feature use method similar to pypy prolog; tests passed.
 def Cut(solver):
   def fcont(value, solver):
      while...p:

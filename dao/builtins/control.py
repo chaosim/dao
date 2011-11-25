@@ -89,7 +89,25 @@ def Cut(solver):
         continue
       solver.scont = cont.cont
       return
-    solver.scont = cont
+    solver.scont = old_fcont
+  solver.fcont = fcont     
+  return True
+cut = Cut()
+
+@builtin.macro('cut_or', '!!')
+def CutOr(solver):
+  old_fcont = solver.fcont
+  @mycont(old_fcont)
+  def fcont(value, solver):
+    cont = old_fcont
+    while cont is not solver.stop_cont and cont is not solver.fail_stop:
+      try: cont.cut_or
+      except: 
+        cont = cont.cont
+        continue
+      solver.scont = cont.cont
+      return
+    solver.scont = old_fcont
   solver.fcont = fcont     
   return True
 cut = Cut()
@@ -122,13 +140,16 @@ def or_p(solver, *calls):
     if_clause = deref(call0[1], solver.env)
     then_clause = deref(call0[2], solver.env)
     call0 = (and_p, if_clause, (Cut, ), then_clause)
-  #@mycont(cont)
-  #def or_cont(value, solver):  
-  env = solver.env
   old_fcont = solver.fcont
   @mycont(old_fcont)
-  def fcont(value, solver):
-    solver.fcont = old_fcont
+  def or_cut_cont(value, solver):
+    solver.scont = old_fcont
+  or_cut_cont.cut_or = True
+  solver.fcont = or_cut_cont
+  env = solver.env
+  @mycont(or_cut_cont)
+  def or_fcont(value, solver):
+    solver.fcont = or_cut_cont
     solver.env = env
     if len(calls[1:])==1:
       solver.scont = solver.cont(calls[1], cont)
@@ -136,12 +157,9 @@ def or_p(solver, *calls):
     else:
       solver.scont = solver.cont((or_p, )+calls[1:], cont)
       return True
-    #solver.env = env
-  solver.fcont = fcont
+  solver.fcont = or_fcont
   solver.scont = solver.cont(call0, cont)
   return True
-  #yield or_cont, True
-  #or_cont.cut = True
   
 @builtin.macro('first_p', 'first!')
 def first_p(solver, *calls):
