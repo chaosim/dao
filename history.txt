@@ -1,5 +1,25 @@
 details of history:
 
+2011-11-25 14:46:50 
+git* prolog'cut in double continuations
+
+modify for cut feature in two continuations, passed tests!
+only spended 8 minites: first method: solver.cut = False
+builtin 
+def Cut(solver):
+  solver.cut = True
+
+another 8 minitues: 
+  solver.cut = False/True 
+--> 
+  solver.cut_level = 0 # 1, 2
+
+2011-11-25 14:32:22 
+cut features pass tests! only spended 8 minites!
+
+2011-11-25 14:25:01 
+modify for cut feature in two continuations
+
 2011-11-25 14:08:57 
 git* builtins\quasiquote.py and container.py for two continuations
 

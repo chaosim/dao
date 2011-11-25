@@ -78,8 +78,8 @@ repeat = Repeat()
   
 @builtin.macro('cut', '!')
 def Cut(solver):
-  yield cont, True
-  raise CutException
+  solver.cut_level += 1
+  return True
 cut = Cut()
 
 @builtin.macro('and_p', '&!')

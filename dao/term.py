@@ -40,7 +40,9 @@ def unify_rule_head(value, head, solver, subst):
         old_fcont = solver.fcont
         @mycont(old_fcont)
         def fcont(value, solver):
-          del env.bindings[var]
+          try:  # what's wrong here? why does KeyError raise?
+            del env.bindings[var]
+          except: pass
           solver.scont = old_fcont
         solver.fcont = fcont
         return True

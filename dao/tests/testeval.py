@@ -145,7 +145,7 @@ class Test_letr:
                     (even, lambda_([n], if_(eq(n,0), 1, odd(sub(n, 1)))))],
                   odd(3))), 1)
 
-class xTestCut:
+class TestCut:
   #http://en.wikibooks.org/wiki/Prolog/Cuts_and_Negatio
   def testCut1(self):
     a, b, c, x = Var('a'), Var('b'), Var('c'), Var('x'), 

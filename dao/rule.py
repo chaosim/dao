@@ -109,7 +109,11 @@ class RuleList(list):
       @mycont(old_fcont)
       def fcont(value, solver):
         solver.scont = cont
-        return RuleList(self[1:]).apply(solver, values, call_data)
+        if solver.cut_level==0:
+          return RuleList(self[1:]).apply(solver, values, call_data)
+        else: 
+          solver.cut_level -= 1
+          solver.scont = old_fcont
       solver.fcont = fcont
     elif len(self)==2:
       cont = solver.scont
@@ -118,7 +122,11 @@ class RuleList(list):
       def fcont(value, solver):
         solver.fcont = old_fcont
         solver.scont = cont
-        return self[1].apply(solver, values, call_data)
+        if solver.cut_level==0:
+          return self[1].apply(solver, values, call_data)
+        else:
+          solver.cut_level -= 1
+          solver.scont = old_fcont
       solver.fcont = fcont
     return self[0].apply(solver, values, call_data)
     
