@@ -12,6 +12,9 @@ from dao.special import *
 from dao.util import *
 
 class TestSimple:
+  def test_eq_p(self):
+    from dao.builtins.arith import eq_p
+    compile2file(eq_p(1, 1), 'le_p.py')
   def testInteger(self):
     eq_(compile(1), '1')    
   def testString(self):

@@ -21,7 +21,7 @@ from dao.util import *
 from dao.solve import set_run_mode, noninteractive
 set_run_mode(noninteractive)
 
-from dao.compiler import compile, compile_exec as compile_exec0, compile2file
+from dao.compiler.compile import compile, compile_exec as compile_exec0, compile2file
 
 def eval(exp):
   exp = preparse(exp)

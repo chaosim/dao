@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
 
 # depend dao.solve only.
-
-from dao.solve import value_cont, mycont, BaseCommand
-
-# below is for dinpy.
-from dao.solve import run_mode, interactive
-from dao.solve import interactive_solver, interactive_tagger, interactive_parser
+from dao.solve import BaseCommand, mycont, value_cont
 
 from dao.base import deref, getvalue, copy, copy_rule_head
 from dao.base import apply_generators, unify, unify_list, match
 from dao.base import closure
+
+from dao.compiler.compile import ValueCont
+from dao.compiler import vop
 
 # ==============================================
 
@@ -82,10 +80,6 @@ def rule_head_signatures(head):
 # low level classes used in dao.
 # Var, ClosureVar, DummyVar, Cons, Nil and nil
 # Command, CommandCall, Function, Macro
-
-def hash_parse_state(parse_state):
-  try: return parse_state[1]
-  except: return id(parse_state)
 
 class Command(BaseCommand):
   ''' the base class for all the callable object in the dao system.'''
@@ -168,6 +162,150 @@ class Command(BaseCommand):
         #solver.fcont = old_fcont
       #solver.fcont = fcont
       #return self.apply(solver, memo_result_cont, values, signatures)
+
+from dao.compiler.cont import *
+
+class Function(Command):
+  memorable = True
+  def evaluate_arguments(self, solver, exps):
+    cont = solver.scont
+    if len(exps)==0: 
+      solver.scont = cont
+      return ()
+    else:
+      @mycont(cont)
+      def argument_cont(value, solver):
+        @mycont(cont)
+        def gather_cont(values, solver):
+            solver.scont = cont
+            return (value,)+values
+        solver.scont = gather_cont
+        return self.evaluate_arguments(solver, exps[1:])
+      return self.get_argument(exps[0], argument_cont, solver)
+  
+  def get_argument(self, arg, cont, solver):
+    # don't pass value by DummyVar
+    # see sample: some(statement(_stmt), _stmt, stmt_list)
+    if isinstance(arg , DummyVar): 
+      solver.scont = cont
+      return arg 
+    else: 
+      solver.scont = solver.cont(arg, cont)
+      return True
+    
+  def evaluate_cont(self, solver, exps):
+    cont = solver.scont
+    @mycont(cont)
+    def apply_cont(values, solver): 
+      solver.scont = cont
+      return self.run(solver, values)
+    solver.scont = apply_cont
+    return self.evaluate_arguments(solver, exps)
+  
+  def compile_argument(self, arg, cont, solver):
+    # don't pass value by DummyVar
+    # see sample: some(statement(_stmt), _stmt, stmt_list)
+    if isinstance(arg , DummyVar): 
+      solver.scont = ValueCont(arg, cont)
+      return solver.scont 
+    else: 
+      solver.scont = solver.cont(arg, cont)
+      return solver.scont
+    
+  def compile_arguments(self, compiler, args):
+    cont = compiler.scont
+    if len(args)==0: 
+      compiler.add_cont(ValueCont((), cont))
+      return compiler.scont
+    else:
+      argc = ArgumentCont()
+      compiler.add_cont(argc)
+      gc = GatherCont(argc, cont)
+      compiler.add_cont(gc)
+      compiler.scont = gc
+      self.compile_arguments(compiler, args[:-1])
+      compiler.scont = argc
+      return self.compile_argument(args[-1], argc, compiler)
+
+  def compile_cont(self, compiler, args):
+    return compile_function_cont(self, compiler, args)
+
+def compile_function_cont(fun, compiler, args):
+    apply_cont = ApplyCont(fun, compiler.scont)
+    compiler.scont = apply_cont
+    compiler.add_cont(apply_cont)
+    return fun.compile_arguments(compiler, args)
+ 
+class Macro(Command): 
+  
+  memorable = True
+  
+  def evaluate_cont(self, solver, exps):
+    exps1 = [(closure(exp, solver.env)) for exp in exps]
+    return self.run(solver, exps1)
+  def compile_cont(self, compiler, args):
+    apply_cont = ApplyCont(self, compiler.scont)
+    compiler.scont = apply_cont
+    compiler.add_cont(apply_cont)
+    compiler.add_cont(ValueCont([vop.GetClosure(arg) for arg in args], apply_cont))
+    return compiler.scont
+
+from dao.solve import to_sexpression
+
+# below is for dinpy.
+from dao.solve import run_mode, interactive
+from dao.solve import interactive_solver, interactive_tagger, interactive_parser
+
+class CommandCall(Command):
+  def __init__(self, operator, *operand):
+    self.operator = operator
+    self.operand = operand
+    #if not isinstance(operator, Var):
+      #self.is_global = operator.is_global
+    #else: self.is_global = False
+    
+  def to_sexpression(self):
+    return (to_sexpression(self.operator),)+tuple(to_sexpression(x) for x in self.operand)
+    
+  def ___parse___(self, parser):
+    self.operator = parser.parse(self.operator)
+    self.operand = parser.parse(self.operand)
+    return self
+  def tag_loop_label(self, tagger):
+    self.operator = tagger.tag_loop_label(self.operator)
+    self.operand = tagger.tag_loop_label(self.operand)
+    return self
+
+  def closure(self, env):
+    return CommandCall(self.operator, *[closure(x, env) for x in self.operand])
+  
+  def __repr__(self): 
+    if run_mode() is interactive:
+      code = interactive_parser().parse(self)
+      code = interactive_tagger().tag_loop_label(code)
+      code = to_sexpression(code)
+      result = interactive_solver().eval(code)
+      return repr(result) if result is not None else ''
+    return '%s(%s)'%(self.operator, 
+                ','.join([repr(e) for e in self.operand]))
+  
+  def __and__(self, other):
+    from dao.builtins.control import and_p
+    return and_p(self, other)
+  def __add__(self, other):
+    from dao.special import begin
+    return begin(self, other)
+  def __or__(self, other):
+    from dao.builtins.control import or_p
+    return or_p(self, other)
+  
+  def __eq__(self, other): 
+    return isinstance(other, self.__class__) and self.operator==other.operator and self.operand==other.operand
+
+def hash_parse_state(parse_state):
+  try: return parse_state[1]
+  except: return id(parse_state)
+
 
 class Symbol: pass
 
@@ -275,6 +413,9 @@ class Var(Command):
   
   def cont(self, cont, solver):
     return value_cont(self.getvalue(solver.env, {}), cont)
+  
+  def compile_to_cont(self, cont, compiler):
+    return ValueCont(vop.GetVarValue(self), cont)
     
   def __add__(self, other): 
     from dao.builtins.arith import add
@@ -394,96 +535,6 @@ class ClosureVar(Var):
   
   def __repr__(self): return '(%s:%s)'%(self.var, self.value)
   def __eq__(self, other): return self.var is other
-
-from dao.solve import to_sexpression
-
-class CommandCall(Command):
-  def __init__(self, operator, *operand):
-    self.operator = operator
-    self.operand = operand
-    if not isinstance(operator, Var):
-      self.is_global = operator.is_global
-    else: self.is_global = False
-    
-  def to_sexpression(self):
-    return (to_sexpression(self.operator),)+tuple(to_sexpression(x) for x in self.operand)
-    
-  def ___parse___(self, parser):
-    self.operator = parser.parse(self.operator)
-    self.operand = parser.parse(self.operand)
-    return self
-  def tag_loop_label(self, tagger):
-    self.operator = tagger.tag_loop_label(self.operator)
-    self.operand = tagger.tag_loop_label(self.operand)
-    return self
-
-  def closure(self, env):
-    return CommandCall(self.operator, *[closure(x, env) for x in self.operand])
-  
-  def __repr__(self): 
-    if run_mode() is interactive:
-      code = interactive_parser().parse(self)
-      code = interactive_tagger().tag_loop_label(code)
-      code = to_sexpression(code)
-      result = interactive_solver().eval(code)
-      return repr(result) if result is not None else ''
-    return '%s(%s)'%(self.operator, 
-                ','.join([repr(e) for e in self.operand]))
-  
-  def __and__(self, other):
-    from dao.builtins.control import and_p
-    return and_p(self, other)
-  def __add__(self, other):
-    from dao.special import begin
-    return begin(self, other)
-  def __or__(self, other):
-    from dao.builtins.control import or_p
-    return or_p(self, other)
-  
-  def __eq__(self, other): 
-    return isinstance(other, self.__class__) and self.operator==other.operator and self.operand==other.operand
-  
-class Function(Command):
-  memorable = True
-  def evaluate_arguments(self, solver, exps):
-    cont = solver.scont
-    if len(exps)==0: 
-      solver.scont = cont
-      return ()
-    else:
-      @mycont(cont)
-      def argument_cont(value, solver):
-        @mycont(cont)
-        def gather_cont(values, solver):
-            solver.scont = cont
-            return (value,)+values
-        solver.scont = gather_cont
-        return self.evaluate_arguments(solver, exps[1:])
-      # don't pass value by DummyVar
-      # see sample: some(statement(_stmt), _stmt, stmt_list)
-      if isinstance(exps[0] , DummyVar): 
-        solver.scont = argument_cont
-        return exps[0] 
-      else: 
-        solver.scont = solver.cont(exps[0], argument_cont)
-        return True
-  
-  def evaluate_cont(self, solver, exps):
-    cont = solver.scont
-    @mycont(cont)
-    def apply_cont(values, solver): 
-      solver.scont = cont
-      return self.run(solver, values)
-    solver.scont = apply_cont
-    return self.evaluate_arguments(solver, exps)
-
-class Macro(Command): 
-  
-  memorable = True
-  
-  def evaluate_cont(self, solver, exps):
-    exps1 = [(closure(exp, solver.env)) for exp in exps]
-    return self.run(solver, exps1)
 
 # ----------------------------------
 # Cons, cons, Nil, nil, conslist, cons2tuple

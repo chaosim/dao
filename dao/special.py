@@ -16,7 +16,8 @@ from dao.solve import run_mode, set_run_mode, interactive, noninteractive
 from dao.solve import interactive_parser, interactive_tagger
 
 # compile
-from dao.compiler import ValueCont, code
+from dao.compiler.compile import ValueCont, code
+from dao.compiler.cont import IfCont
 
 # special forms: quote, begin, if, eval, let, lambda, function, macro, module
 class ParserForm(object): 
@@ -56,11 +57,7 @@ class quote(SpecialForm):
 # do not restore the value of var in assign
 # if need to restore, use define instead.
 
-class SetCont:
-  def __init__(self, var, exp):
-    self.var, self.exp = var, exp
-  def code(self):
-    return '%s = %s'%(code(self.var), code(self.exp))
+from dao.compiler.cont import SetCont
 
 # assign var in the most inner env
 class set(SpecialForm):
@@ -85,7 +82,7 @@ class set(SpecialForm):
       return value
     return solver.cont(self.exp, set_cont)
   def compile_to_cont(self, cont, compiler):
-    return SetCont(self.var, compiler.compile_to_cont(self.exp, cont))
+    return compiler.cont(self.exp, SetCont(self.var, cont))
   def __eq__(self, other): return self.var==other.var and self.exp==other.exp
   def __repr__(self): return "set(%s, %s)"%(self.var, self.exp)
 assign = set
@@ -231,7 +228,7 @@ class begin(SpecialForm):
   def cont(self, cont, solver): 
     return solver.exps_cont(self.exps, cont)
   def compile_to_cont(self, cont, compiler): 
-    return BeginCont(compiler.compile_to_cont(x, cont) for x in self.exps)
+    return compiler.exps_cont(self.exps, cont)
   def __eq__(self, other): 
     return self.exps==other.exps
   def __repr__(self):
@@ -268,6 +265,10 @@ class if_(SpecialForm):
   def cont(self, cont, solver):
     if_cont = make_if_cont(self.exp1, self.exp2, cont)
     return solver.cont(self.test, if_cont)
+  def compile_to_cont(self, cont, compiler):
+    then_cont = compiler.cont(self.exp1, cont)
+    else_cont = cont if self.exp2 is None else compiler.cont(self.exp2, cont)
+    return compiler.cont(self.test, IfCont(then_cont, else_cont))
   def __repr__(self):
     els = 'else: %s'%repr(self.exp2) if self.exp2 else ''
     return 'if %s: %s%s'%(self.test, self.exp1, els)

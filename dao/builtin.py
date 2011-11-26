@@ -4,7 +4,7 @@ from dao.term import Command, Function, Macro, CommandCall
 from dao.solve import mycont
 
 # compile
-from dao.compiler import code
+from dao.compiler.compile import code
 
 class Builtin: 
   def __init__(self, function, name, symbol, is_global):
@@ -36,31 +36,22 @@ class BuiltinFunction(Builtin, Function):
   def __call__(self, *args):
     return CommandCall(self, *args)
   
-  def evaluate_arguments(self, solver, args):
-    cont = solver.scont
-    if len(args)==0: 
-      solver.scont = cont
-      return ()
-    else:
-      @mycont(cont)
-      def argument_cont(value, solver):
-        @mycont(cont)
-        def gather_cont(values, solver):
-          solver.scont = cont
-          return (value,)+values
-        solver.scont = gather_cont
-        return self.evaluate_arguments(solver, args[1:])
-      solver.scont = solver.cont(args[0], argument_cont)
-      return True
-      
+  def get_argument(self, arg, cont, solver):
+    solver.scont = solver.cont(arg, cont)
+    return True
+  
+  def compile_argument(self, arg, cont, solver):
+    solver.scont = solver.cont(arg, cont)
+    return solver.scont
+    
   def apply(self, solver, values, signatures):
     #solver.scont = cont
     return self.function(*values)
 
   # compile
   
-  def compile_to_cont(self, cont, compiler):
-    return BuiltinFunctionCont(self, cont)
+  #def compile_to_cont(self, cont, compiler):
+    #return BuiltinFunctionCont(self, cont)
   
     
 class BuiltinPredicateCont:
@@ -83,8 +74,8 @@ class BuiltinPredicate(Builtin, Function):
   def apply(self, solver, values, signatures):
     return self.function(solver, *values)
   
-  def compile_to_cont(self, args, compiler):
-    return BuiltinPredicateCont(self, args)
+  #def compile_to_cont(self, args, compiler):
+    #return BuiltinPredicateCont(self, args)
   
 class BuiltinMacroCont:
   def __init__(self, operator, args):
@@ -105,8 +96,8 @@ class BuiltinMacro(Builtin, Macro):
     return CommandCall(self, *args)
   def apply(self, solver, args, signatures):
     return self.function(solver, *args)
-  def compile_to_cont(self, args, compiler):
-    return BuiltinMacroCont(self, args)
+  #def compile_to_cont(self, args, compiler):
+    #return BuiltinMacroCont(self, args)
     
 def builtin(klass):
   def builtin(name=None, symbol=None, **kw):

@@ -19,8 +19,6 @@ from dao.builtins.term import isvar, nonvar, is_, define, nonvar_p, isvar_p
 from dao.solve import set_run_mode, noninteractive
 set_run_mode(noninteractive)
 
-from dao.compiler import compile2file
-
 class TestControl:
   def test_fail(self):
     eq_(eval(let([(f,function([[1], fail], [[x], succeed]))], f(x))), True)
@@ -59,9 +57,6 @@ class TestControl:
     assert_raises(NoSolutionFound, eval, if_p(fail, fail))
 
 class TestArithpred:
-  def test_eq_p(self):
-    from dao.builtins.arith import eq_p
-    compile2file(eq_p(1, 1), 'le_p.py')
   def test_is(self):
     eq_(eval(is_(x, 1)), True)
   def test_define_recursive(self):

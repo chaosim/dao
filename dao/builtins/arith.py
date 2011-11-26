@@ -7,7 +7,7 @@ from dao.solve import mycont
 
 # compile
 
-from dao.compiler import code
+from dao.compiler.compile import code
 
 class OperatorCall(CommandCall): pass
 
@@ -54,8 +54,8 @@ class BuiltinBinaryCont:
     
 class BuiltinBinary(builtin.BuiltinFunction):
   def __call__(self, x, y): return BinaryCall(self, x, y)
-  def compile_to_cont(self, cont, compiler):
-    return BuiltinBinaryCont(self, cont)
+  #def compile_to_cont(self, cont, compiler):
+    #return BuiltinBinaryCont(self, cont)
   def code(self): return self.name
 
 class BuiltinUnary(builtin.BuiltinFunction):

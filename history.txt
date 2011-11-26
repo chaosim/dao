@@ -1,5 +1,14 @@
 details of history:
 
+2011-11-26 14:20:03 
+compile_to_cont: sub(1,add(2,3)) pass tests.
+
+2011-08-23 10:46:12 
+compile_to_cont: add(1,2)
+
+2011-11-26 08:18:31 
+start working
+
 2011-11-25 17:26:31 
 git* some parser builtins: char, nullword, optional, parse_sequence
 tips: 
