@@ -2,7 +2,8 @@
 
 pyset = set
 
-from dao.term import CommandCall, Function, Macro, closure, Var, ClosureVar#, Command
+from dao.command import Function, Macro
+from dao.term import closure, Var, ClosureVar, CommandCall
 from dao.term import apply_generators, rule_head_signatures
 from dao.rule import Rule, RuleList
 from dao.solve import value_cont, mycont, tag_unwind, DaoSyntaxError, to_sexpression

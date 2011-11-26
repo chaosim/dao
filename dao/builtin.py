@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from dao.term import Command, Function, Macro, CommandCall
+from dao.command import Command, Function, Macro
+from dao.term import CommandCall
 from dao.solve import mycont
 
 # compile
