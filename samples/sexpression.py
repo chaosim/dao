@@ -2,7 +2,8 @@ from dao.rule import Rule
 
 from dao import term
 from dao.term import nil, Cons, conslist as L, cons2tuple
-from dao.term import vars, DummyVar, Command, CommandCall
+from dao.command import Command
+from dao.term import vars, DummyVar, CommandCall
 from dao.solve import make_solver, set_run_mode, noninteractive
 from dao import builtin
 

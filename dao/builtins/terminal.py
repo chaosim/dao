@@ -27,6 +27,33 @@ def char(solver, argument):
     solver.fcont = fcont
     return text[pos]
 
+'''  for compiler
+def char(solver, argument):
+  vop.Deref(argument)
+  Assign(('text', 'pos'), vop.parser_state
+  if pos==len(text):
+    vop.fail
+    return
+    vop.Unify(argument, PyCode('text[pos]',
+      vop.SaveParseState
+      solver.fcont = vop.RestoreParseState+solver.fcont
+      vop.SetParse_State(PyCode('text, pos+1')
+      return text[pos]
+      )
+
+def old_fcont(value, solver): 
+  old_fcont_things;
+
+def char_fcont(value, solver): #should be defined in def char(solver, argument)
+  solver.parse_state = text, pos
+| return old_fcont(value, solver)
+|=> return old_fcont_things
+
+or: solver.scont = old_fcont
+    return
+    
+'''
+
 @matcher()
 def char2(solver, argument): 
   char = deref(argument, solver.env)

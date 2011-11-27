@@ -1,0 +1,50 @@
+2011-11-27 11:43:47 
+from the use of 'item_matched', 'matched' in optional, any, some and so on, use global and outer variables is necessary.
+local variable: @var, outer variable ^var, global variable ^^variable 
+var = 1: local assign, assign value 1 to var in local env, if not exist, add new variable
+@var = 1: same as above.
+^var = 1: outer assign, assign value 1 to var in outer env, if not exist, error raised.
+^^var = 1: global assign, assign value 1 to var in global env, if not exist, error raised.
+x = @var: get value of var in local env, if not exist, error raised.
+x = var: get value of var in most inner env, include local env 
+x = ^var: get value of var in most inner env, exclude local env and global env
+x = ^^var: get value of var in global environment
+
+2011-11-27 10:33:20 
+def old_scont(value, solver):
+  old_scont_things
+
+def old_fcont(value, solver):
+  old_fcont_things
+
+|def apply_parallel_cont(value, solver):
+|  parse_state = solver.parse_state
+|  call1
+|  def parallel_cont(value, solver): # should be defined in apply_parallel_cont
+|    right = solver.parse_state[1]
+|    solver.parse_state = parse_state
+|    call2
+     def parallel_finish_cont(value, solver): # should be defined in parallel_cont
+       if solver.parse_state[1]==right: return value  
+     | else: return old_fcont(value, solver) 
+     |=>else: return old_fcont_things
+|    return parallel_finish_cont(value, solver)
+|| return parallel_cont(value, solver)
+|=>  
+|  if solver.parse_state[1]==right: return value
+|  else: solver.scont = solver.fcont
+|=>
+||  right = solver.parse_state[1]
+|||  solver.parse_state = parse_state
+||  call2
+||  if solver.parse_state[1]==right: return value
+||  else: old_fcont_things
+|=>
+|def apply_parallel_cont(value, solver):
+|  parse_state = solver.parse_state
+|  call1
+|  right = solver.parse_state[1]
+|  solver.parse_state = parse_state
+|  call2
+|  if solver.parse_state[1]==right: return value
+|  else: old_fcont_things

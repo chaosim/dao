@@ -4,7 +4,7 @@ from nose.tools import eq_, ok_, assert_raises
 
 from dao.term import cons
 from dao.solve import to_sexpression
-from dao.compiler import compile
+from dao.compiler.compile import compile
 from dao.builtins.arith import add, sub
 from dao.builtins.term import define
 from dao.special import *

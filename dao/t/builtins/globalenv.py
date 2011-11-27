@@ -1,6 +1,6 @@
 from dao.env import GlobalEnvironment, ModuleEnvironment
 from dao.solve import BaseCommand
-from dao.term import Command
+from dao.command import Command
 from dao.special import SpecialForm
 
 global_env = GlobalEnvironment({})

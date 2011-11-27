@@ -14,6 +14,7 @@ proj.file-type = 'shared'
 testing.auto-test-file-specs = ('e:\\dao\\dao\\tests\\test*.py',
                                 'e:\\dao\\dao\\t\\tests\\test*.py',
                                 'e:\\dao\\dao\\builtins\\tests\\test*.py',
+                                'e:\\dao\\dao\\compiler\\tests\\test*.py',
                                 'e:\\dao\\dao\\dinpy\\tests\\test*.py')
 testing.test-framework = {None: 'nose',
                           loc('dao/dinpy/tests/testdoc_interactive.py'): ':i'\

@@ -10,13 +10,18 @@ from dao.solve import DaoError
 # call with current continuation
 
 class ContinuationFunction(Builtin, Function):
+  def __init__(self, cont):
+    Builtin.__init__(self, cont, 'cont', 'cont', False)
   def apply(self, solver, values, signatures):
-    return self.function(values, solver)
+    if len(values)!=1: raise DaoError('Continuations expect one arguments!')
+    return self.function(values[0], solver) #function==solver.scont, look down!!! def some_cont(value, solver)
+  def __eq__(self, other): 
+    return isinstance(other,ContinuationFunction) and self.function==other.function 
       
-@builtin.macro('callcc', 'call/cc')
+@builtin.predicate('callcc', 'call/cc')
 def callcc(solver, fun):
-  ''' call with current continuation '''
-  solver.scont = solver.cont((fun, ContinuationFunction(solver.scont, '', '', False)), solver.scont)
+  ''' call with current continuation: fun(cc){...} '''
+  solver.scont = solver.cont((fun, ContinuationFunction(solver.scont)), solver.scont)
   return fun
 
 # finding all solutions to a goal
@@ -85,9 +90,9 @@ def Cut(solver):
     while cont is not solver.stop_cont and cont is not solver.fail_stop:
       try: cont.cut
       except: 
-        cont = cont.cont
+        cont = cont.succ
         continue
-      solver.scont = cont.cont
+      solver.scont = cont.succ
       return
     solver.scont = old_fcont
   solver.fcont = fcont     
@@ -103,14 +108,20 @@ def CutOr(solver):
     while cont is not solver.stop_cont and cont is not solver.fail_stop:
       try: cont.cut_or
       except: 
-        cont = cont.cont
+        cont = cont.succ
         continue
-      solver.scont = cont.cont
+      solver.scont = cont.succ
       return
     solver.scont = old_fcont
   solver.fcont = fcont     
   return True
 cut = Cut()
+
+'''
+and_p(compiler, call1, call2) #compiler.exps_cont has done the same thing.
+call1
+call2
+'''
 
 @builtin.macro('and_p', '&!')
 def and_p(solver, *calls):
@@ -128,7 +139,18 @@ def and_p(solver, *calls):
       return value
     solver.scont = solver.cont(calls[0], and_cont)
     return True
-    
+
+'''
+or_p(compiler, call1, call2)
+# fcont(value, compiler): # should be defined and setup in compile time 
+  compiler.fcont = old_fcont
+  call2
+  old_scont
+compiler.fcont = fcont  
+call1
+old_scont
+'''
+
 @builtin.macro('or_p', '|!')
 def or_p(solver, *calls):
   cont = solver.scont
@@ -186,9 +208,45 @@ def if_p(solver, if_clause, then_clause):
   solver.scont = solver.cont(if_clause, if_p_cont)
   return True
 
+
+'''
+# for compiler using two continuations
+def not_p(compiler, call):
+  def call_fail_cont(value, solver):
+    solver.fcont = old_fcont
+    old_scont
+  solver.fcont = call_fail_cont
+  parse_state = compiler.parse_state
+  call
+  compiler.parse_state = parse_state
+  compiler.fcont = old_fcont
+  old_fcont
+'''
+
+'''
+#two continuations
 @builtin.macro('not_p', 'not_p')  
 def not_p(solver, call):
-  call = deref(call, solver.env)
+  parse_state = solver.parse_state
+  old_scont = solver.scont
+  old_fcont = solver.fcont
+  
+  @mycont(old_fcont):
+  def call_succeed_cont(value, solver):
+    solver.parse_state = parse_state
+    solver.fcont = old_fcont
+    solver.scont = old_fcont
+  @mycont(old_scont):
+  def call_fail_cont(value, solver):
+    solver.fcont = old_fcont
+    solver.scont = old_scont
+    
+  solver.fcont = call_fail_cont
+  solver.cont(call, call_succeed_cont)
+'''
+
+@builtin.macro('not_p', 'not_p')  
+def not_p(solver, call):
   parse_state = solver.parse_state
   for c, x in solver.exp_run_cont(call, solver.scont):
     solver.parse_state = parse_state

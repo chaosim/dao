@@ -3,17 +3,18 @@
 from nose.tools import eq_, ok_, assert_raises
 
 from dao.term import cons
-from dao.solve import eval, tag_loop_label, NoSolutionFound
+from dao.solve import eval, tag_loop_label, NoSolutionFound, done, DaoError
 from dao.special import quote, set, begin, if_, iff, lambda_, let, letr, eval_
 from dao.special import function, macro
 from dao.special import block, exit_block, continue_block, catch, throw
 from dao.special import unwind_protect, module, from_, CaseForm
 from dao.special import LoopTimesForm, LoopUntilForm, LoopWhenForm, EachForm
 
-from dao.builtins.control import and_p, cut, callcc
+from dao.builtins.control import and_p, cut, callcc, ContinuationFunction
 from dao.builtins.io import prin
 from dao.builtins.arith import gt, eq, sub, mul, add, div
 from dao.builtins.term import define
+from dao.builtins.container import first
 
 from dao.util import *
 from dao.solve import to_sexpression
@@ -251,12 +252,16 @@ class TestCallccBlockCatch:
   def test_unwind_protect2(self):
     eq_(eval(block('foo', unwind_protect(exit_block('foo', 1), 
                             prin(2), prin(3)))), 1)
-  def testcallcc(self):
+  def testcallcc1(self):
     from dao.solve import done
-    eq_(eval(callcc(lambda_([k], k(2)))), (2,))
-##    eq_(eval(callcc(callcc)), done)
-    #assert 0, '((call/cc call/cc) (call/cc call/cc)) infinite loop.'
-    #eq_(eval('((call/cc call/cc) (call/cc call/cc))'), Integer(2))
+    eq_(eval(callcc(lambda_([k], k(2)))), 2)
+  def testcallcc2(self):
+    from dao.solve import done
+    assert_raises(DaoError, eval, callcc(lambda_([k], k(2,3))))
+  def testcallcc3(self):
+    eq_(eval(callcc(callcc)), ContinuationFunction(done))
+  #def testcallcc4(self):
+    ##assert 0, '((call/cc call/cc) (call/cc call/cc)) infinite loop.'
 
 class TestModule:
   def testbindings(self):

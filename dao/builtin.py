@@ -2,10 +2,7 @@
 
 from dao.command import Command, Function, Macro
 from dao.term import CommandCall
-from dao.solve import mycont
-
-# compile
-from dao.compiler.compile import code
+from dao.solvebase import mycont
 
 class Builtin: 
   def __init__(self, function, name, symbol, is_global):
@@ -26,12 +23,6 @@ class Builtin:
   
 _memorable = False
 
-class BuiltinFunctionCont:
-  def __init__(self, operator, args):
-    self.operator, self.args = operator, args
-  def code(self):
-    return '%s(%s)'%(code(self.operator), ', '.join([code(x) for x in self.args]))
-    
 class BuiltinFunction(Builtin, Function):
   memorable = _memorable
   def __call__(self, *args):
@@ -41,19 +32,14 @@ class BuiltinFunction(Builtin, Function):
     solver.scont = solver.cont(arg, cont)
     return True
   
-  def compile_argument(self, arg, cont, solver):
-    solver.scont = solver.cont(arg, cont)
-    return solver.scont
+  @classmethod
+  def compile_argument(cls, arg, cont, compiler):
+    compiler.scont = compiler.cont(arg, cont)
+    return compiler.scont
     
   def apply(self, solver, values, signatures):
     #solver.scont = cont
-    return self.function(*values)
-
-  # compile
-  
-  #def compile_to_cont(self, cont, compiler):
-    #return BuiltinFunctionCont(self, cont)
-  
+    return self.function(*values)  
     
 class BuiltinPredicateCont:
   def __init__(self, operator, args):
@@ -74,10 +60,7 @@ class BuiltinPredicate(Builtin, Function):
     return CommandCall(self, *args)
   def apply(self, solver, values, signatures):
     return self.function(solver, *values)
-  
-  #def compile_to_cont(self, args, compiler):
-    #return BuiltinPredicateCont(self, args)
-  
+    
 class BuiltinMacroCont:
   def __init__(self, operator, args):
     self.operator, self.args = operator, args
@@ -97,8 +80,6 @@ class BuiltinMacro(Builtin, Macro):
     return CommandCall(self, *args)
   def apply(self, solver, args, signatures):
     return self.function(solver, *args)
-  #def compile_to_cont(self, args, compiler):
-    #return BuiltinMacroCont(self, args)
     
 def builtin(klass):
   def builtin(name=None, symbol=None, **kw):

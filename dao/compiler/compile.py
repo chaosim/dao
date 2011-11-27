@@ -2,19 +2,30 @@ pyeval = eval
 
 from dao.solve import to_sexpression, dao_repr, BaseCommand
 from dao.base import is_subclass
+from dao.compiler.env import GlobalEnvironment
 from dao.compiler.cont import *
+from dao.command import compile_function_cont, compile_macro_cont
+from dao.command import Function, Macro
+from dao.builtin import BuiltinFunction
 
 from dao.solve import set_run_mode, noninteractive
 set_run_mode(noninteractive)
 
+def make_compiler():
+  global_env = GlobalEnvironment({})
+  env = global_env.extend({})
+  return Compiler(global_env, env)
+
+
 def compile_to_cont(exp):
   sexp = to_sexpression(exp)
-  compiler = Compiler()
+  compiler = make_compiler()
   return compiler.cont(sexp, DoneCont())
   
 def compile(exp): 
   sexp = to_sexpression(exp)
-  return Compiler().compile(sexp)
+  compiler = make_compiler()
+  return compiler.compile(sexp)
 
 stub = '''from dao.builtins.compiled.parser import *
 from dao.builtins.compiled.terminal import *
@@ -39,25 +50,15 @@ def set_parse_state(parse_state):
   global _current_parse_state
   _current_parse_state = parse_state
 
-def code(exp):
-  if isinstance(exp, tuple):
-    if len(exp)==1:
-      result = '(%s,)'%code(exp[0])
-    else:
-      return '%s(%s)'%(code(exp[0]), ', '.join(code(x) for x in exp[1:]))
-  else:
-    try: exp_code = exp.code
-    except: return dao_repr(exp)
-    return exp_code()
-    
 class Compiler:
   
-  def __init__(self):
-    pass
-    #self.global_env = global_env
-    #self.env = env
+  def __init__(self, global_env, env):
+    self.global_env = global_env
+    self.env = env
     self.scont = self.stop_cont = done
-    self.cont_set = set()
+    self.fcont = self.fail_stop = fail_done
+    self.cont_set = set([self.stop_cont, fail_done])
+    self.root_set = set([self.stop_cont, fail_done])
     
     #self.parse_state = parse_state
     #self.solved = False
@@ -76,13 +77,21 @@ class Compiler:
         self.scont = cont
         if isinstance(exp[0], tuple):
           cont0 = self.cont(exp[0], cont)
-          
+          if isinstance(cont0, ValueCont):
+            if isinstance(cont0.exp, Function):
+              compile_function_cont(cont0, self, exp[1:], Function)
+          function_cont = compile_function_cont(cont0, self, exp[1:], Function)
+          builtin_function_cont = compile_function_cont(cont0, self, exp[1:], BuiltinFunction)
+          macro_cont = compile_macro_cont(cont0, self, exp[1:])
+          sc = SelectFunMacroCont(cont0, function_cont, builtin_function_cont, macro_cont)
+          self.add_cont(sc)
+          return sc
           #(result_type, result) = self.try_compile_and_evaluate(exp[0])
           #if result_type is 0: 
             ## can not solved in the compile phase, 
             ## if no error in front of the program, it should be solvable, 
             ## otherwise program can not be interpreted too. 
-            ## but the result may be not static, or the type of result may be dyanmic.
+            ## but the result may depend input or other context in runtime.
             ## so type inference is necessary.
             ## lisp 1 or lisp2 ?
             #function_args_cont = self.compile_function_arguments(exp[1:])
@@ -108,15 +117,22 @@ class Compiler:
         return self.cont(exps[0], cont)
       else:
         return self.cont(exps[0], self.exps_cont(exps[1:], cont))
+      
   def parse_compile_to_cont(self, exp):
     sexp = to_sexpression(exp)
     return self.cont(sexp, self.stop_cont)
+  
   def compile(self, exp):
-    cont = self.cont(exp, self.stop_cont)
-    return cont.code()
+    self.cont(exp, self.stop_cont)
+    result = ''
+    for cont in self.root_set:
+      result += cont.code()
+    return result
+  
   def add_cont(self, cont):
     self.scont = cont
     self.cont_set.add(cont)
+    return cont
   
 def make_evaluate_user_macro_cont(exps, cont):
   return rule_cont(rules_cont(eval_macro_result_cont(cont)))

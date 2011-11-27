@@ -18,7 +18,7 @@ from dao.solve import interactive_parser, interactive_tagger
 
 # compile
 from dao.compiler.compile import ValueCont, code
-from dao.compiler.cont import IfCont
+from dao.compiler import env as compiler_env
 
 # special forms: quote, begin, if, eval, let, lambda, function, macro, module
 class ParserForm(object): 
@@ -83,7 +83,9 @@ class set(SpecialForm):
       return value
     return solver.cont(self.exp, set_cont)
   def compile_to_cont(self, cont, compiler):
-    return compiler.cont(self.exp, SetCont(self.var, cont))
+    set_cont = SetCont(self.var, cont)
+    compiler.add_cont(set_cont)
+    return compiler.cont(self.exp, set_cont)
   def __eq__(self, other): return self.var==other.var and self.exp==other.exp
   def __repr__(self): return "set(%s, %s)"%(self.var, self.exp)
 assign = set
@@ -248,6 +250,8 @@ def make_if_cont(then, els, cont):
       solver.scont = cont
       return None
   return if_cont
+
+from dao.compiler.cont import IfCont
 
 class if_(SpecialForm):
   symbol = 'if'
@@ -672,6 +676,10 @@ class FunctionForm(SpecialForm):
     arity2rules, signature2rules = make_rules(self.rules)
     func = UserFunction(arity2rules, signature2rules, solver.env, recursive=False)
     return value_cont(func, cont)
+  def compile_to_cont(self, cont, compiler):
+    arity2rules, signature2rules = make_rules(self.rules)
+    func = UserFunction(arity2rules, signature2rules, compiler.env, recursive=False)
+    return compiler.add_cont(ValueCont(func, cont))
   def __eq__(self, other):
     return isinstance(other, FunctionForm) and self.rules==other.rules
   def __repr__(self):
@@ -838,6 +846,8 @@ def from_(solver, module, var):
   solver.scont = solver.cont(module, from_module_cont)
   return module
   
+from dao.compiler.cont import BlockCont
+
 class block(SpecialForm):
   def __init__(self, label, *body):
     self.label, self.body = label, body
@@ -854,6 +864,12 @@ class block(SpecialForm):
     solver.env = block_env
     next_cont = solver.exps_cont(self.body, cont)
     block_env.next_cont = next_cont
+    return next_cont
+  def compile_to_cont(self, cont, compiler):
+    block_env = compiler_env.BlockEnvironment(self.label, compiler.env, cont, None)
+    block_env.next_cont = BlockCont(None)
+    compiler.env = block_env
+    block_env.next_cont.succ = next_cont = compiler.exps_cont(self.body, cont)
     return next_cont
   def __eq__(self, other):
     return self.label==other.label and self.body==other.body
@@ -883,6 +899,11 @@ class exit_block(SpecialForm):
       solver.scont = exit_cont
       return value
     return solver.cont(self.form, exit_block_cont)
+  def compile_to_cont(self, cont, comiler):
+    env = comiler.env
+    exit_cont =  env.lookup_exit_cont(self.label, cont, None, comiler)
+    comiler.scont = exit_cont
+    return comiler.cont(self.form, exit_cont)
   def __eq__(self, other):
     return self.label==other.label and self.form==other.form
   def __repr__(self): return 'exit_block(%s)'%self.label
@@ -894,20 +915,20 @@ class continue_block(SpecialForm):
   def to_sexpression(self):
     return (continue_block, self.label)
   def cont(self, cont, solver):
-    env = solver.env
-    @mycont(cont)
-    def continue_block_cont(value, solver):
-      next_cont =  env.lookup_next_cont(self.label, cont, solver)
-      solver.scont = next_cont
-      return value
-    return continue_block_cont
-  def __eq__(self, other): return self.label==other.label
+    next_cont =  solver.env.lookup_next_cont(self.label, cont, solver)
+    solver.scont = next_cont
+    return next_cont
+  def compile_to_cont(self, cont, comiler):
+    env = comiler.env
+    next_cont =  env.lookup_next_cont(self.label, cont, comiler)
+    comiler.scont = next_cont
+    return next_cont
   def __repr__(self): return 'continue_block(%s)'%self.label
 
 def lookup(cont, tag, stop_cont, solver):
   try: return cont.lookup(cont, tag, stop_cont, solver)
   except AttributeError: 
-    return lookup(cont.cont, tag, stop_cont, solver)
+    return lookup(cont.succ, tag, stop_cont, solver)
   
 from dao.solve import tag_lookup
 from dao.env import unwind
@@ -920,6 +941,8 @@ def label_cont_lookup(cont, tag, stop_cont, solver):
     solver.env = cont.env
     return solver.cont(stop_cont.form, throwing_cont)
   else: return lookup(cont, tag, stop_cont, solver)
+
+from dao.compiler.cont import CatchCont, LabelCont
 
 class catch(SpecialForm):
   def __init__(self, tag, *body):
@@ -935,22 +958,30 @@ class catch(SpecialForm):
   def to_sexpression(self):
     return (catch, to_sexpression(self.tag)) +to_sexpression(self.body)
   def cont(self, cont, solver):
-    env = solver.env # not necessary?
     @mycont(cont)
     def catch_cont(tag, solver):
-      solver.env = env # not necessary?
       @tag_lookup(label_cont_lookup)
       @mycont(cont)
       def label_cont(value, solver): 
         solver.scont = cont
         return value
-      label_cont.tag, label_cont.env = tag, env
+      label_cont.tag, label_cont.env = tag, solver.env
       solver.scont = solver.exps_cont(self.body, label_cont)
       return True
-    catch_cont.env = solver.env  
     return solver.cont(self.tag, catch_cont)
-  def __repr__(self): return 'block(%s)'%self.body
+
+  def compile_to_cont(self, cont, compiler):
+    label_cont = LabelCont(compiler.scont)
+    compiler.add_cont(label_cont)
+    compiler.scont = compiler.exps_cont(self.body, label_cont)
+    catch_cont = CatchCont(compiler.scont)
+    compiler.add_cont(catch_cont)
+    return compiler.cont(self.tag, catch_cont)
   
+  def __repr__(self): return 'block(%s)'%self.body
+
+from dao.compiler.cont import ThrowCont
+
 class throw(SpecialForm):
   def __init__(self, tag, form):
     self.tag, self.form = tag, form
@@ -964,6 +995,7 @@ class throw(SpecialForm):
     return self
   def to_sexpression(self):
     return (throw,)+to_sexpression((self.tag, self.form))
+  
   def cont(self, cont, solver):
     @mycont(cont)
     def throw_cont(tag, solver): 
@@ -971,6 +1003,10 @@ class throw(SpecialForm):
       return True
     throw_cont.form, throw_cont.env = self.form, solver.env
     return solver.cont(self.tag, throw_cont)
+  
+  def compile_to_cont(self, cont, compiler):
+    throw_cont = ThrowCont(cont)
+    return compiler.cont(self.tag, throw_cont)
   
   def __repr__(self): return 'throw(%s,%s)'%(repr(self.tag),repr(self.form))
   

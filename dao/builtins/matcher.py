@@ -183,20 +183,41 @@ def Nullword(solver):
 
 null = nullword = Nullword()
 
+'''  for compiler
+def optional(solver, item, mode=nongreedy):
+  cont = solver.scont
+  fcont = solver.fcont
+  item_matched = [False] #global item_matched = False
+  
+  solver.fcont = {
+  +++ translate if mode!=greedy  or (mode==greedy +++ and not item_matched[0]): #global item_matched
+      solver.scont = cont
+      return True
+  else: solver.scont = fcont
+  } + fcont
+  
+  class OptionalCont(cont):
+    vop_list = ['item_matched[0] = True'] # global item_matched
+  solver.scont = solver.cont(item, OptionalCont(cont))
+  return True
+'''
+
 @matcher()
 def optional(solver, item, mode=nongreedy):
   cont = solver.scont
-  item_matched = [False]
+  global item_matched
+  item_matched = False
   @mycont(cont)
   def optional_cont(value, solver):
-    item_matched[0] = True
+    global item_matched
+    item_matched = True
     solver.scont = cont
     return value
   old_fcont = solver.fcont
   @mycont(old_fcont)
   def fcont(value, solver):
     solver.fcont = old_fcont
-    if mode!=greedy  or (mode==greedy and not item_matched[0]):
+    if mode!=greedy  or (mode==greedy and not item_matched):
       solver.scont = cont
       return True
     else: solver.scont = old_fcont
@@ -206,8 +227,81 @@ def optional(solver, item, mode=nongreedy):
   
 may = optional
 
+'''  for compiler
+def parallel(solver, call1, call2):
+  cont = solver.scont
+  parse_state = solver.parse_state
+  class ParallelCont:
+    right = solver.parse_state[1]
+    solver.parse_state = parse_state
+    class Parallel_finish_cont(right):
+      if solver.parse_state[1]==right: return value
+      else: solver.scont = solver.fcont
+    solver.scont = solver.cont(call2, Parallel_finish_cont(cont))
+  solver.scont = solver.cont(call1, ParallelCont(Parallel_finish_cont(cont)))
+'''
+
+
+'''
+def old_scont(value, solver):
+  old_scont_things
+
+def old_fcont(value, solver):
+  old_fcont_things
+
+def parallel_finish_cont(value, solver): # should be defined in parallel_cont
+  if solver.parse_state[1]==right: return value 
+| else: return old_fcont(value, solver) 
+|=>else: return old_fcont_things
+    
+def parallel_cont(value, solver): # should be defined in apply_parallel_cont
+  right = solver.parse_state[1]
+  solver.parse_state = parse_state
+  call2
+| return parallel_finish_cont(value, solver)
+|=>  
+  if solver.parse_state[1]==right: return value
+  else: solver.scont = solver.fcont
+
+def apply_parallel_cont(value, solver):
+  parse_state = solver.parse_state
+  call1
+| return parallel_cont(value, solver)
+|=>
+  right = solver.parse_state[1]
+  solver.parse_state = parse_state
+  call2
+  if solver.parse_state[1]==right: return value
+  else: old_fcont_things
+
+def apply_par_cont(value, solver):
+  parse_state = solver.parse_state
+  call1
+  right = solver.parse_state[1]
+  solver.parse_state = parse_state
+  call2
+  if solver.parse_state[1]==right: return value
+  else: old_fcont_things
+  
+'''
+# single cont + yield
+#@matcher()
+#def parallel(solver, call1, call2):
+  #parse_state = solver.parse_state
+  #@mycont(cont)
+  #def pallel_cont(value1, solver):
+    #right = solver.parse_state[1]
+    #solver.parse_state = parse_state
+    #@mycont(cont)
+    #def pallel_finish_cont(value, solver):
+      #if solver.parse_state[1]==right: yield cont, value
+    #yield solver.cont(call2, pallel_finish_cont), value1
+  #yield solver.cont(call1, pallel_cont), True
+
+# double continuations
 @matcher()
 def parallel(solver, call1, call2):
+  cont = solver.scont
   parse_state = solver.parse_state
   @mycont(cont)
   def pallel_cont(value1, solver):
@@ -215,9 +309,10 @@ def parallel(solver, call1, call2):
     solver.parse_state = parse_state
     @mycont(cont)
     def pallel_finish_cont(value, solver):
-      if solver.parse_state[1]==right: yield cont, value
-    yield solver.cont(call2, pallel_finish_cont), value1
-  yield solver.cont(call1, pallel_cont), True
+      if solver.parse_state[1]==right: return value
+      else: solver.scont = solver.fcont
+    solver.scont = solver.cont(call2, pallel_finish_cont)
+  solver.scont = solver.cont(call1, pallel_cont)
 
 def greedy_repeat_cont(item, cont):
   @mycont(cont)

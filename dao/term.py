@@ -7,7 +7,7 @@ from dao.base import deref, getvalue, copy, copy_rule_head
 from dao.base import apply_generators, unify, unify_list, match
 from dao.base import closure
 
-from dao.compiler.compile import ValueCont
+from dao.compiler.cont import ValueCont
 from dao.compiler import vop
 
 # ==============================================
@@ -252,7 +252,7 @@ class Var(BaseCommand):
     return value_cont(self.getvalue(solver.env, {}), cont)
   
   def compile_to_cont(self, cont, compiler):
-    return ValueCont(vop.GetVarValue(self), cont)
+    return ValueCont(vop.GetValue(self), cont)
     
   def __add__(self, other): 
     from dao.builtins.arith import add
@@ -462,4 +462,3 @@ def cons2tuple(item):
      and not isinstance(item, tuple): 
     return item
   return tuple(cons2tuple(x) for x in item)
-
