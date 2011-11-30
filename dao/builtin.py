@@ -2,7 +2,8 @@
 
 from dao.command import Command, Function, Macro
 from dao.term import CommandCall
-from dao.solvebase import mycont
+from dao.solvebase import mycont, BUILTIN_FUNCTION, BUILTIN_PREDICATE, BUILTIN_MACRO
+from dao.compiler import type
 
 class Builtin: 
   def __init__(self, function, name, symbol, is_global):
@@ -11,6 +12,7 @@ class Builtin:
     self.name = name
     self.symbol = symbol if symbol else name
     self.is_global = is_global
+    
   def copy(self): return self.__class__(self.function, self.name)
   def __hash__(self): return hash(self.function)
   def __eq__(self, other): 
@@ -24,7 +26,9 @@ class Builtin:
 _memorable = False
 
 class BuiltinFunction(Builtin, Function):
+  command_type = BUILTIN_FUNCTION
   memorable = _memorable
+  type = type.builtin_function
   def __call__(self, *args):
     return CommandCall(self, *args)
   
@@ -55,7 +59,9 @@ for x in builtin_predicate_fun():
 '''%(', '.join([code(x) for x in self.args]), code(self.operator))
     
 class BuiltinPredicate(Builtin, Function):
+  command_type = BUILTIN_PREDICATE
   memorable = _memorable
+  type = type.builtin_predicate
   def __call__(self, *args):
     return CommandCall(self, *args)
   def apply(self, solver, values, signatures):
@@ -75,6 +81,8 @@ for x in builtin_macro_fun():
       code(self.operator), ', '.join([code(x) for x in self.args]))
     
 class BuiltinMacro(Builtin, Macro):
+  type = type.builtin_macro
+  command_type = BUILTIN_MACRO
   memorable = _memorable
   def __call__(self, *args):
     return CommandCall(self, *args)
@@ -99,6 +107,13 @@ def memo(builtin):
 def nomemo(builtin):
   builtin.memorable = False
   return builtin
+
+def set_type(type):
+  def set_type_func(builtin):
+    builtin.type = type
+    return builtin
+  return set_type_func
+
 
 function = builtin(BuiltinFunction)
 predicate = builtin(BuiltinPredicate)

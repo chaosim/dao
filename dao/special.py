@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 pyset = set
+pytype = type
 
 from dao.command import Function, Macro
 from dao.term import closure, Var, ClosureVar, CommandCall
@@ -17,6 +18,7 @@ from dao.solve import run_mode, set_run_mode, interactive, noninteractive
 from dao.solve import interactive_parser, interactive_tagger
 
 # compile
+from dao.compiler import type
 from dao.compiler.compile import ValueCont, code
 from dao.compiler import env as compiler_env
 
@@ -39,6 +41,11 @@ class quote(SpecialForm):
   def __init__(self, exp): self.exp = exp
   def to_sexpression(self):
     return (quote, to_sexpression(self.exp))
+  
+  def get_type(self, typer):
+    value_type = typer.solve(self.exp)
+    return value_type
+  
   def cont(self, cont, solver): 
     return value_cont(self.exp, cont)
   def compile_to_cont(self, cont, compiler):
@@ -75,6 +82,12 @@ class set(SpecialForm):
     return self
   def to_sexpression(self):
     return (set, self.var, to_sexpression(self.exp))
+  
+  def get_type(self, typer):
+    value_type = typer.solve(self.exp)
+    typer.env[self.var] = value_type
+    return value_type
+  
   def cont(self, cont, solver):
     @mycont(cont)
     def set_cont(value, solver):
@@ -228,6 +241,8 @@ class begin(SpecialForm):
     return self
   def to_sexpression(self):
     return (begin, )+to_sexpression(self.exps)
+  def get_type(self, typer):
+    return typer.solve_exps(self.exps)
   def cont(self, cont, solver): 
     return solver.exps_cont(self.exps, cont)
   def compile_to_cont(self, cont, compiler): 
@@ -267,6 +282,9 @@ class if_(SpecialForm):
     return self
   def to_sexpression(self):
     return (if_, )+to_sexpression((self.test, self.exp1, self.exp2))
+  
+  def get_type(self, typer):
+    return type.make_or(typer.solve(self.exp1), typer.solve(self.exp2))
   def cont(self, cont, solver):
     if_cont = make_if_cont(self.exp1, self.exp2, cont)
     return solver.cont(self.test, if_cont)
@@ -609,6 +627,9 @@ class let(SpecialForm):
     self.bindings = to_sexpression(self.bindings)
     self.body = to_sexpression(self.body)
     return (self.__class__, self.bindings)+self.body
+  def get_type(self, typer):
+    typer.env =typer.env.extend(dict(self.bindings))
+    return typer.solve_exps(self.body)
   def cont(self, cont, solver):
     vars = tuple(b[0] for b in self.bindings)
     values = tuple(b[1] for b in self.bindings)
@@ -672,6 +693,8 @@ class FunctionForm(SpecialForm):
     return self
   def to_sexpression(self):
     return (self.__class__,)+to_sexpression(self.rules)
+  def get_type(self, typer):
+    return type.Function()
   def cont(self, cont, solver):
     arity2rules, signature2rules = make_rules(self.rules)
     func = UserFunction(arity2rules, signature2rules, solver.env, recursive=False)
@@ -859,6 +882,8 @@ class block(SpecialForm):
     return self
   def to_sexpression(self):
     return (block, self.label)+to_sexpression(self.body)
+  def get_type(self, typer):  
+    return typer.solve(self.body[-1]) 
   def cont(self, cont, solver):
     block_env = BlockEnvironment(self.label, solver.env, cont, None)
     solver.env = block_env

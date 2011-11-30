@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+pytype = type
+
 # depend dao.solve only.
 from dao.solve import BaseCommand, mycont, value_cont
 
@@ -9,6 +11,7 @@ from dao.base import closure
 
 from dao.compiler.cont import ValueCont
 from dao.compiler import vop
+from dao.compiler import type
 
 # ==============================================
 
@@ -158,7 +161,10 @@ class Var(BaseCommand):
     return self.getvalue(solver.env, {}).apply(solver, *exps)
   
   def match(self, other): return True
-        
+  
+  def get_type(self, solver):
+    return solver.env[self]
+  
   def unify(self, other, solver, occurs_check=False):
     env = solver.env
     self = self.deref(env)

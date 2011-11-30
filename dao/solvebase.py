@@ -150,3 +150,4 @@ def dao_repr(exp):
     try: return exp_____repr____()
     except TypeError: return repr(exp)
 
+BUILTIN_FUNCTION, BUILTIN_PREDICATE, BUILTIN_MACRO, USER_FUNCTION, USER_MACRO = range(5)

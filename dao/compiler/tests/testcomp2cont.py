@@ -131,6 +131,11 @@ class TestBuiltin:
     eq_(len(compiler.cont_set), len(cont_set))
     eq_(compiler.cont_set, cont_set)
     
+  def testUnify(self):
+    compiler = make_compiler()
+    compiler.parse_compile_to_cont(unify(x,1))
+    eq_(len(compiler.cont_set), len(cont_set))
+    eq_(compiler.cont_set, cont_set)
 
 class TestFunction:
   def test_function0(self):

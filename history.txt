@@ -1,5 +1,21 @@
 details of history:
 
+2011-08-23 09:04:09 
+start working
+
+2011-11-28 14:58:36 
+start typer
+
+2011-11-28 12:30:01 
+some demostation of compiled code in compiler\compiled folder
+
+2011-11-28 12:30:38 
+find a schema for shorten the binding chain, do not shorten when dao.term.getvalue if correct. 
+shorten it when unify or in builtin instead.??? something must be wrong with this.
+
+2011-11-28 08:40:46 
+start working
+
 2011-11-27 22:30:37 
 git* catch, throw, not finished completely
 start on function
@@ -15,18 +31,6 @@ generate code from the root cont
 
 2011-11-27 12:42:45 
 thinking about builtin.matcher: parallel, interesting code expansion
- 
-2011-11-27 11:43:47 
-from the use of 'item_matched', 'matched' in optional, any, some and so on, use global and outer variables is necessary.
-local variable: @var, outer variable ^var, global variable ^^variable 
-var = 1: local assign, assign value 1 to var in local env, if not exist, add new variable
-@var = 1: same as above.
-^var = 1: outer assign, assign value 1 to var in outer env, if not exist, error raised.
-^^var = 1: global assign, assign value 1 to var in global env, if not exist, error raised.
-x = @var: get value of var in local env, if not exist, error raised.
-x = var: get value of var in most inner env, include local env 
-x = ^var: get value of var in most inner env, exclude local env and global env
-x = ^^var: get value of var in global environment
 
 2011-11-27 11:25:22 
 thinking about builtin.matcher: char and optional for compiler

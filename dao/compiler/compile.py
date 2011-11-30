@@ -78,14 +78,17 @@ class Compiler:
         if isinstance(exp[0], tuple):
           cont0 = self.cont(exp[0], cont)
           if isinstance(cont0, ValueCont):
-            if isinstance(cont0.exp, Function):
-              compile_function_cont(cont0, self, exp[1:], Function)
-          function_cont = compile_function_cont(cont0, self, exp[1:], Function)
-          builtin_function_cont = compile_function_cont(cont0, self, exp[1:], BuiltinFunction)
-          macro_cont = compile_macro_cont(cont0, self, exp[1:])
-          sc = SelectFunMacroCont(cont0, function_cont, builtin_function_cont, macro_cont)
-          self.add_cont(sc)
-          return sc
+            if is_command(cont0.exp):
+              try: 
+                compile_func = cont0_exp.compile_cont
+              except:
+                function_cont = compile_function_cont(cont0, self, exp[1:], Function)
+                builtin_function_cont = compile_function_cont(cont0, self, exp[1:], BuiltinFunction)
+                macro_cont = compile_macro_cont(cont0, self, exp[1:])
+                sc = SelectFunMacroCont(cont0, function_cont, builtin_function_cont, macro_cont)
+                self.add_cont(sc)
+                return sc
+              return compile_func(self, exp[1:])
           #(result_type, result) = self.try_compile_and_evaluate(exp[0])
           #if result_type is 0: 
             ## can not solved in the compile phase, 
@@ -99,7 +102,7 @@ class Compiler:
             #SelectCont(, )
           #elif result_type==1: #function
             #return ValueCont(result, result.compile_cont(exp[1:]))
-        return ValueCont(exp[0], exp[0].compile_cont(self, exp[1:]))
+        return ValueCont(exp[0], exp[0].compile_cont(self, exp[1:])) # on case of exp[0] is not Var
     else:
       if is_subclass(exp, object):
         return ValueCont(exp, cont)

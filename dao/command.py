@@ -2,6 +2,7 @@ from dao.solvebase import BaseCommand, mycont
 from dao.term import DummyVar, rule_head_signatures, closure
 
 from dao.compiler import vop
+from dao.compiler import type
 
 class Command(BaseCommand):
   ''' the base class for all the callable object in the dao system.'''
@@ -89,7 +90,12 @@ from dao.compiler.cont import *
 
 class Function(Command):
   
+  type = type.function
   memorable = True
+  
+  def evaluate_type(self, typer, args):
+    args_types = [typer.solve(arg) for arg in args]
+    return self.type.apply(args_types)
   
   def evaluate_cont(self, solver, exps):
     cont = solver.scont
@@ -165,6 +171,7 @@ def compile_arguments(klass, compiler, args):
 
 class Macro(Command): 
   
+  type = type.macro
   memorable = True
   
   def evaluate_cont(self, solver, exps):

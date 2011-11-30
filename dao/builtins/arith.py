@@ -1,4 +1,5 @@
 from dao import builtin
+from dao.builtin import set_type
 from dao.term import Var, ClosureVar, deref, getvalue, CommandCall
 import operator
 from dao.solve import run_mode, interactive, to_sexpression
@@ -8,6 +9,7 @@ from dao.solve import mycont
 # compile
 
 from dao.compiler.compile import code
+from dao.compiler import type
 
 class OperatorCall(CommandCall): pass
 
@@ -85,10 +87,16 @@ def ge(x, y): return operator.ge(x, y)
 def getattr(x, y): return operator.getattr(x, y)  
 @binary('getitem', '[ ]')
 def getitem(x, y): return operator.getitem(x, y)
+
+@set_type(type.Function([type.int], type.int))
 @binary('add', '+', is_global=True)
 def add(x, y): return operator.add(x, y)  
+
+@set_type(type.Function([type.int], type.int))
+@binary('add', '+', is_global=True)
 @binary('sub','-')
-def sub(x, y): return operator.sub(x, y)  
+def sub(x, y): return operator.sub(x, y)
+
 @binary('mul', '*')
 def mul(x, y): return operator.mul(x, y)  
 @binary('floordiv', '/')

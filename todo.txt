@@ -12,8 +12,11 @@ todo: first set for matcher  compute when create command, not when calling comma
 
 todo: compile to python 
   todo: use python var as t var
+  todo：logic var become python var with Var instance as its value, but other var is compiled to python var with other values.
+ 
 todo: succeed continution, fail continuation and compiler
   # fail continuation may be not needed when compile to python
+
 todo: no list, tuples, only Cons
 todo: module become object? object oriented with module.
   # lookup var in base module, base module becomes super class.

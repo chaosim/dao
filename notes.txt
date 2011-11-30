@@ -1,3 +1,9 @@
+2011-11-28 10:38:41 
+思维有点乱了
+
+2011-11-28 08:29:39 
+昨夜偶得一梦，醒来发现在网络时代可以发展成一项事业：夜里在一处，几人围坐一处。我的座位后被一个女孩撒了一地图案，好像是个长耳兔子。我为了不破坏图案，就只好从空洞的地方跳到座位上。后来我说这个兔子的样子要是改改就好了。居然这个女孩就把兔子拿起来（梦的荒诞：突然兔子变成了一个毛绒兔子），把兔子脸上的拉链接口，重新把脸扣成了另一种样式。醒来后我突然想到，可以开个网站，用户自己设计各种玩具，或者是服装，其它用品也可以。设计过程就像现在的游戏，厂家按样定制。
+
 2011-11-27 11:43:47 
 from the use of 'item_matched', 'matched' in optional, any, some and so on, use global and outer variables is necessary.
 local variable: @var, outer variable ^var, global variable ^^variable 
