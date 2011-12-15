@@ -13,7 +13,12 @@ class DataFlowGraph:
   def __init__(self): 
     self.depend_dict = {}
     self.flow_dict = {}
-    
+
+class ContCall:
+  def __init__(self, cont, argument):
+    self.cont, self.argument = cont, argument
+  def __eq__(self, other):
+    return isinstance(other, ContCall) and self.cont==other.cont and self.argument==other.argument
 class Cont:
   def __init__(self, succ, prev):
     self.succ = succ
@@ -25,7 +30,10 @@ class Cont:
     self.data_dependent = set([])
     self.vops = []
     self.depend_prev_value = True
-    
+  
+  def __call__(self, argument):
+    return ContCall(self, argument)
+  
   def depend_on(self, other):
     if other is self.prev:
       return self.depend_prev_value
@@ -37,8 +45,9 @@ class Cont:
     if self is other: return True
     if not isinstance(other, self.__class__): return False
     if not self.succ==other.succ: return False
-    return self.__eq(other)
-  def __eq(self, other): return True
+    return self.__class__._eq(self, other)
+  def _eq(self, other): 
+    return True
   
   def set_succ(self, cont):
     self.succ = cont
@@ -87,8 +96,11 @@ class ValueCont(Cont):
     self.vops = []
     self.depend_prev_value = False
   def code(self):
-    return code(self.exp)
-  def __eq(self, other):
+    return repr(self.exp)
+    #try: self_prev = self.prev
+    #except: return code(self.exp)
+    #return self_prev.code()
+  def _eq(self, other):
     return self.exp==other.exp
   def __repr__(self):
     return 'V(%s, %s)'%(repr(self.exp), self.succ.label)
@@ -101,7 +113,7 @@ class SetCont(Cont):
     self.var = var
   def code(self):
     return '%s = %s'%(code(self.var), code(self.prev))
-  def __eq(self, other): 
+  def _eq(self, other): 
     return self.var==other.var
   def __repr__(self):
     return 'Set(%s, %s)'%(self.var, self.succ.label)
@@ -113,8 +125,12 @@ class IfCont(Cont):
     Cont.__init__(self, None, None)
     self.then_cont, self.else_cont = then_cont, else_cont
     #self.data_dependent = self.prev
-  def __eq(self, other):
+  def _eq(self, other):
     return self.then_cont==other.then_cont and self.else_cont==other.else_cont
+  
+  def code(self):
+    return 'if value: %s\nelse:%s'%(self.then_cont.code(), self.else_cont.code())
+  
   def __repr__(self):
     return 'If(%s, %s)'%(self.then_cont.label, self.else_cont.label)
 If = IfCont
@@ -126,7 +142,7 @@ class ApplyCont(Cont):
     self.operator = operator
   def code(self):
     return '%s(%s, %s)'%code(self.operator)
-  def __eq(self, other):
+  def _eq(self, other):
     return self.operator==other.operator
   def __repr__(self): 
     return 'App(%r, %s)'%(self.operator, self.succ.label)
@@ -146,7 +162,7 @@ class GatherCont(Cont):
     Cont.__init__(self, cont, None)
     self.arg = arg
     #self.vop = SetVal(Concat(GetAttr('arg'), ContVal()))
-  def __eq(self, other):
+  def _eq(self, other):
     return self.arg==other.arg
   def __repr__(self):
     return 'Gat(%s, %s)'%(self.arg, self.succ.label)
@@ -160,7 +176,7 @@ class SelectFunMacroCont(Cont):
     self.operator = operator
     self.fun_cont, self.builtin_fun_cont = fun_cont, builtin_fun_cont
     self.macro_cont = macro_cont
-  def __eq(self, other):
+  def _eq(self, other):
     return self.arg==other.arg
   def __repr__(self):
     return 'Sel/F/M(%s: %s, %s, %s)'%(self.operator.label, self.fun_cont.label, 
@@ -178,9 +194,12 @@ Blk = BlockCont
 
 class CatchCont(Cont):
   label = 'Catch'
-  def __init__(self, succ):
-    Cont.__init__(self, succ, None) 
-    # vop: label_cont.tag, label_cont.env = tag, solver.env
+  def __init__(self, succ, label_cont):
+    Cont.__init__(self, succ, None)
+    self.label_cont = label_cont
+    # vop: label_cont.tag, label_cont.env = tag, compiler.env
+  def _eq(self, other):
+    return self.label_cont==other.label_cont
   def __repr__(self):
     return 'Catch(%s)'%(self.succ)
 Catch = CatchCont
@@ -200,6 +219,16 @@ class ThrowCont(Cont):
     #solver.scont = lookup(throw_cont, tag, throw_cont, solver)
     #throw_cont.form, throw_cont.env = self.form, solver.env
   def __repr__(self):
-    return 'Lbl(%s)'%(self.succ)
+    return 'Throw(%s)'%(self.succ)
 Throw = ThrowCont
 
+class LetVarCont(Cont):
+  label = 'LetVar'
+  def __init__(self, env, var, next_cont):
+    Cont.__init__(self, next_cont, None)
+    self.env, self.var = env, var
+    #solver.scont = lookup(throw_cont, tag, throw_cont, solver)
+    #throw_cont.form, throw_cont.env = self.form, solver.env
+  def __repr__(self):
+    return 'LetVar(%s)'%(self.var)
+  

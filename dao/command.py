@@ -93,8 +93,8 @@ class Function(Command):
   type = type.function
   memorable = True
   
-  def evaluate_type(self, typer, args):
-    args_types = [typer.solve(arg) for arg in args]
+  def evaluate_type(self, compiler, args):
+    args_types = [compiler.get_type(arg) for arg in args]
     return self.type.apply(args_types)
   
   def evaluate_cont(self, solver, exps):
@@ -173,6 +173,10 @@ class Macro(Command):
   
   type = type.macro
   memorable = True
+  
+  def evaluate_type(self, compiler, args):
+    args_types = [compiler.get_type(arg) for arg in args]
+    return self.type.apply(args_types)
   
   def evaluate_cont(self, solver, exps):
     exps1 = [(closure(exp, solver.env)) for exp in exps]

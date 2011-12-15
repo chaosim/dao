@@ -42,8 +42,8 @@ class quote(SpecialForm):
   def to_sexpression(self):
     return (quote, to_sexpression(self.exp))
   
-  def get_type(self, typer):
-    value_type = typer.solve(self.exp)
+  def get_type(self, compiler):
+    value_type = compiler.get_type(self.exp)
     return value_type
   
   def cont(self, cont, solver): 
@@ -83,9 +83,9 @@ class set(SpecialForm):
   def to_sexpression(self):
     return (set, self.var, to_sexpression(self.exp))
   
-  def get_type(self, typer):
-    value_type = typer.solve(self.exp)
-    typer.env[self.var] = value_type
+  def get_type(self, compiler):
+    value_type = compiler.get_type(self.exp)
+    compiler.env[self.var] = value_type
     return value_type
   
   def cont(self, cont, solver):
@@ -98,6 +98,8 @@ class set(SpecialForm):
   def compile_to_cont(self, cont, compiler):
     set_cont = SetCont(self.var, cont)
     compiler.add_cont(set_cont)
+    value_type = compiler.get_type(self.exp)
+    compiler.typenv[self.var] = value_type
     return compiler.cont(self.exp, set_cont)
   def __eq__(self, other): return self.var==other.var and self.exp==other.exp
   def __repr__(self): return "set(%s, %s)"%(self.var, self.exp)
@@ -241,8 +243,8 @@ class begin(SpecialForm):
     return self
   def to_sexpression(self):
     return (begin, )+to_sexpression(self.exps)
-  def get_type(self, typer):
-    return typer.solve_exps(self.exps)
+  def get_type(self, compiler):
+    return compiler.get_type_exps(self.exps)
   def cont(self, cont, solver): 
     return solver.exps_cont(self.exps, cont)
   def compile_to_cont(self, cont, compiler): 
@@ -283,15 +285,17 @@ class if_(SpecialForm):
   def to_sexpression(self):
     return (if_, )+to_sexpression((self.test, self.exp1, self.exp2))
   
-  def get_type(self, typer):
-    return type.make_or(typer.solve(self.exp1), typer.solve(self.exp2))
+  def get_type(self, compiler):
+    return type.make_or(compiler.get_type(self.exp1), compiler.get_type(self.exp2))
   def cont(self, cont, solver):
     if_cont = make_if_cont(self.exp1, self.exp2, cont)
     return solver.cont(self.test, if_cont)
   def compile_to_cont(self, cont, compiler):
     then_cont = compiler.cont(self.exp1, cont)
     else_cont = cont if self.exp2 is None else compiler.cont(self.exp2, cont)
-    return compiler.cont(self.test, IfCont(then_cont, else_cont))
+    if_cont = IfCont(then_cont, else_cont)
+    then_cont.prev = else_cont.prev = if_cont
+    return compiler.cont(self.test, if_cont)
   def __repr__(self):
     els = 'else: %s'%repr(self.exp2) if self.exp2 else ''
     return 'if %s: %s%s'%(self.test, self.exp1, els)
@@ -611,6 +615,8 @@ class OnForm(ParserForm):
 # which distinct by the strict and lazy evaluation of the arguments.
 # the implentations is based on "Lisp In Small Pieces" by Christian Queinnec and Ecole Polytechnique
 
+from dao.compiler.cont import LetVarCont
+
 class let(SpecialForm):
   symbol = 'let'
   def __init__(self, bindings, *body):
@@ -627,20 +633,69 @@ class let(SpecialForm):
     self.bindings = to_sexpression(self.bindings)
     self.body = to_sexpression(self.body)
     return (self.__class__, self.bindings)+self.body
-  def get_type(self, typer):
-    typer.env =typer.env.extend(dict(self.bindings))
-    return typer.solve_exps(self.body)
+  def get_type(self, compiler):
+    type_bindings = tuple((b[0], compiler.get_type(b[1])) for b in self.bindings)
+    old_env = compiler.env
+    compiler.env = compiler.env.extend(dict(type_bindings))
+    result = compiler.get_type_exps(self.body)
+    compiler.env = old_env
+    return result
+
   def cont(self, cont, solver):
     vars = tuple(b[0] for b in self.bindings)
     values = tuple(b[1] for b in self.bindings)
     return  solver.cont(((FunctionForm,((vars,)+self.body)),)+values, cont)
+  
+  def compile_to_cont(self, cont, compiler):
+    old_typenv = compiler.typenv
+    type_bindings = {}
+    old_env = compiler.env
+    new_env = old_env.extend({})
+    compiler.env = new_env
+    compiler.typenv = old_typenv.extend(type_bindings)
+    next_cont = result_cont = compiler.exps_cont(self.body, cont)
+    compiler.env = old_env
+    compiler.typenv = old_typenv
+    for var, value in reversed(self.bindings):
+      let_var_cont = LetVarCont(new_env, var, next_cont)
+      compiler.add_cont(let_var_cont)
+      c, t = compiler.get_cont_type(value, let_var_cont)
+      next_cont = c
+      type_bindings[var] = t
+    return result_cont
+  
+  def get_cont_type(self, cont, compiler):
+    old_typenv = compiler.typenv
+    old_env = compiler.env
+    type_bindings = tuple((b[0], compiler.get_type(b[1])) for b in self.bindings)
+    new_env = old_env.extend({})
+    for b in self.bindings: 
+      compiler.cont(b[1], SetEnvCont(new_env, b[0]))
+    compiler.env = new_env
+    compiler.typenv = old_typenv.extend(dict(type_bindings))
+    result_type, result_cont = compiler.compile_to_cont_type(self.body, cont)
+    compiler.typenv = old_typenv
+    compiler.env = old_env
+    return result_cont, result_type
+  
   def __eq__(self, other):
     return self.bindings==other.bindings and self.body==other.body
+  
   def __repr__(self):
     return 'let %s: %s'%(repr(self.bindings), self.body)
   
 class letr(let):
   symbol = 'letr'
+  
+  def get_type(self, compiler):
+    old_env = compiler.env
+    type_bindings = tuple((b[0], type.dummy) for b in self.bindings)
+    compiler.env = compiler.env.extend(dict(type_bindings))
+    for b in self.bindings:
+      compiler.env.bindings[b[0]] = compiler.get_type(b[1])
+    result = compiler.get_type_exps(self.body)
+    compiler.env = old_env
+    return result
   def cont(self, cont, solver):
     vars = tuple(b[0] for b in self.bindings)
     values = tuple(b[1] for b in self.bindings)
@@ -662,12 +717,27 @@ class lambda_(SpecialForm):
     return self
   def to_sexpression(self):
     return (self.__class__, self.vars)+to_sexpression(self.body)
+  def get_type(self, compiler):
+    return type.UserFunction(compiler.get_type_exps(self.body))
   def cont(self, cont, solver):
     return solver.cont((FunctionForm, ((self.vars,)+self.body)), cont)
   def __repr__(self):
     return 'lambda %s: %s'%(repr(self.vars), self.body)
   
 def make_rules(rules):
+  arity2rules, arity2signatures = {}, {}
+  for rule in rules:
+    head = rule[0]
+    rule = Rule(head, rule[1:])
+    arity = len(head)
+    arity2rules.setdefault(arity, []).append(rule)
+    if arity==0: continue
+    for signature in rule_head_signatures(head):
+      arity_signature = arity2signatures.setdefault(arity, {})
+      arity_signature.setdefault(signature, pyset()).add(len(arity2rules[arity])-1)
+  return arity2rules, arity2signatures
+
+def compile_rules(rules, compiler):
   arity2rules, arity2signatures = {}, {}
   for rule in rules:
     head = rule[0]
@@ -693,16 +763,21 @@ class FunctionForm(SpecialForm):
     return self
   def to_sexpression(self):
     return (self.__class__,)+to_sexpression(self.rules)
-  def get_type(self, typer):
-    return type.Function()
   def cont(self, cont, solver):
     arity2rules, signature2rules = make_rules(self.rules)
     func = UserFunction(arity2rules, signature2rules, solver.env, recursive=False)
     return value_cont(func, cont)
+  
+  def get_type(self, compiler):
+    return type.Function(type.root)
   def compile_to_cont(self, cont, compiler):
     arity2rules, signature2rules = make_rules(self.rules)
     func = UserFunction(arity2rules, signature2rules, compiler.env, recursive=False)
     return compiler.add_cont(ValueCont(func, cont))
+  def get_cont_type(self, cont, compiler):
+    arity2rules, signature2rules = compile_rules(self.rules, compiler)
+    func = UserFunction(arity2rules, signature2rules, compiler.env, recursive=False)
+    return compiler.add_cont(ValueCont(func, cont)), type.Function(type.root)
   def __eq__(self, other):
     return isinstance(other, FunctionForm) and self.rules==other.rules
   def __repr__(self):
@@ -882,8 +957,8 @@ class block(SpecialForm):
     return self
   def to_sexpression(self):
     return (block, self.label)+to_sexpression(self.body)
-  def get_type(self, typer):  
-    return typer.solve(self.body[-1]) 
+  def get_type(self, compiler):  
+    return compiler.get_type(self.body[-1]) 
   def cont(self, cont, solver):
     block_env = BlockEnvironment(self.label, solver.env, cont, None)
     solver.env = block_env
@@ -916,6 +991,10 @@ class exit_block(SpecialForm):
     return self
   def to_sexpression(self):
     return (exit_block,)+to_sexpression((self.label, self.form))
+  
+  def get_type(self, compiler):
+    return compiler.get_type(self.form)
+  
   def cont(self, cont, solver):
     env = solver.env
     @mycont(cont)
@@ -982,6 +1061,9 @@ class catch(SpecialForm):
     return self
   def to_sexpression(self):
     return (catch, to_sexpression(self.tag)) +to_sexpression(self.body)
+  
+  def get_type(self, compiler):
+    return compiler.get_type_exps(self.body)
   def cont(self, cont, solver):
     @mycont(cont)
     def catch_cont(tag, solver):
@@ -999,7 +1081,7 @@ class catch(SpecialForm):
     label_cont = LabelCont(compiler.scont)
     compiler.add_cont(label_cont)
     compiler.scont = compiler.exps_cont(self.body, label_cont)
-    catch_cont = CatchCont(compiler.scont)
+    catch_cont = CatchCont(compiler.scont, label_cont)
     compiler.add_cont(catch_cont)
     return compiler.cont(self.tag, catch_cont)
   
@@ -1020,7 +1102,8 @@ class throw(SpecialForm):
     return self
   def to_sexpression(self):
     return (throw,)+to_sexpression((self.tag, self.form))
-  
+  def get_type(self, compiler):
+    return compiler.get_type(self.form)
   def cont(self, cont, solver):
     @mycont(cont)
     def throw_cont(tag, solver): 
@@ -1030,7 +1113,8 @@ class throw(SpecialForm):
     return solver.cont(self.tag, throw_cont)
   
   def compile_to_cont(self, cont, compiler):
-    throw_cont = ThrowCont(cont)
+    self.scont = None
+    throw_cont = ThrowCont(compiler.cont(self.form, None))
     return compiler.cont(self.tag, throw_cont)
   
   def __repr__(self): return 'throw(%s,%s)'%(repr(self.tag),repr(self.form))
@@ -1055,6 +1139,8 @@ class unwind_protect(SpecialForm):
   def to_sexpression(self):
     return (unwind_protect, to_sexpression(self.form))+to_sexpression(self.cleanup)
   
+  def get_type(self, compiler):
+    return type.make_or(compiler.get_type(self.form), compiler.get_type_exps(self.cleanup))
   def cont(self, cont, solver):
     env = solver.env
     cont0 = cont

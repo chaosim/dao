@@ -1,8 +1,12 @@
 ##from dao.term import UEntity
 
+from dao.compiler import type
+
 class Environment:
   def extend(self, bindings):
     return ExtendEnvironment(bindings, self)
+  def extend_recur(self, bindings):
+    return ExtendEnvironment(dict(bindings), self)
   
   def __repr__(self): 
     result = '' 
@@ -17,7 +21,7 @@ class GlobalEnvironment(Environment):
     self.outer = None
   def __getitem__(self, var): 
     try: return self.bindings[var]
-    except: return var
+    except: return type.var
   def __setitem__(self, var, value):
     self.bindings[var] = value
   def lookup_exit_cont(self, label, cont, form_value, solver): 

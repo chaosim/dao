@@ -30,23 +30,23 @@ class TestSimple:
   def testdefine(self):
     eq_(compile(begin(define(x,1),define(x,2))), 'define(x, 1); define(x, 2)')
     
-class xTestControl:
+class TestControl:
   def testbegin(self):
-    eq_(eval(begin(1, 2)), 2)
+    eq_(compile(begin(1, 2)), 2)
   def testif_(self):
-    eq_(eval(if_(0, 1, 2)), 2)
-  def testif_add_sub(self):
+    eq_(compile(if_(0, 1, 2)), 'value = 0\nif value: value = 1\nelse: value = 2')
+  #def testif_add_sub(self):
     eq_(eval(if_(0, add, sub)(1, 1)), 0)
-    eq_(eval(if_(1, add, sub)(1, 1)), 2)
-  def testiff(self):
-    eq_(eval(iff(((0, prin(1)), (1, prin(2))))), None)
+    #eq_(eval(if_(1, add, sub)(1, 1)), 2)
+  #def testiff(self):
+    #eq_(eval(iff(((0, prin(1)), (1, prin(2))))), None)
   def testiff2(self):
     eq_(eval(iff(((0, prin(1)), (0,prin(2))), prin(3))), None)
-  def testCaseForm(self):
-    eq_(eval(CaseForm(2, {0: [prin(0)], 1:[prin(1)], 2:[prin(2)]}, [prin(3)])), None)
+  #def testCaseForm(self):
+    #eq_(eval(CaseForm(2, {0: [prin(0)], 1:[prin(1)], 2:[prin(2)]}, [prin(3)])), None)
   def testeval1(self):
-    eq_(eval(eval_(quote(1))), (1))
-    eq_(eval(eval_(quote(add(1, 1)))), (2))
+    eq_(compile(eval_(quote(1))), (1))
+    eq_(compile(eval_(quote(add(1, 1)))), (2))
   def testeval2(self):
     eq_(eval(let([(x,1)], eval_(quote(x)))), 1)
 

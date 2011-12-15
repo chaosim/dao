@@ -19,30 +19,20 @@ from dao.util import *
 
 class TestSimple:
   def testInteger(self):
-    eq_(compile_to_cont(1), V(1, done))    
+    eq_(compile_to_cont(1), done(1))    
   def testVar(self):
-    eq_(compile_to_cont(x), V(vop.GetValue(x), done)) 
+    eq_(compile_to_cont(x), done(x)) 
   def testquote(self):
-    eq_(compile_to_cont(quote(x)), V(x, done))
+    eq_(compile_to_cont(quote(x)), done(x))
   def testset(self):
-    eq_(compile_to_cont(set(a,2)), V(2, Set(a, done)))
-  def testdefine1(self):
-    compiler = make_compiler()
-    compiler.parse_compile_to_cont(define(x,1))
-    eq_(len(compiler.cont_set), 4)
-  def testdefine2(self):
-    compiler = make_compiler()
-    compiler.parse_compile_to_cont(begin(define(x,1),define(x,2)))
-    cont_list = list(compiler.cont_set)
-    eq_(len(cont_list), 6)
-    ok_(not(cont_list[0].depend_on(cont_list[1]))) # two ApplyCont
+    eq_(compile_to_cont(set(a,2)), lambda_(v, done(set(a,v)))(2))
     
     
 class TestControl:
   def testBegin(self):
-    eq_(compile_to_cont(begin(1, 2)), V(1, V(2, done)))    
+    eq_(compile_to_cont(begin(1, 2)), lambda_(v)(done(2))(1))    
   def testif_(self):
-    eq_(compile_to_cont(if_(0, 1, 2)), V(0, If(V(1, done), V(2, done))))
+    eq_(compile_to_cont(if_(0, 1, 2)), lambda_(v, if_(v, done(1),done(2)))(0))
   
   def testblock1(self):
     eq_(compile_to_cont(block('a', exit_block('a', 2))), V(2, done))
@@ -66,14 +56,16 @@ class TestControl:
   def testcatch1(self):
     compiler = make_compiler()
     result = compiler.parse_compile_to_cont(catch(1, 2))
-    expect = V(1, Catch(V(2, Lbl(done))))
+    lbl_cont = Lbl(done)
+    expect = V(1, Catch(V(2, lbl_cont), lbl_cont))
     eq_(result, expect)
     
     
   def testcatch2(self):
     compiler = make_compiler()
     result = compiler.parse_compile_to_cont(catch(1, throw(1, 2), 3))
-    #expect = V(1, Catch(V(1, Throw()), Lbl(done)))
+    label_cont = Lbl(done)
+    expect = V(1, Catch(V(1, Throw(V(2,V(3,label_cont)))), label_cont))
     eq_(result, expect)
 
   #def testif_add_sub(self):
@@ -137,12 +129,38 @@ class TestBuiltin:
     eq_(len(compiler.cont_set), len(cont_set))
     eq_(compiler.cont_set, cont_set)
 
-class TestFunction:
-  def test_function0(self):
+class TestLet:
+  def testlet(self):
     compiler = make_compiler()
-    compiler.parse_compile_to_cont(function(((), 1))(1))
+    compiler.parse_compile_to_cont(let([(x,1)], x))
+    eq_(len(compiler.cont_set), 3)
+    eq_(compiler.cont_set, pyset([done]))
+
+  def testlet2(self):
+    compiler = make_compiler()
+    compiler.parse_compile_to_cont(let([(x,1),(y,2)], x, y))
+    eq_(len(compiler.cont_set), 3)
+    eq_(compiler.cont_set, pyset([done]))
+
+  def testlet3(self):
+    compiler = make_compiler()
+    compiler.parse_compile_to_cont(let([(x, 1)], let([(x,2)], x), x))
+    eq_(len(compiler.cont_set), 3)
+    eq_(compiler.cont_set, pyset([done]))
+
+class TestFunction:
+  def test_function1(self):
+    compiler = make_compiler()
+    compiler.parse_compile_to_cont(function(((), 1))())
     cont_list = list(compiler.cont_set)
-    eq_(len(cont_list), 13)
+    eq_(len(cont_list), 5)
+    ok_(not(cont_list[0].depend_on(cont_list[1]))) # two ApplyCont
+    
+  def test_function2(self):
+    compiler = make_compiler()
+    compiler.parse_compile_to_cont(function(((1,), 1), ((x,), x))(1))
+    cont_list = list(compiler.cont_set)
+    eq_(len(cont_list), 8)
     ok_(not(cont_list[0].depend_on(cont_list[1]))) # two ApplyCont
     
   #def testLambda(self):

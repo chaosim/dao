@@ -88,11 +88,11 @@ def getattr(x, y): return operator.getattr(x, y)
 @binary('getitem', '[ ]')
 def getitem(x, y): return operator.getitem(x, y)
 
-@set_type(type.Function([type.int], type.int))
+@set_type(type.Function(type.atom))
 @binary('add', '+', is_global=True)
 def add(x, y): return operator.add(x, y)  
 
-@set_type(type.Function([type.int], type.int))
+@set_type(type.Function(type.atom))
 @binary('add', '+', is_global=True)
 @binary('sub','-')
 def sub(x, y): return operator.sub(x, y)

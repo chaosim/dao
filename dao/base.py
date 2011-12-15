@@ -7,6 +7,14 @@ def is_subclass(sub, sup):
   for klass in sub.__bases__:
     if is_subclass(klass, sup): return True
 
+def classname(obj):
+  return obj.__class__.__name__.split('.')[-1]
+
+def is_var(obj):
+  try: obj.deref
+  except: return False
+  else: return True
+  
 # ------------------------------------------------------------
 
 # important function's definitions for unification and match:

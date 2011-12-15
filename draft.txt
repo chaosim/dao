@@ -1,0 +1,96 @@
+convert(expr, k)
+  c: 
+    k(c)
+  
+  x:
+    k(x)
+
+  (quote x)
+    k(x)
+
+  begin(a, b):
+    convert(a, convert(b))
+
+  (if a b c)
+      convert(a, (lambda(v) if(v) convert(b, k) else: convert(b, k))
+  
+  (set, a, expr)
+  convert(expr, (lambda(value): a = value, k(value))  
+  
+  (proc, values)
+    convert_arguments(values, apply_cont(proc), fc)
+  
+  lambda args: body
+  sk1, fk1 = convert(body, sk, fk)
+  V(lambda sk, fk, args: sk1, sc), fc
+  
+  function(((1,), 1), ((x,), x))
+     unify(x, 1, V(1, s), unify(x, x, V(x, s), f)
+
+  cut:
+     k(c)
+
+unify_list(list1, list2, sc, fc):
+  if len(list1)!=len(list2): fc(false)
+  elif len(list1)==0: sc(true)
+  else:
+    unify(list1[0], list1[1], sc, unify_list(list1[1:], list2[1:], sc, fc)
+
+unify(x, y, sc, fc):
+  try: x.unify(y, sc, fc)
+  except: 
+    if isinstance(x, tuple):
+      unify_list(x,y, sc, fc)
+    else: 
+      if (x==y) sc(true)
+      else: fc(false)
+
+======================================
+
+convert(x, k)
+  1: 
+    k(1)
+  
+  x:
+    k(x)
+
+  (quote x)
+    k(x)
+
+  (if a b c):
+   lambda(v) if v: convert(b, k) else: convert(b,k)
+  
+  (set, a, expr)
+  set_cont(a, convert(expr, k))
+  
+  (proc, values)
+    convert_arguments(values, apply_cont(proc, k))
+  
+  lambda args: body
+    V(lambda kk, args: convert(body,kk), k) 
+
+
+convert (A;B),(C;D), s, f, c
+
+s' = (convert((C;D), s, f', c)
+   = convert(C, s, convert(D, s, f', c), c)
+
+convert((A;B), s', f, c)
+
+convert(A, s', convert(B,s',f,c),c)
+
+s' = 
+{
+save_f
+set_f = (restore_f, D, s)
+C
+s
+}
+
+save_f
+set_f = (restore_f, B, s') 
+A
+s'
+
+cut:
+cut_f(cut_index)
