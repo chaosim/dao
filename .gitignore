@@ -2,7 +2,6 @@ yeanpypa.py
 *.pyc
 *.*~
 *.*#
-*.wpu
 document/_build/doctrees
 document/_build/pdf
 document/_build/html/_sources

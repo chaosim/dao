@@ -1,0 +1,48 @@
+convert(expr, k)
+  c: 
+    lambda(v): c, k
+  
+  x:
+    lambda(v): x, k
+
+  (quote x)
+    lambda(v): x, k
+
+  begin(a, b):
+    convert(a, convert(b, k))
+  sample: begin(1, 2)
+    lambda v, fc, cc:
+      1, (lambda v: 2, k)
+
+  (if a b c)
+      convert(a, (lambda v: if v: convert(b, k) else: convert(b, k))
+
+   sample: if(1, 2, 3)
+      lambda v:  
+        1, lambda v: if v: lambda v: 2, k, else: lambda v: 3, k
+
+  (set a expr)
+  convert(expr, {lambda v: (a = v; (v, k))}  
+  
+  (proc args)   
+    convert(proc, lambda p: convert_arguments(args, lambda v: p(k))
+  
+  (proc)
+  lambda v:
+    proc, (lambda v: v(()), k) 
+  
+  (lambda (): body)()
+  lambda (k): convert(body, k)
+    lambda v, fc, cc: 1, k, fc, cc 
+
+
+  function(((), body1), ((), body2))
+
+  lambda(solver)
+    lambda(solver):
+      old_fc = solver.fc
+      new_fc = lambda(k): 
+        solver.fc = old_fc
+        convert(body2)
+      solver.fc = new_fc
+      convert(body1)

@@ -73,55 +73,24 @@ class Compiler:
     self.typenv = typenv
     self.scont = self.stop_cont = done
     self.fcont = self.fail_stop = fail_done
-    self.cont_set = set([self.stop_cont, fail_done])
-    self.root_set = set([self.stop_cont, fail_done])
+    self.srcvar2internal = {}
+    self.internal2srcvar = {}
     
-    #self.parse_state = parse_state
-    #self.solved = False
-    # used for chart parsing, from bottom to up parsing
-    # left recursive is permmited
-    #self.sign_state2cont = {}
-    #self.sign_state2results = {}
-    #self.call_path = []
-
+  def alpha(self, exp):
+    try: exp_alpha = exp.alpha
+    except: return exp
+    return exp_alpha(self)
+    
   def cont(self, exp, cont):
-    if isinstance(exp, tuple): 
-      if is_subclass(exp[0], BaseCommand): # SpecialForm
-        form = exp[0](*exp[1:])
-        return form.compile_to_cont(cont, self)
-      else:
-        self.scont = cont
-        cont0, type0 = self.get_cont_type(exp[0], cont)
-        if isinstance(type0, type.BuiltinFunction):
-          arguments_cont = compile_function_cont(cont0, self, exp[1:], BuiltinFunction)
-        elif isinstance(type0, type.Function):
-          arguments_cont = compile_function_cont(cont0, self, exp[1:], Function)
-        elif isinstance(type0, type.Function):
-          arguments_cont = compile_macro_cont(cont0, self, exp[1:])
-        else:
-          raise DaoError('can not find the type of caller')
-        self.add_cont(arguments_cont)
-        return arguments_cont
-    else:
-      if is_subclass(exp, object):
-        return ValueCont(exp, cont)
-      try: exp_compile_to_cont = exp.compile_to_cont
-      except: 
-        return cont(exp)
-      return exp_compile_to_cont(cont, self)
+    try: exp_compile_to_cont = exp.compile_to_cont
+    except: return cont(exp)
+    return exp_compile_to_cont(cont, self)
     
   def exps_cont(self, exps, cont):
-      if len(exps)==0: 
-        return ValueCont(None, cont)
-      elif len(exps)==1: 
-        return self.cont(exps[0], cont)
-      else:
-        return self.cont(exps[0], self.exps_cont(exps[1:], cont))
+    if len(exps)==0: return cont(None)
+    elif len(exps)==1: return self.cont(exps[0], cont)
+    else: return self.cont(exps[0], self.exps_cont(exps[1:], cont))
       
-  def parse_compile_to_cont(self, exp):
-    sexp = to_sexpression(exp)
-    return self.cont(sexp, self.stop_cont)
-  
   def compile(self, exp):
     self.cont(exp, self.stop_cont)
     result = ''

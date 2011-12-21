@@ -15,10 +15,15 @@ class DataFlowGraph:
     self.flow_dict = {}
 
 class ContCall:
-  def __init__(self, cont, argument):
-    self.cont, self.argument = cont, argument
+  def __init__(self, caller, argument):
+    self.caller, self.argument = caller, argument
   def __eq__(self, other):
-    return isinstance(other, ContCall) and self.cont==other.cont and self.argument==other.argument
+    return isinstance(other, ContCall) and self.caller==other.caller and self.argument==other.argument
+  def __call__(self, argument):
+    return ContCall(self, argument)    
+  def __repr__(self):
+    return '%r(%r)'%(self.caller, self.argument)
+  
 class Cont:
   def __init__(self, succ, prev):
     self.succ = succ

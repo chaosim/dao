@@ -258,7 +258,7 @@ class Var(BaseCommand):
     return value_cont(self.getvalue(solver.env, {}), cont)
   
   def compile_to_cont(self, cont, compiler):
-    return ValueCont(vop.GetValue(self), cont)
+    return cont(self)
     
   def __add__(self, other): 
     from dao.builtins.arith import add

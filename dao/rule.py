@@ -59,6 +59,10 @@ class Rule(object):
     solver.scont = solver.exps_cont(self.body, rule_done_cont)
     return True
     
+  def compile_apply(self, compiler, cont, args):
+    body_cont = compiler.cont(self.body, cont)
+    return lambda_((cont,)+args, unify_list(args, body_cont)) 
+    
   def copy(self): return Rule(self.head, self.body)
   
   def __eq__(self, other): 

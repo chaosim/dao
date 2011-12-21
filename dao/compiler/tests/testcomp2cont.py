@@ -25,64 +25,15 @@ class TestSimple:
   def testquote(self):
     eq_(compile_to_cont(quote(x)), done(x))
   def testset(self):
-    eq_(compile_to_cont(set(a,2)), lambda_(v, done(set(a,v)))(2))
+    eq_(compile_to_cont(set(a,2)), lambda_((x,), done(set(a,x)))(2))
     
     
 class TestControl:
   def testBegin(self):
-    eq_(compile_to_cont(begin(1, 2)), lambda_(v)(done(2))(1))    
+    eq_(compile_to_cont(begin(1, 2)), done(2)(1))    
   def testif_(self):
-    eq_(compile_to_cont(if_(0, 1, 2)), lambda_(v, if_(v, done(1),done(2)))(0))
+    eq_(compile_to_cont(if_(0, 1, 2)), lambda_((x,), if_(x, done(1),done(2)))(0))
   
-  def testblock1(self):
-    eq_(compile_to_cont(block('a', exit_block('a', 2))), V(2, done))
-    
-  def testblock2(self):
-    compiler = make_compiler()
-    result = compiler.parse_compile_to_cont(block('a', exit_block('a', 2), 3))
-    #print result
-    eq_(result, V(2, done))
-  def testblock3(self):
-    compiler = make_compiler()
-    result = compiler.parse_compile_to_cont(block('a', if_(1, exit_block('a', 2)), 3))
-    eq_(result, V(1, If(V(2, done), V(3, done))))
-    
-  def testblock4(self):
-    compiler = make_compiler()
-    result = compiler.parse_compile_to_cont(block('a', if_(1, continue_block('a')), 3))
-    expect = V(1, If(Blk(result), V(3, done)))
-    eq_(result, expect)
-    
-  def testcatch1(self):
-    compiler = make_compiler()
-    result = compiler.parse_compile_to_cont(catch(1, 2))
-    lbl_cont = Lbl(done)
-    expect = V(1, Catch(V(2, lbl_cont), lbl_cont))
-    eq_(result, expect)
-    
-    
-  def testcatch2(self):
-    compiler = make_compiler()
-    result = compiler.parse_compile_to_cont(catch(1, throw(1, 2), 3))
-    label_cont = Lbl(done)
-    expect = V(1, Catch(V(1, Throw(V(2,V(3,label_cont)))), label_cont))
-    eq_(result, expect)
-
-  #def testif_add_sub(self):
-    #eq_(compile_to_cont(if_(0, add, sub)(1, 1)), 0)
-    #eq_(eval(if_(1, add, sub)(1, 1)), 2)
-  #def testiff(self):
-    #eq_(eval(iff(((0, prin(1)), (1, prin(2))))), None)
-  #def testiff2(self):
-    #eq_(eval(iff(((0, prin(1)), (0,prin(2))), prin(3))), None)
-  #def testCaseForm(self):
-    #eq_(eval(CaseForm(2, {0: [prin(0)], 1:[prin(1)], 2:[prin(2)]}, [prin(3)])), None)
-  #def testeval1(self):
-    #eq_(eval(eval_(quote(1))), (1))
-    #eq_(eval(eval_(quote(add(1, 1)))), (2))
-  #def testeval2(self):
-    #eq_(eval(let([(x,1)], eval_(quote(x)))), 1)
-
 class TestBuiltin:
   def testArithmetic(self):
     compiler = make_compiler()
@@ -129,46 +80,33 @@ class TestBuiltin:
     eq_(len(compiler.cont_set), len(cont_set))
     eq_(compiler.cont_set, cont_set)
 
+class TestLambda:
+  def testLambda(self):
+    compiler = make_compiler()
+    eq_(make_compiler().cont(lambda_([x], 1), done), done(lambda_([k, x], k(1))))
+    
 class TestLet:
   def testlet(self):
     compiler = make_compiler()
-    compiler.parse_compile_to_cont(let([(x,1)], x))
-    eq_(len(compiler.cont_set), 3)
-    eq_(compiler.cont_set, pyset([done]))
+    eq_(compiler.cont(let([(x,1)], x), done),lambda_((x,),done(x))(1))
 
   def testlet2(self):
     compiler = make_compiler()
-    compiler.parse_compile_to_cont(let([(x,1),(y,2)], x, y))
-    eq_(len(compiler.cont_set), 3)
-    eq_(compiler.cont_set, pyset([done]))
+    eq_(compiler.cont(let([(x,1),(y,2)], x, y), done),
+        lambda_((x,),lambda_((y,),done(y)(x))(2))(1))
 
   def testlet3(self):
     compiler = make_compiler()
-    compiler.parse_compile_to_cont(let([(x, 1)], let([(x,2)], x), x))
-    eq_(len(compiler.cont_set), 3)
-    eq_(compiler.cont_set, pyset([done]))
+    eq_(compiler.cont(let([(x, 1)], let([(x,2)], x), x), done),
+        lambda_((x,),lambda_((x,),done(x)(x))(2))(1))
 
 class TestFunction:
   def test_function1(self):
     compiler = make_compiler()
-    compiler.parse_compile_to_cont(function(((), 1))())
-    cont_list = list(compiler.cont_set)
-    eq_(len(cont_list), 5)
-    ok_(not(cont_list[0].depend_on(cont_list[1]))) # two ApplyCont
+    result = compiler.cont(function(((), 1)), done)
+    expect = done(lambda_(k),k(1))
     
   def test_function2(self):
     compiler = make_compiler()
-    compiler.parse_compile_to_cont(function(((1,), 1), ((x,), x))(1))
-    cont_list = list(compiler.cont_set)
-    eq_(len(cont_list), 8)
-    ok_(not(cont_list[0].depend_on(cont_list[1]))) # two ApplyCont
-    
-  #def testLambda(self):
-    #eq_(eval(lambda_([x], 1)(2)), 1)
-    #eq_(eval(lambda_([x], x)(2)), 2)
-    #eq_(eval(lambda_((x, y), add(x, y))(1, 3)), 4)
-    
-  #def test_let_set(self):
-    #eq_(eval(let([(a,1)], set(a,2), a)), 2)
-    #eq_(eval(let([(a,1)], 
-                  #let([(b,1)], set(a,2), a))), 2)
+    eq_(compiler.cont(function(((1,), 1), ((x,), x)), done),
+        lambda_((k, x),done(x))(1))

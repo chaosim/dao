@@ -4,7 +4,7 @@ pyset = set
 pytype = type
 
 from dao.command import Function, Macro
-from dao.term import closure, Var, ClosureVar, CommandCall
+from dao.term import closure, Var, ClosureVar, CommandCall, var
 from dao.term import apply_generators, rule_head_signatures
 from dao.rule import Rule, RuleList
 from dao.solve import value_cont, mycont, tag_unwind, DaoSyntaxError, to_sexpression
@@ -46,10 +46,13 @@ class quote(SpecialForm):
     value_type = compiler.get_type(self.exp)
     return value_type
   
+  def alpha(self, compiler):
+    return self
+  
   def cont(self, cont, solver): 
     return value_cont(self.exp, cont)
   def compile_to_cont(self, cont, compiler):
-    return ValueCont(self.exp, cont)
+    return cont(self.exp)
   def __eq__(self, other): return self.exp==other.exp
   def __repr__(self): 
     if run_mode()==interactive:
@@ -82,7 +85,8 @@ class set(SpecialForm):
     return self
   def to_sexpression(self):
     return (set, self.var, to_sexpression(self.exp))
-  
+  def alpha(self, compiler):
+    return set(compiler.alpha(self.var), compiler.alpha(self.exp))
   def get_type(self, compiler):
     value_type = compiler.get_type(self.exp)
     compiler.env[self.var] = value_type
@@ -96,11 +100,8 @@ class set(SpecialForm):
       return value
     return solver.cont(self.exp, set_cont)
   def compile_to_cont(self, cont, compiler):
-    set_cont = SetCont(self.var, cont)
-    compiler.add_cont(set_cont)
-    value_type = compiler.get_type(self.exp)
-    compiler.typenv[self.var] = value_type
-    return compiler.cont(self.exp, set_cont)
+    x = var('x')
+    return compiler.cont(self.exp, lambda_((x,),cont(set(self.var, x))))
   def __eq__(self, other): return self.var==other.var and self.exp==other.exp
   def __repr__(self): return "set(%s, %s)"%(self.var, self.exp)
 assign = set
@@ -247,6 +248,8 @@ class begin(SpecialForm):
     return compiler.get_type_exps(self.exps)
   def cont(self, cont, solver): 
     return solver.exps_cont(self.exps, cont)
+  def alpha(self, compiler):
+    return begin(compiler.alpha(self.exps))
   def compile_to_cont(self, cont, compiler): 
     return compiler.exps_cont(self.exps, cont)
   def __eq__(self, other): 
@@ -291,11 +294,13 @@ class if_(SpecialForm):
     if_cont = make_if_cont(self.exp1, self.exp2, cont)
     return solver.cont(self.test, if_cont)
   def compile_to_cont(self, cont, compiler):
-    then_cont = compiler.cont(self.exp1, cont)
-    else_cont = cont if self.exp2 is None else compiler.cont(self.exp2, cont)
-    if_cont = IfCont(then_cont, else_cont)
-    then_cont.prev = else_cont.prev = if_cont
-    return compiler.cont(self.test, if_cont)
+    x = var('x')
+    return compiler.cont(self.test, lambda_((x,), 
+            if_(x, compiler.cont(self.exp1, cont), 
+                compiler.cont(self.exp2, cont))))
+  def __eq__(self, other):
+    return isinstance(other, if_) and self.test==other.test\
+           and self.exp1==other.exp1 and self.exp2==other.exp2
   def __repr__(self):
     els = 'else: %s'%repr(self.exp2) if self.exp2 else ''
     return 'if %s: %s%s'%(self.test, self.exp1, els)
@@ -647,22 +652,10 @@ class let(SpecialForm):
     return  solver.cont(((FunctionForm,((vars,)+self.body)),)+values, cont)
   
   def compile_to_cont(self, cont, compiler):
-    old_typenv = compiler.typenv
-    type_bindings = {}
-    old_env = compiler.env
-    new_env = old_env.extend({})
-    compiler.env = new_env
-    compiler.typenv = old_typenv.extend(type_bindings)
-    next_cont = result_cont = compiler.exps_cont(self.body, cont)
-    compiler.env = old_env
-    compiler.typenv = old_typenv
-    for var, value in reversed(self.bindings):
-      let_var_cont = LetVarCont(new_env, var, next_cont)
-      compiler.add_cont(let_var_cont)
-      c, t = compiler.get_cont_type(value, let_var_cont)
-      next_cont = c
-      type_bindings[var] = t
-    return result_cont
+    cont = compiler.exps_cont(self.body, cont)
+    for var, exp in reversed(self.bindings):
+      cont = compiler.cont(exp, lambda_((var,),cont))
+    return cont
   
   def get_cont_type(self, cont, compiler):
     old_typenv = compiler.typenv
@@ -721,8 +714,14 @@ class lambda_(SpecialForm):
     return type.UserFunction(compiler.get_type_exps(self.body))
   def cont(self, cont, solver):
     return solver.cont((FunctionForm, ((self.vars,)+self.body)), cont)
+  def compile_to_cont(self, cont, compiler):
+    k = var('k')
+    return cont(lambda_([k]+self.vars, compiler.exps_cont(self.body, k)))
+  
+  def __eq__(self, other):
+    return isinstance(other, lambda_) and self.vars==other.vars and self.body==other.body
   def __repr__(self):
-    return 'lambda %s: %s'%(repr(self.vars), self.body)
+    return '(lambda %s: %s)'%(repr(self.vars), self.body)
   
 def make_rules(rules):
   arity2rules, arity2signatures = {}, {}
@@ -772,11 +771,35 @@ class FunctionForm(SpecialForm):
     return type.Function(type.root)
   def compile_to_cont(self, cont, compiler):
     arity2rules, signature2rules = make_rules(self.rules)
-    func = UserFunction(arity2rules, signature2rules, compiler.env, recursive=False)
-    return compiler.add_cont(ValueCont(func, cont))
+    arity2cont = {}
+    if 0 in arity2rules:
+      k = var('k')
+      cont0 = k
+      for rule in reversed(arity2rules[0]):
+        cont0 = compiler.cont(rule.body, cont0)
+      cont0 = lambda_((k,), cont0)
+      arity2cont[0] = cont0    
+    for arity in arity2rules:
+      if arity==0: continue
+      sign2index = signature2rules[arity]
+      for signatures in sign2index:
+        index_set = pyset(range(len(arity2rules)))
+        for signature in signatures:
+          if signature==(signature[0], Var): continue
+          else:
+            var_sign = signature[0], Var
+            index_set &= sign2index.get(var_sign, pyset())|\
+                       sign2index.get(signature, pyset())
+          if len(index_set)==0: 
+            solver.scont = solver.fcont
+            return
+          rule_list = list(index_set)
+          rule_list.sort()
+          rule_list = RuleList([arity2rules[i] for i in rule_list])
+          return rule_list.compile_apply(compiler)
+    return lambda_((k,x),select_arity(k,x,func_dict))
   def get_cont_type(self, cont, compiler):
     arity2rules, signature2rules = compile_rules(self.rules, compiler)
-    func = UserFunction(arity2rules, signature2rules, compiler.env, recursive=False)
     return compiler.add_cont(ValueCont(func, cont)), type.Function(type.root)
   def __eq__(self, other):
     return isinstance(other, FunctionForm) and self.rules==other.rules

@@ -1,38 +1,80 @@
 convert(expr, k)
   c: 
-    k(c)
+    lambda(v, fc, cc): c, k, fc, cc 
   
   x:
-    k(x)
+    lambda(v, fc, cc): x, k, fc, cc
 
   (quote x)
-    k(x)
+    lambda(v, fc, cc): x, k, fc, cc
 
   begin(a, b):
-    convert(a, convert(b))
+    convert(a, convert(b, k))
+  sample: begin(1, 2)
+    lambda v, fc, cc:
+      1, (lambda v, fc, cc: 2, k, fc, cc), fc, cc
+
 
   (if a b c)
-      convert(a, (lambda(v) if(v) convert(b, k) else: convert(b, k))
-  
+      convert(a, (lambda(v, fc, cc) if(v) convert(b, k) else: convert(b, k))
+   sample: if(1, 2, 3)
+      lambda v, fc, cc:
+        1, 
+        lambda v, fc, cc: 
+          if v: lambda v, fc, cc): 2, k, fc, cc
+          else: lambda v, fc, cc: 3, k, fc, cc
+        fc, cc
+
   (set, a, expr)
-  convert(expr, (lambda(value): a = value, k(value))  
+  convert(expr, (lambda(v, fc, cc): a = value, (v, k, fc, cc))  
   
-  (proc, values)
-    convert_arguments(values, apply_cont(proc), fc)
+  (proc, args)   
+    convert_arguments(values, lambda v, fc, cc: proc(v), fc, cc)
   
+  (proc)
+  lambda v, fc, cc:
+    proc, (lambda v, fc, cc: v((), fc, cc), k, fc, cc), fc, cc 
+  
+  (lambda (): body)()
+  lambda (k): convert(body, k)
+    lambda v, fc, cc: 1, k, fc, cc  
+  lambda k: ...
+
+  (lambda x: body)(x)
+  lambda v, fc, cc:
+    {lambda (k', (x,)): convert(body, k')}, {lambda (proc, fc1, cc1): convert((x,) lambda args, fc, cc: proc(args), k, fc, cc), k, fc, cc}, fc, cc
+
+  ((if 1, add, sub) 1, 2)
+  (lambda (kk):
+    1, lambda v, fc, cc:
+         if v: return add, kk, fc, cc
+         else: return sub, kk, fc, cc)(
+  lambda proc, fc, cc:
+    lambda x, fc, cc:
+      lambda y, fc, cc:
+        proc(x,y), k, fc, cc)
+
   lambda args: body
-  sk1, fk1 = convert(body, sk, fk)
-  V(lambda sk, fk, args: sk1, sc), fc
+  lambda v, fk, ck: convert(body, k), fk, ck
   
   function(((1,), 1), ((x,), x))
      unify(x, 1, V(1, s), unify(x, x, V(x, s), f)
+  
+  lambda v, fc, cc:
+    fc1 = unify((x,), k, fc)
+    sc = unify_list((1,), v, k, fc1)
+    return None, sc, fc, fc
 
   cut:
-     k(c)
+     lambda v, fc, cc: v, k, cc, cc 
+  fail:
+     lambda v, fc, cc: v, fc, fc, cc
+  succeed:
+     lambda v, fc, cc: v, k, fc, cc
 
 unify_list(list1, list2, sc, fc):
-  if len(list1)!=len(list2): fc(false)
-  elif len(list1)==0: sc(true)
+  if len(list1)!=len(list2): return false, fc
+  elif len(list1)==0: return true, sc
   else:
     unify(list1[0], list1[1], sc, unify_list(list1[1:], list2[1:], sc, fc)
 
@@ -94,3 +136,5 @@ s'
 
 cut:
 cut_f(cut_index)
+
+
