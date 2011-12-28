@@ -4,29 +4,50 @@ pyset = set
 pytype = type
 
 from dao.command import Function, Macro
-from dao.term import closure, Var, ClosureVar, CommandCall, var
-from dao.term import apply_generators, rule_head_signatures
+#from dao.term import closure, Var, ClosureVar, CommandCall, var
+#from dao.term import apply_generators, rule_head_signatures
 from dao.rule import Rule, RuleList
-from dao.solve import value_cont, mycont, tag_unwind, DaoSyntaxError, to_sexpression
-from dao.solve import BaseCommand
-from dao.env import BlockEnvironment
-from dao.builtins.arith import eq, not_
-from dao.builtins.container import iter_next, make_iter
-from dao import builtin
+#from dao.solve import value_cont, mycont, tag_unwind, DaoSyntaxError, to_sexpression
+#from dao.solve import BaseCommand
+#from dao.env import BlockEnvironment
+#from dao.builtins.arith import eq, not_
+#from dao.builtins.container import iter_next, make_iter
+#from dao import builtin
 
-from dao.solve import run_mode, set_run_mode, interactive, noninteractive
-from dao.solve import interactive_parser, interactive_tagger
+#from dao.solve import run_mode, set_run_mode, interactive, noninteractive
+#from dao.solve import interactive_parser, interactive_tagger
 
 # compile
 from dao.compiler import type
-from dao.compiler.compile import ValueCont, code
+#from dao.compiler.compile import ValueCont, code
 from dao.compiler import env as compiler_env
+from dao.compiler import vop
 
-# special forms: quote, begin, if, eval, let, lambda, function, macro, module
-class ParserForm(object): 
-  def ___parse___(self, parser): return self
+class ParserForm: pass
 
-class SpecialForm(BaseCommand, ParserForm):
+class CommandCall:#(BaseCommand):
+  def __init__(self, operator, *operand):
+    self.operator = operator
+    self.operand = operand
+    
+  def __call__(self, *args):
+    return CommandCall(self, *args)
+  
+  def alpha(self, compiler):
+    return CommandCall(compiler.alpha(self.operator), *compiler.alpha(self.operand))
+  
+  def compile_to_cont(self, cont, compiler):
+    value = compiler.new_var('value')
+    args = tuple(compiler.new_var('value') for _ in self.operand)
+    k = lambda_((args[-1],), vop.return_(vop.call(value, (cont,)+args),))
+    for a, e in reversed(zip((value,)+args[:-1], self.operand)):
+      k = lambda_((a,), compiler.cont(e, k))
+    return compiler.cont(self.operator,k)
+  
+  def __repr__(self): 
+    return '%s(%s)'%(self.operator, ','.join([repr(e) for e in self.operand]))
+
+class SpecialForm:#(BaseCommand, ParserForm):
   is_global = True
 
   def __call__(self, *exps): return CommandCall(self, *exps)
@@ -47,7 +68,7 @@ class quote(SpecialForm):
     return value_type
   
   def alpha(self, compiler):
-    return self
+    return compiler.alpha(self.exp)
   
   def cont(self, cont, solver): 
     return value_cont(self.exp, cont)
@@ -86,7 +107,10 @@ class set(SpecialForm):
   def to_sexpression(self):
     return (set, self.var, to_sexpression(self.exp))
   def alpha(self, compiler):
-    return set(compiler.alpha(self.var), compiler.alpha(self.exp))
+    var = compiler.alpha_env[self.var]
+    if var is self.var: var = compiler.new_var(var.name)
+    compiler.alpha_env = compiler.alpha_env.extend({self.var:var})
+    return set(var, compiler.alpha(self.exp))
   def get_type(self, compiler):
     value_type = compiler.get_type(self.exp)
     compiler.env[self.var] = value_type
@@ -100,8 +124,9 @@ class set(SpecialForm):
       return value
     return solver.cont(self.exp, set_cont)
   def compile_to_cont(self, cont, compiler):
-    x = var('x')
-    return compiler.cont(self.exp, lambda_((x,),cont(set(self.var, x))))
+    value = compiler.new_var('value')
+    return compiler.cont(self.exp, lambda_((value,),begin(vop.set(self.var, value), vop.return_(value, cont))))
+  
   def __eq__(self, other): return self.var==other.var and self.exp==other.exp
   def __repr__(self): return "set(%s, %s)"%(self.var, self.exp)
 assign = set
@@ -249,11 +274,11 @@ class begin(SpecialForm):
   def cont(self, cont, solver): 
     return solver.exps_cont(self.exps, cont)
   def alpha(self, compiler):
-    return begin(compiler.alpha(self.exps))
+    return begin(*compiler.alpha_exps(self.exps))
   def compile_to_cont(self, cont, compiler): 
     return compiler.exps_cont(self.exps, cont)
   def __eq__(self, other): 
-    return self.exps==other.exps
+    return isinstance(other, begin) and self.exps==other.exps
   def __repr__(self):
     return 'begin(%s)'%(';'.join([repr(x) for x in self.exps]))
   
@@ -288,15 +313,18 @@ class if_(SpecialForm):
   def to_sexpression(self):
     return (if_, )+to_sexpression((self.test, self.exp1, self.exp2))
   
+  def alpha(self, compiler):
+    return if_(compiler.alpha(self.test), compiler.alpha(self.exp1), compiler.alpha(self.exp2))
+  
   def get_type(self, compiler):
     return type.make_or(compiler.get_type(self.exp1), compiler.get_type(self.exp2))
   def cont(self, cont, solver):
     if_cont = make_if_cont(self.exp1, self.exp2, cont)
     return solver.cont(self.test, if_cont)
   def compile_to_cont(self, cont, compiler):
-    x = var('x')
-    return compiler.cont(self.test, lambda_((x,), 
-            if_(x, compiler.cont(self.exp1, cont), 
+    value = compiler.new_var('value')
+    return compiler.cont(self.test, lambda_((value,), 
+            if_(value, compiler.cont(self.exp1, cont), 
                 compiler.cont(self.exp2, cont))))
   def __eq__(self, other):
     return isinstance(other, if_) and self.test==other.test\
@@ -638,6 +666,18 @@ class let(SpecialForm):
     self.bindings = to_sexpression(self.bindings)
     self.body = to_sexpression(self.body)
     return (self.__class__, self.bindings)+self.body
+  def alpha(self, compiler):
+    old_env = compiler.alpha_env
+    subst, set_bindings = {}, []
+    for var, exp in self.bindings: 
+      new_var = compiler.new_var(var.name)
+      set_bindings.append(set(new_var, compiler.alpha(exp)))
+      subst[var] = new_var
+    compiler.alpha_env = old_env.extend(subst)
+    result = begin(*(tuple(set_bindings)+compiler.alpha_exps(self.body)))
+    compiler.alpha_env = old_env
+    return result
+            
   def get_type(self, compiler):
     type_bindings = tuple((b[0], compiler.get_type(b[1])) for b in self.bindings)
     old_env = compiler.env
@@ -645,18 +685,12 @@ class let(SpecialForm):
     result = compiler.get_type_exps(self.body)
     compiler.env = old_env
     return result
-
+  
   def cont(self, cont, solver):
     vars = tuple(b[0] for b in self.bindings)
     values = tuple(b[1] for b in self.bindings)
     return  solver.cont(((FunctionForm,((vars,)+self.body)),)+values, cont)
-  
-  def compile_to_cont(self, cont, compiler):
-    cont = compiler.exps_cont(self.body, cont)
-    for var, exp in reversed(self.bindings):
-      cont = compiler.cont(exp, lambda_((var,),cont))
-    return cont
-  
+    
   def get_cont_type(self, cont, compiler):
     old_typenv = compiler.typenv
     old_env = compiler.env
@@ -689,6 +723,11 @@ class letr(let):
     result = compiler.get_type_exps(self.body)
     compiler.env = old_env
     return result
+  def alpha(self, compiler):
+    subst, bindings = dict([(var, compiler.new_var(var.name)) for (var, exp) in self.bindings])
+    compiler.alpha_env = compiler.alpha_env.extend(subst)
+    bindings =[(subst(var), compiler.alpha(exp)) for (var, exp) in self.bindings]
+    return letr(bindings, compiler.alpha(self.body))
   def cont(self, cont, solver):
     vars = tuple(b[0] for b in self.bindings)
     values = tuple(b[1] for b in self.bindings)
@@ -702,45 +741,23 @@ class lambda_(SpecialForm):
   symbol = 'lambda'
   def __init__(self, vars, *body):
     self.vars, self.body = vars, body
-  def ___parse___(self, parser):
-    self.body = parser.parse(self.body)
-    return self
-  def tag_loop_label(self, tagger):
-    self.body = tagger.tag_loop_label(self.body)
-    return self
-  def to_sexpression(self):
-    return (self.__class__, self.vars)+to_sexpression(self.body)
-  def get_type(self, compiler):
-    return type.UserFunction(compiler.get_type_exps(self.body))
-  def cont(self, cont, solver):
-    return solver.cont((FunctionForm, ((self.vars,)+self.body)), cont)
+  def alpha(self, compiler):
+    subst = dict([(var, compiler.new_var(var.name)) for var in self.vars])
+    compiler.alpha_env = compiler.alpha_env.extend(subst)
+    return lambda_(tuple(subst[var] for var in self.vars), *compiler.alpha_exps(self.body))
   def compile_to_cont(self, cont, compiler):
-    k = var('k')
-    return cont(lambda_([k]+self.vars, compiler.exps_cont(self.body, k)))
+    k, value = compiler.new_var('k'), compiler.new_var('value')
+    return vop.return_(lambda_((k,)+self.vars, compiler.exps_cont(self.body, k)), cont)
   
   def __eq__(self, other):
     return isinstance(other, lambda_) and self.vars==other.vars and self.body==other.body
   def __repr__(self):
     return '(lambda %s: %s)'%(repr(self.vars), self.body)
   
-def make_rules(rules):
-  arity2rules, arity2signatures = {}, {}
-  for rule in rules:
-    head = rule[0]
-    rule = Rule(head, rule[1:])
-    arity = len(head)
-    arity2rules.setdefault(arity, []).append(rule)
-    if arity==0: continue
-    for signature in rule_head_signatures(head):
-      arity_signature = arity2signatures.setdefault(arity, {})
-      arity_signature.setdefault(signature, pyset()).add(len(arity2rules[arity])-1)
-  return arity2rules, arity2signatures
-
 def compile_rules(rules, compiler):
   arity2rules, arity2signatures = {}, {}
-  for rule in rules:
-    head = rule[0]
-    rule = Rule(head, rule[1:])
+  for head, body in rules:
+    rule = Rule(head, body)
     arity = len(head)
     arity2rules.setdefault(arity, []).append(rule)
     if arity==0: continue
@@ -752,33 +769,44 @@ def compile_rules(rules, compiler):
 class FunctionForm(SpecialForm):
   symbol = 'function'
   def __init__(self, *rules):
-    self.rules = tuple((tuple(rule[0]),)+tuple(rule[1:]) for rule in rules)
+    self.rules = rules
     
-  def ___parse___(self, parser):
-    self.rules = tuple(parser.parse(rule) for rule in self.rules)
-    return self
-  def tag_loop_label(self, tagger):
-    self.rules = tuple(tagger.tag_loop_label(rule) for rule in self.rules)
-    return self
-  def to_sexpression(self):
-    return (self.__class__,)+to_sexpression(self.rules)
-  def cont(self, cont, solver):
-    arity2rules, signature2rules = make_rules(self.rules)
-    func = UserFunction(arity2rules, signature2rules, solver.env, recursive=False)
-    return value_cont(func, cont)
-  
-  def get_type(self, compiler):
-    return type.Function(type.root)
+  def alpha(self, compiler):
+    old_env = compiler.alpha_env
+    result = []
+    for rule in self.rules:
+      head = rule[0]
+      body = rule[1:]
+      subst = {}
+      head = tuple(compiler.compile_rule_head_item(x, subst) for x in head)
+      compiler.alpha_env = old_env.extend(subst)
+      body = compiler.alpha_exps(body)
+      compiler.alpha_env = old_env
+      result.append((head, body))
+    return FunctionForm(*result)
+      
   def compile_to_cont(self, cont, compiler):
-    arity2rules, signature2rules = make_rules(self.rules)
-    arity2cont = {}
+    arity2rules, signature2rules = compile_rules(self.rules, compiler)
+    arity2function = {}
     if 0 in arity2rules:
-      k = var('k')
-      cont0 = k
-      for rule in reversed(arity2rules[0]):
-        cont0 = compiler.cont(rule.body, cont0)
-      cont0 = lambda_((k,), cont0)
-      arity2cont[0] = cont0    
+      k = compiler.new_var('k')
+      arity_rules = arity2rules[0]
+      if len(arity_rules)==1:
+        arity2function[0] = lambda_((k,), compiler.exps_cont(arity_rules[0].body, k))
+      else:
+        body = arity_rules[-1]
+        i = len(arity_rules)-2
+        fcont = lambda_((k,), vop.restore_fcont(x), compiler.cont(body, k))
+        while i>0:
+          head, body = arity_rules[i]
+          fcont = lambda_((k,), vop.save_fcont(x),
+                vop.set_fcont(fcont),
+                compiler.cont(rule.body, k))
+        cont0 = lambda_((k,), vop.set_cut_cont(),
+                        vop.save_fcont(x),
+                vop.set_fcont(fcont),
+                compiler.cont(rule.body, k))
+        arity2function[0] = cont0
     for arity in arity2rules:
       if arity==0: continue
       sign2index = signature2rules[arity]
@@ -797,7 +825,9 @@ class FunctionForm(SpecialForm):
           rule_list.sort()
           rule_list = RuleList([arity2rules[i] for i in rule_list])
           return rule_list.compile_apply(compiler)
-    return lambda_((k,x),select_arity(k,x,func_dict))
+    x = compiler.new_var('x')
+    k = compiler.new_var('k')
+    return lambda_((k,x),vop.select_arity(k, x, arity2function))
   def get_cont_type(self, cont, compiler):
     arity2rules, signature2rules = compile_rules(self.rules, compiler)
     return compiler.add_cont(ValueCont(func, cont)), type.Function(type.root)
@@ -894,7 +924,7 @@ class UserMacro(Rules,  Macro):
     return Rules.apply(self, solver, values, signatures)
   def __repr__(self): return 'macro(%s)'%repr(self.arity2rules)
   
-@builtin.predicate('eval')
+#@builtin.predicate('eval')
 def eval_(solver, exp):
   cont = solver.scont
   @mycont(cont)
@@ -956,7 +986,7 @@ class in_module(SpecialForm):
       return value
     return solver.exps_cont(self.body, in_module_done_cont)
 
-@builtin.macro('from_', 'from')
+#@builtin.macro('from_', 'from')
 def from_(solver, module, var):  
   if isinstance(var, ClosureVar): var = var.var
   cont = solver.scont

@@ -1,5 +1,5 @@
 from dao.solvebase import BaseCommand, mycont
-from dao.term import DummyVar, rule_head_signatures, closure
+#from dao.term import DummyVar, rule_head_signatures, closure
 
 from dao.compiler import vop
 from dao.compiler import type

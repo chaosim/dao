@@ -1,6 +1,9 @@
 ##from dao.term import UEntity
 
 class Environment:
+  def __init__(self):
+    self.bindings, self.outer = bindings, {}
+    
   def extend(self, bindings):
     return ExtendEnvironment(bindings, self)
   
@@ -11,6 +14,13 @@ class Environment:
       self = self.outer
     return result
 
+class EmptyEnvironment(Environment):
+  def __init__(self):
+    self.bindings, self.outer = {}, None
+  def __getitem__(self, var): 
+    try: return self.bindings[var]
+    except: return var
+    
 class GlobalEnvironment(Environment): 
   def __init__(self, bindings):
     self.bindings = bindings

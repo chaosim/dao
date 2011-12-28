@@ -1,98 +1,30 @@
-
-# virtual operations
-
-# has side effect on variable, environment, parser_state?
-# pure functions? 
-# depend global varialbes?
-# io
-
-'''
-root item: module exports, globals; io item
-
-reachable items from root item
-unreachable items from root item
-
-dead variables
-
-dead code
-
-constant propagatation
-
-loop
-
-'''
-
-class VirtualOperation: 
-  def __init__(self):
-    pass
-
-class Deref(VirtualOperation):
-  def __init__(self, exp):
-    self.exp = exp
+class Done:
   def __eq__(self, other):
-    return isinstance(other, GetValue) and other.exp==self.exp
-  def __repr__(self): return 'GetValue(%s)'%self.exp
+    return isinstance(other, Done)
+  def __repr__(self):
+    return 'done'
+done = Done()
+
+class return_:
+  def __init__(self, *exps):
+    self.exps = exps
+  def __eq__(self, other):
+    return isinstance(other, return_) and self.exps==other.exps
+  def __repr__(self):
+    return 'return_(%s)'%repr(self.exps)
   
-class GetValue(VirtualOperation):
-  def __init__(self, exp):
-    self.exp = exp
+class set:
+  def __init__(self, var, exp):
+    self.var, self.exp = var, exp
   def __eq__(self, other):
-    return isinstance(other, GetValue) and other.exp==self.exp
-  def __repr__(self): return 'GetValue(%s)'%self.exp
+    return isinstance(other, set) and self.var==other.var and self.exp==other.exp
+  def __repr__(self):
+    return 'set(%s, %s)'%(self.var, self.exp)
   
-class GetClosure(VirtualOperation):
-  def __init__(self, exp):
-    self.exp = exp
+class call:
+  def __init__(self, function, args):
+    self.function, self.args = function, args
   def __eq__(self, other):
-    return isinstance(other, GetValue) and other.exp==self.exp
-  def __repr__(self): return 'GetClosure(%s)'%self.exp
-  
-class ContVal(VirtualOperation):
-  def __init__(self):
-    pass
-  def __eq__(self, other):
-    return isinstance(other, ContVal)
-  def __repr__(self): return 'getval'
-  
-class SetVal(VirtualOperation):
-  def __init__(self, value):
-    self.value = value
-  def __eq__(self, other):
-    return isinstance(other, SetVal)
-  def __repr__(self): return 'getval'
-  
-class Concat(VirtualOperation):
-  def __init__(self, head, tail):
-    self.head, self.tail = head, tail
-  def __eq__(self, other):
-    return isinstance(other, SetVal)
-  def __repr__(self): return 'Concat(%s, %s)'%self.head, self.tail
-
-class SaveParseState(VirtualOperation):
-  def __init__(self):
-    pass
-  def __eq__(self, other):
-    return isinstance(other, SaveParseState)
-  def __repr__(self): return 'SaveParseState'
-  
-class RestoreParseState(VirtualOperation):
-  def __init__(self):
-    pass
-  def __eq__(self, other):
-    return isinstance(other, SaveParseState)
-  def __repr__(self): return 'RestoreParseState'
-
-class Fail(VirtualOperation):
-  #solver.scont = solver.fcont
-  def __init__(self):
-    pass
-  def __eq__(self, other):
-    return isinstance(other, Fail)
-  def __repr__(self): return 'Fail'
-fail = Fail()
-  
-class VirtualOperationInstance:
-  def __init__(self, owner_cont, vop):
-    self.owner_cont, vop = owner_cont, self.vop
-  def get_data_dependent_cont(self):
-    pass
+    return isinstance(other, call) and self.function==other.function and self.args==other.args
+  def __repr__(self):
+    return 'call(%s, %s)'%(self.function, repr(self.args))

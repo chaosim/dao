@@ -3,18 +3,16 @@
 pytype = type
 
 # depend dao.solve only.
-from dao.solve import BaseCommand, mycont, value_cont
+#from dao.solve import BaseCommand, mycont, value_cont
 
 from dao.base import deref, getvalue, copy, copy_rule_head
 from dao.base import apply_generators, unify, unify_list, match
 from dao.base import closure
-
 from dao import special
-from dao.compiler import vop
 
-#from dao.compiler.cont import ValueCont
-#from dao.compiler import vop
-#from dao.compiler import type
+from dao.compiler.cont import ValueCont
+from dao.compiler import vop
+from dao.compiler import type
 
 # ==============================================
 
@@ -87,13 +85,13 @@ def rule_head_signatures(head):
 # Var, ClosureVar, DummyVar, Cons, Nil and nil
 # Command, CommandCall, Function, Macro
 
-from dao.solve import to_sexpression
+#from dao.solve import to_sexpression
 
 # below is for dinpy.
-from dao.solve import run_mode, interactive
-from dao.solve import interactive_solver, interactive_tagger, interactive_parser
+#from dao.solve import run_mode, interactive
+#from dao.solve import interactive_solver, interactive_tagger, interactive_parser
 
-class CommandCall(BaseCommand):
+class CommandCall:#(BaseCommand):
   def __init__(self, operator, *operand):
     self.operator = operator
     self.operand = operand
@@ -149,11 +147,11 @@ def hash_parse_state(parse_state):
 
 class Symbol: pass
 
-_varcache = {}
-def var(name):
-  return _varcache.setdefault(name, Var(name))
+#_varcache = {}
+#def var(name):
+  #return _varcache.setdefault(name, Var(name))
 
-class Var(BaseCommand):
+class Var:#(BaseCommand):
   def __init__(self, name): 
     self.name = name
     
@@ -249,19 +247,17 @@ class Var(BaseCommand):
   def free(self, env): return isinstance(self.deref(env), Var)
   
   def __repr__(self):  return '%s'%self.name
-  def __eq__(self, other): return self is other
-  def __hash__(self): return hash(id(self))
+  def __eq__(self, other): return isinstance(other, Var) and self.name == other.name
+  def __hash__(self): return hash(self.name)
   
-  def alpha(self, compiler):
-    var = compiler.alpha_env[self]
-    if var is self:
-      var = compiler.new_var(self.name)
-    return var
+  def closure(self, env):
+    value = self.getvalue(env, {})
+    if value is self: return self
+    else: return ClosureVar(self, value)
+  
+  def compile_to_cont(self, cont, compiler):
+    return vop.return_(self, cont)
     
-  def cont(self, cont, solver):
-    return value_cont(self.getvalue(solver.env, {}), cont)
-  
-
 class RuleHeadCopyVar(Var):
   class_index = 1
   def __init__(self, var):
@@ -330,7 +326,7 @@ class NullVar(Var):
   
 __null_var = NullVar()
 
-def vars(names): return [var(x.strip()) for x in names.split(',')]
+def vars(names): return [Var(x.strip()) for x in names.split(',')]
 def dummies(names): return [dummy(x.strip()) for x in names.split(',')]
 def nullvars(count): return [__null_var for x in range(count)]
 

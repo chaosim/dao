@@ -3,18 +3,22 @@ pytype = type
 
 from dao.solve import to_sexpression, dao_repr, BaseCommand
 from dao.base import is_subclass, is_var
+from dao.compiler.term import Var as CompileVar
 from dao.solvebase import DaoError
 from dao.compiler.env import GlobalEnvironment
-from dao.compiler.cont import *
+from dao.env import EmptyEnvironment
+#from dao.compiler.cont import *
 from dao.command import compile_function_cont, compile_macro_cont
 from dao.command import Function, Macro
-from dao.builtin import BuiltinFunction
+#from dao.builtin import BuiltinFunction
+from dao.special import lambda_
 
 from dao.compiler import typenv
 from dao.compiler import type
+from dao.compiler import vop
 
-from dao.solve import set_run_mode, noninteractive
-set_run_mode(noninteractive)
+#from dao.solve import set_run_mode, noninteractive
+#set_run_mode(noninteractive)
 
 def get_type(exp, typer):
   try: return exp.type
@@ -35,7 +39,8 @@ def make_compiler():
 def compile_to_cont(exp):
   #sexp = to_sexpression(exp)
   compiler = make_compiler()
-  return compiler.cont(exp, DoneCont())
+  exp = compiler.alpha(exp)
+  return compiler.cont(exp, vop.done)
   
 def compile(exp): 
   sexp = to_sexpression(exp)
@@ -66,30 +71,48 @@ def set_parse_state(parse_state):
   _current_parse_state = parse_state
 
 class Compiler:
-  
   def __init__(self, global_env, env, typenv):
     self.global_env = global_env
     self.env = env
     self.typenv = typenv
-    self.scont = self.stop_cont = done
-    self.fcont = self.fail_stop = fail_done
+    #self.scont = self.stop_cont = vop.done
+    #self.fcont = self.fail_stop = vop.fail_done
     self.srcvar2internal = {}
     self.internal2srcvar = {}
-    
+    self.alpha_env = EmptyEnvironment()
+  
+  def new_var(self, name_root):
+    var = CompileVar(name_root)
+    if  var in self.internal2srcvar:
+      i = 1
+      var = CompileVar('%s_%s'%(name_root, i))
+      while var in self.internal2srcvar:
+        i += 1
+        var = CompileVar('%s_%s'%(name_root, i))
+    self.internal2srcvar[var] = name_root  
+    return var
+  
   def alpha(self, exp):
     try: exp_alpha = exp.alpha
     except: return exp
     return exp_alpha(self)
     
+  def alpha_exps(self, exps):
+    return tuple(self.alpha(exp) for exp in exps)
+    
   def cont(self, exp, cont):
     try: exp_compile_to_cont = exp.compile_to_cont
-    except: return cont(exp)
+    except: 
+      value = self.new_var('value')
+      return vop.return_(exp, cont)
     return exp_compile_to_cont(cont, self)
     
   def exps_cont(self, exps, cont):
-    if len(exps)==0: return cont(None)
+    if len(exps)==0: return vop.return_(None, cont)
     elif len(exps)==1: return self.cont(exps[0], cont)
-    else: return self.cont(exps[0], self.exps_cont(exps[1:], cont))
+    else:
+      value = self.new_var('value')
+      return self.cont(exps[0], lambda_((value,),self.exps_cont(exps[1:], cont)))
       
   def compile(self, exp):
     self.cont(exp, self.stop_cont)

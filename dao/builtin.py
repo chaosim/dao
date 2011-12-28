@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from dao.command import Command, Function, Macro
-from dao.term import CommandCall
+#from dao.term import CommandCall
 from dao.solvebase import mycont, BUILTIN_FUNCTION, BUILTIN_PREDICATE, BUILTIN_MACRO
 from dao.compiler import type
 

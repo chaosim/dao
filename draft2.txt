@@ -1,21 +1,21 @@
 convert(expr, k)
   c: 
-    lambda(v): c, k
+    lambda(v): return_(c, k)
   
   x:
-    lambda(v): x, k
+    lambda(v): return_(x, k)
 
   (quote x)
-    lambda(v): x, k
+    lambda(v): return_(x, k)
 
   begin(a, b):
     convert(a, convert(b, k))
   sample: begin(1, 2)
     lambda v, fc, cc:
-      1, (lambda v: 2, k)
+      return_(1, (lambda v: return_(2, k)))
 
   (if a b c)
-      convert(a, (lambda v: if v: convert(b, k) else: convert(b, k))
+      convert(a, lambda(k) (lambda v: if_(v, convert(b, k), convert(b, k))(k)
 
    sample: if(1, 2, 3)
       lambda v:  

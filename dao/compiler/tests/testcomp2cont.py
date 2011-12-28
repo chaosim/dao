@@ -5,108 +5,79 @@ pyset = set
 from nose.tools import eq_, ok_, assert_raises
 
 from dao.term import cons
-from dao.solve import to_sexpression
-from dao.builtins.arith import add, sub
-from dao.builtins.term import define
 from dao.special import *
 
-# compiler
 from dao.compiler.compile import compile_to_cont, make_compiler
 from dao.compiler import vop
-from dao.compiler.cont import *
+from dao.compiler.vop import done, return_
+from dao.compiler.term import Var as CompileVar, vars as compile_vars
 
 from dao.util import *
 
 class TestSimple:
   def testInteger(self):
-    eq_(compile_to_cont(1), done(1))    
+    value = CompileVar('value')
+    eq_(compile_to_cont(1), return_(1, done))    
   def testVar(self):
-    eq_(compile_to_cont(x), done(x)) 
-  def testquote(self):
-    eq_(compile_to_cont(quote(x)), done(x))
+    value, x1 = CompileVar('value'), CompileVar('x')
+    eq_(compile_to_cont(x), vop.return_(x1, done)) 
   def testset(self):
-    eq_(compile_to_cont(set(a,2)), lambda_((x,), done(set(a,x)))(2))
-    
+    value, value_1, a1 = CompileVar('value'), CompileVar('value_1'), CompileVar('a')
+    result = compile_to_cont(set(a, 2))
+    expect = return_(2, lambda_((value,), begin(vop.set(a1, value), return_(value, done))))
+    eq_(result, expect)    
     
 class TestControl:
   def testBegin(self):
-    eq_(compile_to_cont(begin(1, 2)), done(2)(1))    
+    value, = compile_vars('value')
+    expect = return_(1, lambda_((value,), return_(2, done)))
+    result = compile_to_cont(begin(1, 2))
+    eq_(result,expect)
   def testif_(self):
-    eq_(compile_to_cont(if_(0, 1, 2)), lambda_((x,), if_(x, done(1),done(2)))(0))
+    value,  = compile_vars('value')
+    expect = return_(0, lambda_((value,), if_(value, return_(1,done), return_(2, done))))
+    result = compile_to_cont(if_(0, 1, 2))
+    eq_(result,expect)
   
-class TestBuiltin:
-  def testArithmetic(self):
-    compiler = make_compiler()
-    appc = App(add, done)
-    argc2 = Arg()
-    argc1 = Arg()
-    gc2 = Gat(argc2, appc)
-    gc1 = Gat(argc1, gc2)
-    vc0 = V((), gc1)
-    vc2 = V(2, argc2)
-    vc1 = V(1, argc1)
-    cont_set = pyset([vc1, vc2, vc0, gc1, gc2, argc1, argc2, appc, done, fail_done])
-    compiler.parse_compile_to_cont(add(1,2))
-    eq_(len(compiler.cont_set), len(cont_set))
-    eq_(compiler.cont_set, cont_set)
-    
-  def testArithmetic2(self):
-    compiler = make_compiler()
-    appc2 = App(sub, done)
-    argc4 = Arg()
-    argc3 = Arg()
-    gc4 = Gat(argc4, appc2)
-    gc3 = Gat(argc3, gc4)
-    vc5 = V((), gc3)
-    appc1 = App(add, argc4)
-    vc1 = V(1, argc3)
-    argc2 = Arg()
-    argc1 = Arg()
-    gc2 = Gat(argc2, appc1)
-    gc1 = Gat(argc1, gc2)
-    vc4 = V((), gc1)
-    vc3 = V(3, argc2)
-    vc2 = V(2, argc1)
-    
-    cont_set = pyset([vc1, vc2, vc3, vc4, vc5, gc1, gc2, gc3, gc4, 
-                      argc1, argc2, argc3, argc4, appc1, appc2, done, fail_done])
-    compiler.parse_compile_to_cont(sub(1, add(2,3)))
-    eq_(len(compiler.cont_set), len(cont_set))
-    eq_(compiler.cont_set, cont_set)
-    
-  def testUnify(self):
-    compiler = make_compiler()
-    compiler.parse_compile_to_cont(unify(x,1))
-    eq_(len(compiler.cont_set), len(cont_set))
-    eq_(compiler.cont_set, cont_set)
-
 class TestLambda:
-  def testLambda(self):
-    compiler = make_compiler()
-    eq_(make_compiler().cont(lambda_([x], 1), done), done(lambda_([k, x], k(1))))
+  def testLambda1(self):
+    k, x1 = compile_vars('k, x')
+    expect = return_(lambda_((k, x1), return_(1, k)), done)
+    result = compile_to_cont(lambda_([x], 1))
+    eq_(result,expect)
     
+  def testLambda2(self):
+    k, x1, value, value_1 = compile_vars('k, x, value, value_1')
+    expect = return_(lambda_((k, x1), return_(1, k)), 
+                lambda_((value,), return_(2, lambda_((value_1,), return_(vop.call(value, (done, value_1)),)))))
+    result = compile_to_cont(lambda_([x], 1)(2))
+    eq_(result,expect)
+        
 class TestLet:
   def testlet(self):
-    compiler = make_compiler()
-    eq_(compiler.cont(let([(x,1)], x), done),lambda_((x,),done(x))(1))
+    x1, value, value_1, value_2 = compile_vars('x, value, value_1, value_2')
+    expect = return_(1, lambda_((value_1,), 
+                      begin(vop.set(x1, value_1),return_(value_1, lambda_((value,),return_(x1, done))))))
+    result = compile_to_cont(let([(x,1)], x))
+    eq_(result,expect)
 
   def testlet2(self):
-    compiler = make_compiler()
-    eq_(compiler.cont(let([(x,1),(y,2)], x, y), done),
-        lambda_((x,),lambda_((y,),done(y)(x))(2))(1))
+    x1, y1, value, value_1, value_2, value_3, value_4, value_5 = compile_vars(
+      'x, y, value, value_1, value_2, value_3, value_4, value_5')
+    expect = return_(1, lambda_((value_5,),
+              begin(vop.set(x1, value_5), return_(value_5, lambda_((value,), return_(2, lambda_((value_3,), 
+              begin(vop.set(y1, value_3), return_(value_3, lambda_((value_1,), 
+                    return_(x1, lambda_((value_2,), return_(y1, done)))))))))))))
+    result = compile_to_cont(let([(x,1),(y,2)], x, y))
+    eq_(result,expect)
 
   def testlet3(self):
-    compiler = make_compiler()
-    eq_(compiler.cont(let([(x, 1)], let([(x,2)], x), x), done),
-        lambda_((x,),lambda_((x,),done(x)(x))(2))(1))
+    x1, x1_1, value, value_1, value_2, value_3, value_4, value_5 = compile_vars(
+      'x, x_1, value, value_1, value_2, value_3, value_4, value_5')
+    expect = return_(1, lambda_((value_5,),
+            begin(vop.set(x1, value_5),return_(value_5, lambda_((value,), return_(2, lambda_((value_3,),
+            begin(vop.set(x1_1, value_3),return_(value_3, lambda_((value_2,), return_(x1_1, lambda_((value_1,),
+                                                                return_(x1, done)))))))))))))
+    result = compile_to_cont(let([(x, 1)], let([(x,2)], x), x))
+    eq_(result,expect)
 
-class TestFunction:
-  def test_function1(self):
-    compiler = make_compiler()
-    result = compiler.cont(function(((), 1)), done)
-    expect = done(lambda_(k),k(1))
-    
-  def test_function2(self):
-    compiler = make_compiler()
-    eq_(compiler.cont(function(((1,), 1), ((x,), x)), done),
-        lambda_((k, x),done(x))(1))

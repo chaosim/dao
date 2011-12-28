@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from dao.solve import CutException, mycont
-from dao.term import getvalue, unify_list_rule_head, unify, apply_generators
+#from dao.term import getvalue, unify_list_rule_head, unify, apply_generators
 
 class Rule(object):
   def __init__(self, head, body):
