@@ -30,11 +30,11 @@ def char(solver, argument):
 '''  for compiler
 def char(solver, argument):
   vop.Deref(argument)
-  Assign(('text', 'pos'), vop.parser_state
+  Assign(('text', 'pos'), vop.parser_state)
   if pos==len(text):
     vop.fail
     return
-    vop.Unify(argument, PyCode('text[pos]',
+  vop.Unify(argument, PyCode('text[pos]',
       vop.SaveParseState
       solver.fcont = vop.RestoreParseState+solver.fcont
       vop.SetParse_State(PyCode('text, pos+1')

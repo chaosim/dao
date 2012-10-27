@@ -333,7 +333,7 @@ abs = unary(__abs__)() # abs()
 pow = binary(__pow__) # **	Exponentiation
 getattr = binary(__getattr__) #  attribute access
 getitem = binary(__getitem__) # object[index]
-iterator = unary(__iter__)
+iterator = unary(__iter__) # object[index]
 
 def word(word): return getattr(word)
 def words(text): return [getattr(w.strip()) for w in text.split(',')] 
