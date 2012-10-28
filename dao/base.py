@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+def classeq(x, y):
+  return x.__class__==y.__class__
+
 def is_subclass(sub, sup):
   try: 
     if sup in sub.__bases__: return True

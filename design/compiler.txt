@@ -1,0 +1,12 @@
+alpha conversion(renaming)
+cps transformation
+optimization:
+  see "bigoo optim ....pdf"
+  (beta conversion?): argument apply
+  defunctionalization
+  function inline
+  η(eta) conversion
+  closure analytics: 
+    compile function to deirect code
+      recursive function to loop
+    heap allocated closure 
