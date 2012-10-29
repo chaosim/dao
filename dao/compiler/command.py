@@ -1,46 +1,40 @@
 # -*- coding: utf-8 -*-
 
-#from dao.base import classeq
-import dao.interlang as il
+import dao.compiler.interlang as il
 
 v, fc = il.Var('v'), il.Var('fc')
 
-class Compiler:
-  def __init__(self):
-    pass
-    
-  def compile(self, exp, cont, fcont):
-    try: 
-      exp_compile = exp.compile
-    except: 
-      return il.clamda(v, fc, cont(exp, fcont))
-    return exp_compile(self, cont, fcont)
-  
-  def compile_exps(self, exps, cont, fcont):
-    if not exps: return il.clamda(v, fc, cont(exps, fc))
-    if len(exps)==1:
-      return self.compile(exps[0], cont, fcont)
-    else:
-      return self.compile(exps[0], self.compile_exps(exps[1:], cont, fcont), fcont)
+class Command: pass
 
-class special:
+class special(Command):
   def __init__(self, function):
     self.function = function
     
   def __call__(self, *args):
     return SpecialCall(self.function, args)
 
-class SpecialCall:
+class CommandCall: 
   def __init__(self, function, args):
     self.function, self.args = function, args
+
+class SpecialCall(CommandCall):
     
   def compile(self, compiler, cont, fcont):
     return self.function(compiler, cont, fcont, *self.args)
   
 @special
+def quote(compiler, cont, fcont, exp):
+    return cont(exp, fcont)
+  
+@special
+def assign(compiler, cont, fcont, var, exp):
+    return compiler.compile(exp, 
+            il.clamda(v, fc, il.assign(var, v), il.ret(v, fc)), fcont)
+  
+@special
 def begin(compiler, cont, fcont, *exps):
     return compiler.compile_exps(exps, cont, fcont)
-  
+    
 @special
 def if_(compiler, cont, fcont, test, then, else_):
   if else_ is None:
@@ -67,7 +61,7 @@ fail = fail()
 @special
 def or_(compiler, cont, fcont, clause1, clause2):
   return il.clamda(v, fc, compiler.compile(clause1, cont, 
-                      il.clamda(v, compiler.compile(clause2, cont, fcont))))
+                      il.clamda(v, fc, compiler.compile(clause2, cont, fcont))))
 
 @special
 def unify(compiler, cont, fcont, x, y):
@@ -89,4 +83,22 @@ class LogicVar:
             il.ret(il.unify(x, y, cont, fcont)))
   
   def __repr__(self): return self.name
- 
+  
+class BuiltinFunction(Command):
+  def __init__(self, function):
+    self.function = function
+    
+  def __call__(self, *args):
+    return BuiltinFunctionCall(self.function, args)
+  
+class BuiltinFunctionCall(CommandCall):
+  def compile(self, compiler, cont, fcont):
+    #see The 90 minute Scheme to C compiler by Marc Feeley
+    args = self.args
+    vars = tuple(il.Var('a'+repr(i)) for i in range(len(args)))
+    fun = il.ret(cont(self.function(vars), fc))
+    for var, arg in reversed(zip(vars, args)):
+      fun = compiler.compile(arg, il.clamda(var, fc, fun), fcont)
+    return fun
+     
+add = BuiltinFunction(il.add)

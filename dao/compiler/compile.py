@@ -1,19 +1,46 @@
-pyeval = eval
-pytype = type
+# -*- coding: utf-8 -*-
 
-from dao.base import is_subclass, is_var
-from dao.compiler.env import GlobalEnvironment
-from dao.env import EmptyEnvironment
-from dao.special import clambda
+#pyeval = eval
+#pytype = type
 
-from dao.compiler.term import Var as CompileVar
-from dao.compiler import vop
+#from dao.base import is_subclass, is_var
+#from dao.compiler.env import GlobalEnvironment
+#from dao.env import EmptyEnvironment
+#from dao.special import clambda
+
+#from dao.compiler.term import Var as CompileVar
+#from dao.compiler import vop
 
 
-#α-conversion
-#Alpha-conversion, sometimes known as alpha-renaming,[11] allows bound variable names to be changed. For example, alpha-conversion of λx.x might yield λy.y. Terms that differ only by alpha-conversion are called α-equivalent. Frequently in uses of lambda calculus, α-equivalent terms are considered to be equivalent.
-#The precise rules for alpha-conversion are not completely trivial. First, when alpha-converting an abstraction, the only variable occurrences that are renamed are those that are bound to the same abstraction. For example, an alpha-conversion of λx.λx.x could result in λy.λx.x, but it could not result in λy.λx.y. The latter has a different meaning from the original.
-#Second, alpha-conversion is not possible if it would result in a variable getting captured by a different abstraction. For example, if we replace x with y in λx.λy.x, we get λy.λy.y, which is not at all the same.
+#from dao.base import classeq
+
+import dao.compiler.interlang as il
+
+v, fc = il.Var('v'), il.Var('fc')
+
+class Compiler:
+  def __init__(self):
+    pass
+    
+  def compile(self, exp, cont, fcont):
+    try: 
+      exp_compile = exp.compile
+    except: 
+      return cont(exp, fcont)
+    return exp_compile(self, cont, fcont)
+  
+  def compile_exps(self, exps, cont, fcont):
+    if not exps: return il.clamda(v, fc, cont(exps, fc))
+    if len(exps)==1:
+      return self.compile(exps[0], cont, fcont)
+    else:
+      return self.compile(exps[0], il.clamda(v, fc, self.compile_exps(exps[1:], cont, fcont)), fcont)
+
+ 
+#伪-conversion
+#Alpha-conversion, sometimes known as alpha-renaming,[11] allows bound variable names to be changed. For example, alpha-conversion of 位x.x might yield 位y.y. Terms that differ only by alpha-conversion are called 伪-equivalent. Frequently in uses of lambda calculus, 伪-equivalent terms are considered to be equivalent.
+#The precise rules for alpha-conversion are not completely trivial. First, when alpha-converting an abstraction, the only variable occurrences that are renamed are those that are bound to the same abstraction. For example, an alpha-conversion of 位x.位x.x could result in 位y.位x.x, but it could not result in 位y.位x.y. The latter has a different meaning from the original.
+#Second, alpha-conversion is not possible if it would result in a variable getting captured by a different abstraction. For example, if we replace x with y in 位x.位y.x, we get 位y.位y.y, which is not at all the same.
 #In programming languages with static scope, alpha-conversion can be used to make name resolution simpler by ensuring that no variable name masks a name in a containing scope (see alpha renaming to make name resolution trivial).
 
 #Some compilers include an alpha-conversion stage to rename all program variables such that variable names become unique. 
@@ -37,19 +64,19 @@ def alpha(exp):
 #If the language has closures as first-class objects that can be passed as arguments or returned from other functions (closures), 
 # the closure will need to be represented by a data structure that captures the bindings of the free variables.
 
-def compile(e, k, f, env):
-  if isinstance(e, int): return (k, e)
-  if isinstance(e, str): return (k, e)
-  if isinstance(e, Var): return (k, e)
-  if isinstance(e, tuple):
-    if e[0]=='if':
-      return compile(e[2],  ('lambda', (v,), ('if', v, compile(e[1], k, f, env), compile(e[2], k, f, env)))), f, env)
-    if e[0]=='andp':
-      return compile(e[1],  compile(e[2], k, f, env), k, env)
-    if e[0]=='orp':
-      return compile(e[1],  k, compile(e[2], k, f, env), env)
-    if e[0]=='lambda':
-      return (k, clambda(e[1]+[kk], compile(e[2], kk, f, env)))
+#def compile(e, k, f, env):
+  #if isinstance(e, int): return (k, e)
+  #if isinstance(e, str): return (k, e)
+  #if isinstance(e, Var): return (k, e)
+  #if isinstance(e, tuple):
+    #if e[0]=='if':
+      #return compile(e[2],  ('lambda', (v,), ('if', v, compile(e[1], k, f, env), compile(e[2], k, f, env)))), f, env)
+    #if e[0]=='andp':
+      #return compile(e[1],  compile(e[2], k, f, env), k, env)
+    #if e[0]=='orp':
+      #return compile(e[1],  k, compile(e[2], k, f, env), env)
+    #if e[0]=='lambda':
+      #return (k, clambda(e[1]+[kk], compile(e[2], kk, f, env)))
 
 def beta(exp):
   pass
@@ -60,22 +87,22 @@ def beta(exp):
 # by the argument passed to the function whenever it is applied. This process is called -reduction.
 #In the context of functional programming languages, inline expansion is usually followed by the beta-reduction transformation.
 
-def gencode(e):
-  return
+#def gencode(e):
+  #return
  
-#====================================
+##====================================
 
-def make_compiler():
+def xmake_compiler():
   global_env = GlobalEnvironment({})
   env = global_env.extend({})
   return Compiler(global_env, env)
 
-def compile_to_cont(exp):
+def xcompile_to_cont(exp):
   compiler = make_compiler()
   exp = compiler.alpha(exp)
   return compiler.cont(exp, vop.done)
   
-def compile(exp): 
+def xcompile(exp): 
   sexp = to_sexpression(exp)
   compiler = make_compiler()
   return compiler.compile(sexp)

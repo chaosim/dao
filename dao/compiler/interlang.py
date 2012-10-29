@@ -53,6 +53,18 @@ class Return:
   
 def ret(*args): return Return(args)
 
+class Assign:
+  def __init__(self, var, exp):
+    self.var, self.exp =  var, exp
+    
+  def __eq__(x, y):
+    return classeq(x, y) and x.var==y.var and x.exp==y.exp
+  
+  def __repr__(self):
+    return 'il.assign(%r, %r)'%(self.var, self.exp)
+  
+def assign(var, exp): return Assign(var, exp)
+
 class If:
   def __init__(self, test, then, else_):
     self.test, self.then, self.else_ = test, then, else_
@@ -79,3 +91,28 @@ class Unify:
     return 'il.unify(%r, %r, %r, %r)'%(self.left, self.right, self.cont, self.fcont)
 
 def unify(left, right, cont, fcont): return Unify(left, right, cont, fcont)
+
+class BinaryOperationApply:
+  def __init__(self, operator, args):
+    self.operator, self.args = operator, args
+  
+  def __eq__(x, y):
+    return classeq(x, y) and x.operator==y.operator and x.args==y.args
+    
+  def __repr__(self):
+    return '%r(%r)'%(self.operator, self.args)
+
+class BinaryOperation:
+  def __init__(self, name, operator):
+    self.name, self.operator = name,operator
+    
+  def __call__(self, args):
+    return BinaryOperationApply(self, args)
+  
+  def __eq__(x, y):
+      return classeq(x, y) and x.operator==y.operator
+  
+  def __repr__(self):
+    return 'il.%s'%self.name
+
+add = BinaryOperation('add', '+')
