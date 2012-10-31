@@ -1,5 +1,27 @@
 # -*- coding: utf-8 -*-
 
+import dao.compiler.interlang as il
+
+v, fc = il.Var('v'), il.Var('fc')
+
+class Compiler:
+  def __init__(self):
+    pass
+    
+  def compile(self, exp, cont, fcont):
+    try: 
+      exp_compile = exp.compile
+    except: 
+      return cont(il.literal(exp), fcont)
+    return exp_compile(self, cont, fcont)
+  
+  def compile_exps(self, exps, cont, fcont):
+    if not exps: return il.clamda(v, fc, cont(il.tuple(), fc))
+    if len(exps)==1:
+      return self.compile(exps[0], cont, fcont)
+    else:
+      return self.compile(exps[0], il.clamda(v, fc, self.compile_exps(exps[1:], cont, fcont)), fcont)
+ 
 #pyeval = eval
 #pytype = type
 
@@ -14,29 +36,6 @@
 
 #from dao.base import classeq
 
-import dao.compiler.interlang as il
-
-v, fc = il.Var('v'), il.Var('fc')
-
-class Compiler:
-  def __init__(self):
-    pass
-    
-  def compile(self, exp, cont, fcont):
-    try: 
-      exp_compile = exp.compile
-    except: 
-      return cont(exp, fcont)
-    return exp_compile(self, cont, fcont)
-  
-  def compile_exps(self, exps, cont, fcont):
-    if not exps: return il.clamda(v, fc, cont(exps, fc))
-    if len(exps)==1:
-      return self.compile(exps[0], cont, fcont)
-    else:
-      return self.compile(exps[0], il.clamda(v, fc, self.compile_exps(exps[1:], cont, fcont)), fcont)
-
- 
 #α-conversion
 #Alpha-conversion, sometimes known as alpha-renaming,[11] allows bound variable names to be changed. For example, alpha-conversion of λx.x might yield λy.y. Terms that differ only by alpha-conversion are called α-equivalent. Frequently in uses of lambda calculus, α-equivalent terms are considered to be equivalent.
 #The precise rules for alpha-conversion are not completely trivial. First, when alpha-converting an abstraction, the only variable occurrences that are renamed are those that are bound to the same abstraction. For example, an alpha-conversion of λx.λx.x could result in λy.λx.x, but it could not result in λy.λx.y. The latter has a different meaning from the original.
