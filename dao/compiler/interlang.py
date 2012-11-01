@@ -23,6 +23,12 @@ class Lamda(Element):
     return 'Lamda((%s), %s)'%(', '.join([repr(x) for x in self.params]),
                               ', '.join([repr(x) for x in self.body]))
 
+class Function(Lamda):
+  is_statement = True
+  def __init__(self, name, params, *body):
+    Lamda.__init__(self, params, *body)
+    self.name = name
+  
 class Clamda(Lamda):
   def __init__(self, v, fc, *exps):
     self.params, self.body = (v, fc), exps
@@ -34,20 +40,7 @@ class Clamda(Lamda):
 class Apply(Element):
   def __init__(self, caller, args):
     self.caller, self.args = caller, args
-  
-  def optimize(self):
-    if isinstance(self.caller, Clamda):
-      if self.caller.not_use_params():
-        return self.caller.body
-      subst = {}
-      if self.caller.free_occur_once(self.caller.params):
-        assigns = tuple(assign(p, a) for p, a in zip(self.caller.params, self.args))
-        body = self.caller.body.subst(self.caller.params, self.args)
-        return assigns+body          
-      return self
     
-    return self
-  
   def __eq__(x, y):
     return classeq(x, y) and x.caller==y.caller and x.args==y.args
   
@@ -68,9 +61,6 @@ class Var(Element):
     return set([self])
   
   def __hash__(self): return hash(self.name)
-  
-  #def __repr__(self):
-    #return 'Var(%s)'%self.name
 
   def __repr__(self):
     return self.name #enough in tests
@@ -88,13 +78,11 @@ class LogicVar(Element):
   def __eq__(x, y):
     return classeq(x, y) and x.name==y.name
   
-  #def __repr__(self):
-    #return 'il.LogicVar(%s)'%self.name
-
   def __repr__(self):
     return self.name # enough in tests
   
 class Return(Element):
+  
   def __init__(self, *args):
     self.args = args
   
@@ -105,6 +93,7 @@ class Return(Element):
     return 'Return(%s)'%', '.join([repr(x) for x in self.args])
   
 class Assign(Element):
+  is_statement = True
   def __init__(self, var, exp):
     self.var, self.exp =  var, exp
   
@@ -128,6 +117,7 @@ class If(Element):
       return 'il.If(%r, %r)'%(self.test, self.then)
 
 class If2(Element):
+  is_statement = True
   def __init__(self, test, then):
     self.test, self.then = test, then
     
@@ -169,30 +159,8 @@ class BinaryOperation(Element):
 
 add = BinaryOperation('add', '+')
 
-#class Tuple(Element):
-  #def __init__(self, elements):
-    #self.elements = elements
+class StatementList(Element):
+  is_statement = True
   
-  #def __eq__(x, y):
-    #return classeq(x, y) and x.elements==y.elements
-  
-  #def __repr__(self):
-    #return 'il_tuple(%s)'%', '.join([repr(x) for x in self.elements])
-  
-#def il_tuple(*elements): return Tuple(elements)
-
-#class Literal(Element):
-  #def __init__(self, value):
-    #self.value = value
-    
-  #def __call__(self, args):
-    #raise TypeError
-  
-  #def __eq__(x, y):
-    #return (classeq(x, y) and x.value==y.value) or x.value==y or x==y.value
-  
-  #def __repr__(self):
-    #return 'il.literal(%s)'%self.value
-  
-#def literal(value): return Literal(value)
-
+  def __init__(self, statements):
+    self.statements = statements

@@ -113,11 +113,14 @@ class AlphaConvertEnvironment:
       result.lefts = new_env.lefts # prepare for assign convert
       return result
     
-    if isinstance(exp, il.Var):
+    elif isinstance(exp, il.Var):
       return self[exp]
     
+    elif isinstance(exp, il.LogicVar):
+      return self
+    
     elif  isinstance(exp, il.Apply):
-      return il.Apply(env.alpha_convert(exp.caller), 
+      return exp.__class__(env.alpha_convert(exp.caller), 
                    tuple(env.alpha_convert(arg) for arg in exp.args))
     
     elif  isinstance(exp, il.Return):
@@ -129,18 +132,18 @@ class AlphaConvertEnvironment:
       return il.Assign(converted_var, env.alpha_convert(exp.exp))
     
     elif  isinstance(exp, il.If):
-      return il.If(env.alpha_convert(exp.test), 
-                   env.alpha_convert(exp.then), env.alpha_convert(exp.else_))
+      return il.If(env.alpha_convert(exp.test), env.alpha_convert(exp.then), 
+                   env.alpha_convert(exp.else_))
     
     elif  isinstance(exp, il.If2):
       return il.If2(env.alpha_convert(exp.test), env.alpha_convert(exp.then))
     
-    #elif  isinstance(exp, il.Tuple):
-      #return il.Tuple(exp.elements)
-    
     elif isinstance(exp, il.Unify):
       return il.Unify(env.alpha_convert(exp.left), env.alpha_convert(exp.right),
                    env.alpha_convert(exp.cont), env.alpha_convert(exp.fcont))
+    
+    elif isinstance(exp, il.BinaryOperation):
+      return self
 
     elif isinstance(exp, tuple):
       return tuple(env.alpha_convert(x) for x in exp)
@@ -150,6 +153,9 @@ class AlphaConvertEnvironment:
     
     elif isinstance(exp, int) or isinstance(exp, float) or isinstance(exp, str) or isinstance(exp, unicode):
       return exp
+    
+    elif exp is None:
+      return None
     
     else: raise CompileTypeError(exp)
 
@@ -161,7 +167,7 @@ class AlphaConvertEnvironment:
     return result
        
 def assign_convert(exp, alpha_env, env):
-  # env is the AlphaConvertEnvironment after alpha convert
+  # alpha_env is the AlphaConvertEnvironment after alpha convert
   
   if isinstance(exp, il.Lamda):
     try:
@@ -215,13 +221,16 @@ def assign_convert(exp, alpha_env, env):
   elif isinstance(exp, int) or isinstance(exp, float) or isinstance(exp, str) or isinstance(exp, unicode):
     return exp
   
+  elif exp is None:
+    return None
+  
   else: raise CompileTypeError(exp)
 
 class Optimization:
   def __init__(self):
     self.ref_count = {}
     
-def analyse_before_optimise(exp):
+def analyse_before_optimize(exp):
   result = Optimization()
   
   if isinstance(exp, il.Lamda):
@@ -302,8 +311,7 @@ def optimize(exp):
           new_args += (exp.args[i],)
       if subst:
         return il.Apply(il.Lamda(new_params, exp.caller.body.subst(subst)), new_args)
-        
-    
+         
   #3. Constant folding of primitive operations, including conditionals.
   
   #4. Substituting values that are defined in this module or in another module whose declaration file (see 
@@ -421,7 +429,8 @@ def optimize(exp):
   elif isinstance(exp, list):
     return [env.alpha_convert(x) for x in exp]
   
-  elif isinstance(exp, int) or isinstance(exp, float) or isinstance(exp, str) or isinstance(exp, unicode):
+  elif isinstance(exp, int) or isinstance(exp, float) or\
+       isinstance(exp, str) or isinstance(exp, unicode):
     return exp
   
     
@@ -449,12 +458,124 @@ def optimize(exp):
 def beta(exp):
   pass
 
+#def convert_to_statement(exp):
+  #if isinstance(exp, il.If):
+    #return il.IfStatement(exp.test, exp.then, exp.else_)
+  #elif isinstance(exp, il.If2):
+    #return il.IfStatement2(exp.test, exp.then)
+  #elif isinstance(exp, il.Return):
+    #return il.ReturnStatement(exp.args)
+  #else:
+    #return exp
+  
+def collocate(defs, exp):
+  if defs:
+    return il.StatementList(defs + (exp,))
+  else: 
+    return exp
+
+def is_statement(exp):
+  try: return exp.is_statement
+  except:
+    if isinstance(exp, il.Element):
+      return False
+    if isinstance(exp, list) or isinstance(exp, tuple) or\
+      ( isinstance(exp, int) or isinstance(exp, float)
+        or isinstance(exp, str) or isinstance(exp, unicode)):
+      return False
+  raise CompileTypeError(exp)
+  
+def to_code(exp):
+  exp = pythonize(exp, AlphaConvertEnvironment())
+  coder = CodeGenerator()
+  return coder.to_code(exp)
+
+def pythonize_list(exps, env):
+  defs = ()
+  exps2 = ()    
+  for x in exps:
+    exp = pythonize(x, env)
+    if isinstance(exp, il.Function):
+      defs += (exp,)
+      exps2 += (exp.name,)
+    else:
+      exps2 += (exp,)
+  return defs, exps2
+
+def pythonize(exp, env):
+  
+  if isinstance(exp, il.Lamda):
+    body_exps = ()
+    body_is_statement = False
+    for x in exp.body:
+      x = pythonize(x, env)
+      if is_statement(x):
+        body_is_statement = True
+      body_exps += (x,)
+    if not body_is_statement:
+      return il.Lamda(exp.params, *body_exps)
+    else:
+      return il.Function(env.new_var(il.Var('function')), exp.params, *body_exps)
+    
+  elif isinstance(exp, il.Var): return exp
+    
+  elif isinstance(exp, il.LogicVar): return exp
+    
+  elif  isinstance(exp, il.Apply):
+    caller = pythonize(exp.caller, env)
+    defs = ()
+    if isinstance(caller, il.Function):
+      defs += (caller,)
+      caller = caller.name
+    defs1, args = pythonize_list(exp.args, env)
+    defs += defs1
+    return collocate(defs, exp.__class__(caller,args))
+  
+  elif  isinstance(exp, il.BinaryOperation):
+    return exp
+  
+  elif  isinstance(exp, il.Return):
+    defs, args = pythonize_list(exp.args, env)
+    return collocate(defs, il.Return(*args))
+  
+  elif  isinstance(exp, il.Assign): # var = value, exp.exp should be a single var, 
+                                    # which is the continuation param which ref to the value
+    return exp
+  
+  elif  isinstance(exp, il.If):
+    defs, (test, then, else_) = pythonize_list((exp.test, exp.then, exp.else_), env)
+    return collocate(defs, il.If(test, then, else_))
+  
+  elif  isinstance(exp, il.If2):
+    defs, (test, then) = pythonize_list((exp.test, exp.then), env)
+    return collocate(defs, il.If2(test, then))
+  
+  elif isinstance(exp, il.Unify):
+    defs, (left, right, cont, fcont) = pythonize_list((exp.left, exp.right, exp.cont, exp.fcont), env)
+    return collocate(defs, il.Unify(left, right, cont, fcont))
+  
+  elif isinstance(exp, list):
+    return exp
+  
+  elif isinstance(exp, tuple):
+    return exp
+  
+  elif isinstance(exp, int) or isinstance(exp, float) or \
+       isinstance(exp, str) or isinstance(exp, unicode):
+    return exp
+  
+  elif exp is None:
+    return None
+  
+  else: raise CompileTypeError(exp)
+  
 class CodeGenerator: 
   def __init__(self, indent_space='  ', language='python'):
     self.language = language
     self.indent_space = indent_space
     self.var_index_map = {'function':0}
     self.var_index = 0
+    self.lambda_stack = []
     
   def indent(self, code, level=1):
     lines = code.split('\n')
@@ -470,61 +591,85 @@ class CodeGenerator:
     
   # if the definition for same method of different class can be put in one place,
   # then the if_elif can be avoided, meanwhile the code is more understandable.
+  
   def to_code(self, exp):
-    #if isinstance(exp, il.Clamda):
-      #if exp.name is None: 
-        #exp.name = self.newvar()
-        #head = "def %s(%s):\n" % (exp.name, ', '.join(self.to_code_list(exp.params)))
-        #return  head + self.indent('\n'.join(self.to_code_list(exp.body)))
-      #else: return exp.name
-    if isinstance(exp, il.Lamda):
-      if exp.name is None: 
-        exp.name = self.newvar()
-        head = "def %s(%s):\n" % (exp.name, ', '.join(self.to_code_list(exp.params)))
-        return  head + self.indent('\n'.join(self.to_code_list(exp.body)))
-      else: return exp.name
-    if isinstance(exp, il.BinaryOperationApply):
+    
+    if isinstance(exp, il.Function):
+      head = "def %s(%s):\n" % (exp.name, ', '.join(self.to_code_list(exp.params)))
+      self.lambda_stack.append(exp)
+      result =  head + self.indent('\n'.join(self.to_code_list(exp.body)))
+      self.lambda_stack.pop()
+      return result
+      
+    elif isinstance(exp, il.Lamda):
+      head = "lambda %s: " % ', '.join(self.to_code_list(exp.params))
+      self.lambda_stack.append(exp)
+      result = head + '(%s)'%', '.join(self.to_code_list(exp.body))
+      self.lambda_stack.pop()
+      return result
+        
+    elif isinstance(exp, il.BinaryOperation): # MUST be BEFORE subclass.
+      return exp.operator
+      
+    elif isinstance(exp, il.BinaryOperationApply):
       return '%s%s%s'%(self.to_code(exp.args[0]), 
                           self.to_code(exp.caller), 
                           self.to_code(exp.args[1]))
-    if isinstance(exp, il.BinaryOperation):
-      return exp.operator
-    elif  isinstance(exp, il.Apply):
-      if isinstance(exp.caller, il.Clamda) and exp.caller.name is None:
-        return self.to_code(exp.caller) + '\n' + \
-               self.to_code(exp.caller)+'(%s)'%', '.join([self.to_code(x) for x in exp.args])
-      else: 
-        return exp.caller.name + '(%s)'%', '.join([self.to_code(x) for x in exp.args])
+    
+    elif  isinstance(exp, il.Apply): # MUST be AFTER subclass.
+      if isinstance(exp.caller, il.Lamda):
+        return "(%s)"%self.to_code(exp.caller) + '(%s)'%', '.join([self.to_code(x) for x in exp.args])
+      else:
+        return self.to_code(exp.caller) + '(%s)'%', '.join([self.to_code(x) for x in exp.args])        
+
+    elif  isinstance(exp, il.StatementList):
+      return  '\n'.join([self.to_code(x) for x in exp.statements])
+      
     elif  isinstance(exp, il.Return):
-      return  'return %s' % ', '.join([self.to_code(x) for x in exp.args])
+      if self.lambda_stack and isinstance(self.lambda_stack[-1], il.Function):
+        return  'return %s' % ', '.join([self.to_code(x) for x in exp.args])
+      else:
+        return  ', '.join([self.to_code(x) for x in exp.args])
+    
     elif  isinstance(exp, il.Assign):
       return  '%s = %s' % (self.to_code(exp.var), self.to_code(exp.exp))
+    
     elif  isinstance(exp, il.If):
-      return 'if %s: \n%s\nelse:\n%s' % (self.to_code(exp.test), self.indent(self.to_code(exp.then)), 
-                                 self.indent(self.to_code(exp.else_)))
+      if self.lambda_stack and isinstance(self.lambda_stack[-1], il.Function):
+        return 'if %s: \n%s\nelse:\n%s' % (self.to_code(exp.test), self.indent(self.to_code(exp.then)), 
+                                         self.indent(self.to_code(exp.else_)))        
+      else:
+        return '%s if %s else %s' % (self.to_code(exp.then), self.to_code(exp.test), 
+                                         self.to_code(exp.else_))        
+    
     elif  isinstance(exp, il.If2):
       return 'if %s: \n%s\n' % (self.to_code(exp.test), self.indent(self.to_code(exp.then)))
-    #elif  isinstance(exp, il.Tuple):
-      #if len(exp.element)!=1:
-        #return "(%s)"%', '.join([self.to_code(x) for x in exp.elements])
-      #else: 
-        #return '(%s,)'%self.to_code(exp.elements[0])
+
     elif isinstance(exp, il.Unify):
       return 'unify(%s, %s, %s, %s)' % (self.to_code(exp.left), self.to_code(exp.right), 
                                        self.to_code(exp.cont), self.to_code(exp.fcont))
+    
     elif isinstance(exp, il.Var):
       return exp.name
+    
     elif isinstance(exp, il.LogicVar):
-      return  "LogicVar(%s)"%exp.name
-    #elif isinstance(exp, il.Literal):
-      #return repr(exp.value)
+      return  "LogicVar('%s')"%exp.name
+    
+    elif isinstance(exp, list):
+      return '[%s]'%', '.join(tuple(self.to_code(x) for x in exp))
+    
     elif isinstance(exp, tuple):
       return '(%s)'%', '.join(tuple(self.to_code(x) for x in exp))
-    elif isinstance(exp, list):
-      return '(%s)'%', '.join(tuple(self.to_code(x) for x in exp))
+    
+    elif isinstance(exp, int) or isinstance(exp, float) or\
+         isinstance(exp, str) or isinstance(exp, unicode):
+      return repr(exp)
+    
+    elif exp is None:
+      return 'None'
+    
     else:
       return repr(exp)
    
-  def to_code_list(self, items):
+  def to_code_list(self, items, in_lambda=True):
     return [self.to_code(x) for x in items]  
-
