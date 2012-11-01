@@ -19,7 +19,7 @@ class CommandCall:
 
 class SpecialCall(CommandCall):
     
-  def compile(self, compiler, cont, fcont):
+  def cps_convert(self, compiler, cont, fcont):
     return self.function(compiler, cont, fcont, *self.args)
   
 @special
@@ -28,22 +28,22 @@ def quote(compiler, cont, fcont, exp):
   
 @special
 def assign(compiler, cont, fcont, var, exp):
-    return compiler.compile(exp, 
-            il.clamda(v, fc, il.assign(var, v), il.ret(v, fc)), fcont)
+    return compiler.cps_convert(exp, 
+            il.Clamda(v, fc, il.Assign(var, v), il.Return(v, fc)), fcont)
   
 @special
 def begin(compiler, cont, fcont, *exps):
-    return compiler.compile_exps(exps, cont, fcont)
+    return compiler.cps_convert_exps(exps, cont, fcont)
     
 @special
 def if_(compiler, cont, fcont, test, then, else_):
   if else_ is None:
-    return compiler.compile(test, 
-           il.clamda(v, fc, il.if_(v, compiler.compile(then, cont, fcont))))
+    return compiler.cps_convert(test, 
+           il.Clamda(v, fc, il.If2(v, compiler.cps_convert(then, cont, fcont))))
   else:
-    return compiler.compile(test, 
-           il.clamda(v, fc, il.if_(v, compiler.compile(then, cont, fcont), 
-                                    compiler.compile(else_, cont, fcont))),
+    return compiler.cps_convert(test, 
+           il.Clamda(v, fc, il.If(v, compiler.cps_convert(then, cont, fcont), 
+                                    compiler.cps_convert(else_, cont, fcont))),
            fcont)
     
 @special
@@ -60,29 +60,20 @@ fail = fail()
 
 @special
 def or_(compiler, cont, fcont, clause1, clause2):
-  return il.clamda(v, fc, compiler.compile(clause1, cont, 
-                      il.clamda(v, fc, compiler.compile(clause2, cont, fcont))))
+  return il.Clamda(v, fc, compiler.cps_convert(clause1, cont, 
+                      il.Clamda(v, fc, compiler.cps_convert(clause2, cont, fcont))))
 
 @special
 def unify(compiler, cont, fcont, x, y):
-  try: x_compile_unify = x.compile_unify
+  try: x_cps_convert_unify = x.cps_convert_unify
   except:
-    try: y_compile_unify = y.compile_unify
+    try: y_cps_convert_unify = y.cps_convert_unify
     except:
       if x==y: return cont
       else: return fcont
-    return y_compile_unify(x, compiler, cont, fcont)
-  return x_compile_unify(y, compiler, cont, fcont)
+    return y_cps_convert_unify(x, cont, fcont)
+  return x_cps_convert_unify(y, cont, fcont)
 
-class LogicVar: 
-  def __init__(self, name):
-    self.name = name
-    
-  def compile_unify(x, y, compiler, cont, fcont):
-    return il.clamda(v, fc, 
-            il.ret(il.unify(x, y, cont, fcont)))
-  
-  def __repr__(self): return self.name
   
 class BuiltinFunction(Command):
   def __init__(self, function):
@@ -92,13 +83,18 @@ class BuiltinFunction(Command):
     return BuiltinFunctionCall(self.function, args)
   
 class BuiltinFunctionCall(CommandCall):
-  def compile(self, compiler, cont, fcont):
+  def cps_convert(self, compiler, cont, fcont):
     #see The 90 minute Scheme to C compiler by Marc Feeley
     args = self.args
     vars = tuple(il.Var('a'+repr(i)) for i in range(len(args)))
-    fun = il.ret(cont(self.function(vars), fc))
+    #fun = il.Return(cont(self.function(il.il_tuple(*vars)), fc))
+    fun = il.Return(cont(self.function(vars), fc))
     for var, arg in reversed(zip(vars, args)):
-      fun = compiler.compile(arg, il.clamda(var, fc, fun), fcont)
+      fun = compiler.cps_convert(arg, il.Clamda(var, fc, fun), fcont)
     return fun
      
 add = BuiltinFunction(il.add)
+
+LogicVar = il.LogicVar
+
+lamda = il.Lamda

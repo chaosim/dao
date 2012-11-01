@@ -11,7 +11,7 @@ from dao.compiler.command import fail, succeed, or_, unify
 
 from dao.compiler import interlang as il
 
-from dao.compiler.interlang import Optimizer
+#from dao.compiler.compile import Optimizer
 
 v, fc = il.Var('v'), il.Var('fc')
 a0, a1, a2, a3, a4 = tuple(il.Var('a'+repr(i)) for i in range(5))

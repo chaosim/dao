@@ -2,16 +2,12 @@
 
 from nose.tools import eq_, ok_, assert_raises
 
-from dao.compiler.interlang import *
-
-from dao.compiler.compile import Compiler
+from dao.compiler.compile import Compiler, CodeGenerator
 from dao.compiler.command import begin, quote, assign, if_, LogicVar
 from dao.compiler.command import add
 from dao.compiler.command import fail, succeed, or_, unify
 
 from dao.compiler import interlang as il
-
-from dao.compiler.interlang import CodeGenerator
 
 def to_code(exp):
   coder = CodeGenerator()
@@ -20,21 +16,21 @@ def to_code(exp):
 v, fc = il.Var('v'), il.Var('fc')
 a0, a1, a2, a3, a4 = tuple(il.Var('a'+repr(i)) for i in range(5))
 
-class Done(Clamda):
+class Done(il.Clamda):
   def __repr__(self): return 'done()'
   
 def done():
-  return Done(v, fc, (ret(v, fc),))
+  return Done(v, fc, (il.Return(v, fc),))
 
 def compile(exp):
-  return to_code(Compiler().compile(exp, done(), None))
+  return to_code(Compiler().cps_convert(exp, done(), None))
 
 
 class TestGenerateCode:
   def test_simple(self):
     eq_(to_code(1), '1')
     eq_(to_code(il.Var('a')), 'a')
-    eq_(to_code(il.ret('a')), "return 'a'")
+    eq_(to_code(il.il.Return('a')), "return 'a'")
     eq_(to_code(il.assign(v, 1)), "v = 1")
     eq_(to_code(il.add((v, 1))), "v+1")
     
@@ -89,7 +85,7 @@ function1(0, None)'''
 
   def test_or(self):
     result = compile(or_(1, 2))
-    expect = clamda(v, fc, done()(1, clamda(v, fc, done()(2, None))))
+    expect = il.Clamda(v, fc, done()(1, Clamda(v, fc, done()(2, None))))
 #def function1(v, fc):
   #def function2(v, fc):
     #return v, fc
@@ -102,13 +98,13 @@ function1(0, None)'''
     eq_(compile(unify(1, 1)), 'def function1(v, fc):\n  return v, fc') 
     
   def test_unify2(self):
-    x = LogicVar('x')
+    x = il.LogicVar('x')
     result = compile(unify(logicvar('x'), 2))
-    expect = clamda(v, fc, ret(il.unify(x, 2, done(), None)))
+    expect = Clamda(v, fc, il.Return(il.unify(x, 2, done(), None)))
     eq_(result, expect)
     
     
   def test_add(self):
     result = compile(add(1, 2))
-    expect = clamda(a0, fc, clamda(a1, fc, ret(done()(il.add((a0, a1)), fc)))(2, None))(1, None)
+    expect = il.Clamda(a0, fc, il.Clamda(a1, fc, il.Return(done()(il.add((a0, a1)), fc)))(2, None))(1, None)
     eq_(result, expect)
