@@ -19,7 +19,7 @@ def done():
   return Done(v, fc, il.Return(v, fc))
 
 def compile(exp):
-  return to_code(Compiler().cps_convert(exp, done(), None))
+  return to_code(Compiler().cps(exp, done(), None))
 
 
 class TestGenerateCode:
@@ -77,7 +77,7 @@ function(2, None)'''
 
   def test_or(self):
     result = compile(or_(1, 2))
-    expect = '''lambda v, fc: ((lambda v, fc: (v, fc))(1, lambda v, fc: ((lambda v, fc: (v, fc))(2, None))))'''
+    expect = '''(lambda v, fc: (v, fc))(1, (lambda v, fc: (v, fc))(2, None))'''
     eq_(result, expect)
     
   def test_unify(self):
