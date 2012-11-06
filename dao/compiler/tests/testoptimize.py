@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+'''optimization'''
 
 from nose.tools import eq_, ok_, assert_raises
 
@@ -32,28 +33,28 @@ def compile_optimize(exp):
 class TestSimple:
   def test_integer(self):
     result = compile_optimize(1)
-    expect = (il.Return((1, None)),)
+    expect = il.Return(1, None)
     eq_(result, expect)
     
   def test_quote(self):
     result = compile_optimize(quote(1))
-    expect = (il.Return((1, None)),)
+    expect = il.Return(1, None)
     eq_(result, expect)
     
   def test_begin(self):
     result = compile_optimize(begin(1, 2))
-    expect = ((il.Return((2, None)),),)
+    expect = il.Return(2, None)
     eq_(result, expect)
   
   def test_assign(self):
     x = il.Var('x')
     result = compile_optimize(assign(x, 2))
-    expect = clamda(v, fc, il.assign(x, v), ret(v, fc))(2, None)
+    expect = il.StatementList((il.Assign(x, 2), il.Return(2, None)))
     eq_(result, expect)
 
   def test_if(self):
     result = compile_optimize(if_(0, 1, 2))
-    expect = (il.If(0, (il.Return((1, None)),), (il.Return((2, None)),)),)
+    expect = il.If(0, il.Return(1, None), il.Return(2, None))
     eq_(result, expect)
   
   def test_fail(self):
@@ -68,7 +69,7 @@ class TestSimple:
 
   def test_or(self):
     result = compile_optimize(or_(1, 2))
-    expect = (il.Return((1, il.Lamda((v1, fc1), (il.Return((2, None)),)))),)
+    expect = il.Return(1, il.Lamda((v1, fc1), il.Return(2, None)))
     eq_(result, expect)
     
   def test_unify(self):
@@ -81,8 +82,40 @@ class TestSimple:
     expect = clamda(v, fc, ret(il.unify(x, 2, done(), None)))
     eq_(result, expect)
     
-    
   def test_add(self):
     result = compile_optimize(add(1, 2))
-    expect = ((il.Return(((il.Return((None, None)),),)),),)
+    expect = il.Return(il.add((1, 2)), None)
     eq_(result, expect)
+
+def test_optimize(exp):
+  data = OptimizationData()
+  analyse_before_optimize(exp, data)
+  return optimize(exp, data)
+
+class TestOptimize:
+  def test_if(self):
+    result = test_optimize(il.If(1, il.If(1, 2, 3), 4))
+    expect = il.If(1, 2, 4)
+    eq_(result, expect)
+    
+  def test_if2(self):
+    result = test_optimize(il.If(1, 2, il.If(1, 3, 4)))
+    expect = il.If(1, 2, 4)
+    eq_(result, expect)
+    
+  def test_if3(self):
+    result = test_optimize(il.If(1, il.If(1, 2, 3), il.If(1, 4, 5)))
+    expect = il.If(1, 2, 5)
+    eq_(result, expect)
+    
+  def test_lambda_apply(self):
+    result = test_optimize(il.Clamda(v, fc, il.Return(1, None))(v, fc))
+    expect = il.Return(1, None)
+    eq_(result, expect)
+  
+  def test_lambda_apply2(self):
+    v1, fc1 = il.Var('v1'), il.Var('fc1')
+    result = test_optimize(il.Clamda(v1, fc1, il.Return(v1, fc1))(v, fc))
+    expect = il.Return(v, fc)
+    eq_(result, expect)
+    

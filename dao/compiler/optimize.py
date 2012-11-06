@@ -133,7 +133,7 @@ def side_effects(exp):
   if isinstance(exp, il.Lamda):
     return False
   
-  if isinstance(exp, il.Var):
+  elif isinstance(exp, il.Var):
     return False
     
   elif  isinstance(exp, il.Apply):
@@ -180,15 +180,21 @@ def subst(exp, bindings):
   if isinstance(exp, il.Lamda):
     return il.Lamda(exp.params, *subst(exp.body, bindings))
   
-  if isinstance(exp, il.Var):
+  elif isinstance(exp, il.Var):
     try: return bindings[exp]
     except: return exp
     
+  elif isinstance(exp, il.Assign):
+    return il.Assign(exp.var, subst(exp.exp, bindings))
+      
+  elif isinstance(exp, il.StatementList):
+    return il.StatementList(tuple(subst(x, bindings) for x in exp.statements))
+      
   elif isinstance(exp, il.BinaryOperation):
     return exp
 
   elif  isinstance(exp, il.Apply):
-    return il.Apply(subst(exp.caller, bindings), 
+    return exp.__class__(subst(exp.caller, bindings), 
                  tuple(subst(arg, bindings) for arg in exp.args))
   
   elif  isinstance(exp, il.Return):
@@ -222,91 +228,154 @@ def subst(exp, bindings):
     return None
   
   else: raise CompileTypeError(exp)
-  
+
 def optimize(exp, data):
+  changed = True
+  while changed:
+    exp, changed = optimize_once(exp, data)
+  return exp
+
+def optimize_once(exp, data):
   if isinstance(exp, il.Lamda):
-    return il.Lamda(exp.params, *optimize(exp.body, data))
+    body, changed = optimize_once(exp.body, data)
+    return il.Lamda(exp.params, *body), changed
   
-  if isinstance(exp, il.Var):
-    return exp
+  elif isinstance(exp, il.Var):
+    return exp, False
   
   elif  isinstance(exp, il.Apply):
-    #1. ((lambda () body))  =>  body 
+    
     if isinstance(exp.caller, il.Lamda):
-      for p in exp.caller.params:
-        if data.ref_count.get(p, 0)!=0:
-          break
-      else:
-        return optimize(exp.caller.body, data)
+      #1. ((lambda () body))  =>  body 
+      if len(exp.caller.params)==0: 
+        return optimize(il.statements(exp.caller.body), data), True
       
       #2. (lamda x: ...x...)(y) => (lambda : ... y ...)() 
       bindings = {}
+      args = exp.args
       new_params, new_args = (), ()
       for i, p in enumerate(exp.caller.params):
-        if data.ref_count.get(p, 0)==1:
-          bindings[p] = exp.args[i]
+        arg = args[i]
+        if side_effects(arg):
+          new_params += (p,)
+          new_args += (arg,)
+          continue
         else:
           ref_count = data.ref_count.get(p, 0)
-          arg = exp.args[i]
-          if code_size(arg)*ref_count<MAX_EXTEND_CODE_SIZE and not side_effects(arg) :
-            new_params += (p,)
-            new_args += (arg,)
-      if bindings:
-        if new_params:
+          if ref_count==0:
+            continue
+          elif ref_count==1:
+            bindings[p] = arg
+          else:
+            if code_size(arg)*ref_count>MAX_EXTEND_CODE_SIZE: 
+              # a(...y...), and a is (lamda ...x...: ...x...), 
+              #then convert as above if code size is ok. 
+              new_params += (p,)
+              new_args += (arg,)
+            else: 
+              bindings[p] = arg
+      
+      if new_params:
+        if bindings:
           return il.Apply(il.Lamda(new_params, optimize(subst(exp.caller.body, bindings), data)), 
-                          optimize(new_args, data))
-        else: 
-          return optimize(subst(exp.caller.body, bindings), data)
+                          optimize(new_args, data)), True
+        else:
+          if len(new_params)!=len(exp.caller.params):
+            il.Apply(il.Lamda(new_params, optimize(exp.caller.body, data)), optimize(new_args, data)), True            
+          else:
+            caller_body, changed1 = optimize_once(exp.caller.body, data)
+            args, changed2 = optimize_once(new_args, data)
+            return il.Apply(il.Lamda(new_params, caller_body), args), changed1 or changed2
       else:
-        return il.Lamda(optimize(exp.caller, data), optimize(exp.args, data))
-    else: return il.Lamda(exp.caller, optimize(exp.args, data))
-    # a(...y...), and a is (lamda ...x...: ...x...), then convert as above if code size is ok. 
+        if bindings:
+          return optimize(subst(il.statements(exp.caller.body), bindings), data), True
+        else:
+          return optimize(il.statements(exp.caller.body), data), True               
+    else: 
+      changed = False
+      caller, changed1 = optimize_once(exp.caller, data)
+      args, changed2 = optimize_once(exp.args, data)
+      return exp.__class__(caller, args), changed1 or changed2
       
   elif  isinstance(exp, il.Return):
-    return il.Return(*optimize(exp.args, data))
+    if len(exp.args)==1 and isinstance(exp.args[0], il.Return):
+      args = exp.args[0].args
+    else:
+      for arg in exp.args: 
+        if isinstance(arg, il.Return): 
+          raise CompileError
+      args = exp.args
+    changed = False
+    result = []
+    for x in args:
+      x, x_changed = optimize_once(x, data)
+      result.append(x)
+      changed = changed or x_changed
+    return il.Return(*result), changed
   
   elif  isinstance(exp, il.StatementList):
-    return il.StatementList(tuple(optimize(x, data) for x in exp.statements))
+    changed = False
+    result = []
+    for x in exp.statements:
+      x, x_changed = optimize_once(x, data)
+      result.append(x)
+      changed = changed or x_changed
+    return il.statements(tuple(result)), changed
       
   elif  isinstance(exp, il.Assign):
-    return exp
-    #converted_var = optimize(exp.var)
-    #env.lefts.add(exp.var)
-    #return il.Assign(converted_var, optimize(exp.exp, data))
+    return exp, False
+
+  elif isinstance(exp, il.BinaryOperation):
+    return exp, False
   
   elif  isinstance(exp, il.If):
+    changed = False
+    result = exp
     if isinstance(result.then, il.If): # (if a (if a b c) d)
       if result.then.test==result.test:
         result = il.If(result.test, result.then.then, result.else_)
+        changed = True
     if isinstance(result.else_, il.If): # (if a b (if a c d))
       if result.else_.test==result.test:
-        result = il.If(result.test, result.then, result.eles_.else_)
-    result = il.If(optimize(exp.test, data), 
-                optimize(exp.then, data), optimize(exp.else_, data))
-    if isinstance(result.test, il.Let):
-      result = il.Let(result.bindings, il.If(il.StatementList(let.body), 
-                                             result.then, result.else_))
-    return result
+        result = il.If(result.test, result.then, result.else_.else_)
+        changed = True
+    test, test_changed = optimize_once(exp.test, data)
+    then, then_changed = optimize_once(exp.then, data)
+    else_, else__changed = optimize_once(exp.else_, data)
+    result = il.If(test, then, else_)
+    #if isinstance(result.test, il.Let):
+      #result = il.Let(result.bindings, il.If(il.StatementList(let.body), 
+                                             #result.then, result.else_))
+    return result, changed or test_changed or then_changed or else__changed
   
   elif  isinstance(exp, il.If2):
     return il.If2(optimize(exp.test, data), optimize(exp.then, data))
   
   elif isinstance(exp, il.Unify):
-    return il.Unify(optimize(exp.left, data), optimize(exp.right, data),
-                 optimize(exp.cont, data), optimize(exp.fcont, data))
+    left, left_changed = optimize_once(exp.left, data)
+    right, right_changed = optimize_once(exp.right, data)
+    cont, cont_changed = optimize_once(exp.cont, data)
+    fcont, fcont_changed = optimize_once(exp.fcont, data)
+    return il.Unify(left, right, cont, fcont), left_changed or right_changed or cont_changed or fcont_changed
   
   elif isinstance(exp, tuple):
-    return tuple(optimize(x, data) for x in exp)
+    changed = False
+    result = []
+    for x in exp:
+      x, x_changed = optimize_once(x, data)
+      result.append(x)
+      changed = changed or x_changed
+    return tuple(result), changed
   
   elif isinstance(exp, list):
-    return exp
+    return exp, False
   
   elif isinstance(exp, int) or isinstance(exp, float) or\
        isinstance(exp, str) or isinstance(exp, unicode):
-    return exp
+    return exp, False
   
   elif exp is None:
-    return None  
+    return None, False  
     
   else: raise CompileTypeError(exp)
   

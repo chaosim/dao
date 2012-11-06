@@ -1,6 +1,7 @@
 from dao.base import classeq
 
 class Element:
+  have_side_effects = True
   def __init__(self, *args):
     if self.arity>=0:
       assert len(args)==self.arity, \
@@ -195,8 +196,9 @@ class BinaryOperationApply(Apply):
     return '%r(%r)'%(self.caller, self.args)
 
 class BinaryOperation(Element):
-  def __init__(self, name, operator):
+  def __init__(self, name, operator, have_side_effects=True):
     self.name, self.operator = name, operator
+    self.have_side_effects = have_side_effects
   
   def __call__(self, args):
     return BinaryOperationApply(self, args)
@@ -209,7 +211,7 @@ class BinaryOperation(Element):
   def __repr__(self):
     return 'il.%s'%self.name
 
-add = BinaryOperation('add', '+')
+add = BinaryOperation('add', '+', False)
 
 class StatementList(Element):
   is_statement = True
@@ -222,7 +224,14 @@ class StatementList(Element):
   
   def __repr__(self):
     return 'il.StatementList(%s)'%repr(self.statements)
-    
+
+def statements(exps):
+  assert isinstance(exps, tuple)
+  if len(exps)==1: 
+    return exps[0]
+  else:
+    return StatementList(exps)
+  
 def vop(name, arity):
   class Vop(Element): pass
   Vop.__name__ = name

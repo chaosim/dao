@@ -2,7 +2,8 @@
 
 from nose.tools import eq_, ok_, assert_raises
 
-from dao.compiler.compile import Compiler, CodeGenerator, to_code
+from dao.compiler.compile import Compiler
+from dao.compiler.gencode import CodeGenerator, to_code
 from dao.compiler.command import begin, quote, assign, if_, LogicVar
 from dao.compiler.command import add
 from dao.compiler.command import fail, succeed, or_, unify
