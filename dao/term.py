@@ -10,11 +10,11 @@ from dao.base import apply_generators, unify, unify_list, match
 from dao.base import closure
 
 from dao import special
-from dao.compiler import vop
+from dao import vop
 
-#from dao.compiler.cont import ValueCont
-#from dao.compiler import vop
-#from dao.compiler import type
+#from dao.cont import ValueCont
+#from dao import vop
+#from dao import type
 
 # ==============================================
 

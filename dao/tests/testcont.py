@@ -11,9 +11,9 @@ from dao.builtins.term import define
 from dao.special import *
 
 # compiler
-from dao.compiler.compile import compile_to_cont, Compiler
-from dao.compiler import vop
-from dao.compiler.cont import *
+from dao.compile import compile_to_cont, Compiler
+from dao import vop
+from dao.cont import *
 
 class Test_Cont_Dependency:
   def testValueCont(self):

@@ -19,7 +19,7 @@ from dao.builtins.term import isvar, nonvar, is_, define, nonvar_p, isvar_p
 from dao.solve import set_run_mode, noninteractive
 set_run_mode(noninteractive)
 
-from dao.compiler import compile
+from dao import compile
 
 class TestControl:
   def test_fail(self):

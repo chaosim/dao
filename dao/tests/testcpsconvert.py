@@ -2,14 +2,14 @@
 
 from nose.tools import eq_, ok_, assert_raises
 
-from dao.compiler.compile import Compiler, AlphaConvertEnvironment, VariableNotBound
-from dao.compiler.compile import trampoline
-from dao.compiler.command import begin, quote, assign, if_, LogicVar, let, letrec
-from dao.compiler.command import add
-from dao.compiler.command import fail, succeed, or_, unify, repeat, _any
-from dao.compiler.command import lamda
+from dao.compile import Compiler, AlphaConvertEnvironment, VariableNotBound
+from dao.compile import trampoline
+from dao.command import begin, quote, assign, if_, LogicVar, let, letrec
+from dao.command import add
+from dao.command import fail, succeed, or_, unify, repeat, _any
+from dao.command import lamda
 
-from dao.compiler import interlang as il
+from dao import interlang as il
 
 v, fc = il.Var('v'), il.Var('fc')
 a0, a1, a2, a3, a4 = tuple(il.Var('a'+repr(i)) for i in range(5))
@@ -114,7 +114,7 @@ class TestCPSConvert:
                          il.Lamda((k,), il.Clamda(function, fc, function(k))(f, end())), end())
     eq_(result, expect)
     
-from dao.compiler.command import eoi, char, findall
+from dao.command import eoi, char, findall
 
 class TestBuiltin:
   def test_eoi(self):

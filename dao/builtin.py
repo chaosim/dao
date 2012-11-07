@@ -3,7 +3,7 @@
 from dao.command import Command, Function, Macro
 #from dao.term import CommandCall
 from dao.solvebase import mycont, BUILTIN_FUNCTION, BUILTIN_PREDICATE, BUILTIN_MACRO
-from dao.compiler import type
+from dao import type
 
 class Builtin: 
   def __init__(self, function, name, symbol, is_global):

@@ -3,8 +3,8 @@
 pyset = set
 pytype = type
 
-from dao.compiler import env as compiler_env
-from dao.compiler import vop
+from dao import env as compiler_env
+from dao import vop
 
 _varcache = {}
 def var(name):
@@ -65,7 +65,7 @@ class quote(SpecialForm):
 # do not restore the value of var in assign
 # if need to restore, use define instead.
 
-from dao.compiler.cont import SetCont
+from dao.cont import SetCont
 
 # assign var in the most inner env
 class set(SpecialForm):

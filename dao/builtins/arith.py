@@ -8,8 +8,8 @@ from dao.solve import mycont
 
 # compile
 
-from dao.compiler.compile import code
-from dao.compiler import type
+from dao.compile import code
+from dao import type
 
 class OperatorCall(CommandCall): pass
 

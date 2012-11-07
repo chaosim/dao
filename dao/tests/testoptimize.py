@@ -3,15 +3,15 @@
 
 from nose.tools import eq_, ok_, assert_raises
 
-from dao.compiler.compile import Compiler, AlphaConvertEnvironment
-from dao.compiler.optimize import optimize, OptimizationData, analyse_before_optimize
-from dao.compiler.command import begin, quote, assign, if_, LogicVar
-from dao.compiler.command import add
-from dao.compiler.command import fail, succeed, or_, unify
+from dao.compile import Compiler, AlphaConvertEnvironment
+from dao.optimize import optimize, OptimizationData, analyse_before_optimize
+from dao.command import begin, quote, assign, if_, LogicVar
+from dao.command import add
+from dao.command import fail, succeed, or_, unify
 
-from dao.compiler import interlang as il
+from dao import interlang as il
 
-#from dao.compiler.compile import Optimizer
+#from dao.compile import Optimizer
 
 v, fc = il.Var('v'), il.Var('fc')
 v1, fc1 = il.Var('v1'), il.Var('fc1')
