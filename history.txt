@@ -1,8 +1,5 @@
 details of history:
 
-2011-11-29 09:04:09 
-start working
-
 2011-11-28 14:58:36 
 start typer
 
@@ -12,9 +9,6 @@ some demostation of compiled code in compiler\compiled folder
 2011-11-28 12:30:38 
 find a schema for shorten the binding chain, do not shorten when dao.term.getvalue if correct. 
 shorten it when unify or in builtin instead.??? something must be wrong with this.
-
-2011-11-28 08:40:46 
-start working
 
 2011-11-27 22:30:37 
 git* catch, throw, not finished completely
@@ -35,17 +29,11 @@ thinking about builtin.matcher: parallel, interesting code expansion
 2011-11-27 11:25:22 
 thinking about builtin.matcher: char and optional for compiler
 
-2011-11-27 08:48:14 
-start working
-
 2011-11-26 14:20:03 
 compile_to_cont: sub(1,add(2,3)) pass tests.
 
 2011-08-23 10:46:12 
 compile_to_cont: add(1,2)
-
-2011-11-26 08:18:31 
-start working
 
 2011-11-25 17:26:31 
 git* some parser builtins: char, nullword, optional, parse_sequence

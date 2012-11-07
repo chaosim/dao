@@ -296,6 +296,13 @@ def optimize_once(exp, data):
       caller, changed1 = optimize_once(exp.caller, data)
       args, changed2 = optimize_once(exp.args, data)
       return exp.__class__(caller, args), changed1 or changed2
+    
+    #tail recursive should be converted to while loop.
+    # return initial value => return result, and intial value is set before while loop
+    # recursive call => result := expressiont(result)
+    # mutual recursive call: => multiple result variable
+    # multiple initial value
+    # tailrec keyword, transformation correctness is up to programmer's declaration by use tailrec keyword
       
   elif  isinstance(exp, il.Return):
     if len(exp.args)==1 and isinstance(exp.args[0], il.Return):

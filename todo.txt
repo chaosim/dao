@@ -1,19 +1,32 @@
-﻿todo: T language
+﻿todo: assemble alpha convert, assign convert, optimizal transformation, 
+      tail recursive, trampoline, generate code
+
+todo: tail recursive
+
+todo: trampoline
+
+todo: compile to python 
+  todo: use python var as t var
+  todo：logic var become python var with LogicVar instance as its value, 
+        but other var is compiled to python var with other values.
+
+restart at 2012.10
+===========================================================
+stop at 2011.11
+
+todo: T language
   todo: grammar
 
 todo profiling the dao
 
 todo: garbage collect in memo of result.
+
 todo: memo builtins' result
  # necessary:   sign(op), number(exp2) -> (may(char('+')), number) | (char('-'), number)
 
 todo: first set for matcher  compute when create command, not when calling command, without using solver.env
   done 2011-11-2: first set for matcher
 
-todo: compile to python 
-  todo: use python var as t var
-  todo：logic var become python var with Var instance as its value, but other var is compiled to python var with other values.
- 
 todo: succeed continution, fail continuation and compiler
   # fail continuation may be not needed when compile to python
 
