@@ -97,30 +97,42 @@ def unify_(x, y, cont, fcont):
   else: return fcont
 
 def solve(exp):
-  cps(exp, done)(None, end)
-  #return cont(None, None)
+  cont = cps(exp, done)
+  cont2 = cont(end)
+  return cont2(None)
 
-def do_all(cont):
-  value, fcont = None, end
-  while cont is not None:
-    value, cont = cont(value, fcont)
-    fcont = cont
+def done(fc):
+  def done_fun(v):
+    print 'done.'
+    return v
+  return done_fun
 
-def done(v, fc):
-  print 'done'
-  return v, None
+def end(fc):
+  def end_fun(v):
+    print 'end.'
+    return None
+  return end_fun
 
-def end(v, fc):
-  print 'failed'
-  return v, None
+def solve_all(exp):
+  cont1  = cps(exp, done_all)
+  cont2 = cont1(end)
+  return cont2(None)
 
-(begin, print_, succeed, fail, char, eoi, any, lazy_any, greedy_any, or_, findall,
- not_, unify) = (
-  'begin', 'print', 'succeed', 'fail', 'char', 'eoi', 'any', 'lazy any', 'greedy any', 'or', 'findall',
- "not", "unify")
+def done_all(fc):
+  def done_fun(v):
+    print 'done.'
+    return fc(lambda v2: v)
+  return done_fun
+
+(begin, print_, if_, quote,
+ succeed, fail, and_, or_, findall, not_, unify,
+ char, eoi, any, lazy_any, greedy_any) = (
+  'begin', 'print', 'if', 'quote',
+  'succeed', 'fail', 'and', 'or', 'findall', "not", "unify",
+ 'char', 'eoi', 'any', 'lazy any', 'greedy any')
 
 def cps_exps(exps, cont):
-  if len(exps)==0: return lambda v, fc: cont((), fc)
+  if len(exps)==0: return lambda fc: cont(fc)(())
   elif len(exps)==1: return cps(exps[0], cont)
   else:
     return cps(exps[0], cps_exps(exps[1:], cont))
@@ -128,103 +140,156 @@ def cps_exps(exps, cont):
 def cps(exp, cont):
   global pos, text
   if isinstance(exp, int) or isinstance(exp, str):
-    return lambda v, fc: cont(exp, fc)
+    def atom_cont(fc):
+      def fun(v):
+        print exp
+        return cont(fc)(exp)
+      return fun
+    return atom_cont
   
   elif isinstance(exp, Var): 
-    return lambda v, fc: cont(exp.deref(bindings), fc)
+    return lambda fc: lambda v: cont(fc)(exp.deref(bindings))
   
   elif isinstance(exp, list) or isinstance(exp, tuple):
     
-    if exp[0]==begin:
+    if exp[0]==quote: 
+      return lambda fc: lambda v: cont(fc)(exp[1])
+    
+    if exp[0]==begin: # and is equal to begin
       return cps_exps(exp[1:], cont)
     
+    if exp[0]==if_: # (if x y z)
+      def if_cont(fc):
+        def if_fun(v):
+          if(v): return cps_exps(exp[2], cont)
+          else: return cps_exps(exp[3], cont)
+      return cps(exp[1], if_cont)
+    
     elif exp[0]==print_:
-      def print_cont(v, fc):
-        print ','.join([str(x) for x in exp[1:]])
-        return cont(None, fc)
+      def print_cont(fc):
+        def fun(v):
+          print ','.join([str(x) for x in exp[1:]])
+          return cont(fc)(None)
+        return fun
       return print_cont
     
     elif exp[0]==succeed:
       return cont
     
-    elif exp[0]==fail:
-      def fail_cont(v, fc):
-        return fc(v, None)
-      return fail_cont
+    elif exp[0]==fail: #lambda fc: fc
+      #def fail_cont(fc):
+        #return fc
+      #return fail_cont
+      return lambda fc: fc(lambda v: v)
 
     elif exp[0]==not_:
-      def not_cont(v, fc):
-        result = cps(exp[1], fc)(v, cont)
+      def not_cont(fc):
+        result = cps(exp[1], fc)
+        return result(cont)
       return not_cont
+      #return lambda fc: cps(exp[1], fc)(cont)
      
+    if exp[0]==and_: # and is equal to begin
+      return cps(exp[1], cps(exp[2], cont))
+    
     elif exp[0]==or_:
-      return cps(exp[1], lambda v, fc: cont(v, cps(exp[2], cont)))
+      if len(exp)==1: 
+        return lambda fc: cont(fc)(())
+      elif len(exp)==2: 
+        return cps(exp[1], cont)
+      elif len(exp)==3:  
+        return cps(exp[1], cont(cps(exp[2], cont)))
+      else: 
+        return cps(exp[1], cont(cps((or_,)+tuple(exp[2:]), cont)))
     
     elif exp[0]==eoi:
-      def eoi_cont(v, fc):
+      def eoi_cont(fc):
         print eoi
         if pos==len(text):
-          return cont(None, fc)
-        return fc(None, None)
+          return cont(fc)
+        return fc
       return eoi_cont
     
     elif exp[0]==unify:
-      return lambda v, fc: unify_(exp[1], exp[2], cont, fc)
+      return lambda fc: unify_(exp[1], exp[2], cont, fc)
     
     elif exp[0]==char:
-      def char_cont(v, fc):
+      def char_cont(fc):
         global pos, text
         print char, pos, 
         if pos==len(text):
-          return fc(v, None) # tested ok in any
+          return fc
         else:
           print text[pos]
           c = deref(exp[1])
           if isinstance(c, str):
             if c==text[pos]:
-              def char_fcont(v, fc2):
+              def char_fcont(fc2):
                 global pos, text
                 pos -= 1
                 print 'char fail', pos, text[pos]
-                return None, fc
+                return fc
               char_fcont.pos = pos
               print text[pos]
               pos += 1
-              return cont(None, char_fcont)
+              return cont(char_fcont)
             else:
-              return fcont(None, None)
+              return fc
           elif isinstance(c, Var):
-            def char_fcont(v, fc2):
+            def char_fcont(fc2):
               global pos, text
               fc, fcont
               pos -= 1
               print 'char fail', pos, text[pos]
               try: del bindings[c]
               except: pass
-              return fc(v, None)
+              return fc
             char_fcont.pos = pos
             bindings[c] = text[pos]
             pos += 1
-            return cont(None, char_fcont) # tested ok in any
+            return cont(char_fcont) 
           else: raise TypeError(c)
       return char_cont
     
-    elif exp[0]==findall: # It works!
-      found = [False]
+    #elif exp[0]==findall: 
+      #print findall
+      #def findall_cont(fc):
+        #def findall_next(fc2):
+          #def doit(v):
+            #print 'findall next'
+            #return fc2(findall_done)
+          #return doit
+        #def findall_done(v):
+          #print 'findall done'
+          #return cont(fc)(True)
+        #result = cps(exp[1], findall_next)
+        #return result(None)
+      #return findall_cont
+
+    #elif exp[0]==findall: 
+      #print findall
+      #def findall_next(fc):
+        #def findall_next_value(fc2):
+          #print 'findall next'
+          #return fc(findall_done)
+        #return findall_next_value
+      #def findall_done(fc2):
+        #print 'findall done'
+        #return cont(None)(True)
+      #return cps(exp[1], findall_next)
+
+    elif exp[0]==findall: 
       print findall
-      def findall_next(v, fc):
-        print 'findall next'
-        #if fc is findall_next: 
-        #if found[0]: 
-          #return cont(v, fcont) # necessary if greedy any, unnecessary if lazy any
-        #else: 
-          #return fc(v, fcont)
-        return fc(v, findall_done)
-      def findall_done(v, fc):
-        print 'findall done'
-        found[0] = True
-        return cont(v, fc)
-      return cps(exp[1], findall_next)
+      def findall_cont(fc):
+        def findall_next(fc):
+          print 'findall next'
+          return fc
+        def findall_done(fc2):
+          print 'findall done'
+          return cont(fc)(True)
+        return cps(exp[1], findall_next)(findall_done)
+      return findall_cont
+
     
     elif exp[0]==greedy_any: # greedy any, correct
       def greedy_any_cont(v, fc):
@@ -260,16 +325,37 @@ def demo():
   
   #solve([succeed])
   
+  #solve([fail])
+  
   #solve((not_, 1))
   
   #solve((not_, [succeed]))
   
   #solve((not_, [fail]))
   
-  #solve((not_, (or_, 1, 2)))
+  #solve((or_, 1, 2))
   
-  #solve((not_,(begin, (print_, 1), (print_, 2))))
+  #solve_all((or_, 1, 2))
+
+  #solve((or_, 1, 2, 3))
   
+  #solve_all((or_, 1, 2, 3))
+  
+  #solve((findall, (or_, 1)))
+  
+  #solve((findall, (or_, 1, 2)))
+  
+  solve((findall, (or_, 1, 2, 3)))
+  
+  #solve((begin, (print_, 1), (print_, 2)))
+ 
+  #solve((not_,(begin, (print_, 1), (print_, 2))))  
+
+  #print '===================================='
+  #print (findall, (any, [char, _]))
+  #pos, text = 0, 'abcdef'
+  #solve((any, [char, _]))
+
   #print '===================================='
   #print (findall, (any, [char, _]))
   #pos, text = 0, 'abcdef'
@@ -286,10 +372,10 @@ def demo():
   #pos, text = 0, 'abcdef'
   #solve((begin, (any, [char, _]), [char, _], [char, _], [eoi]))
   
-  print '===================================='
-  print (findall, (greedy_any, [char, _]))
-  pos, text = 0, 'abcdef'
-  solve((findall, (greedy_any, [char, _])))
+  #print '===================================='
+  #print (findall, (greedy_any, [char, _]))
+  #pos, text = 0, 'abcdef'
+  #solve((findall, (greedy_any, [char, _])))
   
   #print '===================================='
   #print (findall, (lazy_any, [char, _]))
