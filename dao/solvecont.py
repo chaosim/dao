@@ -99,6 +99,7 @@ def unify_(x, y, cont, fcont):
 def solve(exp):
   cont = cps(exp, done)
   cont2 = cont(end)
+  x = 1
   return cont2(None)
 
 def done(fc):
@@ -130,6 +131,9 @@ def done_all(fc):
   'begin', 'print', 'if', 'quote',
   'succeed', 'fail', 'and', 'or', 'findall', "not", "unify",
  'char', 'eoi', 'any', 'lazy any', 'greedy any')
+
+pos, text = 0, ''
+bindings = Bindings()
 
 def cps_exps(exps, cont):
   if len(exps)==0: return lambda fc: cont(fc)(())
@@ -202,22 +206,25 @@ def cps(exp, cont):
       else: 
         return cps(exp[1], cont(cps((or_,)+tuple(exp[2:]), cont)))
     
-    elif exp[0]==eoi:
-      def eoi_cont(fc):
-        print eoi
-        if pos==len(text):
-          return cont(fc)
-        return fc
-      return eoi_cont
-    
     elif exp[0]==unify:
       return lambda fc: unify_(exp[1], exp[2], cont, fc)
+    
+    elif exp[0]==eoi:
+      def eoi_cont(fc):
+        print eoi, pos,
+        if pos==len(text):
+          print
+          return cont(fc)
+        print text[pos]
+        return fc
+      return eoi_cont
     
     elif exp[0]==char:
       def char_cont(fc):
         global pos, text
         print char, pos, 
         if pos==len(text):
+          print
           return fc
         else:
           print text[pos]
@@ -238,7 +245,6 @@ def cps(exp, cont):
           elif isinstance(c, Var):
             def char_fcont(fc2):
               global pos, text
-              fc, fcont
               pos -= 1
               print 'char fail', pos, text[pos]
               try: del bindings[c]
@@ -281,28 +287,56 @@ def cps(exp, cont):
     elif exp[0]==findall: 
       print findall
       def findall_cont(fc):
-        def findall_next(fc):
+        def findall_next(fc2):
           print 'findall next'
-          return fc
+          fc
+          return fc2
         def findall_done(fc2):
           print 'findall done'
           return cont(fc)(True)
-        return cps(exp[1], findall_next)(findall_done)
+        result = cps(exp[1], findall_next)
+        return result(findall_done)
       return findall_cont
 
-    
-    elif exp[0]==greedy_any: # greedy any, correct
-      def greedy_any_cont(v, fc):
-        print greedy_any
-        return cps(exp[1], greedy_any_cont)(v, cont)
-      return greedy_any_cont
+    #elif exp[0]==greedy_any: # greedy any, correct
+      #print greedy_any
+      #def greedy_any_cont(fc):
+        #def new_cont(v):
+          #print 'new_cont'
+          #return cont(fc)(v)
+        #def recursive_cont(fc):
+          #def fun(v):
+            #return cps(exp[1], recursive_cont(fc))(new_cont)
+          #return fun
+        ##return cont(fc)(True)
+        #return recursive_cont(new_cont)
+      #return greedy_any_cont
       
-    elif exp[0]==lazy_any: # lazy any, correct
-      def lazy_any_cont(v, fc):
-        def fcont(v, fc):
-          return cont(v, lazy_any_cont)
-        return cps(exp[1], cont, fcont)
-      return lambda v, fc: cont(True, lazy_any_cont)
+    elif exp[0]==greedy_any: # greedy any, correct
+      print greedy_any
+      def greedy_any_cont(fc):
+        def fun(fc2):
+          return cps(exp[1], greedy_any_cont(safe_cont))(safe_cont)
+        return fun
+      def safe_cont(fc):
+        return cont(fc)(None)
+      return greedy_any_cont(safe_cont)
+      
+    elif exp[0]==lazy_any: #lazy any, correct
+      def lazy_any_cont(fc):
+        result = cps(exp[1], new_cont)
+        result = result(new_fcont)
+        return result(fc)
+      def new_fcont(fc):
+        return cont(fc)
+      def new_cont(fc):
+        return cont(lazy_any_cont)
+      return cont(lazy_any_cont)
+    
+    #elif exp[0]==lazy_any: # lazy any
+      #def lazy_any_cont(fc):
+        #return cps(exp[1], lambda fc:cont(lazy_any_cont))(lambda fc:cont(fc))(fc)
+      #return cont(lazy_any_cont)
     
     elif exp[0]==any: # nongreedy lazy, wrong.
       def any_cont(v, fc):
@@ -313,115 +347,3 @@ def cps(exp, cont):
         return cont(v, fcont)
         return cps(exp[1], any_cont)
       return any_cont
-    
-def demo():
-  # demo
-  global bindings, text, pos
-  
-  x = Var('x')
-  _ = DummyVar('_')
-  
-  bindings = Bindings()
-  
-  #solve([succeed])
-  
-  #solve([fail])
-  
-  #solve((not_, 1))
-  
-  #solve((not_, [succeed]))
-  
-  #solve((not_, [fail]))
-  
-  #solve((or_, 1, 2))
-  
-  #solve_all((or_, 1, 2))
-
-  #solve((or_, 1, 2, 3))
-  
-  #solve_all((or_, 1, 2, 3))
-  
-  #solve((findall, (or_, 1)))
-  
-  #solve((findall, (or_, 1, 2)))
-  
-  solve((findall, (or_, 1, 2, 3)))
-  
-  #solve((begin, (print_, 1), (print_, 2)))
- 
-  #solve((not_,(begin, (print_, 1), (print_, 2))))  
-
-  #print '===================================='
-  #print (findall, (any, [char, _]))
-  #pos, text = 0, 'abcdef'
-  #solve((any, [char, _]))
-
-  #print '===================================='
-  #print (findall, (any, [char, _]))
-  #pos, text = 0, 'abcdef'
-  #solve((findall, (any, [char, _])))
-  
-  #print '===================================='
-  #print (begin, (any, [char, _]), [eoi])
-  #pos, text = 0, 'abcdef'
-  #solve((begin, (any, [char, _]), [eoi]))
-  
-  
-  #print '===================================='
-  #print (begin, (any, [char, _]), [char, _], [char, _], [eoi])
-  #pos, text = 0, 'abcdef'
-  #solve((begin, (any, [char, _]), [char, _], [char, _], [eoi]))
-  
-  #print '===================================='
-  #print (findall, (greedy_any, [char, _]))
-  #pos, text = 0, 'abcdef'
-  #solve((findall, (greedy_any, [char, _])))
-  
-  #print '===================================='
-  #print (findall, (lazy_any, [char, _]))
-  #pos, text = 0, 'abcdef'
-  #solve((findall, (lazy_any, [char, _])))
-  
-  #print '===================================='
-  #print (begin, (lazy_any, [char, _]), [char, _], [char, _], [eoi])
-  #pos, text = 0, 'abcdef'
-  #solve((begin, (lazy_any, [char, _]), [char, _], [char, _], [eoi]))
-  
-  #print '===================================='
-  #print (begin, (findall, (or_, (print_, 1), (print_, 2))), (print_, 3))
-  #solve((begin, (findall, (or_, (print_, 1), (print_, 2))), (print_, 3)))
-  
-  #print '===================================='
-  #print (or_, (print_, 1), (print_, 2))
-  #solve((or_, (print_, 1), (print_, 2)))
-  
-  #print '===================================='
-  #print (unify, 1, 2)
-  #solve((unify, 1, 2))
-  #print (unify, 1, 1)
-  #solve((unify, 1, 1))
-  #print (begin, (unify, _, 1), (unify, _, 2))
-  #solve((begin, (unify, _, 1), (unify, _, 2)))
-  #print (begin, (unify, x, 1))
-  #solve((begin, (unify, x, 1)))
-  #print 'unify in dirty bindings:', (begin, (unify, x, 2))
-  #solve((begin, (unify, x, 2)))
-  #bindings = Bindings()
-  #print 'after cleaning bindings:', (begin, (unify, x, 2))
-  #solve((begin, (unify, x, 2)))
-  #print (begin, (unify, x, 1), (unify, x, 2))
-  #solve((begin, (unify, x, 1), (unify, x, 2)))
-
-if __name__=="__main__":
-  demo()
-  
-  
-  def success():
-    def f(sc, fc):
-      return sc(fc)
-    return f
-  
-  def fail():
-    def f(sc, fc):
-      return fc
-  
