@@ -5,7 +5,7 @@ import solvecont
 x = Var('x')
 _ = DummyVar('_')
 
-def demo():
+def demo1():
   print '===================================='
   print succeed
   solve([succeed])
@@ -34,43 +34,50 @@ def demo():
   print 'solve_all:', (or_, 1, 2)
   solve_all((or_, 1, 2))
 
-  print '===================================='
-  print (or_, 1, 2, 3)
-  solve((or_, 1, 2, 3))
+#demo1()
+
+def demo():
+  #print '===================================='
+  #print (or_, 1, 2, 3)
+  #solve((or_, 1, 2, 3))
   
-  print '===================================='
-  print 'solve_all:', (or_, 1, 2, 3)
-  solve_all((or_, 1, 2, 3))
+  #print '===================================='
+  #print 'solve_all:', (or_, 1, 2, 3)
+  #solve_all((or_, 1, 2, 3))
   
-  print '===================================='
-  print (findall, (or_, 1))
-  solve((findall, (or_, 1)))
+  #print '===================================='
+  #print (findall, (or_, 1))
+  #solve((findall, (or_, 1)))
   
   print '===================================='
   print (findall, (or_, 1, 2))
   solve((findall, (or_, 1, 2)))
   
-  print '===================================='
-  print (findall, (or_, 1, 2, 3))
-  solve((findall, (or_, 1, 2, 3)))
+  #print '===================================='
+  #print (findall, (or_, 1, 2, 3))
+  #solve((findall, (or_, 1, 2, 3)))
   
-  print '===================================='
-  print (begin, (print_, 1), (print_, 2))
-  solve((begin, (print_, 1), (print_, 2)))
+  #print '===================================='
+  #print (findall, (or_, 1, 2, 3, 4))
+  #solve((findall, (or_, 1, 2, 3, 4)))
+  
+  #print '===================================='
+  #print (begin, (print_, 1), (print_, 2))
+  #solve((begin, (print_, 1), (print_, 2)))
  
-  print '===================================='
-  print (not_,(begin, (print_, 1), (print_, 2)))
-  solve((not_,(begin, (print_, 1), (print_, 2))))  
+  #print '===================================='
+  #print (not_,(begin, (print_, 1), (print_, 2)))
+  #solve((not_,(begin, (print_, 1), (print_, 2))))  
 
-  print '===================================='
-  print (begin, (findall, (or_, (print_, 1), (print_, 2))), (print_, 3))
-  solve((begin, (findall, (or_, (print_, 1), (print_, 2))), (print_, 3)))
+  #print '===================================='
+  #print (begin, (findall, (or_, (print_, 1), (print_, 2))), (print_, 3))
+  #solve((begin, (findall, (or_, (print_, 1), (print_, 2))), (print_, 3)))
   
-  print '===================================='
-  print (or_, (print_, 1), (print_, 2))
-  solve((or_, (print_, 1), (print_, 2)))
+  #print '===================================='
+  #print (or_, (print_, 1), (print_, 2))
+  #solve((or_, (print_, 1), (print_, 2)))
   
-#demo()
+demo()
  
 def demo_unify():  
   print '===================================='
@@ -101,7 +108,7 @@ def demo_if():
   print (if_, 0, (print_, 2), (print_, 3))
   solve((if_, 0, (print_, 2), (print_, 3)))
 
-demo_if()
+#demo_if()
 
 def demo_lazy_any():
   print 'demo_lazy_any'
