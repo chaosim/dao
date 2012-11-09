@@ -100,14 +100,14 @@ def done(fc):
   def done_fun(v):
     global finished
     finished = True
-    print 'done.'
+    print 'Succeed done!'
     fc
     return v
   return done_fun
 
 def done_all(fc):
   def done_fun(v):
-    print 'done.'
+    print 'Succeed done!'
     return fc(lambda v2: v)
   return done_fun
 
@@ -115,7 +115,7 @@ def end(fc):
   def end_fun(v):
     global finished
     finished = True
-    print 'end.'
+    print 'Failed at last!'
     return None
   return end_fun
 
@@ -219,8 +219,38 @@ def cps(exp, cont):
       else: 
         return cps(exp[1], cont(cps((or_,)+tuple(exp[2:]), cont)))
     
-    elif exp[0]==unify:
-      return lambda fc: unify_(exp[1], exp[2], cont, fc)
+    elif exp[0]==unify: #(unify, x, y)
+      def unify_cont(fc):
+        x, y = exp[1:]
+        if isinstance(x, Var):
+          x = deref(x)
+          if isinstance(x, Var):
+            bindings[x] = y
+            def new_fcont(fc2):
+              del bindings[x]
+              return fc
+            return cont(new_fcont)
+          else:
+            y = deref(y)
+            if isinstance(y, Var):
+              bindings[y] = x
+              def unify_fcont(fc2):
+                try: del bindings[y]
+                except: pass
+                return fc
+              return cont(unify_fcont)
+        elif isinstance(y, Var):
+          y = deref(y)
+          if isinstance(y, Var):
+            bindings[y] = x
+            def new_fcont(fc2):
+              try: del bindings[y]
+              except: pass
+              return fc
+            return cont(unify_fcont)
+        if x==y: return cont
+        else: return fc
+      return unify_cont
     
     elif exp[0]==eoi:
       def eoi_cont(fc):

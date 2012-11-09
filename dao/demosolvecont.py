@@ -66,13 +66,13 @@ def demo():
   print (begin, (findall, (or_, (print_, 1), (print_, 2))), (print_, 3))
   solve((begin, (findall, (or_, (print_, 1), (print_, 2))), (print_, 3)))
   
-demo()
- 
-def demo_unify():  
   print '===================================='
   print (or_, (print_, 1), (print_, 2))
   solve((or_, (print_, 1), (print_, 2)))
   
+#demo()
+ 
+def demo_unify():  
   print '===================================='
   print (unify, 1, 2)
   solve((unify, 1, 2))
@@ -89,6 +89,8 @@ def demo_unify():
   solve((begin, (unify, x, 2)))
   print (begin, (unify, x, 1), (unify, x, 2))
   solve((begin, (unify, x, 1), (unify, x, 2)))
+
+demo_unify()
 
 def demo_lazy_any():
   print 'demo_lazy_any'
@@ -130,7 +132,7 @@ def demo_lazy_any():
   solvecont.pos, solvecont.text = 0, 'abcdef'
   solve((findall, (begin, (lazy_any, [char, _]), [char, _], [char, _], [eoi])))
 
-demo_lazy_any()
+#demo_lazy_any()
 
 def demo_any():
   print 'demo_any'
@@ -172,7 +174,7 @@ def demo_any():
   solvecont.pos, solvecont.text = 0, 'abcdef'
   solve((findall, (begin, (any, [char, _]), [char, _], [char, _], [eoi])))
 
-demo_any()
+#demo_any()
 
 def demo_greedy_any():
   print 'demo_greedy_any'
@@ -214,5 +216,5 @@ def demo_greedy_any():
   solvecont.pos, solvecont.text = 0, 'abcdef'
   solve((findall, (begin, (greedy_any, [char, _]), [char, _], [char, _], [eoi])))
 
-demo_greedy_any()
+#demo_greedy_any()
 
