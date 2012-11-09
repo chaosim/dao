@@ -336,7 +336,7 @@ def cps(exp, cont):
       print greedy_any
       def greedy_any_cont(fc):
         #def fun(v):
-          return cps(exp[1], greedy_any_cont)(cont)#(v)
+          return cps(exp[1], greedy_any_cont)(cont(fc))#(v)
         #return fun
       return greedy_any_cont
       
