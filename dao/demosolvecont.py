@@ -90,7 +90,18 @@ def demo_unify():
   print (begin, (unify, x, 1), (unify, x, 2))
   solve((begin, (unify, x, 1), (unify, x, 2)))
 
-demo_unify()
+#demo_unify()
+
+def demo_if():  
+  print '===================================='
+  print (if_, 1, (print_, 2), (print_, 3))
+  solve((if_, 1, (print_, 2), (print_, 3)))
+
+  print '===================================='
+  print (if_, 0, (print_, 2), (print_, 3))
+  solve((if_, 0, (print_, 2), (print_, 3)))
+
+demo_if()
 
 def demo_lazy_any():
   print 'demo_lazy_any'

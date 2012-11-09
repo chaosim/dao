@@ -171,8 +171,9 @@ def cps(exp, cont):
     if exp[0]==if_: # (if x y z)
       def if_cont(fc):
         def if_fun(v):
-          if(v): return cps_exps(exp[2], cont)(fc)(v)
-          else: return cps_exps(exp[3], cont)(fc)(v)
+          if(v): return cps(exp[2], cont)(fc)(v)
+          else: return cps(exp[3], cont)(fc)(v)
+        return if_fun
       return cps(exp[1], if_cont)
     
     elif exp[0]==print_:
