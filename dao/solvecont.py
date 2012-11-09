@@ -96,34 +96,40 @@ def unify_(x, y, cont, fcont):
   if x==y: return cont
   else: return fcont
 
-def solve(exp):
-  cont = cps(exp, done)
-  cont2 = cont(end)
-  x = 1
-  return cont2(None)
-
 def done(fc):
   def done_fun(v):
+    global finished
+    finished = True
     print 'done.'
+    fc
     return v
   return done_fun
-
-def end(fc):
-  def end_fun(v):
-    print 'end.'
-    return None
-  return end_fun
-
-def solve_all(exp):
-  cont1  = cps(exp, done_all)
-  cont2 = cont1(end)
-  return cont2(None)
 
 def done_all(fc):
   def done_fun(v):
     print 'done.'
     return fc(lambda v2: v)
   return done_fun
+
+def end(fc):
+  def end_fun(v):
+    global finished
+    finished = True
+    print 'end.'
+    return None
+  return end_fun
+
+def solve_all(exp):
+  return solve(exp, done_all, end)
+
+def solve(exp, done=done, end=end):
+  global finished
+  finished = False  
+  cont = cps(exp, done)
+  cont = cont(end)
+  while finished == False:
+    cont = cont(cont)
+  return cont
 
 (begin, print_, if_, quote,
  succeed, fail, and_, or_, findall, not_, unify,
@@ -147,7 +153,7 @@ def cps(exp, cont):
     def atom_cont(fc):
       def fun(v):
         print exp
-        return cont(fc)(exp)
+        return cont(fc)(v)
       return fun
     return atom_cont
   
@@ -213,9 +219,9 @@ def cps(exp, cont):
       def eoi_cont(fc):
         print eoi, pos,
         if pos==len(text):
-          print
+          print 'succeed.'
           return cont(fc)
-        print text[pos]
+        print text[pos], 'failed'
         return fc
       return eoi_cont
     
@@ -224,17 +230,17 @@ def cps(exp, cont):
         global pos, text
         print char, pos, 
         if pos==len(text):
-          print
+          print 'failed'
           return fc
         else:
-          print text[pos]
+          print text[pos],
           c = deref(exp[1])
           if isinstance(c, str):
             if c==text[pos]:
               def char_fcont(fc2):
                 global pos, text
                 pos -= 1
-                print 'char fail', pos, text[pos]
+                print 'char fcont', pos, text[pos]
                 return fc
               char_fcont.pos = pos
               print text[pos]
@@ -246,44 +252,18 @@ def cps(exp, cont):
             def char_fcont(fc2):
               global pos, text
               pos -= 1
-              print 'char fail', pos, text[pos]
+              print 'char fcont', pos, text[pos]
               try: del bindings[c]
               except: pass
               return fc
             char_fcont.pos = pos
             bindings[c] = text[pos]
             pos += 1
+            print 'succeed.'
             return cont(char_fcont) 
           else: raise TypeError(c)
       return char_cont
     
-    #elif exp[0]==findall: 
-      #print findall
-      #def findall_cont(fc):
-        #def findall_next(fc2):
-          #def doit(v):
-            #print 'findall next'
-            #return fc2(findall_done)
-          #return doit
-        #def findall_done(v):
-          #print 'findall done'
-          #return cont(fc)(True)
-        #result = cps(exp[1], findall_next)
-        #return result(None)
-      #return findall_cont
-
-    #elif exp[0]==findall: 
-      #print findall
-      #def findall_next(fc):
-        #def findall_next_value(fc2):
-          #print 'findall next'
-          #return fc(findall_done)
-        #return findall_next_value
-      #def findall_done(fc2):
-        #print 'findall done'
-        #return cont(None)(True)
-      #return cps(exp[1], findall_next)
-
     elif exp[0]==findall: 
       print findall
       def findall_cont(fc):
@@ -293,35 +273,11 @@ def cps(exp, cont):
           return fc2
         def findall_done(fc2):
           print 'findall done'
-          return cont(fc)(True)
+          return cont(fc) #(True) with or without this does not matter?
         result = cps(exp[1], findall_next)
         return result(findall_done)
       return findall_cont
 
-    #elif exp[0]==greedy_any: # greedy any, correct
-      #print greedy_any
-      #def greedy_any_cont(fc):
-        #def new_cont(v):
-          #print 'new_cont'
-          #return cont(fc)(v)
-        #def recursive_cont(fc):
-          #def fun(v):
-            #return cps(exp[1], recursive_cont(fc))(new_cont)
-          #return fun
-        ##return cont(fc)(True)
-        #return recursive_cont(new_cont)
-      #return greedy_any_cont
-      
-    elif exp[0]==greedy_any: # greedy any, correct
-      print greedy_any
-      def greedy_any_cont(fc):
-        def fun(fc2):
-          return cps(exp[1], greedy_any_cont(safe_cont))(safe_cont)
-        return fun
-      def safe_cont(fc):
-        return cont(fc)(None)
-      return greedy_any_cont(safe_cont)
-      
     elif exp[0]==lazy_any: #lazy any, correct
       def lazy_any_cont(fc):
         result = cps(exp[1], new_cont)
@@ -338,6 +294,30 @@ def cps(exp, cont):
         #return cps(exp[1], lambda fc:cont(lazy_any_cont))(lambda fc:cont(fc))(fc)
       #return cont(lazy_any_cont)
     
+    #elif exp[0]==greedy_any: # greedy any
+      #print greedy_any
+      #def greedy_any_cont(fc):
+        #def new_cont(v):
+          #print 'new_cont'
+          #return cont(fc)(v)
+        #def recursive_cont(fc):
+          #def fun(v):
+            #return cps(exp[1], recursive_cont(fc))(new_cont)
+          #return fun
+        ##return cont(fc)(True)
+        #return recursive_cont(new_cont)
+      #return greedy_any_cont
+      
+    elif exp[0]==greedy_any: # greedy any
+      print greedy_any
+      def greedy_any_cont(fc):
+        def fun(fc2):
+          return cps(exp[1], greedy_any_cont(safe_cont))(safe_cont)
+        return fun
+      def safe_cont(fc):
+        return cont(fc)(None)
+      return greedy_any_cont(safe_cont)
+      
     elif exp[0]==any: # nongreedy lazy, wrong.
       def any_cont(v, fc):
         print any
