@@ -29,12 +29,10 @@ class Compiler:
   def __init__(self):
     pass
   
-  def cps(self, exp, cont, fcont):
-    self.cut_rules_cont = [fcont]
-    self.cut_or_fcont = [fcont]
-    return self.cps_convert(exp, cont, fcont)
+  def cps(self, exp, cont):
+    return self.cps_convert(exp, cont)
     
-  def cps_convert(self, exp, cont, fcont):
+  def cps_convert(self, exp, cont):
     try: 
       exp_cps_convert = exp.cps_convert
       
@@ -42,18 +40,17 @@ class Compiler:
       if isinstance(exp, tuple) or  isinstance(exp, list) or\
          isinstance(exp, int) or isinstance(exp, float) or\
          isinstance(exp, str) or isinstance(exp, unicode):
-        return cont(exp, fcont)
+        return cont(exp)
       else: raise CompileTypeError(exp)
       
-    return exp_cps_convert(self, cont, fcont)
+    return exp_cps_convert(self, cont)
   
-  def cps_convert_exps(self, exps, cont, fcont):
-    if not exps: return il.Clamda(v, fc, cont(il.tuple(), fc))
+  def cps_convert_exps(self, exps, cont):
+    if not exps: return il.Clamda(v, cont(il.tuple()))
     if len(exps)==1:
-      return self.cps_convert(exps[0], cont, fcont)
+      return self.cps_convert(exps[0], cont)
     else:
-      return self.cps_convert(exps[0], 
-                  il.Clamda(v, fc, self.cps_convert_exps(exps[1:], cont, fcont)), fcont)
+      return self.cps_convert(exps[0], il.Clamda(v, self.cps_convert_exps(exps[1:], cont)))
  
 #α-conversion
 #Alpha-conversion, sometimes known as alpha-renaming,[11] allows bound variable names to be changed. 

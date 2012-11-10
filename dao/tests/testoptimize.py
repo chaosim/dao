@@ -21,7 +21,7 @@ class Done(il.Clamda):
   def __repr__(self): return 'done()'
   
 def done():
-  return Done(v, fc, il.Return(v, fc))
+  return Done(v, fc, il.Return(v))
 
 def compile_optimize(exp):
   exp = Compiler().cps(exp, done(), None)
@@ -49,7 +49,7 @@ class TestSimple:
   def test_assign(self):
     x = il.Var('x')
     result = compile_optimize(assign(x, 2))
-    expect = il.StatementList((il.Assign(x, 2), il.Return(2, None)))
+    expect = il.Begin((il.Assign(x, 2), il.Return(2, None)))
     eq_(result, expect)
 
   def test_if(self):
@@ -79,7 +79,7 @@ class TestSimple:
   def test_unify2(self):
     x = LogicVar('x')
     result = compile_optimize(unify(x, 2))
-    expect = clamda(v, fc, ret(il.unify(x, 2, done(), None)))
+    expect = Clamda(v, ret(il.unify(x, 2, done(), None)))
     eq_(result, expect)
     
   def test_add(self):
@@ -109,13 +109,13 @@ class TestOptimize:
     eq_(result, expect)
     
   def test_lambda_apply(self):
-    result = test_optimize(il.Clamda(v, fc, il.Return(1, None))(v, fc))
+    result = test_optimize(il.Clamda(v, il.Return(1, None))(v, fc))
     expect = il.Return(1, None)
     eq_(result, expect)
   
   def test_lambda_apply2(self):
     v1, fc1 = il.Var('v1'), il.Var('fc1')
     result = test_optimize(il.Clamda(v1, fc1, il.Return(v1, fc1))(v, fc))
-    expect = il.Return(v, fc)
+    expect = il.Return(v)
     eq_(result, expect)
     

@@ -21,61 +21,59 @@ class End(il.Clamda):
   def __repr__(self): return 'end()'
   
 def done():
-  return Done(v, fc, il.Return(v, fc))
-
-def end():
-  return End(v, fc, il.Return(None, None))
+  return Done(v, fc, il.Return(v))
   
 def cps_convert(exp):
-  return Compiler().cps(exp, done(), end())
+  return Compiler().cps(exp, done())
 
 class TestCPSConvert:
   def test_integer(self):
     result = cps_convert(1)
-    expect = done()(1, end())
+    expect = done()(1)
     eq_(result, expect)
     
   def test_quote(self):
     result = cps_convert(quote(1))
-    expect = done()(1, end())
+    expect = done()(1)
     eq_(result, expect)
     
   def test_begin(self):
     result = cps_convert(begin(1, 2))
-    expect = il.Clamda(v, fc, done()(2, end()))(1, end())
+    expect = il.Clamda(v, done()(2))(1)
     eq_(result, expect)
   
   def test_assign(self):
     x = il.Var('x')
     result = cps_convert(assign(x, 2))
-    expect = il.Clamda(v, fc, il.Assign(x, v), il.Return(v, fc))(2, end())
+    expect = il.Clamda(v, il.Assign(x, v), il.Return(v))(2)
     eq_(result, expect)
 
   def test_if(self):
     result = cps_convert(if_(0, 1, 2))
-    expect = il.Clamda(v, fc, il.If(v, done()(1, end()), done()(2, end())))(0, end())
+    expect = il.Clamda(v, il.If(v, done()(1), done()(2)))(0)
     eq_(result, expect)
   
   def test_fail(self):
     result = cps_convert(fail)
-    expect = end()
+    expect = il.failcont(True)
     eq_(result, expect)
 
   def test_succeed(self):
     result = cps_convert(succeed)
-    expect = done()
+    expect = done()(True)
     eq_(result, expect)
     
   def test_repeat(self):
     function = il.Var('function')
     result = cps_convert(repeat)
-    expect = il.CFunction(function, v, fc, done()(v, function))
+    expect = il.begin(
+       il.SetFailCont(function), 
+       il.CFunction(function, v, il.Return(done()(v))))
     eq_(result, expect)
-
 
   def test_or(self):
     result = cps_convert(or_(1, 2))
-    expect = done()(1, il.Clamda(v, fc, done()(2, end())))
+    expect = done()(1, il.Clamda(v, done()(2, end())))
     eq_(result, expect)
     
   def test_unify(self):
@@ -108,9 +106,9 @@ class TestCPSConvert:
   def test_letrec(self):
     f, k, function = il.Var('f'), il.Var('k'), il.Var('function')
     result = cps_convert(letrec([(f, lamda((), f()))], f()))
-    expect = il.Clamda(v, fc, 
+    expect = il.Clamda(v, 
                        il.Assign(f, v), 
-                       il.Return(v, fc))(
+                       il.Return(v))(
                          il.Lamda((k,), il.Clamda(function, fc, function(k))(f, end())), end())
     eq_(result, expect)
     
@@ -120,7 +118,7 @@ class TestBuiltin:
   def test_eoi(self):
     x = il.Var('x')
     result = cps_convert(eoi)
-    expect = il.Clamda(v, fc, 
+    expect = il.Clamda(v, 
                        il.If((il.get_parse_state()[1]<il.Len(il.get_parse_state()[0])), 
                              il.Return(done()(v, fc)), 
                              il.Return(end()(v, fc))))
@@ -129,12 +127,12 @@ class TestBuiltin:
   def test_char(self):
     text, pos = il.Var('text'), il.Var('pos')
     result = cps_convert(char('a'))
-    expect = il.Clamda(v, fc, 
+    expect = il.Clamda(v, 
         il.assign_from_list(text, pos, il.get_parse_state()), 
         il.If2(pos>=il.Len(text), il.Return(end()(v, fc))), 
         il.If(il.eq('a', text[pos]), 
               il.begin(il.set_parse_state((text, il.add((pos, 1)))), 
-                       il.Return(done()(text[pos], il.Clamda(v, fc, 
+                       il.Return(done()(text[pos], il.Clamda(v, 
                               il.set_parse_state((text, pos)), 
                               il.Return(end()(v, fc)))))), 
               il.Return(end()(v, fc))))
@@ -144,14 +142,14 @@ class TestBuiltin:
     x = il.Var('x')
     text, pos = il.Var('text'), il.Var('pos')
     result = cps_convert(char(x))
-    expect = il.Clamda(v, fc, 
+    expect = il.Clamda(v, 
         il.assign_from_list(text, pos, il.get_parse_state()), 
         il.If2((pos>=il.Len(text)), il.Return(end()(v, fc))), 
         il.Return(il.Unify(x, text[pos], 
-                  il.Clamda(v, fc, 
+                  il.Clamda(v, 
                       il.begin(il.set_parse_state((text, il.add((pos, 1)))), 
                                il.Return(done()(text[pos], 
-                                                il.Clamda(v, fc, 
+                                                il.Clamda(v, 
                                                           il.set_parse_state((text, pos)), 
                                                           il.Return(end()(v, fc))))))), 
                   end())(v, fc)))
@@ -159,28 +157,28 @@ class TestBuiltin:
 
   def test_findall(self):
     result = cps_convert(findall(or_(1, 2)))
-    expect = il.Clamda(v, fc, 
-        il.Clamda(v, fc, 
+    expect = il.Clamda(v, 
+        il.Clamda(v, 
           il.Return(fc(v, fc)))(1, 
-            il.Clamda(v, fc, 
-              il.Clamda(v, fc, il.Return(fc(v, fc)))(2, 
-                  il.Clamda(v, fc, il.Return(done()(v, end())))))
+            il.Clamda(v, 
+              il.Clamda(v, il.Return(fc(v, fc)))(2, 
+                  il.Clamda(v, il.Return(done()(v, end())))))
             ))
     eq_(result, expect)
     
   def test_findall2(self):
     x, y = il.Var('x'), il.Var('result')
     result = cps_convert(findall(or_(1, 2), x, y))
-    expect = il.Clamda(v, fc, 
+    expect = il.Clamda(v, 
       il.Assign(y, il.empty_list()), 
-      il.Clamda(v, fc, 
+      il.Clamda(v, 
           il.list_append(y, il.getvalue(x)), 
           il.Return(fc(v, fc)))(1, 
-              il.Clamda(v, fc, 
-                  il.Clamda(v, fc, 
+              il.Clamda(v, 
+                  il.Clamda(v, 
                     il.list_append(y, il.getvalue(x)), 
                     il.Return(fc(v, fc)))(2, 
-                        il.Clamda(v, fc, 
+                        il.Clamda(v, 
                             il.Return(il.Unify(y, y, done(), end())(v, fc)))))))
     eq_(result, expect)
     
@@ -189,7 +187,7 @@ class TestBuiltin:
     v1, fc1 = il.Var('v1'), il.Var('fc1')
     function = il.Var('function')
     result = cps_convert(_any(1))
-    expect = il.Clamda(v, fc, il.CFunction(function, v, fc, function(1, il.Clamda(v, fc, il.Return(done()(v, fc)))))(v, end()))
+    expect = il.Clamda(v, il.CFunction(function, v, fc, function(1, il.Clamda(v, il.Return(done()(v, fc)))))(v, end()))
     eq_(result, expect)
       
   def test_any2(self):
@@ -198,17 +196,17 @@ class TestBuiltin:
     text, pos = il.Var('text'), il.Var('pos')
     function = il.Var('function')
     result = cps_convert(_any(char('1')))
-    expect = il.Clamda(v, fc, 
+    expect = il.Clamda(v, 
                   il.CFunction(function, v, fc, 
-                      il.Clamda(v, fc, 
+                      il.Clamda(v, 
                           il.assign_from_list(text, pos, il.get_parse_state()), 
-                          il.If2((pos>=il.Len(text)), il.Return(il.Clamda(v, fc, il.Return(done()(v, fc)))(v, fc))), 
+                          il.If2((pos>=il.Len(text)), il.Return(il.Clamda(v, il.Return(done()(v, fc)))(v, fc))), 
                           il.If(il.eq('1', text[pos]), 
                                 il.begin(il.set_parse_state((text, il.add((pos, 1)))), 
                                          il.Return(function(text[pos], 
-                                                            il.Clamda(v, fc, 
+                                                            il.Clamda(v, 
                                                                       il.set_parse_state((text, pos)), 
-                                                                      il.Return(il.Clamda(v, fc, il.Return(done()(v, fc)))(v, fc)))))), 
-                                il.Return(il.Clamda(v, fc, il.Return(done()(v, fc)))(v, fc)))))(v, end()))
+                                                                      il.Return(il.Clamda(v, il.Return(done()(v, fc)))(v, fc)))))), 
+                                il.Return(il.Clamda(v, il.Return(done()(v, fc)))(v, fc)))))(v, end()))
     eq_(result, expect)
   

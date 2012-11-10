@@ -2,7 +2,7 @@ from dao.base import classeq
 
 def collocate(defs, exp):
   if defs:
-    return StatementList(defs + (exp,))
+    return Begin(defs + (exp,))
   else: 
     return exp
 
@@ -20,6 +20,9 @@ class Element:
   def __getitem__(self, index):
     return getitem(self, index)
   
+  def __call__(self, *args):
+    return Apply(self, args)
+  
   def __lt__(x, y): return lt(x, y)
   def __le__(x, y): return le(x, y)
   def __ge__(x, y): return ge(x, y)
@@ -31,7 +34,11 @@ class Element:
     return classeq(x, y) and x.args==y.args
   
   def __repr__(self):
-    return '%s(%s)'%(self.__class__.__name__, 
+    try: 
+      if self.arity==0: 
+        return 'il.%s'%self.__class__.__name__
+    except: pass
+    return 'il.%s(%s)'%(self.__class__.__name__, 
               ', '.join([repr(x) for x in self.args]))
    
 class Lamda(Element):
@@ -56,9 +63,9 @@ class Lamda(Element):
     self.lefts = new_env.lefts # prepare for assign convert
     return self    
     
-  def cps_convert(self, compiler, cont, fcont):
+  def cps_convert(self, compiler, cont):
     k = Var('k')
-    return cont(Lamda(self.params+(k,), compiler.cps_convert_exps(self.body, k, fcont)), fcont)
+    return cont(Lamda(self.params+(k,), compiler.cps_convert_exps(self.body, k)))
   
   def assign_convert(self, alpha_env, env):
     try:
@@ -142,8 +149,8 @@ class Function(Lamda):
     return result
           
 class Clamda(Lamda):
-  def __init__(self, v, fc, *exps):
-    self.params, self.body = (v, fc), exps
+  def __init__(self, v, *exps):
+    self.params, self.body = (v, ), exps
     self.name = None
     
   def analyse_before_optimize(self, data):
@@ -152,12 +159,12 @@ class Clamda(Lamda):
       analyse_before_optimize(x, data)
     
   def __repr__(self):
-    return 'il.Clamda(%r, %r, %s)'%(self.params[0], self.params[1], ', '.join([repr(x) for x in self.body]))
+    return 'il.Clamda(%r, %r, %s)'%(self.params[0], ', '.join([repr(x) for x in self.body]))
 
 class Done(Clamda):
   def __init__(self):
-    v, fc = Var('v'), Var('fc')
-    self.params, self.body = (v, fc), (Return((v, fc)),)
+    v = Var('v')
+    self.params, self.body = (v,), (Return(v),)
     self.name = None
     
   def __repr__(self):
@@ -166,8 +173,8 @@ class Done(Clamda):
 class CFunction(Clamda):
   is_statement = True
   
-  def __init__(self, name, v, fc, *body):
-    Clamda.__init__(self,  v, fc, *body)
+  def __init__(self, name, v, *body):
+    Clamda.__init__(self,  v, *body)
     self.name = name
     
   def analyse_before_optimize(self, data):
@@ -176,7 +183,7 @@ class CFunction(Clamda):
       analyse_before_optimize(x, data)
     
   def __repr__(self):
-    return 'il.CFunction(%r, %r, %r, %s)'%(self.name, self.params[0], self.params[1], ', '.join([repr(x) for x in self.body]))
+    return 'il.CFunction(%r, %r, %s)'%(self.name, self.params[0], ', '.join([repr(x) for x in self.body]))
   
 class Apply(Element):
   def __init__(self, caller, args):
@@ -186,20 +193,20 @@ class Apply(Element):
     return self.__class__(env.alpha_convert(self.caller), 
                  tuple(env.alpha_convert(arg) for arg in self.args))
   
-  def cps_convert(self, compiler, cont, fcont):
+  def cps_convert(self, compiler, cont):
     # see The 90 minute Scheme to C compiler by Marc Feeley
     if isinstance(self.caller, Lamda):
       args = self.args
-      fun = compiler.cps_convert_exps(self.caller.body, cont, fcont)
+      fun = compiler.cps_convert_exps(self.caller.body, cont)
       for var, arg in reversed(zip(self.caller.params, args)):
-        fun = compiler.cps_convert(arg, Clamda(var, fc, fun), fcont)
+        fun = compiler.cps_convert(arg, Clamda(var, fun), fcont)
       return fun
     else:
       function = Var('function')
       vars = tuple(Var('a'+repr(i)) for i in range(len(self.args)))
       fun = Apply(function, (cont,)+vars)
       for var, self in reversed(zip((function,)+vars, (self.caller,)+self.args)):
-        fun = compiler.cps_convert(self, Clamda(var, fc, fun), fcont)
+        fun = compiler.cps_convert(self, Clamda(var, fun), fcont)
       return fun
 
   def assign_convert(self, alpha_env, env):
@@ -319,23 +326,23 @@ class Var(Element):
   def alpha_convert(self, env):
     return env[self]
     
-  def cps_convert(self, compiler, cont, fcont):
+  def cps_convert(self, compiler, cont):
     return cont(self, fcont)
   
-  def cps_convert_unify(x, y, compiler, cont, fcont):
-    return StatementList(
+  def cps_convert_unify(x, y, compiler, cont):
+    return Begin(
       Deref(x),
       Deref(y),
       If(Isinstance(x, LogicVar),
-         Return(Clambda(v, fc, cont(v, 
-                    Clamda(v, fc, 
+         Return(Clambda(v, cont(v, 
+                    Clamda(v, 
                            SetBindings(x, y),
-                           Return(v, fc))))),
+                           Return(v))))),
          If(Isinstance(y, LogicVar),
-            Return(Clambda(v, fc, cont(v, 
-                       Clamda(v, fc, 
+            Return(Clambda(v, cont(v, 
+                       Clamda(v, 
                               SetBindings(x, y),
-                              Return(v, fc))))),
+                              Return(v))))),
          )))
   
     
@@ -390,8 +397,8 @@ class LogicVar(Element):
   def alpha_convert(self, env):
     return self
     
-  def cps_convert_unify(self, other, cont, fcont):
-    return Unify(self,other, cont, fcont)
+  def cps_convert_unify(self, other, cont):
+    return Unify(self,other, cont)
   
   def pythonize(self, env):
     return self
@@ -559,7 +566,7 @@ class If(Element):
     else_, else__changed = optimize_once(self.else_, data)
     result = If(test, then, else_)
     #if isinstance(result.test, Let):
-      #result = Let(result.bindings, If(StatementList(let.body), 
+      #result = Let(result.bindings, If(Begin(let.body), 
                                              #result.then, result.else_))
     return result, changed or test_changed or then_changed or else__changed
 
@@ -629,7 +636,7 @@ class If2(Element):
     return 'il.If2(%r, %r)'%(self.test, self.then)
 
 class Unify(Element):
-  def __init__(self, left, right, cont, fcont):
+  def __init__(self, left, right, cont):
     self.left, self.right, self.cont, self.fcont =  left, right, cont,fcont
     
   def alpha_convert(self, env):
@@ -661,11 +668,11 @@ class Unify(Element):
     right, right_changed = optimize_once(self.right, data)
     cont, cont_changed = optimize_once(self.cont, data)
     fcont, fcont_changed = optimize_once(self.fcont, data)
-    return Unify(left, right, cont, fcont), left_changed or right_changed or cont_changed or fcont_changed
+    return Unify(left, right, cont), left_changed or right_changed or cont_changed or fcont_changed
     
   def pythonize(self, env):
-    defs, (left, right, cont, fcont) = pythonize_list((self.left, self.right, self.cont, self.fcont), env)
-    return collocate(defs, Unify(left, right, cont, fcont))
+    defs, (left, right, cont) = pythonize_list((self.left, self.right, self.cont, self.fcont), env)
+    return collocate(defs, Unify(left, right, cont))
     
   def to_code(self, coder):
     return 'unify(%s, %s, %s, %s)' % (coder.to_code(self.left), coder.to_code(self.right), 
@@ -736,14 +743,14 @@ class BinaryOperation(Element):
 
 add = BinaryOperation('add', '+', False)
 
-class StatementList(Element):
+class Begin(Element):
   is_statement = True
   
   def __init__(self, statements):
     self.statements = statements
     
   def subst(self, bindings):  
-    return StatementList(tuple(subst(x, bindings) for x in self.statements))
+    return Begin(tuple(subst(x, bindings) for x in self.statements))
           
   def optimize_once(self, data):
     changed = False
@@ -761,14 +768,14 @@ class StatementList(Element):
       return classeq(x, y) and x.statements==y.statements
   
   def __repr__(self):
-    return 'il.StatementList(%s)'%repr(self.statements)
+    return 'il.begin(%s)'%', '.join([repr(x) for x in self.statements])
 
-def statements(exps):
+def begin(*exps):
   assert isinstance(exps, tuple)
   if len(exps)==1: 
     return exps[0]
   else:
-    return StatementList(exps)
+    return Begin(exps)
   
 def vop(name, arity):
   class Vop(Element): pass
@@ -776,7 +783,7 @@ def vop(name, arity):
   Vop.arity = arity
   return Vop
 
-class getitem(Element):
+class GetItem(Element):
   arity = 2
   
   def __repr__(self):
@@ -784,13 +791,26 @@ class getitem(Element):
   
 Not = vop('Not', 1)
 Len = vop('Len', 1)
-get_parse_state = vop('get_parse_state', 0)
-set_parse_state = vop('set_parse_state', 1)
-assign_from_list = vop('assign_from_list', -1)
-begin = vop('begin', -1)
-empty_list = vop('empty_list', 0)
-list_append = vop('list_append', 2)
-getvalue = vop('getvalue', 1)
+SetParseState = vop('SetParseState', 1)
+AssignFromList = vop('AssignFromList', -1)
+ListAppend = vop('ListAppend', 2)
+GetValue = vop('GetValue', 1)
+SetFailCont = vop('SetFailCont', 1)
+AppendFailCont = vop('AppendFailCont', -1) 
+'''il.Assign(fc, get_failcont)
+  SetFailCont(
+    Clambda(v, 
+      SetFailCont(fc),
+      statements
+  ))'''  
+
+GetParseState = vop('parse_state', 0)
+parse_state = GetParseState()
+EmptyList = vop('empty_list', 0)
+empty_list = EmptyList()
+GetFailCont = vop('failcont', 0)  
+failcont = GetFailCont()
+
 
 def binary(name, symbol):
   class Binary(Element): 
@@ -799,14 +819,13 @@ def binary(name, symbol):
   Binary.__name__ = name
   Binary.arity = 2
   Binary.symbol = symbol
-  return Binary
-  
-lt = binary('lt', '<')
-le = binary('le', '<=')
-eq = vop('eq', 2)
-ne = vop('ne', 2)
-ge = binary('ge', '>=')
-gt = binary('gt', '>')
+  return Binary    
+    
+Lt = binary('lt', '<')
+Le = binary('le', '<=')
+Eq = vop('eq', 2)
+Ne = vop('ne', 2)
+Ge = binary('ge', '>=')
+Gt = binary('gt', '>')
 
-v, fc = Var('v'), Var('fc')
 

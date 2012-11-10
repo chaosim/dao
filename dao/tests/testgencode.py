@@ -17,7 +17,7 @@ class Done(il.Clamda):
   def __repr__(self): return 'done()'
   
 def done():
-  return Done(v, fc, il.Return(v, fc))
+  return Done(v, fc, il.Return(v))
 
 def compile(exp):
   return to_code(Compiler().cps(exp, done(), None))
