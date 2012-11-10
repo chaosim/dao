@@ -34,7 +34,7 @@ def demo1():
   print 'solve_all:', (or_, 1, 2)
   solve_all((or_, 1, 2))
 
-#demo1()
+demo1()
 
 def demo():
   print '===================================='
@@ -77,7 +77,7 @@ def demo():
   print (begin, (findall, (or_, (print_, 1), (print_, 2))), (print_, 3))
   solve((begin, (findall, (or_, (print_, 1), (print_, 2))), (print_, 3)))
   
-#demo()
+demo()
  
 def demo_unify():  
   print '===================================='
@@ -97,7 +97,7 @@ def demo_unify():
   solve((begin, (unify, x, 1), (unify, x, 2)))
   print
 
-#demo_unify()
+demo_unify()
 
 def demo_if():  
   print '===================================='
@@ -114,125 +114,116 @@ def demo_lazy_any():
   print 'demo_lazy_any'
   
   print '===================================='
-  print (findall, (lazy_any, [char, _]))
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((findall, (lazy_any, [char, _])))
+  print (begin, (settext, 'abcde'), (lazy_any, [char, _]), [eoi])
+  solve((begin, (settext, 'abcde'), (lazy_any, [char, _]), [eoi]))
   
   print '===================================='
-  print (begin, (lazy_any, [char, _]), [char, _], [char, _])
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((begin, (lazy_any, [char, _]), [char, _], [char, _]))
+  print (begin, (settext, 'abcde'), (findall, (lazy_any, [char, _])))
+  solve((begin, (settext, 'abcde'), (findall, (lazy_any, [char, _]))))
   
   print '===================================='
-  print (begin, (lazy_any, [char, _]), [char, _], [char, _], [eoi])
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((begin, (lazy_any, [char, _]), [char, _], [char, _], [eoi]))
-
-
-  print '===================================='
-  print (findall, (begin, (lazy_any, [char, _]), [char, _], [char, _]))
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((findall, (begin, (lazy_any, [char, _]), [char, _], [char, _])))
+  print (begin, (settext, 'abcde'), (lazy_any, [char, _]), [char, _], [char, _])
+  solve((begin, (settext, 'abcde'), (lazy_any, [char, _]), [char, _], [char, _]))
   
   print '===================================='
-  print (begin, (lazy_any, [char, _]), [eoi])
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((begin, (lazy_any, [char, _]), [eoi]))
+  print (begin, (settext, 'abcde'), (lazy_any, [char, _]), [char, _], [char, _], [eoi])
+  solve((begin, (settext, 'abcde'), (lazy_any, [char, _]), [char, _], [char, _], [eoi]))
 
 
   print '===================================='
-  print (begin, (lazy_any, [char, _]), [char, _], [char, _], [eoi])
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((begin, (lazy_any, [char, _]), [char, _], [char, _], [eoi]))
+  print (findall, (begin, (settext, 'abcde'), (lazy_any, [char, _]), [char, _], [char, _]))
+  solve((findall, (begin, (settext, 'abcde'), (lazy_any, [char, _]), [char, _], [char, _])))
   
   print '===================================='
-  print (findall, (begin, (lazy_any, [char, _]), [char, _], [char, _], [eoi]))
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((findall, (begin, (lazy_any, [char, _]), [char, _], [char, _], [eoi])))
+  print (begin, (settext, 'abcde'), (lazy_any, [char, _]), [eoi])
+  solve((begin, (settext, 'abcde'), (lazy_any, [char, _]), [eoi]))
 
-#demo_lazy_any()
+
+  print '===================================='
+  print (begin, (settext, 'abcde'), (lazy_any, [char, _]), [char, _], [char, _], [eoi])
+  solve((begin, (settext, 'abcde'), (lazy_any, [char, _]), [char, _], [char, _], [eoi]))
+  
+  print '===================================='
+  print (findall, (begin, (settext, 'abcde'), (lazy_any, [char, _]), [char, _], [char, _], [eoi]))
+  solve((findall, (begin, (settext, 'abcde'), (lazy_any, [char, _]), [char, _], [char, _], [eoi])))
+
+demo_lazy_any()
 
 def demo_any():
   print 'demo_any'
+    
+  print '===================================='
+  print (begin, (settext, 'abcde'), (any, [char, _]), [eoi])
+  solve((begin, (settext, 'abcde'), (any, [char, _]), [eoi]))
   
   print '===================================='
-  print (findall, (any, [char, _]))
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((findall, (any, [char, _])))
+  print (begin, (settext, 'abcde'), (findall, (any, [char, _])))
+  solve((begin, (settext, 'abcde'), (findall, (any, [char, _]))))
   
   print '===================================='
-  print (begin, (any, [char, _]), [char, _], [char, _])
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((begin, (any, [char, _]), [char, _], [char, _]))
+  print (begin, (settext, 'abcde'), (any, [char, _]), [char, _], [char, _])
+  solve((begin, (settext, 'abcde'), (any, [char, _]), [char, _], [char, _]))
   
   print '===================================='
-  print (begin, (any, [char, _]), [char, _], [char, _], [eoi])
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((begin, (any, [char, _]), [char, _], [char, _], [eoi]))
+  print (begin, (settext, 'abcde'), (any, [char, _]), [char, _], [char, _], [eoi])
+  solve((begin, (settext, 'abcde'), (any, [char, _]), [char, _], [char, _], [eoi]))
 
 
   print '===================================='
-  print (findall, (begin, (any, [char, _]), [char, _], [char, _]))
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((findall, (begin, (any, [char, _]), [char, _], [char, _])))
+  print (findall, (begin, (settext, 'abcde'), (any, [char, _]), [char, _], [char, _]))
+  solve((findall, (begin, (settext, 'abcde'), (any, [char, _]), [char, _], [char, _])))
   
   print '===================================='
-  print (begin, (any, [char, _]), [eoi])
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((begin, (any, [char, _]), [eoi]))
+  print (begin, (settext, 'abcde'), (any, [char, _]), [eoi])
+  solve((begin, (settext, 'abcde'), (any, [char, _]), [eoi]))
 
 
   print '===================================='
-  print (begin, (any, [char, _]), [char, _], [char, _], [eoi])
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((begin, (any, [char, _]), [char, _], [char, _], [eoi]))
+  print (begin, (settext, 'abcde'), (any, [char, _]), [char, _], [char, _], [eoi])
+  solve((begin, (settext, 'abcde'), (any, [char, _]), [char, _], [char, _], [eoi]))
   
   print '===================================='
-  print (findall, (begin, (any, [char, _]), [char, _], [char, _], [eoi]))
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((findall, (begin, (any, [char, _]), [char, _], [char, _], [eoi])))
+  print (findall, (begin, (settext, 'abcde'), (any, [char, _]), [char, _], [char, _], [eoi]))
+  solve((findall, (begin, (settext, 'abcde'), (any, [char, _]), [char, _], [char, _], [eoi])))
 
-#demo_any()
+demo_any()
 
 def demo_greedy_any():
   print 'demo_greedy_any'
   
   print '===================================='
-  print (findall, (greedy_any, [char, _]))
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((findall, (greedy_any, [char, _])))
+  print (begin, (settext, 'abcde'), (greedy_any, [char, _]), [eoi])
+  solve((begin, (settext, 'abcde'), (greedy_any, [char, _]), [eoi]))
   
   print '===================================='
-  print (begin, (greedy_any, [char, _]), [char, _], [char, _])
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((begin, (greedy_any, [char, _]), [char, _], [char, _]))
+  print (begin, (settext, 'abcde'), (findall, (greedy_any, [char, _])))
+  solve((begin, (settext, 'abcde'), (findall, (greedy_any, [char, _]))))
   
   print '===================================='
-  print (begin, (greedy_any, [char, _]), [char, _], [char, _], [eoi])
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((begin, (greedy_any, [char, _]), [char, _], [char, _], [eoi]))
-
-
-  print '===================================='
-  print (findall, (begin, (greedy_any, [char, _]), [char, _], [char, _]))
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((findall, (begin, (greedy_any, [char, _]), [char, _], [char, _])))
+  print (begin, (settext, 'abcde'), (greedy_any, [char, _]), [char, _], [char, _])
+  solve((begin, (settext, 'abcde'), (greedy_any, [char, _]), [char, _], [char, _]))
   
   print '===================================='
-  print (begin, (greedy_any, [char, _]), [eoi])
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((begin, (greedy_any, [char, _]), [eoi]))
+  print (begin, (settext, 'abcde'), (greedy_any, [char, _]), [char, _], [char, _], [eoi])
+  solve((begin, (settext, 'abcde'), (greedy_any, [char, _]), [char, _], [char, _], [eoi]))
 
 
   print '===================================='
-  print (begin, (greedy_any, [char, _]), [char, _], [char, _], [eoi])
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((begin, (greedy_any, [char, _]), [char, _], [char, _], [eoi]))
+  print (findall, (begin, (settext, 'abcde'), (greedy_any, [char, _]), [char, _], [char, _]))
+  solve((findall, (begin, (settext, 'abcde'), (greedy_any, [char, _]), [char, _], [char, _])))
   
   print '===================================='
-  print (findall, (begin, (greedy_any, [char, _]), [char, _], [char, _], [eoi]))
-  solvecont.pos, solvecont.text = 0, 'abcdef'
-  solve((findall, (begin, (greedy_any, [char, _]), [char, _], [char, _], [eoi])))
+  print (begin, (settext, 'abcde'), (greedy_any, [char, _]), [eoi])
+  solve((begin, (settext, 'abcde'), (greedy_any, [char, _]), [eoi]))
 
-#demo_greedy_any()
+
+  print '===================================='
+  print (begin, (settext, 'abcde'), (greedy_any, [char, _]), [char, _], [char, _], [eoi])
+  solve((begin, (settext, 'abcde'), (greedy_any, [char, _]), [char, _], [char, _], [eoi]))
+  
+  print '===================================='
+  print (findall, (begin, (settext, 'abcde'), (greedy_any, [char, _]), [char, _], [char, _], [eoi]))
+  solve((findall, (begin, (settext, 'abcde'), (greedy_any, [char, _]), [char, _], [char, _], [eoi])))
+
+demo_greedy_any()
 

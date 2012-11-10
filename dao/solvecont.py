@@ -68,31 +68,24 @@ class Solver:
   def __init__(self):
     self.pos, self.text = 0, ''
     self.bindings = Bindings()
+    self.parse_state = None
     
   def solve(self, exp, done, end):
-    self.finished = False
     self.fcont = end
     return self.cps(exp, done)
-    #result = result(None)
-    #cont = result
-    #while not finished:
-      #cond = cont(v)
-    #return cont
   
   def solve_all(self, exp):
     return self.solve(exp, self.done_all, self.end)
   
   def done_all(self, v):
-    print 'Succeed done!'
-    self.fcont(v)
+    print 'A solution found!'
+    return self.fcont(v)
       
   def end(self, v):
-    self.finished = True
-    print 'Failed at last!'
+    print 'No more solutions!'
 
   def done(self, v):
-    self.finished = True
-    print 'Succeed done!'
+    print 'A solution found!'
     return v
   
   def cps_exps(self, exps, cont):
@@ -102,7 +95,6 @@ class Solver:
       return self.cps(exps[0], lambda v: self.cps_exps(exps[1:], cont))
   
   def cps(self, exp, cont):
-    global pos, text
     if isinstance(exp, int) or isinstance(exp, str):
       print exp
       return cont(exp)
@@ -150,7 +142,7 @@ class Solver:
         elif len(exp)==2: 
           return self.cps(exp[1], cont)
         elif len(exp)==3:
-          fc= self.fcont
+          fc = self.fcont
           def or_fcont(v):
             self.fcont = fc
             return self.cps(exp[2], cont)
@@ -201,7 +193,8 @@ class Solver:
       
       elif exp[0]==settext:
         fc = self.fcont
-        self.parse_state = 0, exp[1]
+        old_parse_state = self.parse_state
+        self.parse_state =  exp[1], 0
         def settext_fcont(v):
           self.parse_state = old_parse_state
           return fc(v)
@@ -209,6 +202,7 @@ class Solver:
         return cont(None)
         
       elif exp[0]==eoi:
+        text, pos = self.parse_state
         print eoi, pos,
         if pos==len(text):
           print 'succeed.'
@@ -217,41 +211,37 @@ class Solver:
         return self.fcont(False)
       
       elif exp[0]==char:
-        pos, text = self.parse_state
+        text, pos = self.parse_state
         print char, pos, 
         if pos==len(text):
           print 'failed'
           return self.fcont(False)
         else:
           print text[pos],
-          c = deref(exp[1])
+          c = deref(exp[1], self.bindings)
           fc = self.fcont
           if isinstance(c, str):
             if c==text[pos]:
               def char_fcont(v):
-                global pos, text
-                pos -= 1
                 print 'char fcont', pos, text[pos]
+                self.parse_state = text, pos
                 return fc(False)
               self.fcont = char_fcont
-              char_fcont.pos = pos              
               print text[pos]
-              pos += 1
+              self.parse_state = text, pos+1
               return cont(True)
             else:
               return fc(False)
           elif isinstance(c, Var):
             def char_fcont(v):
-              global pos, text
-              pos -= 1
               print 'char fcont', pos, text[pos]
-              try: del bindings[c]
+              self.parse_state = text, pos
+              try: del self.bindings[c]
               except: pass
               return fc(False)
             self.fcont = char_fcont
-            char_fcont.pos = pos
-            bindings[c] = text[pos]
-            pos += 1
+            self.bindings[c] = text[pos]
+            self.parse_state = text, pos+1
             print 'succeed.'
             return cont(True)
           else: raise TypeError(c)
@@ -260,47 +250,45 @@ class Solver:
         print findall
         def findall_next(v):
           print 'findall next'
-          fc = self.fcont
-          self.fcont = findall_done
-          return fc(v)
+          return self.fcont(v)
+        fc = self.fcont
         def findall_done(v):
+          self.fcont = fc 
           print 'findall done'
           return cont(v)
+        self.fcont = findall_done
         return self.cps(exp[1], findall_next)
   
       elif exp[0]==lazy_any: #lazy any
+        fcont = self.fcont
         def lazy_any_cont(v):
-            self.fcont = lazy_any_cont
-            self.cps(exp[1], cont)
-        def new_cont(v):
-          self.fcont = lazy_any_cont
-          return cont(v)
-        return new_cont(None)
-         
-      #elif exp[0]==lazy_any: # lazy any, same as above, but use lambda to simplify
-        #def lazy_any_cont(v, fc):
-          #return self.cps(exp[1], lambda v, fc:cont(v, lazy_any_cont))(lambda v, fc:cont(v, fc))(v, fc)
-        #return cont(None, lazy_any_cont)
-      
-      #elif exp[0]==any: # nongreedy any
-        #print any
-        #def any_cont(v, fc):
-          #def fcont(v, fc2):
-            #print 'any fail'
-            #return cont(v, fc)
-          #return self.cps(exp[1], any_cont)(v, fcont)
-        #return any_cont
-      
-      elif exp[0]==any: # nongreedy any, same as above, but use lambda to simplify
+          self.fcont = lazy_any_fcont
+          cont(v)
+        def lazy_any_fcont(v):
+          self.fcont = fcont
+          self.cps(exp[1], lazy_any_cont)
+        return lazy_any_cont(None)
+               
+      elif exp[0]==any: # nongreedy any
         print any
-        def any_cont(v, fc):
-          return self.cps(exp[1], any_cont)(lambda v, fc2: cont(v, fc))
-        return any_cont
+        def any_cont(v):
+          fcont = self.fcont
+          def any_fcont(v):
+            self.fcont = fcont
+            return cont(v)
+          self.fcont = any_fcont
+          return self.cps(exp[1], any_cont)
+        return self.cps(exp[1], any_cont)
       
       elif exp[0]==greedy_any: # greedy any
         print greedy_any
-        def greedy_any_cont(v, fc):
-            return self.cps(exp[1], greedy_any_cont)(v, cont(v, fc))
-        return greedy_any_cont
+        fcont = self.fcont
+        def greedy_any_fcont(v):
+          self.fcont = fcont
+          cont(v)
+        def greedy_any_cont(v):
+          self.fcont = greedy_any_fcont
+          return self.cps(exp[1], greedy_any_cont)
+        return greedy_any_cont(None)
 
       
