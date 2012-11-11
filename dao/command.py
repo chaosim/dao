@@ -80,10 +80,11 @@ def not_p(compiler, cont, clause):
 
 @special
 def or_(compiler, cont, clause1, clause2):
+  cut_or_cont = il.Var('cut_or_cont')
   or_cont = il.Clamda(v, il.SetCutOrCont(cut_or_cont), cont(v))
-  return il.Begin(
+  return il.begin(
   il.Assign(cut_or_cont, il.cut_or_cont),
-  il.SetCutOrCont(failcont),  
+  il.SetCutOrCont(il.failcont),  
   il.AppendFailCont(compiler.cps_convert(clause2, or_cont)),
   compiler.cps_convert(clause1, or_cont))
 
@@ -106,8 +107,8 @@ def unify(compiler, cont, x, y):
   except:
     try: y_cps_convert_unify = y.cps_convert_unify
     except:
-      if x==y: return cont(True)
-      else: return il.failcont(False)
+      if x==y: return il.Return(cont(True))
+      else: return il.Return(il.failcont(True))
     return y_cps_convert_unify(x, cont)
   return x_cps_convert_unify(y, cont)
 

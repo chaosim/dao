@@ -72,18 +72,38 @@ class TestCPSConvert:
     eq_(result, expect)
 
   def test_or(self):
+    cut_or_cont = il.Var('cut_or_cont')
     result = cps_convert(or_(1, 2))
-    expect = done()(1, il.Clamda(v, done()(2, end())))
+    expect = il.begin(
+      il.Assign(cut_or_cont, il.cut_or_cont), 
+      il.SetCutOrCont(il.failcont), 
+      il.AppendFailCont(
+        il.Clamda(v, 
+            il.SetCutOrCont(cut_or_cont), 
+            done()(v))
+        (2)), 
+      il.Clamda(v, 
+                il.SetCutOrCont(cut_or_cont), 
+                done()(v))
+      (1))
     eq_(result, expect)
     
   def test_unify(self):
-    eq_(cps_convert(unify(1, 2)), end())    
-    eq_(cps_convert(unify(1, 1)), done()) 
+    eq_(cps_convert(unify(1, 2)), il.Return(il.failcont(True)))    
+    eq_(cps_convert(unify(1, 1)), il.Return(done()(True)))
     
   def test_unify2(self):
     x = LogicVar('x')
     result = cps_convert(unify(x, 2))
-    expect = il.Unify(x, 2, done(), end())
+    expect = il.begin(il.AppendFailCont(il.DelBinding(x)), 
+                      il.Return(done()(True)))
+    eq_(result, expect)
+    
+  def test_unify3(self):
+    x = il.Var('x')
+    result = cps_convert(unify(x, 2))
+    expect = il.begin(il.AppendFailCont(il.DelBinding(x)), 
+                      done()(True))
     eq_(result, expect)
     
   def test_add(self):

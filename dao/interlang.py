@@ -159,7 +159,7 @@ class Clamda(Lamda):
       analyse_before_optimize(x, data)
     
   def __repr__(self):
-    return 'il.Clamda(%r, %r, %s)'%(self.params[0], ', '.join([repr(x) for x in self.body]))
+    return 'il.Clamda(%r, %s)'%(self.params[0], ', '.join([repr(x) for x in self.body]))
 
 class Done(Clamda):
   def __init__(self):
@@ -329,15 +329,12 @@ class Var(Element):
   def cps_convert(self, compiler, cont):
     return cont(self, fcont)
   
-  def cps_convert_unify(x, y, compiler, cont):
-    return Begin(
-      Deref(x),
-      Deref(y),
+  def cps_convert_unify(x, y, cont):
+    return begin(
+      Assign(x, Deref(x)),
       If(Isinstance(x, LogicVar),
-         Return(Clambda(v, cont(v, 
-                    Clamda(v, 
-                           SetBindings(x, y),
-                           Return(v))))),
+         begin(AppendFailCont(DelBinding(self)),
+                 Return(cont(True))),
          If(Isinstance(y, LogicVar),
             Return(Clambda(v, cont(v, 
                        Clamda(v, 
@@ -398,7 +395,8 @@ class LogicVar(Element):
     return self
     
   def cps_convert_unify(self, other, cont):
-    return Unify(self,other, cont)
+    return begin(AppendFailCont(DelBinding(self)),
+                 Return(cont(True)))
   
   def pythonize(self, env):
     return self
@@ -636,8 +634,8 @@ class If2(Element):
     return 'il.If2(%r, %r)'%(self.test, self.then)
 
 class Unify(Element):
-  def __init__(self, left, right, cont):
-    self.left, self.right, self.cont, self.fcont =  left, right, cont,fcont
+  def __init__(self, left, right, cont, fcont):
+    self.left, self.right, self.cont, self.fcont =  left, right, cont, fcont
     
   def alpha_convert(self, env):
     return Unify(env.alpha_convert(self.left), env.alpha_convert(self.right),
@@ -790,12 +788,11 @@ class GetItem(Element):
     return '%r[%r]'%(self.args)
   
 Not = vop('Not', 1)
-Len = vop('Len', 1)
-SetParseState = vop('SetParseState', 1)
 AssignFromList = vop('AssignFromList', -1)
-ListAppend = vop('ListAppend', 2)
-GetValue = vop('GetValue', 1)
+
 SetFailCont = vop('SetFailCont', 1)
+FailCont = vop('failcont', 0)  
+failcont = FailCont()
 AppendFailCont = vop('AppendFailCont', -1) 
 '''il.Assign(fc, get_failcont)
   SetFailCont(
@@ -803,14 +800,20 @@ AppendFailCont = vop('AppendFailCont', -1)
       SetFailCont(fc),
       statements
   ))'''  
+SetCutOrCont = vop('SetCutOrCont', 1)
+cut_or_cont = FailCont()
 
-GetParseState = vop('parse_state', 0)
-parse_state = GetParseState()
+DelBinding = vop('DelBinding', 1)
+GetValue = vop('GetValue', 1)
+
+SetParseState = vop('SetParseState', 1)
+ParseState = vop('parse_state', 0)
+parse_state = ParseState()
+
 EmptyList = vop('empty_list', 0)
 empty_list = EmptyList()
-GetFailCont = vop('failcont', 0)  
-failcont = GetFailCont()
-
+ListAppend = vop('ListAppend', 2)
+Len = vop('Len', 1)
 
 def binary(name, symbol):
   class Binary(Element): 
