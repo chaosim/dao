@@ -21,10 +21,10 @@ class Done(il.Clamda):
   def __repr__(self): return 'done()'
   
 def done():
-  return Done(v, fc, il.Return(v))
+  return Done(v, fc, v)
 
 def compile_optimize(exp):
-  exp = Compiler().cps(exp, done(), None)
+  exp = Compiler().cps(exp, done())
   exp = AlphaConvertEnvironment().alpha_convert(exp)
   optimize_data = OptimizationData()
   analyse_before_optimize(exp, optimize_data)
@@ -33,28 +33,28 @@ def compile_optimize(exp):
 class TestSimple:
   def test_integer(self):
     result = compile_optimize(1)
-    expect = il.Return(1, None)
+    expect = 1
     eq_(result, expect)
     
   def test_quote(self):
     result = compile_optimize(quote(1))
-    expect = il.Return(1, None)
+    expect = 1
     eq_(result, expect)
     
   def test_begin(self):
     result = compile_optimize(begin(1, 2))
-    expect = il.Return(2, None)
+    expect = 2
     eq_(result, expect)
   
   def test_assign(self):
     x = il.Var('x')
     result = compile_optimize(assign(x, 2))
-    expect = il.Begin((il.Assign(x, 2), il.Return(2, None)))
+    expect = il.Begin((il.Assign(x, 2), 2))
     eq_(result, expect)
 
   def test_if(self):
     result = compile_optimize(if_(0, 1, 2))
-    expect = il.If(0, il.Return(1, None), il.Return(2, None))
+    expect = il.If(0, 1, 2)
     eq_(result, expect)
   
   def test_fail(self):
@@ -69,7 +69,7 @@ class TestSimple:
 
   def test_or(self):
     result = compile_optimize(or_(1, 2))
-    expect = il.Return(1, il.Lamda((v1, fc1), il.Return(2, None)))
+    expect = 1
     eq_(result, expect)
     
   def test_unify(self):
@@ -84,7 +84,7 @@ class TestSimple:
     
   def test_add(self):
     result = compile_optimize(add(1, 2))
-    expect = il.Return(il.add((1, 2)), None)
+    expect = il.add(1, 2)
     eq_(result, expect)
 
 def test_optimize(exp):
@@ -109,13 +109,13 @@ class TestOptimize:
     eq_(result, expect)
     
   def test_lambda_apply(self):
-    result = test_optimize(il.Clamda(v, il.Return(1, None))(v, fc))
-    expect = il.Return(1, None)
+    result = test_optimize(il.Clamda(v, 1)(v))
+    expect = 1
     eq_(result, expect)
   
   def test_lambda_apply2(self):
     v1, fc1 = il.Var('v1'), il.Var('fc1')
-    result = test_optimize(il.Clamda(v1, fc1, il.Return(v1, fc1))(v, fc))
-    expect = il.Return(v)
+    result = test_optimize(il.Clamda(v1, v1))(v)
+    expect = v
     eq_(result, expect)
     

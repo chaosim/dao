@@ -18,15 +18,15 @@ class Element:
     self.args = args
     
   def __getitem__(self, index):
-    return getitem(self, index)
+    return GetItem(self, index)
   
   def __call__(self, *args):
     return Apply(self, args)
   
-  def __lt__(x, y): return lt(x, y)
-  def __le__(x, y): return le(x, y)
-  def __ge__(x, y): return ge(x, y)
-  def __gt__(x, y): return gt(x, y)
+  def __lt__(x, y): return Lt(x, y)
+  def __le__(x, y): return Le(x, y)
+  def __ge__(x, y): return Ge(x, y)
+  def __gt__(x, y): return Gt(x, y)
   
   def __add__(x, y): return BinaryOperationApply(add, (x, y))
   
@@ -164,7 +164,7 @@ class Clamda(Lamda):
 class Done(Clamda):
   def __init__(self):
     v = Var('v')
-    self.params, self.body = (v,), (Return(v),)
+    self.params, self.body = (v,), (v,)
     self.name = None
     
   def __repr__(self):
@@ -199,14 +199,14 @@ class Apply(Element):
       args = self.args
       fun = compiler.cps_convert_exps(self.caller.body, cont)
       for var, arg in reversed(zip(self.caller.params, args)):
-        fun = compiler.cps_convert(arg, Clamda(var, fun), fcont)
+        fun = compiler.cps_convert(arg, Clamda(var, fun))
       return fun
     else:
       function = Var('function')
       vars = tuple(Var('a'+repr(i)) for i in range(len(self.args)))
       fun = Apply(function, (cont,)+vars)
       for var, self in reversed(zip((function,)+vars, (self.caller,)+self.args)):
-        fun = compiler.cps_convert(self, Clamda(var, fun), fcont)
+        fun = compiler.cps_convert(self, Clamda(var, fun))
       return fun
 
   def assign_convert(self, alpha_env, env):
@@ -327,21 +327,23 @@ class Var(Element):
     return env[self]
     
   def cps_convert(self, compiler, cont):
-    return cont(self, fcont)
+    return cont(self)
   
   def cps_convert_unify(x, y, cont):
+    v = Var('v')
     return begin(
       Assign(x, Deref(x)),
       If(Isinstance(x, LogicVar),
-         begin(AppendFailCont(DelBinding(self)),
-                 Return(cont(True))),
-         If(Isinstance(y, LogicVar),
-            Return(Clambda(v, cont(v, 
-                       Clamda(v, 
-                              SetBindings(x, y),
-                              Return(v))))),
-         )))
-  
+         begin(SetBinding(x, y),
+               AppendFailCont(DelBinding(x)),
+               cont(True)),
+         begin(
+           Assign(y, Deref(y)), 
+           If(Isinstance(y, LogicVar),
+              begin(SetBinding(y, x),
+                    AppendFailCont(DelBinding(y)),
+                    cont(True)),
+              If(Eq(x, y), cont(True), failcont(True))))))  
     
   def assign_convert(self, alpha_env, env):
     if self in env:
@@ -396,7 +398,7 @@ class LogicVar(Element):
     
   def cps_convert_unify(self, other, cont):
     return begin(AppendFailCont(DelBinding(self)),
-                 Return(cont(True)))
+                 cont(True))
   
   def pythonize(self, env):
     return self
@@ -737,7 +739,7 @@ class BinaryOperation(Element):
   def __hash__(self): return hash(self.operator)
   
   def __repr__(self):
-    return '%s'%self.name
+    return 'il.%s'%self.name
 
 add = BinaryOperation('add', '+', False)
 
@@ -787,8 +789,15 @@ class GetItem(Element):
   def __repr__(self):
     return '%r[%r]'%(self.args)
   
+  
 Not = vop('Not', 1)
 AssignFromList = vop('AssignFromList', -1)
+Isinstance = vop('Isinstance', 2)
+EmptyList = vop('empty_list', 0)
+empty_list = EmptyList()
+ListAppend = vop('ListAppend', 2)
+Len = vop('Len', 1)
+RaiseTypeError = vop('RaiseTypeError', 1)
 
 SetFailCont = vop('SetFailCont', 1)
 FailCont = vop('failcont', 0)  
@@ -803,17 +812,14 @@ AppendFailCont = vop('AppendFailCont', -1)
 SetCutOrCont = vop('SetCutOrCont', 1)
 cut_or_cont = FailCont()
 
+Deref = vop('Deref', 1)
+SetBinding = vop('SetBinding', 2)
 DelBinding = vop('DelBinding', 1)
 GetValue = vop('GetValue', 1)
 
 SetParseState = vop('SetParseState', 1)
 ParseState = vop('parse_state', 0)
 parse_state = ParseState()
-
-EmptyList = vop('empty_list', 0)
-empty_list = EmptyList()
-ListAppend = vop('ListAppend', 2)
-Len = vop('Len', 1)
 
 def binary(name, symbol):
   class Binary(Element): 
@@ -824,11 +830,11 @@ def binary(name, symbol):
   Binary.symbol = symbol
   return Binary    
     
-Lt = binary('lt', '<')
-Le = binary('le', '<=')
-Eq = vop('eq', 2)
-Ne = vop('ne', 2)
-Ge = binary('ge', '>=')
-Gt = binary('gt', '>')
+Lt = binary('Lt', '<')
+Le = binary('Le', '<=')
+Eq = vop('Eq', 2)
+Ne = vop('Ne', 2)
+Ge = binary('Ge', '>=')
+Gt = binary('Gt', '>')
 
 

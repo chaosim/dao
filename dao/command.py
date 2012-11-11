@@ -34,7 +34,7 @@ def quote(compiler, cont, exp):
   
 @special
 def assign(compiler, cont, var, exp):
-    return compiler.cps_convert(exp, il.Clamda(v, il.Assign(var, v), il.Return(v)))
+    return compiler.cps_convert(exp, il.Clamda(v, il.Assign(var, v), v))
   
 @special
 def begin(compiler, cont, *exps):
@@ -107,8 +107,8 @@ def unify(compiler, cont, x, y):
   except:
     try: y_cps_convert_unify = y.cps_convert_unify
     except:
-      if x==y: return il.Return(cont(True))
-      else: return il.Return(il.failcont(True))
+      if x==y: return cont(True)
+      else: return il.failcont(True)
     return y_cps_convert_unify(x, cont)
   return x_cps_convert_unify(y, cont)
 
@@ -120,14 +120,14 @@ class BuiltinFunction(Command):
     return BuiltinFunctionCall(self.function, args)
   
   def cps_convert(self, compiler, cont):
-    return il.Lamda((params), il.Return(self.function(params)))
+    return il.Lamda((params), self.function(params))
   
 class BuiltinFunctionCall(CommandCall):
   def cps_convert(self, compiler, cont):
     #see The 90 minute Scheme to C compiler by Marc Feeley
     args = self.args
     vars = tuple(il.Var('a'+repr(i)) for i in range(len(args)))
-    fun = il.Return(cont(self.function(vars)))
+    fun = cont(self.function(vars))
     for var, arg in reversed(zip(vars, args)):
       fun = compiler.cps_convert(arg, il.Clamda(var, fun))
     return fun
@@ -156,41 +156,50 @@ def set_parse_state(compiler, cont, parse_state):
                    il.Assign(x, il.parse_state),
                    il.set_parse_state(parse_state),
                    il.AppendFailCont(il.set_parse_state(x)),
-                   il.Return(cont(v)))
+                   cont(v))
 
 @special
 def get_parse_state(compiler, cont):
-  return il.Clamda(v, il.Return(cont(il.Return(il.parse_state))))
+  return il.Clamda(v, cont(il.parse_state))
 
 @special
 def set_parse_state(compiler, cont, state):
   return il.Clamda(v,
             il.set_parse_state(state), 
-            il.Return(v))
+            v)
 
 @special
 def char(compiler, cont, argument):
   text, pos = il.Var('text'), il.Var('pos')
   if isinstance(argument, str):
     return il.Clamda(v,
-      il.assign_from_list(text, pos, il.parse_state),
-      il.If2(pos>=il.Len(text), il.Return(il.failcont(v))),
-      il.If(il.eq(argument, il.GetItem(text, pos)),
-            il.begin(il.AppendFailCont(il.set_parse_state((text, pos))),
+      il.AssignFromList(text, pos, il.parse_state),
+      il.If2(pos>=il.Len(text), il.failcont(v)),
+      il.If(il.Eq(argument, text[pos]),
+            il.begin(il.AppendFailCont(il.SetParseState((text, pos))),
                      il.SetParseState((text, pos+1)),
-                     il.Return(cont(text[pos]))),
-            il.Return(il.failcont(v))))
+                     cont(text[pos])),
+            il.failcont(v)))
   
   elif isinstance(argument, il.Var):
     return il.Clamda(v,
-      il.assign_from_list(text, pos, il.get_parse_state()),
-      il.If2(pos>=il.Len(text), il.Return(il.failcont(v))),
-      il.Unify(argument, text[pos], 
-               il.Clamda(v,
-                         il.AppendFailCont(il.set_parse_state((text, pos))),
-                         il.set_parse_state((text, pos+1)),
-                         il.Return(cont(text[pos]))), 
-               il.Return(il.failcont(v))))
+      il.AssignFromList(text, pos, il.parse_state),
+      il.If2(pos>=il.Len(text), il.failcont(v)),
+      il.Assign(argument, il.Deref(argument)),
+      il.If(il.Isinstance(argument, 'str'),
+            il.If(il.Eq(argument, text[pos]),
+                  il.begin(il.AppendFailCont(il.SetParseState((text, pos))),
+                           il.SetParseState((text, pos+1)),
+                           cont(text[pos])),
+                  il.failcont(v)),
+            il.If(il.Isinstance(argument, 'LogicVar'),
+                  il.begin(il.SetParseState((text, pos+1)),
+                           il.SetBinding(argument, text[pos]),
+                           il.AppendFailCont(
+                              il.SetParseState((text, pos)),
+                              il.DelBinding(argument)),
+                           cont(text[pos])),
+                  il.RaiseTypeError(argument))))
       
   # elif isinstance(argument, il.LogicVar) #how about this? It should be include above.
   else: raise CompileTypeError(argument)
@@ -198,10 +207,9 @@ def char(compiler, cont, argument):
 @special
 def Eoi(compiler, cont):
   '''end of parse_state'''
-  return il.Clamda(v,
-    il.If(il.parse_state[1]<il.Len(il.parse_state[0]),
-          il.Return(cont(v)),
-          il.Return(il.get_failcont(v))))
+  return il.If(il.Eq(il.parse_state[1], il.Len(il.parse_state[0])),
+          cont(v),
+          il.failcont(v))
     
 eoi = Eoi()
 
@@ -209,26 +217,25 @@ eoi = Eoi()
 def callcc(compiler, cont, fun):
   # have not been done.
   ''' call with current continuation '''
-  return il.Clamda(v, il.Return(*fun(cont, cont)))
+  return il.Clamda(v, *fun(cont, cont))
 
 @special
 def findall(compiler, cont, goal, template=None, bag=None):
   if bag is None:
-    return il.Begin(
+    return il.begin(
       il.AppendFailCont(cont(v)),
-      compiler.cps_convert(goal, il.Clamda(v, il.Return(il.failcont(v))))
+      compiler.cps_convert(goal, il.Clamda(v, il.failcont(v)))
       )
   else:
-    result = il.Var('result') # variable capture
-    return il.Begin(
+    result = il.Var('findall_result') # variable capture
+    return il.begin(
        il.Assign(result, il.empty_list()),
        il.AppendFailCont(
-          il.Return(il.Unify(bag, result, cont)(v, fc)),
-          cont(v)),
+          compiler.cps_convert(unify(bag, result), cont)),
         compiler.cps_convert(goal, 
           il.Clamda(v, 
-            il.list_append(result, il.getvalue(template)),
-            il.Return(il.failcont(v))))
+            il.ListAppend(result, il.GetValue(template)),
+            il.failcont(v)))
         )
   
 greedy, nongreedy, lazy = 0, 1, 2
@@ -240,16 +247,16 @@ def may(item, mode=greedy):
 
 @special
 def _may(compiler, cont, item):
-  return compiler.cps_convert(clause, cont, il.Clamda(v,  il.Return(cont(v))))
+  return compiler.cps_convert(clause, cont, il.Clamda(v,  cont(v)))
 
 @special
 def _lazy_may(compiler, cont, item):
-  return il.Clamda(v, il.Return(cont(v, compiler.cps_convert(item, cont))))
+  return il.Clamda(v, cont(v, compiler.cps_convert(item, cont)))
 
 @special
 def _greedy_may(compiler, cont, item):
-  return compiler.cps_convert(item, il.Clamda(v, il.Return(cont(v))), 
-                                      il.Clamda(v, il.Return(cont(v))))
+  return compiler.cps_convert(item, il.Clamda(v, cont(v)), 
+                                      il.Clamda(v, cont(v)))
 
 # infinite recursive, maxizism recursive level
 # solutions: trampoline
@@ -257,34 +264,31 @@ def _greedy_may(compiler, cont, item):
 def repeat(compiler, cont):
   function = il.Var('function')
   return il.begin(il.SetFailCont(function), 
-                  il.CFunction(function, v, il.Return(cont(v))))
+                  il.CFunction(function, v, cont(v)))
 
 repeat = repeat()
 
 @special
 def _any(compiler, cont, item):
-  function = il.Var('function')
-  #v1, fc1 = il.Var('v1'), il.Var('fc1')
-  return il.Clamda(v, 
-                   il.CFunction(function, v, 
-                                compiler.cps_convert(item, function,
-                                                     il.Clamda(v, il.Return(cont(v))))
-                                )(v)
-                   )
+  any_cont = il.Var('any_cont')
+  return il.CFunction(any_cont, v, 
+                il.AppendFailCont(cont(v)),
+                compiler.cps_convert(item, any_cont))(None)
 
+  
 @special
 def _lazy_any(compiler, cont, item):
   function = il.Var('function')
-  return  il.Clamda(v, il.Return(cont(v, 
+  return  il.Clamda(v, cont(v, 
               il.CFunction(function, v, fc, 
                            compiler.cps_convert(item, 
                                                 il.Clamda(v, cont(v, function)), 
-                                                fcont)))))
+                                                fcont))))
                              
 @special
 def _greedy_any(compiler, cont, item):
   function = il.Var('function')
   return il.CFunction(function, v, 
-                      il.Return(compiler.cps_convert(item, function, cont)(None, cont))
+                      compiler.cps_convert(item, function, cont)(None, cont)
                       )
 

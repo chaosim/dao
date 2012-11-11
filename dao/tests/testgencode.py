@@ -17,7 +17,7 @@ class Done(il.Clamda):
   def __repr__(self): return 'done()'
   
 def done():
-  return Done(v, fc, il.Return(v))
+  return Done(v, v)
 
 def compile(exp):
   return to_code(Compiler().cps(exp, done(), None))
@@ -27,7 +27,7 @@ class TestGenerateCode:
   def test_simple(self):
     eq_(to_code(1), '1')
     eq_(to_code(il.Var('a')), 'a')
-    eq_(to_code(il.Return('a')), "'a'")
+    eq_(to_code('a'), "'a'")
     eq_(to_code(il.Assign(v, 1)), "v = 1")
     eq_(to_code(il.add((v, 1))), "v+1")
     
