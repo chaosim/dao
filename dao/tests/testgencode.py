@@ -2,8 +2,8 @@
 
 from nose.tools import eq_, ok_, assert_raises
 
-from dao.compile import Compiler
-from dao.gencode import CodeGenerator, to_code
+from dao.compilebase import Compiler, CodeGenerator
+from dao.compile import to_code, cps
 from dao.command import begin, quote, assign, if_, LogicVar
 from dao.command import add
 from dao.command import fail, succeed, or_, unify
@@ -20,7 +20,7 @@ def done():
   return Done(v, v)
 
 def compile(exp):
-  return to_code(Compiler().cps(exp, done(), None))
+  return to_code(cps(Compiler(), exp, done()))
 
 
 class TestGenerateCode:
@@ -32,8 +32,8 @@ class TestGenerateCode:
     eq_(to_code(il.add((v, 1))), "v+1")
     
   def test_done(self):
-    eq_(to_code(done()), 'lambda v, fc: (v, fc)')
-    eq_(to_code(done()(1, None)), '(lambda v, fc: (v, fc))(1, None)')
+    eq_(to_code(done()), 'lambda v: v')
+    eq_(to_code(done()(1, None)), '(lambda v: v)(1)')
     
     
 class TestCompileGenerateCode:
@@ -44,21 +44,21 @@ class TestCompileGenerateCode:
     
   def test_quote(self):
     result = compile(quote(1))
-    expect = "(lambda v, fc: (v, fc))(1, None)"
+    expect = "(lambda v: v)(1)"
     eq_(result, expect)
     
   def test_begin(self):
     result = compile(begin(1, 2))
-    expect = '''(lambda v, fc: ((lambda v, fc: (v, fc))(2, None)))(1, None)'''
+    expect = '''(lambda v: (lambda v: v)(2))(1)'''
     eq_(result, expect)
   
   def test_assign(self):
     x = il.Var('x')
     result = compile(assign(x, 2))
-    expect = '''def function(v, fc):
+    expect = '''def function(v):
   x = v
-  return v, fc
-function(2, None)'''
+  return v
+function(2)'''
     eq_(result, expect)
 
   def test_if(self):
@@ -73,27 +73,27 @@ function(2, None)'''
 
   def test_succeed(self):
     result = compile(succeed)
-    expect = 'lambda v, fc: (v, fc)'
+    expect = 'lambda v: v'
     eq_(result, expect)
 
   def test_or(self):
     result = compile(or_(1, 2))
-    expect = '''(lambda v, fc: (v, fc))(1, (lambda v, fc: (v, fc))(2, None))'''
+    expect = '''(lambda v: v)(1, (lambda v: v)(2))'''
     eq_(result, expect)
     
   def test_unify(self):
     eq_(compile(unify(1, 2)), 'None')    
-    eq_(compile(unify(1, 1)), 'lambda v, fc: (v, fc)') 
+    eq_(compile(unify(1, 1)), 'lambda v: v') 
     
   def test_unify2(self):
     x = il.LogicVar('x')
     result = compile(unify(x, 2))
-    expect = '''unify(LogicVar('x'), 2, lambda v, fc: (v, fc), None)'''
+    expect = '''unify(LogicVar('x'), 2, lambda v: v)'''
     eq_(result, expect)
     
     
   def test_add(self):
     result = compile(add(1, 2))
-    expect ='''(lambda a0, fc: ((lambda a1, fc: ((lambda v, fc: (v, fc))(a0+a1, fc)))(2, None)))(1, None)'''
+    expect ='''(lambda a0: ((lambda a1: ((lambda v: v)(a0+a1)))(2)))(1)'''
     eq_(result, expect)
     

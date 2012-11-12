@@ -222,14 +222,14 @@ and_p(a,b,c):
     y1 = deref(y)
     if isinstance(x1, LogicVar):
       save_fc(fc1)
-      set_fcont(clambda(x2, x1.binding = x1, return (False, fc1))
+      set_fcont(clambda(x2, x1.binding = x1, return False)
       x1.binding = y1
     elif isinstance(y1, LogicVar):
       save_fc(fc1)
       set_fcont(clambda(x2, y1.binding = y1, return (False, fc1))
       y1.binding = x1
     elif x1!=y1:
-      return (False, fc1)
+      return False
     else:  
       return (True, cont)
   unify_list(x,y), cont

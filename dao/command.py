@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import dao.interlang as il
+from dao.compile import cps_convert
+from dao.interlang import cps_convert_exps
 
 v, fc = il.Var('v'), il.Var('fc')
 
@@ -34,21 +36,21 @@ def quote(compiler, cont, exp):
   
 @special
 def assign(compiler, cont, var, exp):
-    return compiler.cps_convert(exp, il.Clamda(v, il.Assign(var, v), v))
+    return cps_convert(compiler, exp, il.Clamda(v, il.Assign(var, v), v))
   
 @special
 def begin(compiler, cont, *exps):
-    return compiler.cps_convert_exps(exps, cont)
+    return cps_convert_exps(compiler, exps, cont)
     
 @special
 def if_(compiler, cont, test, then, else_):
   if else_ is None:
-    return compiler.cps_convert(test, 
-            il.Clamda(v, il.If2(v, compiler.cps_convert(then, cont))))
+    return cps_convert(compiler, test, 
+            il.Clamda(v, il.If2(v, cps_convert(compiler, then, cont))))
   else:
-    return compiler.cps_convert(test, 
-           il.Clamda(v, il.If(v, compiler.cps_convert(then, cont), 
-                                    compiler.cps_convert(else_, cont))))
+    return cps_convert(compiler, test, 
+           il.Clamda(v, il.If(v, cps_convert(compiler, then, cont), 
+                                    cps_convert(compiler, else_, cont))))
 
 @special
 def succeed(compiler, cont):
@@ -71,7 +73,7 @@ def cut(compiler, cont):
 def not_p(compiler, cont, clause):
   return il.Begin(il.Assign(fc, il.failcont), 
                   il.SetFailCont(cont),
-                  compiler.cps_convert(clause, fc))
+                  cps_convert(compiler, clause, fc))
   
 #@special
 #def cut_or(compiler, cont):
@@ -85,20 +87,20 @@ def or_(compiler, cont, clause1, clause2):
   return il.begin(
   il.Assign(cut_or_cont, il.cut_or_cont),
   il.SetCutOrCont(il.failcont),  
-  il.AppendFailCont(compiler.cps_convert(clause2, or_cont)),
-  compiler.cps_convert(clause1, or_cont))
+  il.AppendFailCont(cps_convert(compiler, clause2, or_cont)),
+  cps_convert(compiler, clause1, or_cont))
 
 @special
 def first_p(compiler, cont, clause1, clause2):
   first_cont = il.Clamda(v, il.SetFailCont(fc), cont(v))
   return il.Begin(
     il.Assign(fc, il.failcont),
-    il.AppendFailCont(compiler.cps_convert(clause2, first_cont)),
-    compiler.cps_convert(clause1, first_cont))
+    il.AppendFailCont(cps_convert(compiler, clause2, first_cont)),
+    cps_convert(compiler, clause1, first_cont))
 
 @special
 def if_p(compiler, cont, condition, action):
-  return compiler.cps_convert(condition,  il.Clamda(v, compiler.cps_convert(action, cont)))
+  return cps_convert(compiler, condition,  il.Clamda(v, cps_convert(compiler, action, cont)))
 
 @special
 def unify(compiler, cont, x, y):
@@ -129,7 +131,7 @@ class BuiltinFunctionCall(CommandCall):
     vars = tuple(il.Var('a'+repr(i)) for i in range(len(args)))
     fun = cont(self.function(vars))
     for var, arg in reversed(zip(vars, args)):
-      fun = compiler.cps_convert(arg, il.Clamda(var, fun))
+      fun = cps_convert(compiler, arg, il.Clamda(var, fun))
     return fun
      
 add = BuiltinFunction(il.add)
@@ -224,15 +226,15 @@ def findall(compiler, cont, goal, template=None, bag=None):
   if bag is None:
     return il.begin(
       il.AppendFailCont(cont(v)),
-      compiler.cps_convert(goal, il.Clamda(v, il.failcont(v)))
+      cps_convert(compiler, goal, il.Clamda(v, il.failcont(v)))
       )
   else:
     result = il.Var('findall_result') # variable capture
     return il.begin(
        il.Assign(result, il.empty_list()),
        il.AppendFailCont(
-          compiler.cps_convert(unify(bag, result), cont)),
-        compiler.cps_convert(goal, 
+          cps_convert(compiler, unify(bag, result), cont)),
+        cps_convert(compiler, goal, 
           il.Clamda(v, 
             il.ListAppend(result, il.GetValue(template)),
             il.failcont(v)))
@@ -247,15 +249,15 @@ def may(item, mode=greedy):
 
 @special
 def _may(compiler, cont, item):
-  return compiler.cps_convert(clause, cont, il.Clamda(v,  cont(v)))
+  return cps_convert(compiler, clause, cont, il.Clamda(v,  cont(v)))
 
 @special
 def _lazy_may(compiler, cont, item):
-  return il.Clamda(v, cont(v, compiler.cps_convert(item, cont)))
+  return il.Clamda(v, cont(v, cps_convert(compiler, item, cont)))
 
 @special
 def _greedy_may(compiler, cont, item):
-  return compiler.cps_convert(item, il.Clamda(v, cont(v)), 
+  return cps_convert(compiler, item, il.Clamda(v, cont(v)), 
                                       il.Clamda(v, cont(v)))
 
 # infinite recursive, maxizism recursive level
@@ -273,15 +275,15 @@ def _any(compiler, cont, item):
   any_cont = il.Var('any_cont')
   return il.CFunction(any_cont, v, 
                 il.AppendFailCont(cont(v)),
-                compiler.cps_convert(item, any_cont))(None)
+                cps_convert(compiler, item, any_cont))(None)
 
   
 @special
 def _lazy_any(compiler, cont, item):
   function = il.Var('function')
   return  il.Clamda(v, cont(v, 
-              il.CFunction(function, v, fc, 
-                           compiler.cps_convert(item, 
+              il.CFunction(function, v, 
+                           cps_convert(compiler, item, 
                                                 il.Clamda(v, cont(v, function)), 
                                                 fcont))))
                              
@@ -289,6 +291,6 @@ def _lazy_any(compiler, cont, item):
 def _greedy_any(compiler, cont, item):
   function = il.Var('function')
   return il.CFunction(function, v, 
-                      compiler.cps_convert(item, function, cont)(None, cont)
+                      cps_convert(compiler, item, function, cont)(None, cont)
                       )
 

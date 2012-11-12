@@ -1,10 +1,7 @@
 from dao.base import classeq
-
-def collocate(defs, exp):
-  if defs:
-    return Begin(defs + (exp,))
-  else: 
-    return exp
+from dao.compile import cps_convert, alpha_convert, optimization_analisys, optimize_once
+from dao.compile import side_effects, optimize, subst, code_size, MAX_EXTEND_CODE_SIZE
+from dao.compilebase import VariableNotBound
 
 class Element:
   have_side_effects = True
@@ -41,6 +38,14 @@ class Element:
     return 'il.%s(%s)'%(self.__class__.__name__, 
               ', '.join([repr(x) for x in self.args]))
    
+def cps_convert_exps(compiler, exps, cont):
+  v = Var('v')
+  if not exps: return Clamda(v, cont(il.tuple()))
+  if len(exps)==1:
+    return cps_convert(compiler, exps[0], cont)
+  else:
+    return cps_convert(compiler, exps[0], Clamda(v, cps_convert_exps(compiler, exps[1:], cont)))
+
 class Lamda(Element):
   def __init__(self, params, *body):
     self.params, self.body = params, body
@@ -58,14 +63,14 @@ class Lamda(Element):
     for p in self.params: 
       new_env.bindings[p] = new_env.new_var(p)
     self.params = tuple(new_env[p] for p in self.params)
-    self.body = tuple(new_env.alpha_convert(x) for x in self.body)
+    self.body = tuple(alpha_convert(x, new_env) for x in self.body)
     self.variables = new_env.bindings.values()
     self.lefts = new_env.lefts # prepare for assign convert
     return self    
     
   def cps_convert(self, compiler, cont):
     k = Var('k')
-    return cont(Lamda(self.params+(k,), compiler.cps_convert_exps(self.body, k)))
+    return cont(Lamda(self.params+(k,), cps_convert_exps(compiler, self.body, k)))
   
   def assign_convert(self, alpha_env, env):
     try:
@@ -80,13 +85,13 @@ class Lamda(Element):
     self.body = (let(make_cells, *tuple(assign_convert(x, alpha_env, new_env) for x in self.body)),)
     return self
     
-  def analyse_before_optimize(self, data):
+  def optimization_analisys(self, data):
     try: self.seen
     except:
       self.seen = True
       data.occur_count[self] = data.occur_count.setdefault(self, 0)+1
       for x in self.body:
-        analyse_before_optimize(x, data)
+        optimization_analisys(x, data)
         
   def code_size(self):
       return code_size(self.body)+len(self.params)+2
@@ -136,10 +141,10 @@ class Function(Lamda):
     Lamda.__init__(self, params, *body)
     self.name = name
   
-  def analyse_before_optimize(self, data):
+  def optimization_analisys(self, data):
     data.occur_count[self] = data.occur_count.setdefault(self, 0)+1
     for x in self.body:
-      analyse_before_optimize(x, data)
+      optimization_analisys(x, data)
   
   def to_code(self, coder):
     head = "def %s(%s):\n" % (self.name, ', '.join(coder.to_code_list(self.params)))
@@ -153,10 +158,10 @@ class Clamda(Lamda):
     self.params, self.body = (v, ), exps
     self.name = None
     
-  def analyse_before_optimize(self, data):
+  def optimization_analisys(self, data):
     data.occur_count[self] = data.occur_count.setdefault(self, 0)+1
     for x in self.body:
-      analyse_before_optimize(x, data)
+      optimization_analisys(x, data)
     
   def __repr__(self):
     return 'il.Clamda(%r, %s)'%(self.params[0], ', '.join([repr(x) for x in self.body]))
@@ -177,10 +182,10 @@ class CFunction(Clamda):
     Clamda.__init__(self,  v, *body)
     self.name = name
     
-  def analyse_before_optimize(self, data):
+  def optimization_analisys(self, data):
     data.occur_count[self] = data.occur_count.setdefault(self, 0)+1
     for x in self.body:
-      analyse_before_optimize(x, data)
+      optimization_analisys(x, data)
     
   def __repr__(self):
     return 'il.CFunction(%r, %r, %s)'%(self.name, self.params[0], ', '.join([repr(x) for x in self.body]))
@@ -190,34 +195,34 @@ class Apply(Element):
     self.caller, self.args = caller, args
 
   def alpha_convert(self, env):
-    return self.__class__(env.alpha_convert(self.caller), 
-                 tuple(env.alpha_convert(arg) for arg in self.args))
+    return self.__class__(alpha_convert(self.caller, env), 
+                 tuple(alpha_convert(arg, env) for arg in self.args))
   
   def cps_convert(self, compiler, cont):
     # see The 90 minute Scheme to C compiler by Marc Feeley
     if isinstance(self.caller, Lamda):
       args = self.args
-      fun = compiler.cps_convert_exps(self.caller.body, cont)
+      fun = cps_convert_exps(compiler, self.caller.body, cont)
       for var, arg in reversed(zip(self.caller.params, args)):
-        fun = compiler.cps_convert(arg, Clamda(var, fun))
+        fun = cps_convert(compiler, arg, Clamda(var, fun))
       return fun
     else:
       function = Var('function')
       vars = tuple(Var('a'+repr(i)) for i in range(len(self.args)))
       fun = Apply(function, (cont,)+vars)
       for var, self in reversed(zip((function,)+vars, (self.caller,)+self.args)):
-        fun = compiler.cps_convert(self, Clamda(var, fun))
+        fun = cps_convert(compiler, self, Clamda(var, fun))
       return fun
 
   def assign_convert(self, alpha_env, env):
     return self.__class__(assign_convert(self.caller, alpha_env, env), 
                  tuple(assign_convert(arg, alpha_env, env) for arg in self.args))    
     
-  def analyse_before_optimize(self, data):  
+  def optimization_analisys(self, data):  
     data.called_count[self.caller] = data.called_count.setdefault(self.caller, 0)+1
-    analyse_before_optimize(self.caller, data)
+    optimization_analisys(self.caller, data)
     for arg in self.args:
-      analyse_before_optimize(arg, data)
+      optimization_analisys(arg, data)
         
   def code_size(self):
     return code_size(self.caller)+sum([code_size(x) for x in self.args])
@@ -288,9 +293,9 @@ class Apply(Element):
             return Apply(Lamda(new_params, caller_body), args), changed1 or changed2
       else:
         if bindings:
-          return optimize(subst(statements(self.caller.body), bindings), data), True
+          return optimize(subst(begin(*self.caller.body), bindings), data), True
         else:
-          return optimize(statements(self.caller.body), data), True               
+          return optimize(begin(*self.caller.body), data), True               
     else: 
       changed = False
       caller, changed1 = optimize_once(self.caller, data)
@@ -350,7 +355,7 @@ class Var(Element):
       return contents(env[self])
     else: return self
     
-  def analyse_before_optimize(self, data):
+  def optimization_analisys(self, data):
     data.ref_count[self] = data.ref_count.setdefault(self, 0)+1    
     
   def code_size(self):
@@ -386,7 +391,7 @@ class Var(Element):
   def __repr__(self):
     return self.name #enough in tests
     
-class LogicVar(Element):
+class LogicVar(Var):
   def __init__(self, name):
     self.name = name
   
@@ -397,7 +402,8 @@ class LogicVar(Element):
     return self
     
   def cps_convert_unify(self, other, cont):
-    return begin(AppendFailCont(DelBinding(self)),
+    return begin(SetBinding(self, other),
+                 AppendFailCont(DelBinding(self)),
                  cont(True))
   
   def pythonize(self, env):
@@ -423,9 +429,9 @@ class Return(Element):
   def assign_convert(self, alpha_env, env):
     return Return(*tuple(assign_convert(arg, alpha_env, env) for arg in self.args))
     
-  def analyse_before_optimize(self, data):  
+  def optimization_analisys(self, data):  
     for arg in self.args:
-      analyse_before_optimize(arg, data)
+      optimization_analisys(arg, data)
         
   def code_size(self):
     return sum([code_size(x) for x in self.args])
@@ -478,15 +484,15 @@ class Assign(Element):
     except VariableNotBound:
       converted_var = env.bindings[self.var] = env.new_var(self.var)
     env.lefts.add(converted_var)
-    return Assign(converted_var, env.alpha_convert(self.self))
+    return Assign(converted_var, alpha_convert(self.exp, env))
     
   def assign_convert(self, alpha_env, env):
     # var = value, exp.exp should be a single var, 
     # which is the continuation param which ref to the value    
     return set_contents(env[self.var], self.exp)
   
-  def analyse_before_optimize(self, data):  
-    analyse_before_optimize(self.exp, data)
+  def optimization_analisys(self, data):  
+    optimization_analisys(self.exp, data)
       
   def code_size(exp):
     # var = value, exp.exp should be a single var, 
@@ -523,18 +529,18 @@ class If(Element):
     self.test, self.then, self.else_ = test, then, else_
     
   def alpha_convert(self, env):
-    return If(env.alpha_convert(self.test), env.alpha_convert(self.then), 
-                 env.alpha_convert(self.else_))
+    return If(alpha_convert(self.test, env), alpha_convert(self.then, env), 
+                 alpha_convert(self.else_, env))
 
   def assign_convert(self, alpha_env, env):
     return If(assign_convert(self.test, alpha_env, env), 
                  assign_convert(self.then, alpha_env, env), 
                  assign_convert(self.else_, alpha_env, env))
     
-  def analyse_before_optimize(self, data):  
-    analyse_before_optimize(self.test, data)
-    analyse_before_optimize(self.then, data)
-    analyse_before_optimize(self.else_, data)
+  def optimization_analisys(self, data):  
+    optimization_analisys(self.test, data)
+    optimization_analisys(self.then, data)
+    optimization_analisys(self.else_, data)
     
   def code_size(self):
     return 3 + code_size(self.test) + \
@@ -561,9 +567,9 @@ class If(Element):
       if result.else_.test==result.test:
         result = If(result.test, result.then, result.else_.else_)
         changed = True
-    test, test_changed = optimize_once(self.test, data)
-    then, then_changed = optimize_once(self.then, data)
-    else_, else__changed = optimize_once(self.else_, data)
+    test, test_changed = optimize_once(result.test, data)
+    then, then_changed = optimize_once(result.then, data)
+    else_, else__changed = optimize_once(result.else_, data)
     result = If(test, then, else_)
     #if isinstance(result.test, Let):
       #result = Let(result.bindings, If(Begin(let.body), 
@@ -602,9 +608,9 @@ class If2(Element):
     return If(assign_convert(self.test, alpha_env, env), 
                  assign_convert(self.then, alpha_env, env))
     
-  def analyse_before_optimize(self, data):  
-    analyse_before_optimize(self.test, data)
-    analyse_before_optimize(self.then, data)
+  def optimization_analisys(self, data):  
+    optimization_analisys(self.test, data)
+    optimization_analisys(self.then, data)
     
   def code_size(self):
     return 3 + code_size(self.test) + \
@@ -647,11 +653,11 @@ class Unify(Element):
     return Unify(assign_convert(self.left, alpha_env, env), assign_convert(self.right, alpha_env, env),
                  assign_convert(self.cont, alpha_env, env), assign_convert(self.fcont, alpha_env, env))
     
-  def analyse_before_optimize(self, data):  
-    analyse_before_optimize(self.left, data)
-    analyse_before_optimize(self.right, data)
-    analyse_before_optimize(self.cont, data)
-    analyse_before_optimize(self.fcont, data)
+  def optimization_analisys(self, data):  
+    optimization_analisys(self.left, data)
+    optimization_analisys(self.right, data)
+    optimization_analisys(self.cont, data)
+    optimization_analisys(self.fcont, data)
 
   def side_effects(self):
       return False
@@ -678,8 +684,8 @@ class Unify(Element):
     return 'unify(%s, %s, %s, %s)' % (coder.to_code(self.left), coder.to_code(self.right), 
                                      coder.to_code(self.cont), coder.to_code(self.fcont))
     
-  def __call__(self, v, fc):
-    return Apply(self, (v, fc))
+  def __call__(self, v):
+    return Apply(self, (v,))
     
   def __eq__(x, y):
     return classeq(x, y) and x.left==y.left and x.right==y.right and x.cont==y.cont and x.fcont==y.fcont
@@ -715,7 +721,7 @@ class BinaryOperation(Element):
   def alpha_convert(self, env):
     return self
   
-  def analyse_before_optimize(self, data):  
+  def optimization_analisys(self, data):  
     return self
   
   def subst(self, bindings):  
@@ -743,12 +749,25 @@ class BinaryOperation(Element):
 
 add = BinaryOperation('add', '+', False)
 
+def collocate(defs, exp):
+  if defs:
+    return Begin(defs + (exp,))
+  else: 
+    return exp
+
 class Begin(Element):
   is_statement = True
   
   def __init__(self, statements):
     self.statements = statements
     
+  def alpha_convert(self, env):
+    return Begin(tuple([alpha_convert(x, env) for x in self.statements]))
+  
+  def optimization_analisys(self, data):  
+    for x in self.statements:
+      optimization_analisys(x, data)  
+  
   def subst(self, bindings):  
     return Begin(tuple(subst(x, bindings) for x in self.statements))
           
@@ -759,7 +778,7 @@ class Begin(Element):
       x, x_changed = optimize_once(x, data)
       result.append(x)
       changed = changed or x_changed
-    return statements(tuple(result)), changed
+    return begin(tuple(result)), changed
         
   def to_code(self, coder):
     return  '\n'.join([coder.to_code(x) for x in self.statements])
@@ -776,9 +795,25 @@ def begin(*exps):
     return exps[0]
   else:
     return Begin(exps)
+
+class VirtualOperation(Element):
+  def alpha_convert(self, env):
+    return self
+  
+  def optimization_analisys(self, data):  
+    return self
+  
+  def subst(self, bindings):  
+    return self
+
+  def optimize_once(self, data):
+    return self, False
+  
+  def __hash__(self):
+    return hash(self.__class__.__name__)
   
 def vop(name, arity):
-  class Vop(Element): pass
+  class Vop(VirtualOperation): pass
   Vop.__name__ = name
   Vop.arity = arity
   return Vop

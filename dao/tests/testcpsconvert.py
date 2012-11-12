@@ -2,7 +2,8 @@
 
 from nose.tools import eq_, ok_, assert_raises
 
-from dao.compile import Compiler, AlphaConvertEnvironment, VariableNotBound
+import dao
+from dao.compilebase import Compiler, AlphaConvertEnvironment, VariableNotBound
 from dao.compile import trampoline
 from dao.command import begin, quote, assign, if_, LogicVar, let, letrec
 from dao.command import add
@@ -18,10 +19,10 @@ class Done(il.Clamda):
   def __repr__(self): return 'done()'
   
 def done():
-  return Done(v, fc, v)
+  return Done(v, v)
   
 def cps_convert(exp):
-  return Compiler().cps(exp, done())
+  return dao.compile.cps_convert(Compiler(), exp, done())
 
 class TestCPSConvert:
   def test_integer(self):
@@ -92,7 +93,8 @@ class TestCPSConvert:
   def test_unify2(self):
     x = LogicVar('x')
     result = cps_convert(unify(x, 2))
-    expect = il.begin(il.AppendFailCont(il.DelBinding(x)), 
+    expect = il.begin(il.SetBinding(x, 2),
+                      il.AppendFailCont(il.DelBinding(x)), 
                       done()(True))
     eq_(result, expect)
     

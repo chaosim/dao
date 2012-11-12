@@ -3,8 +3,8 @@
 
 from nose.tools import eq_, ok_, assert_raises
 
-from dao.compile import Compiler, AlphaConvertEnvironment
-from dao.optimize import optimize, OptimizationData, analyse_before_optimize
+from dao.compilebase import Compiler, AlphaConvertEnvironment, OptimizationData
+from dao.compile import optimize, optimization_analisys, cps_convert, alpha_convert
 from dao.command import begin, quote, assign, if_, LogicVar
 from dao.command import add
 from dao.command import fail, succeed, or_, unify
@@ -21,13 +21,13 @@ class Done(il.Clamda):
   def __repr__(self): return 'done()'
   
 def done():
-  return Done(v, fc, v)
+  return Done(v, v)
 
 def compile_optimize(exp):
-  exp = Compiler().cps(exp, done())
-  exp = AlphaConvertEnvironment().alpha_convert(exp)
+  exp = cps_convert(Compiler(), exp, done())
+  exp = alpha_convert(exp, AlphaConvertEnvironment())
   optimize_data = OptimizationData()
-  analyse_before_optimize(exp, optimize_data)
+  optimization_analisys(exp, optimize_data)
   return optimize(exp, optimize_data)
 
 class TestSimple:
@@ -49,7 +49,7 @@ class TestSimple:
   def test_assign(self):
     x = il.Var('x')
     result = compile_optimize(assign(x, 2))
-    expect = il.Begin((il.Assign(x, 2), 2))
+    expect = (il.Assign(x, 2), 2)
     eq_(result, expect)
 
   def test_if(self):
@@ -59,63 +59,74 @@ class TestSimple:
   
   def test_fail(self):
     result = compile_optimize(fail)
-    expect = None
+    expect = il.failcont(True)
     eq_(result, expect)
 
   def test_succeed(self):
     result = compile_optimize(succeed)
-    expect = done()
+    expect = True
     eq_(result, expect)
 
   def test_or(self):
+    cut_or_cont = il.Var('cut_or_cont')
+    v1 = il.Var('v1')
     result = compile_optimize(or_(1, 2))
-    expect = 1
+    expect = (il.Assign(cut_or_cont, il.failcont), 
+              il.SetCutOrCont(il.failcont), 
+              il.AppendFailCont(
+                il.Clamda(v, 
+                          il.SetCutOrCont(cut_or_cont), 
+                          Done(v1, v1)(v))
+                (2)), 
+              (il.SetCutOrCont(cut_or_cont), 1))
     eq_(result, expect)
     
   def test_unify(self):
-    eq_(compile_optimize(unify(1, 2)), None)    
-    eq_(compile_optimize(unify(1, 1)), done()) 
+    eq_(compile_optimize(unify(1, 2)), il.failcont(True))    
+    eq_(compile_optimize(unify(1, 1)), True) 
     
   def test_unify2(self):
     x = LogicVar('x')
     result = compile_optimize(unify(x, 2))
-    expect = Clamda(v, ret(il.unify(x, 2, done(), None)))
+    expect = (il.SetBinding(x, 2),
+              il.AppendFailCont(il.DelBinding(x)), 
+              True)
     eq_(result, expect)
     
   def test_add(self):
     result = compile_optimize(add(1, 2))
-    expect = il.add(1, 2)
+    expect = il.add((1, 2))
     eq_(result, expect)
 
-def test_optimize(exp):
+def optimize_it(exp):
   data = OptimizationData()
-  analyse_before_optimize(exp, data)
+  optimization_analisys(exp, data)
   return optimize(exp, data)
 
 class TestOptimize:
   def test_if(self):
-    result = test_optimize(il.If(1, il.If(1, 2, 3), 4))
+    result = optimize_it(il.If(1, il.If(1, 2, 3), 4))
     expect = il.If(1, 2, 4)
     eq_(result, expect)
     
   def test_if2(self):
-    result = test_optimize(il.If(1, 2, il.If(1, 3, 4)))
+    result = optimize_it(il.If(1, 2, il.If(1, 3, 4)))
     expect = il.If(1, 2, 4)
     eq_(result, expect)
     
   def test_if3(self):
-    result = test_optimize(il.If(1, il.If(1, 2, 3), il.If(1, 4, 5)))
+    result = optimize_it(il.If(1, il.If(1, 2, 3), il.If(1, 4, 5)))
     expect = il.If(1, 2, 5)
     eq_(result, expect)
     
   def test_lambda_apply(self):
-    result = test_optimize(il.Clamda(v, 1)(v))
+    result = optimize_it(il.Clamda(v, 1)(v))
     expect = 1
     eq_(result, expect)
   
   def test_lambda_apply2(self):
-    v1, fc1 = il.Var('v1'), il.Var('fc1')
-    result = test_optimize(il.Clamda(v1, v1))(v)
+    v1 = il.Var('v1')
+    result = optimize_it(il.Clamda(v1, v1)(v))
     expect = v
     eq_(result, expect)
     
