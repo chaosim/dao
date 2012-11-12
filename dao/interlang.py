@@ -1,7 +1,29 @@
 from dao.base import classeq
 from dao.compile import cps_convert, alpha_convert, optimization_analisys, optimize_once
 from dao.compile import side_effects, optimize, subst, code_size, MAX_EXTEND_CODE_SIZE
+from dao.compile import pythonize, to_code, to_code_list
 from dao.compilebase import VariableNotBound
+
+def is_statement(exp):
+  try: return exp.is_statement
+  except:
+    if isinstance(exp, list) or isinstance(exp, tuple) or\
+      ( isinstance(exp, int) or isinstance(exp, float)
+        or isinstance(exp, str) or isinstance(exp, unicode)):
+      return False
+  raise CompileTypeError(exp)
+  
+def pythonize_list(exps, env):
+  defs = ()
+  exps2 = ()    
+  for x in exps:
+    exp = pythonize(x, env)
+    if isinstance(exp, Function):
+      defs += (exp,)
+      exps2 += (exp.name,)
+    else:
+      exps2 += (exp,)
+  return defs, exps2
 
 class Element:
   have_side_effects = True
@@ -120,9 +142,12 @@ class Lamda(Element):
       return Function(env.new_var(Var('function')), self.params, *body_exps)
         
   def to_code(self, coder):
-    head = "lambda %s: " % ', '.join(coder.to_code_list(self.params))
+    head = "lambda %s: " % ', '.join(to_code_list(coder, self.params))
     coder.lambda_stack.append(self)
-    result = head + '(%s)'%', '.join(coder.to_code_list(self.body))
+    if len(self.body)==1:
+      result = head + '%s'%', '.join(to_code_list(coder, self.body))
+    else:
+      result = head + '(%s)'%', '.join(to_code_list(coder, self.body))
     coder.lambda_stack.pop()
     return result
         
@@ -147,9 +172,9 @@ class Function(Lamda):
       optimization_analisys(x, data)
   
   def to_code(self, coder):
-    head = "def %s(%s):\n" % (self.name, ', '.join(coder.to_code_list(self.params)))
+    head = "def %s(%s):\n" % (self.name, ', '.join(to_code_list(coder, self.params)))
     coder.lambda_stack.append(self)
-    result =  head + coder.indent('\n'.join(coder.to_code_list(self.body)))
+    result =  head + coder.indent('\n'.join(to_code_list(coder, self.body)))
     coder.lambda_stack.pop()
     return result
           
@@ -314,9 +339,9 @@ class Apply(Element):
     
   def to_code(self, coder):
     if isinstance(self.caller, Lamda):
-      return "(%s)"%coder.to_code(self.caller) + '(%s)'%', '.join([coder.to_code(x) for x in self.args])
+      return "(%s)"%to_code(coder, self.caller) + '(%s)'%', '.join([to_code(coder, x) for x in self.args])
     else:
-      return coder.to_code(self.caller) + '(%s)'%', '.join([coder.to_code(x) for x in self.args])        
+      return to_code(coder, self.caller) + '(%s)'%', '.join([to_code(coder, x) for x in self.args])        
 
   def __eq__(x, y):
     return classeq(x, y) and x.caller==y.caller and x.args==y.args
@@ -464,9 +489,9 @@ class Return(Element):
     
   def to_code(self, coder):
     if coder.lambda_stack and isinstance(coder.lambda_stack[-1], Function):
-      return  'return %s' % ', '.join([coder.to_code(x) for x in self.args])
+      return  'return %s' % ', '.join([to_code(coder, x) for x in self.args])
     else:
-      return  ', '.join([coder.to_code(x) for x in self.args])
+      return  ', '.join([to_code(coder, x) for x in self.args])
     
   def __eq__(x, y):
     return classeq(x, y) and x.args==y.args
@@ -516,7 +541,7 @@ class Assign(Element):
     return self
     
   def to_code(self, coder):
-    return  '%s = %s' % (coder.to_code(self.var), coder.to_code(self.exp))
+    return  '%s = %s' % (to_code(coder, self.var), to_code(coder, self.exp))
     
   def __eq__(x, y):
     return classeq(x, y) and x.var==y.var and x.exp==y.exp
@@ -582,11 +607,11 @@ class If(Element):
     
   def to_code(self, coder):
     if coder.lambda_stack and isinstance(coder.lambda_stack[-1], Function):
-      return 'if %s: \n%s\nelse:\n%s' % (coder.to_code(self.test), coder.indent(coder.to_code(self.then)), 
-                                       coder.indent(coder.to_code(self.else_)))        
+      return 'if %s: \n%s\nelse:\n%s' % (to_code(coder, self.test), coder.indent(to_code(coder, self.then)), 
+                                       coder.indent(to_code(coder, self.else_)))        
     else:
-      return '%s if %s else %s' % (coder.to_code(self.then), coder.to_code(self.test), 
-                                       coder.to_code(self.else_))        
+      return '%s if %s else %s' % (to_code(coder, self.then), to_code(coder, self.test), 
+                                       to_code(coder, self.else_))        
   def __eq__(x, y):
     return classeq(x, y) and x.test==y.test and x.then==y.then and x.else_==y.else_
   
@@ -633,7 +658,7 @@ class If2(Element):
     return collocate(defs, If2(test, then))
     
   def to_code(self, coder):
-    return 'if %s: \n%s\n' % (coder.to_code(self.test), coder.indent(coder.to_code(self.then)))
+    return 'if %s: \n%s\n' % (to_code(coder, self.test), coder.indent(to_code(coder, self.then)))
 
   def __eq__(x, y):
     return classeq(x, y) and x.test==y.test and x.then==y.then
@@ -681,8 +706,8 @@ class Unify(Element):
     return collocate(defs, Unify(left, right, cont))
     
   def to_code(self, coder):
-    return 'unify(%s, %s, %s, %s)' % (coder.to_code(self.left), coder.to_code(self.right), 
-                                     coder.to_code(self.cont), coder.to_code(self.fcont))
+    return 'unify(%s, %s, %s, %s)' % (to_code(coder, self.left), to_code(coder, self.right), 
+                                     to_code(coder, self.cont), to_code(coder, self.fcont))
     
   def __call__(self, v):
     return Apply(self, (v,))
@@ -709,9 +734,9 @@ class BinaryOperationApply(Apply):
     return '%r(%r)'%(self.caller, self.args)
 
   def to_code(self, coder):
-    return '%s%s%s'%(coder.to_code(self.args[0]), 
-                        coder.to_code(self.caller), 
-                        coder.to_code(self.args[1]))
+    return '%s%s%s'%(to_code(coder, self.args[0]), 
+                        to_code(coder, self.caller), 
+                        to_code(coder, self.args[1]))
     
 class BinaryOperation(Element):
   def __init__(self, name, operator, have_side_effects=True):
@@ -770,7 +795,10 @@ class Begin(Element):
   
   def subst(self, bindings):  
     return Begin(tuple(subst(x, bindings) for x in self.statements))
-          
+  
+  def pythonize(self, env):
+    return self
+  
   def optimize_once(self, data):
     changed = False
     result = []
@@ -781,7 +809,7 @@ class Begin(Element):
     return begin(tuple(result)), changed
         
   def to_code(self, coder):
-    return  '\n'.join([coder.to_code(x) for x in self.statements])
+    return  '\n'.join([to_code(coder, x) for x in self.statements])
       
   def __eq__(x, y):
       return classeq(x, y) and x.statements==y.statements
@@ -809,13 +837,28 @@ class VirtualOperation(Element):
   def optimize_once(self, data):
     return self, False
   
+  def pythonize(self, env): 
+    return self
+  
+  def to_code(self, coder):
+    if isinstance(self.__class__.code_format, str):
+      if self.__class__.arity==0:
+        return self.__class__.code_format
+      elif self.__class__.arity!=-1:
+        return self.__class__.code_format % tuple(to_code(coder, x) for x in self.args)
+      else:
+        return self.__class__.code_format % (', '.join([to_code(coder, x) for x in self.args]))
+    else: 
+      return self.__class__.code_format(self, self.args, coder)
+      
   def __hash__(self):
     return hash(self.__class__.__name__)
   
-def vop(name, arity):
+def vop(name, arity, code_format):
   class Vop(VirtualOperation): pass
   Vop.__name__ = name
   Vop.arity = arity
+  Vop.code_format = code_format
   return Vop
 
 class GetItem(Element):
@@ -824,36 +867,49 @@ class GetItem(Element):
   def __repr__(self):
     return '%r[%r]'%(self.args)
   
-  
-Not = vop('Not', 1)
-AssignFromList = vop('AssignFromList', -1)
-Isinstance = vop('Isinstance', 2)
-EmptyList = vop('empty_list', 0)
+Not = vop('Not', 1, "not %s")
+def AssignFromList_to_code(self, args, coder):
+  return "%s = %s" % (', '.join([to_code(x, coder) for x in args[:-1]]), to_code(args[-1], coder))
+AssignFromList = vop('AssignFromList', -1, AssignFromList_to_code)
+Isinstance = vop('Isinstance', 2, "isinstance(%s, %s)")
+EmptyList = vop('empty_list', 0, '[]')
 empty_list = EmptyList()
-ListAppend = vop('ListAppend', 2)
-Len = vop('Len', 1)
-RaiseTypeError = vop('RaiseTypeError', 1)
+ListAppend = vop('ListAppend', 2, '%s = %s')
+Len = vop('Len', 1, 'len(%s)')
+RaiseTypeError = vop('RaiseTypeError', 1, 'raise %s')
 
-SetFailCont = vop('SetFailCont', 1)
-FailCont = vop('failcont', 0)  
+SetFailCont = vop('SetFailCont', 2, 'solver.fail_cont = %s')
+FailCont = vop('failcont', 0, 'solver.fail_cont')  
 failcont = FailCont()
-AppendFailCont = vop('AppendFailCont', -1) 
+
+def AppendFailCont_code_format(self, args, coder):
+  fc = coder.newvar('old_fail_cont')
+  new_fail_cont = coder.newvar('new_fail_cont')
+  result = "%s = solver.fail_cont\n" % fc
+  result += "def %s(v):\n"%new_fail_cont
+  result += coder.indent_space+"solver.fail_cont = %s\n"%fc
+  for stmt in args:
+    result += coder.indent_space+to_code(coder, stmt)+'\n'
+  result += 'solver.fail_cont = %s' % new_fail_cont
+  return result
+AppendFailCont = vop('AppendFailCont', -1, AppendFailCont_code_format) 
 '''il.Assign(fc, get_failcont)
   SetFailCont(
     Clambda(v, 
       SetFailCont(fc),
       statements
   ))'''  
-SetCutOrCont = vop('SetCutOrCont', 1)
-cut_or_cont = FailCont()
+SetCutOrCont = vop('SetCutOrCont', 1, 'solver.cut_or_cont = %s')
+CutOrCont = vop('CutOrCont', 0, 'solver.cut_or_cont')
+cut_or_cont = CutOrCont()
 
-Deref = vop('Deref', 1)
-SetBinding = vop('SetBinding', 2)
-DelBinding = vop('DelBinding', 1)
-GetValue = vop('GetValue', 1)
+Deref = vop('Deref', 1, 'deref(%s, solver.bindings)')
+SetBinding = vop('SetBinding', 2, 'solver.bindings[%s] = %s')
+DelBinding = vop('DelBinding', 1, 'del solver.bindings[%s]')
+GetValue = vop('GetValue', 1, 'getvalue(%s, solver.bindings')
 
-SetParseState = vop('SetParseState', 1)
-ParseState = vop('parse_state', 0)
+SetParseState = vop('SetParseState', 1, 'solver.parse_state = %s')
+ParseState = vop('parse_state', 0, 'solver.parse_state')
 parse_state = ParseState()
 
 def binary(name, symbol):
@@ -867,8 +923,8 @@ def binary(name, symbol):
     
 Lt = binary('Lt', '<')
 Le = binary('Le', '<=')
-Eq = vop('Eq', 2)
-Ne = vop('Ne', 2)
+Eq = binary('Eq', '==')
+Ne = binary('Ne', '!=')
 Ge = binary('Ge', '>=')
 Gt = binary('Gt', '>')
 
