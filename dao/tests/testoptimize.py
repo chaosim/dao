@@ -3,7 +3,7 @@
 
 from nose.tools import eq_, ok_, assert_raises
 
-from dao.compilebase import Compiler, AlphaConvertEnvironment, OptimizationData
+from dao.compilebase import Compiler, Environment, OptimizationData
 from dao.compile import optimize, optimization_analisys, cps_convert, alpha_convert
 from dao.command import begin, quote, assign, if_, LogicVar
 from dao.command import add
@@ -25,7 +25,7 @@ def done():
 
 def compile_optimize(exp):
   exp = cps_convert(Compiler(), exp, done())
-  exp = alpha_convert(exp, AlphaConvertEnvironment())
+  exp = alpha_convert(exp, Environment())
   optimize_data = OptimizationData()
   optimization_analisys(exp, optimize_data)
   return optimize(exp, optimize_data)

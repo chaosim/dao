@@ -1,23 +1,24 @@
 from dao.base import classeq
-from dao.compile import cps_convert, alpha_convert, optimization_analisys, optimize_once
-from dao.compile import side_effects, optimize, subst, code_size, MAX_EXTEND_CODE_SIZE
-from dao.compile import pythonize, to_code, to_code_list
-from dao.compilebase import VariableNotBound
+from dao.compilebase import alpha_convert, cps_convert, assign_convert, find_assign_lefts
+from dao.compilebase import optimization_analisys, optimize_once
+from dao.compilebase import side_effects, optimize, subst, code_size, MAX_EXTEND_CODE_SIZE
+from dao.compilebase import insert_return_yield, pythonize, to_code, to_code_list
+from dao.compilebase import VariableNotBound, CompileTypeError
 
 def is_statement(exp):
   try: return exp.is_statement
   except:
     if isinstance(exp, list) or isinstance(exp, tuple) or\
-      ( isinstance(exp, int) or isinstance(exp, float)
-        or isinstance(exp, str) or isinstance(exp, unicode)):
+       isinstance(exp, int) or isinstance(exp, float) or\
+       isinstance(exp, str) or isinstance(exp, unicode):
       return False
   raise CompileTypeError(exp)
   
-def pythonize_list(exps, env):
+def pythonize_list(exps, env, compiler):
   defs = ()
   exps2 = ()    
   for x in exps:
-    exp = pythonize(x, env)
+    exp = pythonize(x, env, compiler)
     if isinstance(exp, Function):
       defs += (exp,)
       exps2 += (exp.name,)
@@ -75,36 +76,43 @@ class Lamda(Element):
   def __call__(self, *args):
     return Apply(self, args)
   
-  def alpha_convert(self, env):
+  def alpha_convert(self, env, compiler):
     try:
       self.before_alpha_convert
       return self
-    except: self.before_alpha_convert  = (self.params, self.body)
+    except: self.before_alpha_convert  = self.params, self.body
     
     new_env = env.extend()
     for p in self.params: 
-      new_env.bindings[p] = new_env.new_var(p)
+      new_env.bindings[p] = compiler.new_var(p)
     self.params = tuple(new_env[p] for p in self.params)
-    self.body = tuple(alpha_convert(x, new_env) for x in self.body)
+    self.body = tuple(alpha_convert(x, new_env, compiler) for x in self.body)
     self.variables = new_env.bindings.values()
-    self.lefts = new_env.lefts # prepare for assign convert
-    return self    
+    return self
     
   def cps_convert(self, compiler, cont):
-    k = Var('k')
+    k = compiler.new_var(Var('cont'))
     return cont(Lamda(self.params+(k,), cps_convert_exps(compiler, self.body, k)))
   
-  def assign_convert(self, alpha_env, env):
+  def find_assign_lefts(self):
+    #todo
+    result = set()
+    for exp in self.body:
+      result |= find_assign_lefts(exp)
+    return result
+  
+  def assign_convert(self, env, compiler):
     try:
       self.before_assign_convert
       return self
-    except: self.assign_convert = (self.params, self.body)
+    except: self.before_assign_convert = self.params, self.body
     
-    new_env = env.extend()
-    for p in self.lefts: 
-      new_env.bindings[p] = alpha_env.new_var(p)
-    make_cells = tuple((new_env[p], make_cell(p)) for p in self.lefts)
-    self.body = (let(make_cells, *tuple(assign_convert(x, alpha_env, new_env) for x in self.body)),)
+    lefts = self.find_assign_lefts()
+    for p in lefts: 
+      env.bindings[p] = compiler.new_var(p)
+    if lefts:
+      make_cells = tuple((env[p], make_cell(p)) for p in lefts)
+      self.body = let(make_cells, *tuple(assign_convert(x, env, compiler) for x in self.body))
     return self
     
   def optimization_analisys(self, data):
@@ -127,19 +135,23 @@ class Lamda(Element):
   def optimize_once(self, data):
     body, changed = optimize_once(self.body, data)
     return Lamda(self.params, *body), changed
-    
-  def pythonize(self, env):
+  
+  def pythonize_lambda_body(self, env, compiler):
     body_exps = ()
     body_is_statement = False
     for x in self.body:
-      x = pythonize(x, env)
+      x = pythonize(x, env, compiler)
       if is_statement(x):
         body_is_statement = True
-      body_exps += (x,)
+      body_exps += (x,) 
+    return body_exps, body_is_statement
+  
+  def pythonize(self, env, compiler):
+    body_exps, body_is_statement = self.pythonize_lambda_body(env, compiler)
     if not body_is_statement:
       return Lamda(self.params, *body_exps)
     else:
-      return Function(env.new_var(Var('function')), self.params, *body_exps)
+      return Function(compiler.new_var(Var('function')), self.params, *body_exps)
         
   def to_code(self, coder):
     head = "lambda %s: " % ', '.join(to_code_list(coder, self.params))
@@ -195,10 +207,16 @@ class Done(Clamda):
   def __init__(self):
     v = Var('v')
     self.params, self.body = (v,), (v,)
-    self.name = None
     
-  def __repr__(self):
-    return 'il.Done()'
+  def __call__(self, *args):
+    if isinstance(self.body, tuple):
+      body = begin(*subst(self.body, {self.params[0]:args[0]}))
+    else:
+      body = begin(subst(self.body, {self.params[0]:args[0]}))
+    return body
+  
+  #def __repr__(self):
+    #return 'il.Done()'
 
 class CFunction(Clamda):
   is_statement = True
@@ -212,16 +230,28 @@ class CFunction(Clamda):
     for x in self.body:
       optimization_analisys(x, data)
     
+  def pythonize_function_body(self, env, compiler):
+    body_exps = ()
+    for x in self.body:
+      x = pythonize(x, env, compiler)
+      body_exps += (x,) 
+    return body_exps
+  
+  def pythonize(self, env, compiler):
+    body_exps = self.pythonize_function_body(env, compiler)
+    return Function(self.name, self.params, *body_exps)
+    
   def __repr__(self):
     return 'il.CFunction(%r, %r, %s)'%(self.name, self.params[0], ', '.join([repr(x) for x in self.body]))
   
-class Apply(Element):
+  
+class Apply:
   def __init__(self, caller, args):
     self.caller, self.args = caller, args
 
-  def alpha_convert(self, env):
-    return self.__class__(alpha_convert(self.caller, env), 
-                 tuple(alpha_convert(arg, env) for arg in self.args))
+  def alpha_convert(self, env, compiler):
+    return self.__class__(alpha_convert(self.caller, env, compiler), 
+                 tuple(alpha_convert(arg, env, compiler) for arg in self.args))
   
   def cps_convert(self, compiler, cont):
     # see The 90 minute Scheme to C compiler by Marc Feeley
@@ -239,9 +269,9 @@ class Apply(Element):
         fun = cps_convert(compiler, self, Clamda(var, fun))
       return fun
 
-  def assign_convert(self, alpha_env, env):
-    return self.__class__(assign_convert(self.caller, alpha_env, env), 
-                 tuple(assign_convert(arg, alpha_env, env) for arg in self.args))    
+  def assign_convert(self, env, compiler):
+    return self.__class__(assign_convert(self.caller, env, compiler), 
+                 tuple(assign_convert(arg, env, compiler) for arg in self.args))    
     
   def optimization_analisys(self, data):  
     data.called_count[self.caller] = data.called_count.setdefault(self.caller, 0)+1
@@ -327,13 +357,16 @@ class Apply(Element):
       args, changed2 = optimize_once(self.args, data)
       return self.__class__(caller, args), changed1 or changed2
 
-  def pythonize(self, env):
-    caller = pythonize(self.caller, env)
+  def insert_return_yield(self, klass):
+    return klass(self)
+  
+  def pythonize(self, env, compiler):
+    caller = pythonize(self.caller, env, compiler)
     defs = ()
     if isinstance(caller, Function):
       defs += (caller,)
       caller = caller.name
-    defs1, args = pythonize_list(self.args, env)
+    defs1, args = pythonize_list(self.args, env, compiler)
     defs += defs1
     return collocate(defs, self.__class__(caller,args))
     
@@ -348,12 +381,12 @@ class Apply(Element):
   
   def __repr__(self):
     return '%r(%s)'%(self.caller, ', '.join([repr(x) for x in self.args]))
-  
-class Var(Element):
+
+class Var:
   def __init__(self, name):
     self.name = name
         
-  def alpha_convert(self, env):
+  def alpha_convert(self, env, compiler):
     return env[self]
     
   def cps_convert(self, compiler, cont):
@@ -373,13 +406,16 @@ class Var(Element):
               begin(SetBinding(y, x),
                     AppendFailCont(DelBinding(y)),
                     cont(True)),
-              If(Eq(x, y), cont(True), failcont(True))))))  
+              If(Eq(x, y), cont(True), failcont(True))))))
     
-  def assign_convert(self, alpha_env, env):
+  def assign_convert(self, env, compiler):
     if self in env:
       return contents(env[self])
     else: return self
     
+  def find_assign_lefts(self):
+    return set()
+  
   def optimization_analisys(self, data):
     data.ref_count[self] = data.ref_count.setdefault(self, 0)+1    
     
@@ -396,7 +432,7 @@ class Var(Element):
   def optimize_once(self, data):
     return self, False
       
-  def pythonize(self, env):
+  def pythonize(self, env, compiler):
     return self
       
   def to_code(self, coder):
@@ -415,44 +451,59 @@ class Var(Element):
 
   def __repr__(self):
     return self.name #enough in tests
-    
-class LogicVar(Var):
+
+class LogicVar:
+  is_statement = False
+  
   def __init__(self, name):
     self.name = name
   
-  def __call__(self, args):
-    raise TypeError
-  
-  def alpha_convert(self, env):
+  def alpha_convert(self, env, compiler):
     return self
-    
+  
+  def cps_convert(self, compiler, cont):
+    return cont(self)
+  
+  def assign_convert(self, env, compiler):
+    return self
+  
   def cps_convert_unify(self, other, cont):
     return begin(SetBinding(self, other),
                  AppendFailCont(DelBinding(self)),
                  cont(True))
   
-  def pythonize(self, env):
+  def optimization_analisys(self, data): 
+    return
+  
+  def optimize_once(self, data):
+    return self, False
+    
+  def insert_return_yield(self, klass):
+    return klass(self)
+  
+  def pythonize(self, env, compiler):
     return self
       
   def to_code(self, coder):
     return  "LogicVar('%s')"%self.name
-    
+  
   def __eq__(x, y):
     return classeq(x, y) and x.name==y.name
   
   def __repr__(self):
-    return self.name # enough in tests
-  
+    return "LogicVar(%s)"%self.name 
+
 class Return(Element):
+  is_statement = True
   
   def __init__(self, *args):
     self.args = args
   
-  def alpha_convert(self, env):
-    return Return(*tuple(env.alpha_convert(arg) for arg in self.args))    
+  def alpha_convert(self, env, compiler):
+    return self.__class__(*tuple(env.alpha_convert(arg, compiler) for arg in self.args))    
     
-  def assign_convert(self, alpha_env, env):
-    return Return(*tuple(assign_convert(arg, alpha_env, env) for arg in self.args))
+  def assign_convert(self, env, compiler):
+    return self.__class__(*tuple(assign_convert(arg, env, compiler) for arg in self.args))
     
   def optimization_analisys(self, data):  
     for arg in self.args:
@@ -465,7 +516,7 @@ class Return(Element):
     return False
         
   def subst(self, bindings):  
-    return Return(*tuple(subst(arg, bindings) for arg in self.args))
+    return self.__class__(*tuple(subst(arg, bindings) for arg in self.args))
     
   def optimize_once(self, data):
     if len(self.args)==1 and isinstance(self.args[0], Return):
@@ -481,44 +532,58 @@ class Return(Element):
       x, x_changed = optimize_once(x, data)
       result.append(x)
       changed = changed or x_changed
-    return Return(*result), changed
+    return self.__class__(*result), changed
   
-  def pythonize(self, env):
-    defs, args = pythonize_list(self.args, env)
-    return collocate(defs, Return(*args))
+  def pythonize(self, env, compiler):
+    defs, args = pythonize_list(self.args, env, compiler)
+    return collocate(defs, self.__class__(*args))
     
   def to_code(self, coder):
     if coder.lambda_stack and isinstance(coder.lambda_stack[-1], Function):
       return  'return %s' % ', '.join([to_code(coder, x) for x in self.args])
     else:
       return  ', '.join([to_code(coder, x) for x in self.args])
-    
+  
+  def insert_return_yield(self, klass):
+    return self
+  
   def __eq__(x, y):
     return classeq(x, y) and x.args==y.args
   
   def __repr__(self):
     return 'il.Return(%s)'%', '.join([repr(x) for x in self.args])
-  
+
+class Yield(Return): 
+  def to_code(self, coder):
+    if coder.lambda_stack and isinstance(coder.lambda_stack[-1], Function):
+      return  'yield %s' % ', '.join([to_code(coder, x) for x in self.args])
+    else:
+      return  ', '.join([to_code(coder, x) for x in self.args])
+  def __repr__(self):
+    return 'il.Yield(%s)'%', '.join([repr(x) for x in self.args])
+
 class Assign(Element):
   is_statement = True
   def __init__(self, var, exp):
     self.var, self.exp =  var, exp
   
-  def alpha_convert(self, env):
+  def alpha_convert(self, env, compiler):
     try: converted_var = env[self.var]
     except VariableNotBound:
-      converted_var = env.bindings[self.var] = env.new_var(self.var)
-    env.lefts.add(converted_var)
+      converted_var = env.bindings[self.var] = compiler.new_var(self.var)
     return Assign(converted_var, alpha_convert(self.exp, env))
     
-  def assign_convert(self, alpha_env, env):
+  def assign_convert(self, env, compiler):
     # var = value, exp.exp should be a single var, 
     # which is the continuation param which ref to the value    
-    return set_contents(env[self.var], self.exp)
+    return SetContents(self.var, self.exp)
   
   def optimization_analisys(self, data):  
     optimization_analisys(self.exp, data)
-      
+  
+  def insert_return_yield(self, klass):
+    return begin(self, klass(None))
+  
   def code_size(exp):
     # var = value, exp.exp should be a single var, 
     # which is the continuation param which ref to the value
@@ -535,7 +600,7 @@ class Assign(Element):
   def optimize_once(self, data):
     return self, False
     
-  def pythonize(self, env):
+  def pythonize(self, env, compiler):
     # var = value, self.self should be a single var, 
     # which is the continuation param which ref to the value
     return self
@@ -553,15 +618,17 @@ class If(Element):
   def __init__(self, test, then, else_):
     self.test, self.then, self.else_ = test, then, else_
     
-  def alpha_convert(self, env):
-    return If(alpha_convert(self.test, env), alpha_convert(self.then, env), 
-                 alpha_convert(self.else_, env))
+  def alpha_convert(self, env, compiler):
+    return If(alpha_convert(self.test, env, compiler), alpha_convert(self.then, env, compiler), 
+                 alpha_convert(self.else_, env, compiler))
 
-  def assign_convert(self, alpha_env, env):
-    return If(assign_convert(self.test, alpha_env, env), 
-                 assign_convert(self.then, alpha_env, env), 
-                 assign_convert(self.else_, alpha_env, env))
-    
+  def assign_convert(self, env, compiler):
+    return If(assign_convert(self.test, env, compiler), 
+                 assign_convert(self.then, env, compiler), 
+                 assign_convert(self.else_, env, compiler))
+
+  def find_assign_lefts(self):
+    return find_assign_lefts(self.then) | find_assign_lefts(self.else_)
   def optimization_analisys(self, data):  
     optimization_analisys(self.test, data)
     optimization_analisys(self.then, data)
@@ -601,8 +668,13 @@ class If(Element):
                                              #result.then, result.else_))
     return result, changed or test_changed or then_changed or else__changed
 
-  def pythonize(self, env):
-    defs, (test, then, else_) = pythonize_list((self.test, self.then, self.else_), env)
+  def insert_return_yield(self, klass):
+    return If(self.test, 
+              insert_return_yield(self.then, klass), 
+              insert_return_yield(self.else_, klass))
+  
+  def pythonize(self, env, compiler):
+    defs, (test, then, else_) = pythonize_list((self.test, self.then, self.else_), env, compiler)
     return collocate(defs, If(test, then, else_))
     
   def to_code(self, coder):
@@ -626,12 +698,12 @@ class If2(Element):
   def __init__(self, test, then):
     self.test, self.then = test, then
     
-  def alpha_convert(self, env):
-    return If2(env.alpha_convert(self.test), env.alpha_convert(self.then))
+  def alpha_convert(self, env, compiler):
+    return If2(env.alpha_convert(self.test, compiler), env.alpha_convert(self.then, compiler))
     
-  def assign_convert(self, alpha_env, env):
-    return If(assign_convert(self.test, alpha_env, env), 
-                 assign_convert(self.then, alpha_env, env))
+  def assign_convert(self, env, compiler):
+    return If(assign_convert(self.test, env, compiler), 
+                 assign_convert(self.then, env, compiler))
     
   def optimization_analisys(self, data):  
     optimization_analisys(self.test, data)
@@ -653,8 +725,8 @@ class If2(Element):
   #def optimize_once(exp, data):
       #return If2(optimize(exp.test, data), optimize(exp.then, data))
     
-  def pythonize(self, env):
-    defs, (test, then) = pythonize_list((self.test, self.then), env)
+  def pythonize(self, env, compiler):
+    defs, (test, then) = pythonize_list((self.test, self.then), env, compiler)
     return collocate(defs, If2(test, then))
     
   def to_code(self, coder):
@@ -670,13 +742,13 @@ class Unify(Element):
   def __init__(self, left, right, cont, fcont):
     self.left, self.right, self.cont, self.fcont =  left, right, cont, fcont
     
-  def alpha_convert(self, env):
-    return Unify(env.alpha_convert(self.left), env.alpha_convert(self.right),
-                 env.alpha_convert(self.cont), env.alpha_convert(self.fcont))
+  def alpha_convert(self, env, compiler):
+    return Unify(env.alpha_convert(self.left, compiler), env.alpha_convert(self.right),
+                 env.alpha_convert(self.cont, compiler), env.alpha_convert(self.fcont, compiler))
     
-  def assign_convert(self, alpha_env, env):
-    return Unify(assign_convert(self.left, alpha_env, env), assign_convert(self.right, alpha_env, env),
-                 assign_convert(self.cont, alpha_env, env), assign_convert(self.fcont, alpha_env, env))
+  def assign_convert(self, env, compiler):
+    return Unify(assign_convert(self.left, env, compiler), assign_convert(self.right, env, compiler),
+                 assign_convert(self.cont, env, compiler), assign_convert(self.fcont, env, compiler))
     
   def optimization_analisys(self, data):  
     optimization_analisys(self.left, data)
@@ -701,8 +773,8 @@ class Unify(Element):
     fcont, fcont_changed = optimize_once(self.fcont, data)
     return Unify(left, right, cont), left_changed or right_changed or cont_changed or fcont_changed
     
-  def pythonize(self, env):
-    defs, (left, right, cont) = pythonize_list((self.left, self.right, self.cont, self.fcont), env)
+  def pythonize(self, env, compiler):
+    defs, (left, right, cont) = pythonize_list((self.left, self.right, self.cont, self.fcont), env, compiler)
     return collocate(defs, Unify(left, right, cont))
     
   def to_code(self, coder):
@@ -730,6 +802,7 @@ class Let(Element):
     return 'il.Let(%r, %s)'%(self.bindings, ', '.join([repr(x) for x in self.body]))
     
 class BinaryOperationApply(Apply):
+  is_statement = False
   def __repr__(self):
     return '%r(%r)'%(self.caller, self.args)
 
@@ -743,7 +816,7 @@ class BinaryOperation(Element):
     self.name, self.operator = name, operator
     self.have_side_effects = have_side_effects
   
-  def alpha_convert(self, env):
+  def alpha_convert(self, env, compiler):
     return self
   
   def optimization_analisys(self, data):  
@@ -755,7 +828,7 @@ class BinaryOperation(Element):
   def optimize_once(self, data):
     return self, False
     
-  def pythonize(self, env):
+  def pythonize(self, env, compiler):
     return self
     
   def to_code(self, coder):
@@ -787,7 +860,10 @@ class Begin(Element):
     self.statements = statements
     
   def alpha_convert(self, env):
-    return Begin(tuple([alpha_convert(x, env) for x in self.statements]))
+    return Begin(tuple([alpha_convert(x, env, compiler) for x in self.statements]))
+  
+  def assign_convert(self, env, compiler):
+    return Begin(tuple(assign_convert(x, env, compiler) for x in self.statements))
   
   def optimization_analisys(self, data):  
     for x in self.statements:
@@ -795,9 +871,6 @@ class Begin(Element):
   
   def subst(self, bindings):  
     return Begin(tuple(subst(x, bindings) for x in self.statements))
-  
-  def pythonize(self, env):
-    return self
   
   def optimize_once(self, data):
     changed = False
@@ -808,6 +881,21 @@ class Begin(Element):
       changed = changed or x_changed
     return begin(tuple(result)), changed
         
+  def insert_return_yield(self, klass):
+    if not self.statements: 
+      return klass(*self.statements)
+    elif len(self.statements)==1:
+      return insert_return_yield(self.statements[1], klass)
+    else:
+      inserted = insert_return_yield(self.statements[-1], klass)
+      if isinstance(inserted, tuple):
+        return begin(*(self.statements[:-1]+inserted))
+      else:
+        return begin(*(self.statements[:-1]+(inserted,)))
+  
+  def pythonize(self, env, compiler):
+    return self
+  
   def to_code(self, coder):
     return  '\n'.join([to_code(coder, x) for x in self.statements])
       
@@ -822,11 +910,23 @@ def begin(*exps):
   if len(exps)==1: 
     return exps[0]
   else:
-    return Begin(exps)
+    result = []
+    for e in exps:
+      if isinstance(e, Begin):
+        result += e.statements
+      else:
+        result.append(e)
+    return Begin(tuple(result))
 
 class VirtualOperation(Element):
-  def alpha_convert(self, env):
+  def alpha_convert(self, env, compiler):
     return self
+  
+  def assign_convert(self, env, compiler):
+    return self
+  
+  def find_assign_lefts(self):
+    return set()
   
   def optimization_analisys(self, data):  
     return self
@@ -837,7 +937,7 @@ class VirtualOperation(Element):
   def optimize_once(self, data):
     return self, False
   
-  def pythonize(self, env): 
+  def pythonize(self, env, compiler): 
     return self
   
   def to_code(self, coder):
@@ -877,8 +977,9 @@ empty_list = EmptyList()
 ListAppend = vop('ListAppend', 2, '%s = %s')
 Len = vop('Len', 1, 'len(%s)')
 RaiseTypeError = vop('RaiseTypeError', 1, 'raise %s')
+SetContents = vop('SetContents', 2, '%s = %s')
 
-SetFailCont = vop('SetFailCont', 2, 'solver.fail_cont = %s')
+SetFailCont = vop('SetFailCont', 1, 'solver.fail_cont = %s')
 FailCont = vop('failcont', 0, 'solver.fail_cont')  
 failcont = FailCont()
 
@@ -928,4 +1029,9 @@ Ne = binary('Ne', '!=')
 Ge = binary('Ge', '>=')
 Gt = binary('Gt', '>')
 
+
+def let(bindings, *body):
+  params = tuple(p for p, _ in bindings)
+  args = tuple(a for _, a in bindings)
+  return Lamda(params, body)(*args)
 

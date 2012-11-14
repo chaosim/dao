@@ -2,74 +2,70 @@
 
 from nose.tools import eq_, ok_, assert_raises
 
-from dao.term import cons
-from dao.solve import eval, tag_loop_label, NoSolutionFound, done, DaoError
-from dao.special import quote, set, begin, if_, iff, lambda_, let, letr, eval_
-from dao.special import function, macro
-from dao.special import block, exit_block, continue_block, catch, throw
-from dao.special import unwind_protect, module, from_, CaseForm
-from dao.special import LoopTimesForm, LoopUntilForm, LoopWhenForm, EachForm
+from dao.solve import eval
 
-from dao.builtins.control import and_p, cut, callcc, ContinuationFunction
-from dao.builtins.io import prin
-from dao.builtins.arith import gt, eq, sub, mul, add, div
-from dao.builtins.term import define
-from dao.builtins.container import first
+from dao.command import quote, add, assign, begin, if_
+from dao.command import not_p, fail, succeed, or_
 
-from dao.util import *
-from dao.solve import to_sexpression
-from dao.builtins.terminal import eoi, Eoi, tabspaces0, tabspaces, _Tabspaces0, _Tabspaces
+from dao.solvebase import NoSolution
 
-from dao.solve import set_run_mode, noninteractive
-set_run_mode(noninteractive)
-
-class Test_to_sexpression:
-  def test_eoi(self):
-    eq_(to_sexpression(eoi), (Eoi, ))    
-  def test_tabspaces0(self):
-    eq_(to_sexpression(tabspaces0), (_Tabspaces0, ))    
-  def test_tabspaces(self):
-    eq_(to_sexpression(tabspaces), (_Tabspaces, ))    
+from dao import interlang as il
 
 class TestSimple:
-  def testInteger(self):
-    eq_(eval(1), 1)    
-  def testString(self):
-    eq_(eval("1"), "1")
+  def test_integer(self):
     eq_(eval(1), 1)
-  def testArithmetic(self):
+    
+  def test_string(self):
+    eq_(eval("1"), "1")
+    
+  def test_arithmetic(self):
     eq_(eval(add(1, 2)), 3) 
-    eq_(eval(sub(1, 1)), 0)
-    eq_(eval(mul(2, 2)), 4)
-    eq_(eval(div(2, 2)), 1)
-  def testquote(self):
-    eq_(eval(quote(x)), x)
-  def testset(self):
-    eq_(eval(set(a,2)), 2)
-  def testdefine(self):
+    #eq_(eval(sub(1, 1)), 0)
+    #eq_(eval(mul(2, 2)), 4)
+    #eq_(eval(div(2, 2)), 1)
+    
+  def test_quote(self):
+    lo_x = il.LogicVar('$x')
+    eq_(eval(quote(lo_x)), il.LogicVar('$x'))
+    
+  def testassign(self):
+    a = il.Var('a')
+    eq_(eval(assign(a,2)), 2)
+    
+  def xtestdefine(self):
     eq_(eval(begin(define(x,1),define(x,2))), 2)
     
 class TestControl:
   def testbegin(self):
     eq_(eval(begin(1, 2)), 2)
+    
   def testif_(self):
     eq_(eval(if_(0, 1, 2)), 2)
-  def testif_add_sub(self):
-    eq_(eval(if_(0, add, sub)(1, 1)), 0)
-    eq_(eval(if_(1, add, sub)(1, 1)), 2)
-  def testiff(self):
-    eq_(eval(iff(((0, prin(1)), (1, prin(2))))), None)
-  def testiff2(self):
-    eq_(eval(iff(((0, prin(1)), (0,prin(2))), prin(3))), None)
-  def testCaseForm(self):
-    eq_(eval(CaseForm(2, {0: [prin(0)], 1:[prin(1)], 2:[prin(2)]}, [prin(3)])), None)
-  def testeval1(self):
-    eq_(eval(eval_(quote(1))), (1))
-    eq_(eval(eval_(quote(add(1, 1)))), (2))
-  def testeval2(self):
-    eq_(eval(let([(x,1)], eval_(quote(x)))), 1)
+    
+  def test_not_(self):
+    eq_(eval(not_p(fail)), True)
+    
+  def test_not_2(self):
+    assert_raises(NoSolution, eval, not_p(succeed))
+    
+  def test_or_(self):
+    eq_(eval(or_(succeed, fail)), True)
+  #def testif_add_sub(self):
+    #eq_(eval(if_(0, add, sub)(1, 1)), 0)
+    #eq_(eval(if_(1, add, sub)(1, 1)), 2)
+  #def testiff(self):
+    #eq_(eval(iff(((0, prin(1)), (1, prin(2))))), None)
+  #def testiff2(self):
+    #eq_(eval(iff(((0, prin(1)), (0,prin(2))), prin(3))), None)
+  #def testCaseForm(self):
+    #eq_(eval(CaseForm(2, {0: [prin(0)], 1:[prin(1)], 2:[prin(2)]}, [prin(3)])), None)
+  #def testeval1(self):
+    #eq_(eval(eval_(quote(1))), (1))
+    #eq_(eval(eval_(quote(add(1, 1)))), (2))
+  #def testeval2(self):
+    #eq_(eval(let([(x,1)], eval_(quote(x)))), 1)
 
-class TestLoop:
+class XTestLoop:
   def testloop(self):
     eq_(eval(let([(i,3)], 
                  block(a, set(i, sub(i, 1)), 
@@ -93,7 +89,7 @@ class TestLoop:
   def testEachForm2(self):
     eq_(eval(tag_loop_label(EachForm((i, j), zip(range(3), range(3)), [prin(i, j)]))), None)
     
-class TestFunction:
+class XTestFunction:
   def test_let_set(self):
     eq_(eval(let([(a,1)], set(a,2), a)), 2)
     eq_(eval(let([(a,1)], 
@@ -121,7 +117,7 @@ class TestFunction:
     eq_(eval(let([(f, function([[x], x+x]))], f(1))), 2) 
     eq_(eval(let([(f, function([[x], x+x]))], f(f(1)))), 4) 
     
-class Test_letr:
+class XTest_letr:
   def testembedvar1(self):
     e, e2, f, g, h = Var('e'), Var('e2'), Var('f'), Var('g'), Var('h')
     eq_(eval(letr([(f, function([[1], 1]))],
@@ -146,7 +142,7 @@ class Test_letr:
                     (even, lambda_([n], if_(eq(n,0), 1, odd(sub(n, 1)))))],
                   odd(3))), 1)
 
-class TestCut:
+class XTestCut:
   #http://en.wikibooks.org/wiki/Prolog/Cuts_and_Negatio
   def testCut1(self):
     a, b, c, x = Var('a'), Var('b'), Var('c'), Var('x'), 
@@ -206,7 +202,7 @@ class TestCut:
                      (d, function([[3], 'd3']))],
              a(x), x)), 3)
     
-class TestMacro:
+class XTestMacro:
   def test1(self):
     eq_(eval(macro([[], prin(1)])()), None) 
     
@@ -235,7 +231,7 @@ class TestMacro:
   def test4(self):
     eq_(eval(macro([[x], x])(prin(1))), None) 
     
-class TestCallccBlockCatch:
+class XTestCallccBlockCatch:
   def testblock(self):
     f = Var('f')
     eq_(eval(block('foo', let([(f, lambda_((), exit_block('foo',1)))], 
@@ -263,7 +259,7 @@ class TestCallccBlockCatch:
   #def testcallcc4(self):
     ##assert 0, '((call/cc call/cc) (call/cc call/cc)) infinite loop.'
 
-class TestModule:
+class XTestModule:
   def testbindings(self):
     a = Var('a')
     m1 = eval(module(define(a,1)))

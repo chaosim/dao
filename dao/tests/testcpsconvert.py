@@ -3,12 +3,12 @@
 from nose.tools import eq_, ok_, assert_raises
 
 import dao
-from dao.compilebase import Compiler, AlphaConvertEnvironment, VariableNotBound
+from dao.compilebase import Compiler, Environment, VariableNotBound
 from dao.compile import trampoline
 from dao.command import begin, quote, assign, if_, LogicVar, let, letrec
 from dao.command import add
 from dao.command import fail, succeed, or_, unify, repeat, _any
-from dao.command import lamda
+from dao.command import lamda, add
 
 from dao import interlang as il
 

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
+from dao.base import classeq
 import dao.interlang as il
-from dao.compile import cps_convert
+from dao.compile import cps_convert, alpha_convert
 from dao.interlang import cps_convert_exps
 
 v, fc = il.Var('v'), il.Var('fc')
@@ -21,22 +22,53 @@ class special(Command):
 class CommandCall: 
   def __init__(self, function, args):
     self.function, self.args = function, args
+    
+  def __eq__(x, y):
+    return classeq(x, y) and x.function==y.function and x.args==y.args
 
 class SpecialCall(CommandCall):
     
   def cps_convert(self, compiler, cont):
     return self.function(compiler, cont, *self.args)
   
+  def alpha_convert(self, env, compiler):
+    return self.__class__(self.function,
+                 tuple(alpha_convert(arg, env, compiler) for arg in self.args))
+    
   def __repr__(self):
     return '%s(%s)'%(self.function.__name__, ', '.join(tuple(repr(x) for x in self.args)))
+
+from dao.compilebase import VariableNotBound
+
+class Assign(Command):
+  def __call__(self, var, value):
+    return AssignCall(var, value)
   
+  def __repr__(self):
+    return 'assign'
+
+assign = Assign()
+
+class AssignCall(SpecialCall):
+  def __init__(self, var, value):
+    self.var, self.exp = var, value
+    
+  def alpha_convert(self, env, compiler):
+    try: var = env[self.var]
+    except VariableNotBound:
+      env[self.var] = var = compiler.new_var(self.var)
+    return AssignCall(var, alpha_convert(self.exp, env, compiler))
+  
+  def cps_convert(self, compiler, cont):
+    var, exp = self.var, self.exp
+    return cps_convert(compiler, exp, il.Clamda(v, il.Assign(var, v), cont(v)))
+    
+  def __repr__(self):
+    return 'assign(%r, %r)'%(self.var, self.exp)
+
 @special
 def quote(compiler, cont, exp):
     return cont(exp)
-  
-@special
-def assign(compiler, cont, var, exp):
-    return cps_convert(compiler, exp, il.Clamda(v, il.Assign(var, v), v))
   
 @special
 def begin(compiler, cont, *exps):
@@ -71,7 +103,8 @@ def cut(compiler, cont):
 
 @special
 def not_p(compiler, cont, clause):
-  return il.Begin(il.Assign(fc, il.failcont), 
+  fc = compiler.new_var(il.Var('old_fail_cont'))
+  return il.begin(il.Assign(fc, il.failcont), 
                   il.SetFailCont(cont),
                   cps_convert(compiler, clause, fc))
   
@@ -80,14 +113,25 @@ def not_p(compiler, cont, clause):
   #return il.Begin(il.SetFailCont(il.cut_or_cont), 
                   #il.Clamda(v, cont(v)))
 
+def append_fail_cont(compiler, exp):
+  v1 =  compiler.new_var(v)
+  fc1 = compiler.new_var(fc)
+  return il.Begin((
+    il.Assign(fc1, il.failcont),
+    il.SetFailCont(
+      il.Clamda(v1, 
+                il.SetFailCont(fc1),
+                exp))
+    ))
+  
 @special
 def or_(compiler, cont, clause1, clause2):
-  cut_or_cont = il.Var('cut_or_cont')
+  cut_or_cont = compiler.new_var(il.Var('cut_or_cont'))
   or_cont = il.Clamda(v, il.SetCutOrCont(cut_or_cont), cont(v))
   return il.begin(
   il.Assign(cut_or_cont, il.cut_or_cont),
   il.SetCutOrCont(il.failcont),  
-  il.AppendFailCont(cps_convert(compiler, clause2, or_cont)),
+  append_fail_cont(compiler, cps_convert(compiler, clause2, or_cont)),
   cps_convert(compiler, clause1, or_cont))
 
 @special
@@ -125,6 +169,10 @@ class BuiltinFunction(Command):
     return il.Lamda((params), self.function(params))
   
 class BuiltinFunctionCall(CommandCall):
+  def alpha_convert(self, env, compiler):
+    return self.__class__(self.function,
+                 tuple(alpha_convert(arg, env, compiler) for arg in self.args))
+  
   def cps_convert(self, compiler, cont):
     #see The 90 minute Scheme to C compiler by Marc Feeley
     args = self.args
@@ -139,11 +187,6 @@ add = BuiltinFunction(il.add)
 LogicVar = il.LogicVar
 
 lamda = il.Lamda
-
-def let(bindings, *body):
-  params = tuple(p for p, _ in bindings)
-  args = tuple(a for _, a in bindings)
-  return lamda(params, *body)(*args)
 
 def letrec(bindings, *body):
   params = tuple(p for p, _ in bindings)
@@ -294,3 +337,4 @@ def _greedy_any(compiler, cont, item):
                       cps_convert(compiler, item, function, cont)(None, cont)
                       )
 
+from dao.interlang import LogicVar
