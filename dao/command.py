@@ -211,11 +211,11 @@ def char(compiler, cont, argument):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.If2(pos>=il.Len(text), il.failcont(v)),
-      il.If(il.Eq(argument, text[pos]),
+      il.If(il.Eq(argument, il.GetItem(text, pos)),
             il.begin(il.append_fail_cont(compiler, 
                             il.SetParseState((text, pos))),
-                     il.SetParseState((text, pos+1)),
-                     cont(text[pos])),
+                     il.SetParseState((text, il.add((pos, 1)))),
+                     cont(il.GetItem(text, pos))),
             il.failcont(v))
     ))
   
@@ -225,19 +225,19 @@ def char(compiler, cont, argument):
       il.If2(pos>=il.Len(text), il.failcont(v)),
       il.Assign(argument, il.Deref(argument)),
       il.If(il.Isinstance(argument, 'str'),
-            il.If(il.Eq(argument, text[pos]),
+            il.If(il.Eq(argument, il.GetItem(text, pos)),
                   il.begin(il.append_fail_cont(compiler, 
                                   il.SetParseState((text, pos))),
-                           il.SetParseState((text, pos+1)),
-                           cont(text[pos])),
+                           il.SetParseState((text, il.add((pos, 1)))),
+                           cont(il.GetItem(text, pos))),
                   il.failcont(v)),
             il.If(il.Isinstance(argument, 'LogicVar'),
                   il.begin(il.SetParseState((text, pos+1)),
-                           il.SetBinding(argument, text[pos]),
+                           il.SetBinding(argument, il.GetItem(text, pos)),
                            il.append_fail_cont(compiler, 
                               il.SetParseState((text, pos)),
                               il.DelBinding(argument)),
-                           cont(text[pos])),
+                           cont(il.GetItem(text, pos))),
                   il.RaiseTypeError(argument)))
     ))
       
@@ -247,9 +247,9 @@ def char(compiler, cont, argument):
 @special
 def Eoi(compiler, cont):
   '''end of parse_state'''
-  return il.If(il.Eq(il.parse_state[1], il.Len(il.parse_state[0])),
-          cont(v),
-          il.failcont(v))
+  return il.If(il.Eq(il.GetItem(il.parse_state, 1), il.Len(il.GetItem(il.parse_state, 0))),
+          cont(True),
+          il.failcont(False))
     
 eoi = Eoi()
 
@@ -308,28 +308,47 @@ def repeat(compiler, cont):
 
 repeat = repeat()
 
+def any(item, mode=nongreedy):
+  if mode==greedy: return _greedy_any(item)
+  elif mode==nongreedy: return _any(item)
+  else: return _lazy_any(item)
+  
 @special
 def _any(compiler, cont, item):
-  any_cont = il.Var('any_cont')
+  any_cont = compiler.new_var(il.Var('any_cont'))
   return il.CFunction(any_cont, v, 
-                il.AppendFailCont(cont(v)),
+                il.append_fail_cont(compiler, cont(v)),
                 cps_convert(compiler, item, any_cont))(None)
 
   
 @special
 def _lazy_any(compiler, cont, item):
-  function = il.Var('function')
-  return  il.Clamda(v, cont(v, 
-              il.CFunction(function, v, 
-                           cps_convert(compiler, item, 
-                                                il.Clamda(v, cont(v, function)), 
-                                                fcont))))
+  fcont = compiler.new_var(il.Var('fcont'))
+  lazy_any_cont = compiler.new_var(il.Var('lazy_any_cont'))
+  lazy_any_fcont = compiler.new_var(il.Var('lazy_any_fcont'))
+  return  il.begin(
+    il.Assign(fcont, il.failcont),
+    il.CFunction(lazy_any_cont, v,
+        il.SetFailCont(lazy_any_fcont),
+        cont(v)),
+    il.CFunction(lazy_any_fcont, v,
+        il.SetFailCont(fcont),
+        cps_convert(compiler, item, lazy_any_cont)),    
+    lazy_any_cont(None))
                              
 @special
 def _greedy_any(compiler, cont, item):
-  function = il.Var('function')
-  return il.CFunction(function, v, 
-                      cps_convert(compiler, item, function, cont)(None, cont)
-                      )
+  fcont = compiler.new_var(il.Var('fcont'))
+  greedy_any_fcont = compiler.new_var(il.Var('greedy_any_fcont'))
+  greedy_any_cont = compiler.new_var(il.Var('greedy_any_cont'))
+  return il.begin(
+    il.Assign(fcont, il.failcont),
+    il.CFunction(greedy_any_fcont, v,
+        il.SetFailCont(fcont),
+        cont(v)),    
+    il.CFunction(greedy_any_cont, v,
+        il.SetFailCont(greedy_any_fcont),
+         cps_convert(compiler, item, greedy_any_cont)),
+    greedy_any_cont(None))
 
 from dao.interlang import LogicVar

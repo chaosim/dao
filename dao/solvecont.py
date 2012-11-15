@@ -259,16 +259,6 @@ class Solver:
         self.fcont = findall_done
         return self.cps(exp[1], findall_next)
   
-      elif exp[0]==lazy_any: #lazy any
-        fcont = self.fcont
-        def lazy_any_cont(v):
-          self.fcont = lazy_any_fcont
-          cont(v)
-        def lazy_any_fcont(v):
-          self.fcont = fcont
-          self.cps(exp[1], lazy_any_cont)
-        return lazy_any_cont(None)
-               
       elif exp[0]==any: # nongreedy any
         print any
         def any_cont(v):
@@ -280,6 +270,16 @@ class Solver:
           return self.cps(exp[1], any_cont)
         return self.cps(exp[1], any_cont)
       
+      elif exp[0]==lazy_any: #lazy any
+        fcont = self.fcont
+        def lazy_any_cont(v):
+          self.fcont = lazy_any_fcont
+          cont(v)
+        def lazy_any_fcont(v):
+          self.fcont = fcont
+          self.cps(exp[1], lazy_any_cont)
+        return lazy_any_cont(None)
+               
       elif exp[0]==greedy_any: # greedy any
         print greedy_any
         fcont = self.fcont

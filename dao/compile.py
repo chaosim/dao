@@ -15,7 +15,10 @@ from dao.compilebase import insert_return_yield, to_code
 from dao.interlang import pythonize
 from dao import interlang as il
 
-prelude = '''from dao.interlang import LogicVar
+prelude = '''# -*- coding: utf-8 -*-
+# generated file after havingcompiled dao expression.
+
+from dao.interlang import LogicVar
 from dao.solvebase import Solver, deref
 
 solver = Solver()
@@ -47,3 +50,36 @@ def compile_to_pyfile(exp):
   file = open(r'f:\dao_all\dao\dao\tests\compiled.py', 'w')
   file.write(compile_to_python(exp))
   file.close()
+
+'''
+il.Function(compiled_dao_function, (), 
+  il.begin(
+  il.Assign(old_parse_state, il.parse_state), 
+  il.SetParseState(('aaa', 0)), 
+  il.Assign(fc12, il.failcont), 
+  il.SetFailCont(
+    il.Clamda(v2, 
+        il.SetParseState(old_parse_state), 
+        fc12(False))), 
+  il.Assign(fc1, il.failcont), 
+  il.SetFailCont(
+    il.Lamda((v), 
+      il.Lamda((v), 
+        il.If((il.GetItem(il.parse_state, 1)==il.Len(il.GetItem(il.parse_state, 0))), 
+              True, 
+              il.failcont(False)))(True), 
+      fc1(False))), 
+  il.AssignFromList(text, pos, il.parse_state), 
+  il.If2((pos>=il.Len(text)), 
+         il.failcont(True)), 
+  il.If(('a'==il.GetItem(text, pos)), 
+        il.begin(
+          il.Assign(fc11, il.failcont), 
+          il.SetFailCont(
+            il.Lamda((v1), 
+              il.SetParseState((text, pos)), 
+              fc11(False))), 
+          il.SetParseState((text, il.add((pos, 1)))), 
+          any_cont(il.GetItem(text, pos))), 
+        il.failcont(True))))
+        '''

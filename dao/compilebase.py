@@ -79,7 +79,7 @@ class CodeGenerator:
     self.indent_space = indent_space
     self.var_index_map = {'function':0}
     self.var_index = 0
-    self.lambda_stack = []
+    self.lambda_stack = [] # for what?
     
   def indent(self, code, level=1):
     lines = code.split('\n')

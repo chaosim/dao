@@ -19,28 +19,27 @@ def pythonize(exp, env, compiler):
   exps, has_any_statement = pythonize_exp(exp, env, compiler)
   return begin(*exps)
 
-def pythonize_list(exps, env, compiler):
-  defs = []
-  exps2 = []
-  
-  def pythonize_item(exp, defs, exps):
-    try: 
-      exp.is_function
-    except AttributeError:
-      exps.append(exp)
-      return
-    exp.body = (insert_return_yield(begin(*exp.body), Return),)
-    defs.append(exp)
-    
-  for x in exps:
-    exp = pythonize(x, env, compiler)
-    if isinstance(exp, Begin):
-      for x in exp.statements:
-        pythonize_item(x, defs, exps2)
-    else:
-      pythonize_item(exp, defs, exps2)
-  return tuple(defs), tuple(exps2)
+def pythonize_exps(exps, env, compiler):
+  result = ()
+  has_any_statement = False
+  for exp in exps:
+    exps2, any_statement = pythonize_exp(exp, env, compiler)
+    has_any_statement = has_any_statement or any_statement
+    result += exps2
+  return result, has_any_statement
 
+def python_args(args, env, compiler):
+  # used in Apply, Return, Yield, VirtualOpteration
+  result = []
+  exps = ()
+  has_statement = False
+  for arg in args:
+    exps2, has_statement1 = pythonize_exp(arg, env, compiler)
+    has_statement = has_statement or has_statement1
+    result.append(exps2[-1])
+    exps += exps2[:-1]
+  return exps, result, has_statement
+    
 def cps_convert_exps(compiler, exps, cont):
   v = Var('v')
   if not exps: return Clamda(v, cont(il.tuple()))
@@ -59,17 +58,7 @@ class Element:
            '%s should have %s arguments.'%(
              self.__class__.__name__, self.__class__.arity)
     self.args = args
-    
-  def __getitem__(self, index):
-    return GetItem(self, index)
-  
-  def __lt__(x, y): return Lt(x, y)
-  def __le__(x, y): return Le(x, y)
-  def __ge__(x, y): return Ge(x, y)
-  def __gt__(x, y): return Gt(x, y)
-  
-  def __add__(x, y): return BinaryOperationApply(add, (x, y))
-  
+      
   def __eq__(x, y):
     return classeq(x, y) and x.args==y.args
   
@@ -87,19 +76,13 @@ def let(bindings, *body):
   args = tuple(a for _, a in bindings)
   return Lamda(params, *body)(*args)
 
-def pythonize_exps(exps, env, compiler):
-  result = ()
-  has_any_statement = False
-  for exp in exps:
-    exps2, any_statement = pythonize_exp(exp, env, compiler)
-    has_any_statement = has_any_statement or any_statement
-    result += exps2
-  return result, has_any_statement
-
 class Lamda(Element):
   def __init__(self, params, *body):
     self.params, self.body = params, body
     
+  def new(self, params, body):
+    return self.__class__(params, *body)
+  
   def __call__(self, *args):
     return Apply(self, args)
   
@@ -119,10 +102,9 @@ class Lamda(Element):
     
   def cps_convert(self, compiler, cont):
     k = compiler.new_var(Var('cont'))
-    return cont(Lamda(self.params+(k,), cps_convert_exps(compiler, self.body, k)))
+    return cont(self.new(self.params+(k,), cps_convert_exps(compiler, self.body, k)))
   
   def find_assign_lefts(self):
-    #todo
     result = set()
     for exp in self.body:
       result |= find_assign_lefts(exp)
@@ -160,16 +142,16 @@ class Lamda(Element):
       return False
     
   def subst(self, bindings):
-    return Lamda(self.params, *subst(self.body, bindings))
+    return self.new(self.params, subst(self.body, bindings))
       
   def optimize_once(self, data):
     body, changed = optimize_once(self.body, data)
-    return Lamda(self.params, *body), changed
+    return self.new(self.params, body), changed
   
   def pythonize_exp(self, env, compiler):
     body_exps, body_has_any_statement = pythonize_exps(self.body, env, compiler)
     if not body_has_any_statement:
-      return (Lamda(self.params, *body_exps),), False
+      return (self.new(self.params, body_exps),), False
     else:
       if not is_statement(body_exps[-1]):
         body_exps = body_exps[:-1]+(Return(body_exps[-1]),)
@@ -178,14 +160,12 @@ class Lamda(Element):
         
   def to_code(self, coder):
     head = "lambda %s: " % ', '.join(to_code_list(coder, self.params))
-    coder.lambda_stack.append(self)
     if len(self.body)==1:
       result = head + '%s'%', '.join(to_code_list(coder, self.body))
     else:
       result = head + '(%s)'%', '.join(to_code_list(coder, self.body))
-    coder.lambda_stack.pop()
     return result
-        
+  
   def __eq__(x, y):
     return classeq(x, y) and x.params==y.params and x.body==y.body
   
@@ -203,29 +183,18 @@ class Function(Lamda):
     Lamda.__init__(self, params, *body)
     self.name = name
   
-  #def optimization_analisys(self, data):
-    #data.occur_count[self] = data.occur_count.setdefault(self, 0)+1
-    #for x in self.body:
-      #optimization_analisys(x, data)
-  
-  def subst(self, bindings):
-    return Function(self.name, self.params, *subst(self.body, bindings))
-      
-  def optimize_once(self, data):
-    body, changed = optimize_once(self.body, data)
-    return Function(self.name, self.params, *body), changed
+  def new(self, params, body):
+    return self.__class__(self.name, params, *body)
   
   def pythonize_exp(self, env, compiler):
     body_exps, has_any_statement = pythonize_exps(self.body, env, compiler)
     if not is_statement(body_exps[-1]):
       body_exps = body_exps[:-1] + (Return(body_exps[-1]),)
-    return (Function(self.name, self.params, *body_exps), self.name), True
+    return (self.new(self.params, body_exps), self.name), True
     
   def to_code(self, coder):
     head = "def %s(%s):\n" % (self.name, ', '.join(to_code_list(coder, self.params)))
-    coder.lambda_stack.append(self)
     result =  head + coder.indent('\n'.join(to_code_list(coder, self.body)))
-    coder.lambda_stack.pop()
     return result
   
   def __repr__(self):
@@ -237,11 +206,9 @@ class Clamda(Lamda):
     self.params, self.body = (v, ), exps
     self.name = None
     
-  def optimization_analisys(self, data):
-    data.occur_count[self] = data.occur_count.setdefault(self, 0)+1
-    for x in self.body:
-      optimization_analisys(x, data)
-    
+  def new(self, params, body):
+    return self.__class__(params[0], *body)
+  
   def __repr__(self):
     return 'il.Clamda(%r, %s)'%(self.params[0], ', '.join([repr(x) for x in self.body]))
 
@@ -250,6 +217,9 @@ class Done(Clamda):
     v = Var('v')
     self.params, self.body = (v,), (v,)
     
+  def new(self, params, body):
+    return self.__class__()
+  
   def __call__(self, *args):
     if isinstance(self.body, tuple):
       body = begin(*subst(self.body, {self.params[0]:args[0]}))
@@ -265,28 +235,14 @@ class CFunction(Function):
   is_function = True
   
   def __init__(self, name, v, *body):
-    Clamda.__init__(self,  v, *body)
-    self.name = name
+    Function.__init__(self,  name, (v,), *body)
     
-  def optimization_analisys(self, data):
-    data.occur_count[self] = data.occur_count.setdefault(self, 0)+1
-    for x in self.body:
-      optimization_analisys(x, data)
-    
+  def new(self, params, body):
+    return self.__class__(self.name, params[0], *body)
+  
   def __repr__(self):
     return 'il.CFunction(%r, %r, %s)'%(self.name, self.params[0], ', '.join([repr(x) for x in self.body]))
   
-def python_args(args, env, compiler):
-      result = []
-      exps = ()
-      has_statement = False
-      for arg in args:
-        exps2, has_statement1 = pythonize_exp(arg, env, compiler)
-        has_statement = has_statement or has_statement1
-        result.append(exps2[-1])
-        exps += exps2[:-1]
-      return exps, result, has_statement
-    
 class Apply:
   is_statement = False
   
@@ -344,7 +300,7 @@ class Apply:
   def optimize_once(self, data):    
     if isinstance(self.caller, Lamda):
       #1. ((lambda () body))  =>  body 
-      if len(self.caller.params)==0: 
+      if len(self.caller.params)==0 and not isinstance(Lamda, Function): 
         return optimize(begin(*self.caller.body), data), True
       
       #2. (lamda x: ...x...)(y) => (lambda : ... y ...)() 
@@ -374,15 +330,15 @@ class Apply:
       
       if new_params:
         if bindings:
-          return Apply(Lamda(new_params, optimize(subst(begin(*self.caller.body), bindings), data)), 
+          return Apply(self.caller.new(new_params, (optimize(subst(begin(*self.caller.body), bindings), data),)), 
                           optimize(new_args, data)), True
         else:
           if len(new_params)!=len(self.caller.params):
-            Apply(Lamda(new_params, optimize(begin(*self.caller.body), data)), optimize(new_args, data)), True            
+            Apply(self.caller.new(new_params, (optimize(begin(*self.caller.body), data), )), optimize(new_args, data)), True            
           else:
             caller_body, changed1 = optimize_once(self.caller.body, data)
             args, changed2 = optimize_once(new_args, data)
-            return Apply(Lamda(new_params, *caller_body), args), changed1 or changed2
+            return Apply(self.caller.new(new_params, caller_body), args), changed1 or changed2
       else:
         if bindings:
           return optimize(subst(begin(*self.caller.body), bindings), data), True
@@ -417,6 +373,8 @@ class Apply:
     return '%r(%s)'%(self.caller, ', '.join([repr(x) for x in self.args]))
   
 class Var(Element):
+  is_statement = False
+  
   def __init__(self, name):
     self.name = name
         
@@ -435,7 +393,7 @@ class Var(Element):
     except:
       x1 = compiler.new_var(Var('x'))
       return begin(
-        Assign(x1, Deref(x)),
+        Assign(x1, Deref(x)), #for LogicVar, could be optimized when generate code.
         If(IsLogicVar(x1),
            begin(SetBinding(x1, y),
                  append_fail_cont(compiler, DelBinding(x1)),
@@ -444,7 +402,7 @@ class Var(Element):
     x1 = compiler.new_var(Var('x'))
     y1 = compiler.new_var(Var('y'))
     return begin(
-      Assign(x1, Deref(x)),
+      Assign(x1, Deref(x)), #for LogicVar, could be optimized when generate code.
       Assign(y1, Deref(y)),
       If(IsLogicVar(x1),
          begin(SetBinding(x1, y1),
@@ -481,6 +439,9 @@ class Var(Element):
   def optimize_once(self, data):
     return self, False
       
+  def insert_return_yield(self, klass):
+    return klass(self)
+  
   def pythonize_exp(self, env, compiler):
     return (self,), False
       
@@ -510,43 +471,11 @@ class LogicVar(Var):
   def alpha_convert(self, env, compiler):
     return self
   
-  def cps_convert(self, compiler, cont):
-    return cont(self)
-  
   def assign_convert(self, env, compiler):
     return self
   
   def find_assign_lefts(exp):
     return set()
-  
-  def cps_convert_unify(x, y, compiler, cont):
-    #same as Var.cps_convert_unify(x, y, compiler, cont)
-    try: 
-      y.cps_convert_unify
-    except:
-      x1 = compiler.new_var(Var('x'))
-      return begin(
-        Assign(x1, Deref(x)), #could be optimized when generate code.
-        If(IsLogicVar(x1),
-                   begin(SetBinding(x1, y),
-                         append_fail_cont(compiler, DelBinding(x1)),
-                         cont(True)),
-                        If(Eq(x1, y), cont(True), failcont(True))))        
-    x1 = compiler.new_var(Var('x'))
-    y1 = compiler.new_var(Var('y'))
-    return begin(
-      Assign(x1, Deref(x)), #could be optimized when generate code.
-      Assign(y1, Deref(y)), #could be optimized when generate code.
-      If(IsLogicVar(x1),
-         begin(SetBinding(x1, y1),
-               append_fail_cont(compiler, DelBinding(x1)),
-               cont(True)),
-         begin(
-           If(IsLogicVar(y1),
-              begin(SetBinding(y1, x1),
-                    append_fail_cont(compiler, DelBinding(y1)),
-                    cont(True)),
-              If(Eq(x1, y1), cont(True), failcont(True))))))
   
   def optimization_analisys(self, data): 
     return
@@ -554,9 +483,6 @@ class LogicVar(Var):
   def optimize_once(self, data):
     return self, False
     
-  def insert_return_yield(self, klass):
-    return klass(self)
-  
   def pythonize_exp(self, env, compiler):
     return (self,), False
       
@@ -574,88 +500,8 @@ class LogicVar(Var):
   def to_code(self, coder):
     return  "LogicVar('%s')"%self.name
   
-  def __eq__(x, y):
-    return classeq(x, y) and x.name==y.name
-  
   def __repr__(self):
     return "LogicVar(%s)"%self.name 
-
-class Return(Element):
-  is_statement = True
-  
-  def __init__(self, *args):
-    self.args = args
-  
-  def alpha_convert(self, env, compiler):
-    return self.__class__(*tuple(env.alpha_convert(arg, compiler) for arg in self.args))    
-    
-  def assign_convert(self, env, compiler):
-    return self.__class__(*tuple(assign_convert(arg, env, compiler) for arg in self.args))
-    
-  def optimization_analisys(self, data):  
-    for arg in self.args:
-      optimization_analisys(arg, data)
-        
-  def code_size(self):
-    return sum([code_size(x) for x in self.args])
-
-  def side_effects(self):
-    return False
-        
-  def subst(self, bindings):  
-    return self.__class__(*tuple(subst(arg, bindings) for arg in self.args))
-    
-  def optimize_once(self, data):
-    if len(self.args)==1 and isinstance(self.args[0], Return):
-      args = self.args[0].args
-    else:
-      for arg in self.args: 
-        if isinstance(arg, Return): 
-          raise CompileError
-      args = self.args
-    changed = False
-    result = []
-    for x in args:
-      x, x_changed = optimize_once(x, data)
-      result.append(x)
-      changed = changed or x_changed
-    return self.__class__(*result), changed
-  
-  def pythonize_exp(self, env, compiler):
-    exps, args, has_statement = python_args(self.args, env, compiler)
-    return exps+(self.__class__(*args),), True
-    
-  def to_code(self, coder):
-    if coder.lambda_stack:
-      try: 
-        coder.lambda_stack[-1].is_function
-        return  'return %s' % ', '.join([to_code(coder, x) for x in self.args])
-      except:
-        return  ', '.join([to_code(coder, x) for x in self.args])
-    else:
-      return  ', '.join([to_code(coder, x) for x in self.args])
-  
-  def insert_return_yield(self, klass):
-    return self
-  
-  def __eq__(x, y):
-    return classeq(x, y) and x.args==y.args
-  
-  def __repr__(self):
-    return 'il.Return(%s)'%', '.join([repr(x) for x in self.args])
-
-class Yield(Return): 
-  def to_code(self, coder):
-    if coder.lambda_stack:
-      try: 
-        coder.lambda_stack[-1].is_function
-        return  'yield %s' % ', '.join([to_code(coder, x) for x in self.args])
-      except:
-        return  ', '.join([to_code(coder, x) for x in self.args])
-    else:
-      return  ', '.join([to_code(coder, x) for x in self.args])
-  def __repr__(self):
-    return 'il.Yield(%s)'%', '.join([repr(x) for x in self.args])
 
 class Assign(Element):
   is_statement = True
@@ -710,6 +556,70 @@ class Assign(Element):
   def __repr__(self):
     return 'il.Assign(%r, %r)'%(self.var, self.exp)
   
+class Return(Element):
+  is_statement = True
+  
+  def __init__(self, *args):
+    self.args = args
+  
+  def alpha_convert(self, env, compiler):
+    return self.__class__(*tuple(env.alpha_convert(arg, compiler) for arg in self.args))    
+    
+  def assign_convert(self, env, compiler):
+    return self.__class__(*tuple(assign_convert(arg, env, compiler) for arg in self.args))
+    
+  def optimization_analisys(self, data):  
+    for arg in self.args:
+      optimization_analisys(arg, data)
+        
+  def code_size(self):
+    return sum([code_size(x) for x in self.args])
+
+  def side_effects(self):
+    return False
+        
+  def subst(self, bindings):  
+    return self.__class__(*tuple(subst(arg, bindings) for arg in self.args))
+    
+  def optimize_once(self, data):
+    if len(self.args)==1 and isinstance(self.args[0], Return):
+      args = self.args[0].args
+    else:
+      for arg in self.args: 
+        if isinstance(arg, Return): 
+          raise CompileError
+      args = self.args
+    changed = False
+    result = []
+    for x in args:
+      x, x_changed = optimize_once(x, data)
+      result.append(x)
+      changed = changed or x_changed
+    return self.__class__(*result), changed
+  
+  def pythonize_exp(self, env, compiler):
+    exps, args, has_statement = python_args(self.args, env, compiler)
+    return exps+(self.__class__(*args),), True
+    
+  def to_code(self, coder):
+    return  'return %s' % ', '.join([to_code(coder, x) for x in self.args])
+  
+  def insert_return_yield(self, klass):
+    return self
+  
+  def __eq__(x, y):
+    return classeq(x, y) and x.args==y.args
+  
+  def __repr__(self):
+    return 'il.Return(%s)'%', '.join([repr(x) for x in self.args])
+
+class Yield(Return): 
+  def to_code(self, coder):
+    return  'yield %s' % ', '.join([to_code(coder, x) for x in self.args])
+
+  def __repr__(self):
+    return 'il.Yield(%s)'%', '.join([repr(x) for x in self.args])
+
 class If(Element):
   def __init__(self, test, then, else_):
     self.test, self.then, self.else_ = test, then, else_
@@ -896,18 +806,6 @@ class Unify(Element):
   
   def __repr__(self):
     return 'il.Unify(%r, %r, %r, %r)'%(self.left, self.right, self.cont, self.fcont)
-
-class Let(Element):
-  def __init__(self, bindings, *body):
-    self.bindings = bindings
-    self.body = body
-    
-  def __eq__(x, y):
-    return classeq(x, y) and x.bindings==y.bindings and x.body==y.body
-  
-  def __repr__(self):
-    return 'il.Let(%r, %s)'%(self.bindings, ', '.join([repr(x) for x in self.body]))
-    
 
 class Begin(Element):
   is_statement = True

@@ -7,7 +7,7 @@ from dao.solve import eval
 from dao.command import quote, add, assign, begin, if_
 from dao.command import not_p, fail, succeed, or_
 from dao.command import let, unify
-from dao.command import settext, char
+from dao.command import settext, char, eoi, any
 
 from dao.solvebase import NoSolution
 
@@ -73,6 +73,13 @@ class TestControl:
     
   def test_parse(self):
     eq_(eval(begin(settext('abcde'), char('a'))), 'a')
+    
+  def test_parse2(self):
+    eq_(eval(begin(settext('a'), char('a'), eoi)), True)
+    assert_raises(NoSolution, eval, begin(settext('ab'), char('a'), eoi))
+    
+  def test_parse3(self):
+    eq_(eval(begin(settext('aaa'), any(char('a')), eoi)), True)
     
   #def testif_add_sub(self):
     #eq_(eval(if_(0, add, sub)(1, 1)), 0)
