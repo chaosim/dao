@@ -58,3 +58,4 @@ class Solver:
     else: self.fail_cont = end_cont
     self.cut_or_cont = self.fail_cont
     self.bindings = Bindings()
+    self.parse_state = None

@@ -187,55 +187,59 @@ def letrec(bindings, *body):
 
 @special
 def set_parse_state(compiler, cont, parse_state):
-  x = il.Var('x')
-  return il.Clamda(v, 
-                   il.Assign(x, il.parse_state),
-                   il.set_parse_state(parse_state),
-                   il.AppendFailCont(il.set_parse_state(x)),
-                   cont(v))
+  old_parse_state = compiler.new_var(il.Var('old_parse_state'))
+  return il.begin(il.Assign(old_parse_state, il.parse_state),
+                  il.SetParseState(parse_state),
+                  il.append_fail_cont(compiler, il.SetParseState(old_parse_state)),
+                  cont(True))
+@special
+def settext(compiler, cont, text):
+  old_parse_state = compiler.new_var(il.Var('old_parse_state'))
+  return il.begin(il.Assign(old_parse_state, il.parse_state),
+                  il.SetParseState((text, 0)),
+                  il.append_fail_cont(compiler, il.SetParseState(old_parse_state)),
+                  cont(True))
 
 @special
-def get_parse_state(compiler, cont):
+def parse_state(compiler, cont):
   return il.Clamda(v, cont(il.parse_state))
-
-@special
-def set_parse_state(compiler, cont, state):
-  return il.Clamda(v,
-            il.set_parse_state(state), 
-            v)
 
 @special
 def char(compiler, cont, argument):
   text, pos = il.Var('text'), il.Var('pos')
   if isinstance(argument, str):
-    return il.Clamda(v,
+    return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.If2(pos>=il.Len(text), il.failcont(v)),
       il.If(il.Eq(argument, text[pos]),
-            il.begin(il.AppendFailCont(il.SetParseState((text, pos))),
+            il.begin(il.append_fail_cont(compiler, 
+                            il.SetParseState((text, pos))),
                      il.SetParseState((text, pos+1)),
                      cont(text[pos])),
-            il.failcont(v)))
+            il.failcont(v))
+    ))
   
   elif isinstance(argument, il.Var):
-    return il.Clamda(v,
+    return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.If2(pos>=il.Len(text), il.failcont(v)),
       il.Assign(argument, il.Deref(argument)),
       il.If(il.Isinstance(argument, 'str'),
             il.If(il.Eq(argument, text[pos]),
-                  il.begin(il.AppendFailCont(il.SetParseState((text, pos))),
+                  il.begin(il.append_fail_cont(compiler, 
+                                  il.SetParseState((text, pos))),
                            il.SetParseState((text, pos+1)),
                            cont(text[pos])),
                   il.failcont(v)),
             il.If(il.Isinstance(argument, 'LogicVar'),
                   il.begin(il.SetParseState((text, pos+1)),
                            il.SetBinding(argument, text[pos]),
-                           il.AppendFailCont(
+                           il.append_fail_cont(compiler, 
                               il.SetParseState((text, pos)),
                               il.DelBinding(argument)),
                            cont(text[pos])),
-                  il.RaiseTypeError(argument))))
+                  il.RaiseTypeError(argument)))
+    ))
       
   # elif isinstance(argument, il.LogicVar) #how about this? It should be include above.
   else: raise CompileTypeError(argument)

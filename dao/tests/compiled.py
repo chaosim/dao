@@ -4,5 +4,6 @@ from dao.solvebase import Solver, deref
 solver = Solver()
 
 def compiled_dao_function():
-  yield True
+  a = 2
+  yield 2
 compiled_dao_function

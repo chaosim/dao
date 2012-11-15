@@ -416,7 +416,7 @@ class Apply:
   def __repr__(self):
     return '%r(%s)'%(self.caller, ', '.join([repr(x) for x in self.args]))
   
-class Var:
+class Var(Element):
   def __init__(self, name):
     self.name = name
         
@@ -561,6 +561,9 @@ class LogicVar(Var):
     return (self,), False
       
   def deref(self, bindings):
+    # todo:
+    # how to shorten the binding chain? need to change solver.fail_cont.
+    # deref(self, solver) can help
     while 1: 
       next = bindings[self]
       if not isinstance(next, LogicVar) or next==self:
@@ -808,6 +811,9 @@ class If2(Element):
     optimization_analisys(self.test, data)
     optimization_analisys(self.then, data)
     
+  def optimize_once(self, data):
+    return self, False
+  
   def code_size(self):
     return 3 + code_size(self.test) + \
            code_size(self.then_)
@@ -817,9 +823,8 @@ class If2(Element):
            not side_effects(self.then_)
   
   def subst(self, bindings):  
-    return If(subst(self.test, bindings), 
-                 subst(self.then, bindings), 
-                 subst(self.else_, bindings))
+    return If2(subst(self.test, bindings), 
+                 subst(self.then, bindings))
     
   #def optimize_once(exp, data):
       #return If2(optimize(exp.test, data), optimize(exp.then, data))
@@ -827,8 +832,8 @@ class If2(Element):
   def pythonize_exp(self, env, compiler):
     test, has_statement1 = pythonize_exp(self.test, env, compiler)
     then, has_statement2 = pythonize_exp(self.then, env, compiler)
-    if_ = If(test[-1], begin(*then), begin(*else_))
-    return test[-1]+(if_,), True
+    if_ = If2(test[-1], begin(*then))
+    return test[:-1]+(if_,), True
     
   def to_code(self, coder):
     return 'if %s: \n%s\n' % (to_code(coder, self.test), coder.indent(to_code(coder, self.then)))
@@ -1095,6 +1100,9 @@ class VirtualOperation(Element):
   def optimize_once(self, data):
     return self, False
   
+  def insert_return_yield(self, klass):
+    return klass(self)
+  
   def pythonize_exp(self, env, compiler):
     exps, args, has_statement = python_args(self.args, env, compiler)
     try: self_is_statement = self.is_statement
@@ -1136,10 +1144,12 @@ class GetItem(Element):
   
   def __repr__(self):
     return '%r[%r]'%(self.args)
-  
+
+GetItem = vop('GetItem', 2, '(%s)[%s]')  
 Not = vop('Not', 1, "not %s")
 def AssignFromList_to_code(self, coder):
-  return "%s = %s" % (', '.join([to_code(x, coder) for x in self.args[:-1]]), to_code(args[-1], coder))
+  return "%s = %s" % (', '.join([to_code(coder, x) for x in self.args[:-1]]), 
+                      to_code(coder, self.args[-1]))
 AssignFromList = vop2('AssignFromList', -1, AssignFromList_to_code)
 Isinstance = vop('Isinstance', 2, "isinstance(%s, %s)")
 EmptyList = vop('empty_list', 0, '[]')
