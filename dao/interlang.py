@@ -429,22 +429,34 @@ class Var:
   def cps_convert(self, compiler, cont):
     return cont(self)
   
-  def cps_convert_unify(x, y, cont):
-    v = Var('v')
+  def cps_convert_unify(x, y, compiler, cont):
+    try: 
+      y.cps_convert_unify
+    except:
+      x1 = compiler.new_var(Var('x'))
+      return begin(
+        Assign(x1, Deref(x)),
+        If(IsLogicVar(x1),
+           begin(SetBinding(x1, y),
+                 append_fail_cont(compiler, DelBinding(x1)),
+                 cont(True)),
+                If(Eq(x1, y), cont(True), failcont(True))))
+    x1 = compiler.new_var(Var('x'))
+    y1 = compiler.new_var(Var('y'))
     return begin(
-      Assign(x, Deref(x)),
-      If(Isinstance(x, LogicVar),
-         begin(SetBinding(x, y),
-               AppendFailCont(DelBinding(x)),
+      Assign(x1, Deref(x)),
+      Assign(y1, Deref(y)),
+      If(IsLogicVar(x1),
+         begin(SetBinding(x1, y1),
+               append_fail_cont(compiler, DelBinding(x1)),
                cont(True)),
          begin(
-           Assign(y, Deref(y)), 
-           If(Isinstance(y, LogicVar),
-              begin(SetBinding(y, x),
-                    AppendFailCont(DelBinding(y)),
+           If(IsLogicVar(y1),
+              begin(SetBinding(y1, x1),
+                    append_fail_cont(compiler, DelBinding(y1)),
                     cont(True)),
-              If(Eq(x, y), cont(True), failcont(True))))))
-    
+              If(Eq(x1, y1), cont(True), failcont(True))))))
+
   def assign_convert(self, env, compiler):
     if self in env:
       return Content(env[self])
@@ -507,10 +519,34 @@ class LogicVar(Var):
   def find_assign_lefts(exp):
     return set()
   
-  def cps_convert_unify(self, other, cont):
-    return begin(SetBinding(self, other),
-                 AppendFailCont(DelBinding(self)),
-                 cont(True))
+  def cps_convert_unify(x, y, compiler, cont):
+    #same as Var.cps_convert_unify(x, y, compiler, cont)
+    try: 
+      y.cps_convert_unify
+    except:
+      x1 = compiler.new_var(Var('x'))
+      return begin(
+        Assign(x1, Deref(x)), #could be optimized when generate code.
+        If(IsLogicVar(x1),
+                   begin(SetBinding(x1, y),
+                         append_fail_cont(compiler, DelBinding(x1)),
+                         cont(True)),
+                        If(Eq(x1, y), cont(True), failcont(True))))        
+    x1 = compiler.new_var(Var('x'))
+    y1 = compiler.new_var(Var('y'))
+    return begin(
+      Assign(x1, Deref(x)), #could be optimized when generate code.
+      Assign(y1, Deref(y)), #could be optimized when generate code.
+      If(IsLogicVar(x1),
+         begin(SetBinding(x1, y1),
+               append_fail_cont(compiler, DelBinding(x1)),
+               cont(True)),
+         begin(
+           If(IsLogicVar(y1),
+              begin(SetBinding(y1, x1),
+                    append_fail_cont(compiler, DelBinding(y1)),
+                    cont(True)),
+              If(Eq(x1, y1), cont(True), failcont(True))))))
   
   def optimization_analisys(self, data): 
     return
@@ -524,6 +560,14 @@ class LogicVar(Var):
   def pythonize_exp(self, env, compiler):
     return (self,), False
       
+  def deref(self, bindings):
+    while 1: 
+      next = bindings[self]
+      if not isinstance(next, LogicVar) or next==self:
+        return next
+      else: 
+        self = next
+  
   def to_code(self, coder):
     return  "LogicVar('%s')"%self.name
   
@@ -652,7 +696,7 @@ class Assign(Element):
     
   def pythonize_exp(self, env, compiler):
     exps, has_statement = pythonize_exp(self.exp, env, compiler)
-    return exps[-1]+(Assign(self.var, exps[-1]),), True
+    return exps[:-1]+(Assign(self.var, exps[-1]),), True
     
   def to_code(self, coder):
     return  '%s = %s' % (to_code(coder, self.var), to_code(coder, self.exp))
@@ -1041,8 +1085,9 @@ class VirtualOperation(Element):
   def side_effects(self):
     return True
 
-  def optimization_analisys(self, data):  
-    return self
+  def optimization_analisys(self, data):
+    for arg in self.args:
+      optimization_analisys(arg, data)
   
   def subst(self, bindings):  
     return self.__class__(*tuple(subst(x, bindings) for x in self.args))
@@ -1065,7 +1110,7 @@ class VirtualOperation(Element):
       else:
         return self.__class__.code_format % (', '.join([to_code(coder, x) for x in self.args]))
     else: 
-      return self.__class__.code_format(self, self.args, coder)
+      return self.__class__.code_format(self, coder)
       
   def __hash__(self):
     return hash(self.__class__.__name__)
@@ -1093,8 +1138,8 @@ class GetItem(Element):
     return '%r[%r]'%(self.args)
   
 Not = vop('Not', 1, "not %s")
-def AssignFromList_to_code(self, args, coder):
-  return "%s = %s" % (', '.join([to_code(x, coder) for x in args[:-1]]), to_code(args[-1], coder))
+def AssignFromList_to_code(self, coder):
+  return "%s = %s" % (', '.join([to_code(x, coder) for x in self.args[:-1]]), to_code(args[-1], coder))
 AssignFromList = vop2('AssignFromList', -1, AssignFromList_to_code)
 Isinstance = vop('Isinstance', 2, "isinstance(%s, %s)")
 EmptyList = vop('empty_list', 0, '[]')
@@ -1132,22 +1177,29 @@ SetCutOrCont = vop2('SetCutOrCont', 1, 'solver.cut_or_cont = %s')
 CutOrCont = vop('CutOrCont', 0, 'solver.cut_or_cont')
 cut_or_cont = CutOrCont()
 
+IsLogicVar = vop('IsLogicVar', 1, 'isinstance(%s, LogicVar)')
 Deref = vop('Deref', 1, 'deref(%s, solver.bindings)')
 SetBinding = vop2('SetBinding', 2, 'solver.bindings[%s] = %s')
-DelBinding = vop('DelBinding', 1, 'del solver.bindings[%s]')
+DelBinding = vop2('DelBinding', 1, 'del solver.bindings[%s]')
 GetValue = vop('GetValue', 1, 'getvalue(%s, solver.bindings')
 
 SetParseState = vop2('SetParseState', 1, 'solver.parse_state = %s')
 ParseState = vop('parse_state', 0, 'solver.parse_state')
 parse_state = ParseState()
 
+def binary_to_code(self, coder):
+  return '(%s) %s (%s)'%(to_code(coder, self.args[0]), 
+                         self.symbol, 
+                         to_code(coder, self.args[1]))
+
 def binary(name, symbol):
-  class Binary(Element): 
+  class Binary(VirtualOperation): 
     def __repr__(self):
       return '(%s%s%s)'%(repr(self.args[0]), self.__class__.symbol, repr(self.args[1]))
   Binary.__name__ = name
   Binary.arity = 2
   Binary.symbol = symbol
+  Binary.code_format = binary_to_code
   return Binary    
     
 Lt = binary('Lt', '<')
@@ -1157,3 +1209,15 @@ Ne = binary('Ne', '!=')
 Ge = binary('Ge', '>=')
 Gt = binary('Gt', '>')
 
+def append_fail_cont(compiler, exp):
+  v, fc = Var('v'), Var('fc1')
+  v1 =  compiler.new_var(v)
+  fc1 = compiler.new_var(fc)
+  return Begin((
+    Assign(fc1, failcont),
+    SetFailCont(
+      Clamda(v1, 
+                #SetFailCont(fc1),
+                exp,
+                fc1(False)))
+    ))

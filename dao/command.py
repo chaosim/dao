@@ -112,17 +112,6 @@ def not_p(compiler, cont, clause):
 #def cut_or(compiler, cont):
   #return il.Begin(il.SetFailCont(il.cut_or_cont), 
                   #il.Clamda(v, cont(v)))
-
-def append_fail_cont(compiler, exp):
-  v1 =  compiler.new_var(v)
-  fc1 = compiler.new_var(fc)
-  return il.Begin((
-    il.Assign(fc1, il.failcont),
-    il.SetFailCont(
-      il.Clamda(v1, 
-                il.SetFailCont(fc1),
-                exp))
-    ))
   
 @special
 def or_(compiler, cont, clause1, clause2):
@@ -131,7 +120,7 @@ def or_(compiler, cont, clause1, clause2):
   return il.begin(
   il.Assign(cut_or_cont, il.cut_or_cont),
   il.SetCutOrCont(il.failcont),  
-  append_fail_cont(compiler, cps_convert(compiler, clause2, or_cont)),
+  il.append_fail_cont(compiler, cps_convert(compiler, clause2, or_cont)),
   cps_convert(compiler, clause1, or_cont))
 
 @special
@@ -155,8 +144,8 @@ def unify(compiler, cont, x, y):
     except:
       if x==y: return cont(True)
       else: return il.failcont(True)
-    return y_cps_convert_unify(x, cont)
-  return x_cps_convert_unify(y, cont)
+    return y_cps_convert_unify(x, compiler, cont)
+  return x_cps_convert_unify(y, compiler, cont)
 
 class BuiltinFunction(Command):
   def __init__(self, function):

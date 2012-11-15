@@ -42,6 +42,12 @@ class Bindings(dict):
   def __setitem__(self, var, value):
     dict.__setitem__(self, var, value)
 
+def deref(exp, bindings):
+  try: exp_deref = exp.deref
+  except:
+    return exp
+  return exp_deref(bindings)
+  
 def default_end_cont(v):
   raise NoSolution(v)
 
@@ -51,3 +57,4 @@ class Solver:
       self.fail_cont = default_end_cont
     else: self.fail_cont = end_cont
     self.cut_or_cont = self.fail_cont
+    self.bindings = Bindings()

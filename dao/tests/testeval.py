@@ -6,7 +6,7 @@ from dao.solve import eval
 
 from dao.command import quote, add, assign, begin, if_
 from dao.command import not_p, fail, succeed, or_
-from dao.command import let
+from dao.command import let, unify
 
 from dao.solvebase import NoSolution
 
@@ -51,10 +51,24 @@ class TestControl:
     
   def test_or_(self):
     eq_(eval(or_(succeed, fail)), True)
+    eq_(eval(or_(unify(1,1), unify(1,2))), True)
     
   def test_let(self):
     x = il.Var('x')
     eq_(eval(let([(x, 1)], x)), 1)
+    
+  def test_unify(self):
+    x = il.Var('x')
+    Lx = il.LogicVar('$x')
+    assert_raises(NoSolution, eval, begin(unify(Lx, 1), unify(Lx,2)))
+    eq_(eval(let([(x,1)], unify(x,1))), True)
+    eq_(eval(unify(Lx,1)), True)
+    eq_(eval(begin(unify(Lx, 1), unify(Lx,1))), True)
+    assert_raises(NoSolution, eval, begin(unify(1, 1), unify(1, 2)))
+    assert_raises(NoSolution, eval, begin(unify(2, 1), unify(1, 1)))
+    assert_raises(NoSolution, eval, unify(1, 2))
+    eq_(eval(unify(1, 1)), True)
+    eq_(eval(begin(unify(1, 1), unify(2, 2))), True)
     
   #def testif_add_sub(self):
     #eq_(eval(if_(0, add, sub)(1, 1)), 0)
