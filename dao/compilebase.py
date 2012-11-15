@@ -286,22 +286,19 @@ def insert_return_yield(exp, klass):
       return klass(exp)
     else: raise CompileTypeError(exp)    
   return exp_insert_return_yield(klass)
-    
-def pythonize(exp, env, compiler):
+
+  
+def pythonize_exp(exp, env, compiler):
   try: 
-    exp_pythonize = exp.pythonize
+    exp_pythonize_exp = exp.pythonize_exp
   except:       
-    if isinstance(exp, list):
-      return exp
-    elif isinstance(exp, tuple):
-      return exp
-    elif isinstance(exp, int) or isinstance(exp, float) or \
-         isinstance(exp, str) or isinstance(exp, unicode):
-      return exp
-    elif exp is None:
-      return None
+    if isinstance(exp, list) or isinstance(exp, tuple) or\
+       isinstance(exp, int) or isinstance(exp, float) or \
+       isinstance(exp, str) or isinstance(exp, unicode) or\
+       exp is None:
+      return (exp,), False
     else: raise CompileTypeError(exp)
-  return exp_pythonize(env, compiler)
+  return exp_pythonize_exp(env, compiler)
     
 def generate_code(exp):
   exp = pythonize(exp, Environment())

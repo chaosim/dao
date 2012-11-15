@@ -2,15 +2,16 @@
 
 from nose.tools import eq_, ok_, assert_raises
 
-from dao.compile import VariableNotBound, alpha_convert
-from dao.compilebase import Environment
+from dao.compile import VariableNotBound, alpha_convert, assign_convert
+from dao.compilebase import Environment, Compiler
 from dao.command import lamda, begin, LogicVar
 
 from dao import interlang as il
 
 def alpha(exp):
   env = Environment()
-  return alpha_convert(exp, env)
+  compiler = Compiler()
+  return alpha_convert(exp, env, compiler)
 
 class TestAlphaConvert:
   def test_var(self):
@@ -31,3 +32,16 @@ class TestAlphaConvert:
     
   def test_begin(self):
     eq_(alpha(begin(1,2)), begin(1,2))
+    
+    
+class TestAssignConvert:
+  def test_lamda(self):
+    x, x1, y, y1, k = il.Var('x'), il.Var('x1'), il.Var('y'), il.Var('y1'), il.Var('k')
+    exp = lamda((x, y), il.Assign(x, 1))
+    env = Environment()
+    compiler = Compiler()
+    exp = alpha_convert(exp, env, compiler)
+    result = assign_convert(exp, {}, compiler)
+    expect = il.Lamda((x, y), il.Lamda((x1,), il.SetContent(x1, 1))(il.MakeCell()))
+    eq_(result, expect)
+

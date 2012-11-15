@@ -11,7 +11,8 @@ from dao.compilebase import Environment, Compiler, CodeGenerator, OptimizationDa
 from dao.compilebase import CompileTypeError, VariableNotBound
 from dao.compilebase import alpha_convert, cps_convert, assign_convert
 from dao.compilebase import optimization_analisys, optimize, tail_recursive_convert, trampoline
-from dao.compilebase import insert_return_yield, pythonize, to_code
+from dao.compilebase import insert_return_yield, to_code
+from dao.interlang import pythonize
 from dao import interlang as il
 
 prelude = '''from dao.interlang import LogicVar
@@ -28,16 +29,13 @@ def compile_to_python(exp, done=None):
   env = Environment()
   exp = alpha_convert(exp, env, compiler)
   exp = cps_convert(compiler, exp, done)
+  function = compiler.new_var(il.Var('compiled_dao_function'))
+  exp = il.Function(function, (), exp)
   exp = assign_convert(exp, {}, compiler)
   data = OptimizationData()
   optimization_analisys(exp, data)
   exp = optimize(exp, data)
-  function = compiler.new_var(il.Var('compiled_dao_function'))
-  v = compiler.new_var(il.Var('v'))
-  if isinstance(exp, tuple):
-    exp = il.CFunction(function, v, insert_return_yield(il.begin(*exp), il.Yield))
-  else:
-    exp = il.CFunction(function, v, insert_return_yield(il.begin(exp), il.Yield))
+  exp.body = (insert_return_yield(il.begin(*exp.body), il.Yield),)
   exp = tail_recursive_convert(exp)
   exp = trampoline(exp)
   exp = pythonize(exp, env, compiler)
