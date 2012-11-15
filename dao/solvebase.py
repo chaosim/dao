@@ -50,3 +50,4 @@ class Solver:
     if end_cont is None:
       self.fail_cont = default_end_cont
     else: self.fail_cont = end_cont
+    self.cut_or_cont = self.fail_cont

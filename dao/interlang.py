@@ -93,7 +93,7 @@ def pythonize_exps(exps, env, compiler):
   for exp in exps:
     exps2, any_statement = pythonize_exp(exp, env, compiler)
     has_any_statement = has_any_statement or any_statement
-    result += (exp) 
+    result += exps2
   return result, has_any_statement
 
 class Lamda(Element):
@@ -171,8 +171,10 @@ class Lamda(Element):
     if not body_has_any_statement:
       return (Lamda(self.params, *body_exps),), False
     else:
-      body_exps[-1] = Return(body_exps[-1])
-      return (Function(compiler.new_var(Var('function')), self.params, *body_exps), self.name), True
+      if not is_statement(body_exps[-1]):
+        body_exps = body_exps[:-1]+(Return(body_exps[-1]),)
+      name = compiler.new_var(Var('function'))
+      return (Function(name, self.params, *body_exps), name), True
         
   def to_code(self, coder):
     head = "lambda %s: " % ', '.join(to_code_list(coder, self.params))
@@ -214,8 +216,9 @@ class Function(Lamda):
     return Function(self.name, self.params, *body), changed
   
   def pythonize_exp(self, env, compiler):
-    body_exps, has_any_statement = self.pythonize_exps(self.body, env, compiler)
-    body_exps[-1] = Return(body_exps[-1])    
+    body_exps, has_any_statement = pythonize_exps(self.body, env, compiler)
+    if not is_statement(body_exps[-1]):
+      body_exps = body_exps[:-1] + (Return(body_exps[-1]),)
     return (Function(self.name, self.params, *body_exps), self.name), True
     
   def to_code(self, coder):
@@ -274,17 +277,19 @@ class CFunction(Function):
     return 'il.CFunction(%r, %r, %s)'%(self.name, self.params[0], ', '.join([repr(x) for x in self.body]))
   
 def python_args(args, env, compiler):
-      args = []
+      result = []
       exps = ()
       has_statement = False
-      for arg in self.args:
-        exps, has_statement1 = pythonize_exp(arg, env, compiler)
+      for arg in args:
+        exps2, has_statement1 = pythonize_exp(arg, env, compiler)
         has_statement = has_statement or has_statement1
-        args.append(exps[-1])
-        exps += exps[:-1]
-      return exps, args, has_statement
+        result.append(exps2[-1])
+        exps += exps2[:-1]
+      return exps, result, has_statement
     
 class Apply:
+  is_statement = False
+  
   def __init__(self, caller, args):
     self.caller, self.args = caller, args
 
@@ -571,7 +576,7 @@ class Return(Element):
     return self.__class__(*result), changed
   
   def pythonize_exp(self, env, compiler):
-    exps, args, has_statement = python_args(args, env, compiler)
+    exps, args, has_statement = python_args(self.args, env, compiler)
     return exps+(self.__class__(*args),), True
     
   def to_code(self, coder):
@@ -619,9 +624,7 @@ class Assign(Element):
     return Assign(converted_var, alpha_convert(self.exp, env, compiler))
     
   def assign_convert(self, env, compiler):
-    # var = value, exp.exp should be a single var, 
-    # which is the continuation param which ref to the value    
-    return SetContent(env[self.var], self.exp)
+    return SetContent(env[self.var], assign_convert(self.exp, env, compiler))
   
   def find_assign_lefts(self):
     return set([self.var])
@@ -725,8 +728,8 @@ class If(Element):
     then, has_statement2 = pythonize_exp(self.then, env, compiler)
     else_, has_statement3 = pythonize_exp(self.else_, env, compiler)
     if_ = If(test[-1], begin(*then), begin(*else_))
-    resul.is_statement = has_statement2 or has_statement3
-    return test[-1]+(if_,), has_statement1 or has_statement2 or has_statement3
+    if_.is_statement = has_statement2 or has_statement3
+    return test[:-1]+(if_,), has_statement1 or has_statement2 or has_statement3
     
   def to_code(self, coder):
     if self.is_statement:
@@ -1031,7 +1034,7 @@ class VirtualOperation(Element):
     return self
   
   def assign_convert(self, env, compiler):
-    return self
+    return self.__class__(*tuple(assign_convert(arg, env, compiler) for arg in self.args))
   
   def find_assign_lefts(self):
     return set()
@@ -1073,6 +1076,7 @@ def vop(name, arity, code_format):
   Vop.__name__ = name
   Vop.arity = arity
   Vop.code_format = code_format
+  Vop.is_statement = False
   return Vop
 
 def vop2(name, arity, code_format):
