@@ -188,6 +188,8 @@ LogicVar = il.LogicVar
 
 lamda = il.Lamda
 
+let = il.let
+
 def letrec(bindings, *body):
   params = tuple(p for p, _ in bindings)
   args = tuple(a for _, a in bindings)

@@ -6,6 +6,7 @@ from dao.solve import eval
 
 from dao.command import quote, add, assign, begin, if_
 from dao.command import not_p, fail, succeed, or_
+from dao.command import let
 
 from dao.solvebase import NoSolution
 
@@ -50,6 +51,11 @@ class TestControl:
     
   def test_or_(self):
     eq_(eval(or_(succeed, fail)), True)
+    
+  def test_let(self):
+    x = il.Var('x')
+    eq_(eval(let([(x, 1)], x)), 1)
+    
   #def testif_add_sub(self):
     #eq_(eval(if_(0, add, sub)(1, 1)), 0)
     #eq_(eval(if_(1, add, sub)(1, 1)), 2)

@@ -422,10 +422,9 @@ class Var:
         
   def alpha_convert(self, env, compiler):
     try: 
-      cell = env[self]
+      return env[self]
     except KeyError: 
-      return self
-    return Content(cell)
+      raise VariableNotBound(self)
     
   def cps_convert(self, compiler, cont):
     return cont(self)
