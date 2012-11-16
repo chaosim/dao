@@ -9,9 +9,7 @@ alpha convert -> cps convert -> assign-convert
 
 from dao.compilebase import Environment, Compiler, CodeGenerator, OptimizationData
 from dao.compilebase import CompileTypeError, VariableNotBound
-from dao.compilebase import alpha_convert, cps_convert, assign_convert
-from dao.compilebase import optimization_analisys, optimize, tail_recursive_convert, trampoline
-from dao.compilebase import insert_return_yield, to_code
+from dao.compilebase import optimize
 from dao.interlang import pythonize
 from dao import interlang as il
 
@@ -30,20 +28,20 @@ def compile_to_python(exp, done=None):
     done = il.Done()
   compiler = Compiler()
   env = Environment()
-  exp = alpha_convert(exp, env, compiler)
-  exp = cps_convert(compiler, exp, done)
+  exp = exp.alpha_convert(env, compiler)
+  exp = exp.cps_convert(compiler, done)
   function = compiler.new_var(il.Var('compiled_dao_function'))
   exp = il.Function(function, (), exp)
   #exp = assign_convert(exp, {}, compiler)
   data = OptimizationData()
-  optimization_analisys(exp, data)
+  exp.optimization_analisys(data)
   exp = optimize(exp, data)
-  exp.body = (insert_return_yield(il.begin(*exp.body), il.Yield),)
-  exp = tail_recursive_convert(exp)
-  exp = trampoline(exp)
+  exp.body = exp.body.insert_return_yield(il.Yield)
+  exp = exp.tail_recursive_convert()
+  exp = exp.trampoline()
   exp = pythonize(exp, env, compiler)
   coder = CodeGenerator()
-  result = to_code(coder, exp)
+  result = exp.to_code(coder)
   return prelude + result
 
 def compile_to_pyfile(exp):

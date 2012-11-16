@@ -15,10 +15,10 @@ from dao import interlang as il
 
 class TestSimple:
   def test_integer(self):
-    eq_(eval(1), 1)
+    eq_(eval(il.Integer(1)), 1)
     
   def test_string(self):
-    eq_(eval("1"), "1")
+    eq_(eval(il.String("1")), "1")
     
   def test_arithmetic(self):
     eq_(eval(add(1, 2)), 3) 
