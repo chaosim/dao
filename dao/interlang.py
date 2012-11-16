@@ -56,6 +56,9 @@ class Element:
   def lambda_body_to_code(self, coder):
     return self.to_code(coder)
   
+  def replace_return_yield(self, klass):
+    return self
+  
   def __eq__(x, y):
     return classeq(x, y) and x.args==y.args
   
@@ -236,6 +239,9 @@ class Lamda(Element):
     body, changed = self.body.optimize_once(data)
     return self.new(self.params, body), changed
   
+  def insert_return_yield(self, klass):
+    return klass(self)
+  
   def pythonize_exp(self, env, compiler):
     body_exps, body_has_any_statement = self.body.pythonize_exp(env, compiler)
     if not body_has_any_statement:
@@ -261,6 +267,7 @@ class Lamda(Element):
                               repr(self.body))
 
 class Function(Lamda):
+  '''recuvsive Function'''
   is_statement = True
   is_function = True
   
@@ -394,9 +401,14 @@ class Apply:
                  tuple(arg.subst(bindings) for arg in self.args))
       
   def optimize_once(self, data):    
+    if isinstance(self.caller, Function):
+      body, changed = self.caller.body.optimize_once(data)
+      args, changed1 = optimize_once_args(self.args, data)
+      return Apply(self.caller.new(self.caller.params, body), tuple(args)), changed or changed1
+    
     if isinstance(self.caller, Lamda):
       #1. ((lambda () body))  =>  body 
-      if len(self.caller.params)==0 and not isinstance(Lamda, Function): 
+      if len(self.caller.params)==0:
         return optimize(self.caller.body, data), True
       
       #2. (lamda x: ...x...)(y) => (lambda : ... y ...)() 
@@ -711,7 +723,10 @@ class Return(Element):
     return  'return %s' % ', '.join([x.to_code(coder) for x in self.args])
   
   def insert_return_yield(self, klass):
-    return self
+    return klass(*self.args)
+  
+  def replace_return_yield(self, klass):
+    return klass(*self.args)
   
   def __eq__(x, y):
     return classeq(x, y) and x.args==y.args
@@ -801,6 +816,11 @@ class If(Element):
               self.then.insert_return_yield(klass), 
               self.else_.insert_return_yield(klass))
   
+  def replace_return_yield(self, klass):
+    return If(self.test, 
+              self.then.replace_return_yield(klass), 
+              self.else_.replace_return_yield(klass))
+  
   def pythonize_exp(self, env, compiler):
     test, has_statement1 = self.test.pythonize_exp(env, compiler)
     then, has_statement2 = self.then.pythonize_exp(env, compiler)
@@ -867,16 +887,12 @@ class Begin(Element):
     return begin(*tuple(result)), changed
         
   def insert_return_yield(self, klass):
-    if not self.statements: 
-      return klass(())
-    elif len(self.statements)==1:
-      return self.statements[1].insert_return_yield(klass)
-    else:
-      inserted = self.statements[-1].insert_return_yield(klass)
-      if isinstance(inserted, tuple):
-        return begin(*(self.statements[:-1]+inserted))
-      else:
-        return begin(*(self.statements[:-1]+(inserted,)))
+    replaced = tuple(exp.replace_return_yield(klass) for exp in self.statements[:-1])
+    inserted = self.statements[-1].insert_return_yield(klass)
+    return Begin(replaced+(inserted,))
+  
+  def replace_return_yield(self, klass):
+    return Begin(tuple(exp.replace_return_yield(klass) for exp in self.statements))
   
   def pythonize_exp(self, env, compiler):
     return pythonize_exps(self.statements, env, compiler)
@@ -1153,7 +1169,7 @@ def append_fail_cont(compiler, exp):
     Assign(fc1, failcont),
     SetFailCont(
       clamda(v1, 
-                #SetFailCont(fc1),
+                SetFailCont(fc1),
                 exp,
                 fc1(FALSE)))
     ))

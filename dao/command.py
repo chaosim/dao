@@ -216,19 +216,19 @@ def char(compiler, cont, argument):
   if isinstance(argument, il.String):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
-      il.if2(il.Ge(pos, il.Len(text)), il.failcont(v)),
+      il.if2(il.Ge(pos, il.Len(text)), il.Return(il.failcont(v))),
       il.If(il.Eq(argument, il.GetItem(text, pos)),
             il.begin(il.append_fail_cont(compiler, 
                             il.SetParseState(il.Tuple(text, pos))),
                      il.SetParseState(il.Tuple(text, il.add(pos, il.Integer(1)))),
-                     cont(il.GetItem(text, pos))),
-            il.failcont(v))
+                     il.Return(cont(il.GetItem(text, pos)))),
+            il.Return(il.failcont(v)))
     ))
   
   elif isinstance(argument, il.Var):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
-      il.if2(il.Ge(pos,il.Len(text)), il.failcont(v)),
+      il.if2(il.Ge(pos,il.Len(text)), il.Return(il.failcont(v))),
       il.Assign(argument, il.Deref(argument)),
       il.If(il.Isinstance(argument, 'str'),
             il.If(il.Eq(argument, il.GetItem(text, pos)),
@@ -236,14 +236,14 @@ def char(compiler, cont, argument):
                                   il.SetParseState(il.Tuple(text, pos))),
                            il.SetParseState(il.Tuple(text, il.add(pos, 1))),
                            cont(il.GetItem(text, pos))),
-                  il.failcont(v)),
+                  il.Return(il.failcont(v))),
             il.If(il.Isinstance(argument, 'LogicVar'),
                   il.begin(il.SetParseState(il.Tuple(text, il.add(pos,1))),
                            il.SetBinding(argument, il.GetItem(text, pos)),
                            il.append_fail_cont(compiler, 
                               il.SetParseState(il.Tuple(text, pos)),
                               il.DelBinding(argument)),
-                           cont(il.GetItem(text, pos))),
+                           il.Return(cont(il.GetItem(text, pos)))),
                   il.RaiseTypeError(argument)))
     ))
       
@@ -323,8 +323,13 @@ def any(item, mode=nongreedy):
 @special
 def _any(compiler, cont, item):
   any_cont = compiler.new_var(il.Var('any_cont'))
-  return il.cfunction(any_cont, v, 
-                il.append_fail_cont(compiler, cont(v)),
+  fc = compiler.new_var(il.Var('old_fail_cont'))
+  v = compiler.new_var(il.Var('v'))
+  return il.cfunction(any_cont, v,
+                il.Assign(fc,il.failcont),
+                il.SetFailCont(il.clamda(v, 
+                  il.SetFailCont(fc),
+                  cont(v))),
                 item.cps_convert(compiler, any_cont))(TRUE)
 
   
@@ -333,6 +338,7 @@ def _lazy_any(compiler, cont, item):
   fcont = compiler.new_var(il.Var('fcont'))
   lazy_any_cont = compiler.new_var(il.Var('lazy_any_cont'))
   lazy_any_fcont = compiler.new_var(il.Var('lazy_any_fcont'))
+  v = compiler.new_var(il.Var('v'))
   return  il.begin(
     il.Assign(fcont, il.failcont),
     il.cfunction(lazy_any_cont, v,
