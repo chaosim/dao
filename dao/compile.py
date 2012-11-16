@@ -50,29 +50,29 @@ def compile_to_pyfile(exp):
   file.close()
 '''
 il.Function(compiled_dao_function, (), 
-            il.begin(il.Assign(old_parse_state, il.parse_state), il.SetParseState(('aaa', 0)), 
-                     il.Assign(fc12, il.failcont), 
-                     il.SetFailCont(il.Clamda(v2, 
-                                              il.SetParseState(old_parse_state), fc12(False))), 
-                     il.Clamda(v, 
-                               il.CFunction(any_cont, v, il.begin(il.Assign(fc1, il.failcont), 
-                          il.SetFailCont(
-                            il.Clamda(v,
-                                      il.Clamda(v, 
-                                                il.If((il.GetItem(il.parse_state, 1)==il.Len(il.GetItem(il.parse_state, 0))), 
-                                                      True, 
-                                                      il.failcont(False)))(v), fc1(False)))), 
-                                            il.begin(il.AssignFromList(text, pos, il.parse_state), 
-                                                     il.if2(False, il.failcont(v)), 
-                                                     il.If(('a'==il.GetItem(text, pos)), 
-                                                           il.begin(il.Assign(fc11, il.failcont), 
-                                                                    il.SetFailCont(
-                                                                      il.Clamda(v1, 
-                                                                                il.SetParseState((text, pos)), 
-                                                                                fc11(False))), il.SetParseState((text, il.add((pos, 1)))), 
-                                                                    any_cont(il.GetItem(text, pos))), il.failcont(v))))
-                               (None))
-                     (True))
-                                                                    )
-
+il.begin(
+  il.Assign(old_parse_state, il.parse_state), 
+  il.SetParseState(il.Tuple((il.String(abcde), il.Integer(0)))), 
+  il.Assign(fc11, il.failcont), 
+  il.SetFailCont(
+    il.Clamda(v1, 
+    il.begin(
+      il.SetParseState(old_parse_state), 
+      fc11(il.Atom(False))))), 
+  il.Clamda(v, 
+  il.begin(
+    il.AssignFromList(text, pos, il.parse_state), 
+    il.If(False, il.failcont(v)), 
+    il.If((il.String(a)==il.GetItem(text, pos)), 
+          il.begin(
+            il.Assign(fc1, il.failcont), 
+            il.SetFailCont(
+              il.Clamda(v, 
+              il.begin(
+                il.SetParseState((text, pos)), 
+                fc1(il.Atom(False))))), 
+            il.SetParseState((text, il.add((pos, il.Integer(1))))), 
+            il.GetItem(text, pos)), 
+          il.failcont(v))))
+  (il.Atom(True))))
 '''

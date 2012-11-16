@@ -67,7 +67,6 @@ class Element:
     return 'il.%s(%s)'%(self.__class__.__name__, 
               ', '.join([repr(x) for x in self.args]))
    
-
 class Atom(Element):
   def __init__(self, value):
     self.value = value
@@ -82,7 +81,7 @@ class Atom(Element):
     return self
   
   def find_assign_lefts(self):
-    return self
+    return set()
   
   def optimization_analisys(self, data):  
     return
@@ -123,8 +122,45 @@ class Atom(Element):
 class Integer(Atom): pass
 class Float(Atom): pass
 class String(Atom): pass
-class Tuple(Atom): pass
 class List(Atom): pass
+
+def make_tuple(value):
+  return Tuple(*tuple(element(x) for x in value))
+
+class Tuple(Atom): 
+  def __init__(self, *value):
+    self.value = value
+    
+  def assign_convert(self, env, compiler):
+    return Tuple(*tuple(x.assign_convert(env, compiler) for x in self.value))
+  
+  def find_assign_lefts(self):
+    return set()
+  
+  def optimization_analisys(self, data):  
+    for x in self.value:
+      x.optimization_analisys(data)
+  
+  def side_effects(self):
+    return False
+  
+  def subst(self, bindings):
+    return Tuple(*tuple(x.subst(bindings) for x in self.value))
+  
+  def code_size(self):
+    return sum([x.code_size() for x in self.value])
+  
+  def to_code(self, coder):
+    if len(self.value)!=1:
+      return '(%s)'% ', '.join([x.to_code(coder) for x in self.value])
+    else: 
+      return '(%s, )'%self.value[0].to_code(coder)
+  
+  def __eq__(x, y):
+    return classeq(x, y) and x.value==y.value
+  
+  def __repr__(self):
+    return 'il.%s(%s)'%(self.__class__.__name__, self.value)
 
 def let(bindings, *body):
   params = tuple(element(p) for p, _ in bindings)
@@ -361,7 +397,7 @@ class Apply:
     if isinstance(self.caller, Lamda):
       #1. ((lambda () body))  =>  body 
       if len(self.caller.params)==0 and not isinstance(Lamda, Function): 
-        return self.caller.body.optimize(data), True
+        return optimize(self.caller.body, data), True
       
       #2. (lamda x: ...x...)(y) => (lambda : ... y ...)() 
       bindings = {}
@@ -897,7 +933,7 @@ class BinaryOperation(Element):
   def to_code(self, coder):
     return self.operator
       
-  def __call__(self, args):
+  def __call__(self, *args):
     return BinaryOperationApply(self, args)
   
   def __eq__(x, y):
@@ -1038,8 +1074,8 @@ class GetItem(Element):
 GetItem = vop('GetItem', 2, '(%s)[%s]')  
 Not = vop('Not', 1, "not %s")
 def AssignFromList_to_code(self, coder):
-  return "%s = %s" % (', '.join([to_code(coder, x) for x in self.args[:-1]]), 
-                      to_code(coder, self.args[-1]))
+  return "%s = %s" % (', '.join([x.to_code(coder) for x in self.args[:-1]]), 
+                      self.args[-1].to_code(coder))
 AssignFromList = vop2('AssignFromList', -1, AssignFromList_to_code)
 Isinstance = vop('Isinstance', 2, "isinstance(%s, %s)")
 EmptyList = vop('empty_list', 0, '[]')
@@ -1122,7 +1158,7 @@ def append_fail_cont(compiler, exp):
                 fc1(FALSE)))
     ))
 
-type_map = {int:Integer, float: Float, str:String, unicode: String, tuple: Tuple, list:List}
+type_map = {int:Integer, float: Float, str:String, unicode: String, tuple: make_tuple, list:List}
 
 def element(exp):
   if isinstance(exp, Element):

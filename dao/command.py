@@ -5,7 +5,7 @@ import dao.interlang as il
 from dao.compilebase import CompileTypeError
 from dao.interlang import cps_convert_exps
 
-from dao.interlang import TRUE, FALSE
+from dao.interlang import TRUE, FALSE, NONE
 
 v, fc = il.Var('v'), il.Var('fc')
 
@@ -172,7 +172,7 @@ class BuiltinFunctionCall(CommandCall):
     #see The 90 minute Scheme to C compiler by Marc Feeley
     args = self.args
     vars = tuple(il.Var('a'+repr(i)) for i in range(len(args)))
-    fun = cont(self.function(vars))
+    fun = cont(self.function(*vars))
     for var, arg in reversed(zip(vars, args)):
       fun = arg.cps_convert(compiler, il.Clamda(var, fun))
     return fun
@@ -202,7 +202,7 @@ def set_parse_state(compiler, cont, parse_state):
 def settext(compiler, cont, text):
   old_parse_state = compiler.new_var(il.Var('old_parse_state'))
   return il.begin(il.Assign(old_parse_state, il.parse_state),
-                  il.SetParseState(il.Tuple((text, 0))),
+                  il.SetParseState(il.Tuple(text, il.Integer(0))),
                   il.append_fail_cont(compiler, il.SetParseState(old_parse_state)),
                   cont(TRUE))
 
@@ -216,11 +216,11 @@ def char(compiler, cont, argument):
   if isinstance(argument, il.String):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
-      il.if2(pos>=il.Len(text), il.failcont(v)),
+      il.if2(il.Ge(pos, il.Len(text)), il.failcont(v)),
       il.If(il.Eq(argument, il.GetItem(text, pos)),
             il.begin(il.append_fail_cont(compiler, 
-                            il.SetParseState((text, pos))),
-                     il.SetParseState((text, il.add((pos, 1)))),
+                            il.SetParseState(il.Tuple(text, pos))),
+                     il.SetParseState(il.Tuple(text, il.add(pos, il.Integer(1)))),
                      cont(il.GetItem(text, pos))),
             il.failcont(v))
     ))
@@ -228,20 +228,20 @@ def char(compiler, cont, argument):
   elif isinstance(argument, il.Var):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
-      il.if2(pos>=il.Len(text), il.failcont(v)),
+      il.if2(il.Ge(pos,il.Len(text)), il.failcont(v)),
       il.Assign(argument, il.Deref(argument)),
       il.If(il.Isinstance(argument, 'str'),
             il.If(il.Eq(argument, il.GetItem(text, pos)),
                   il.begin(il.append_fail_cont(compiler, 
-                                  il.SetParseState((text, pos))),
-                           il.SetParseState((text, il.add((pos, 1)))),
+                                  il.SetParseState(il.Tuple(text, pos))),
+                           il.SetParseState(il.Tuple(text, il.add(pos, 1))),
                            cont(il.GetItem(text, pos))),
                   il.failcont(v)),
             il.If(il.Isinstance(argument, 'LogicVar'),
-                  il.begin(il.SetParseState((text, pos+1)),
+                  il.begin(il.SetParseState(il.Tuple(text, il.add(pos,1))),
                            il.SetBinding(argument, il.GetItem(text, pos)),
                            il.append_fail_cont(compiler, 
-                              il.SetParseState((text, pos)),
+                              il.SetParseState(il.Tuple(text, pos)),
                               il.DelBinding(argument)),
                            cont(il.GetItem(text, pos))),
                   il.RaiseTypeError(argument)))
@@ -267,7 +267,7 @@ def callcc(compiler, cont, fun):
   return il.Clamda(v, fun(cont, cont))
 
 @special
-def findall(compiler, cont, goal, template=None, bag=None):
+def findall(compiler, cont, goal, template=NONE, bag=None):
   if bag is None:
     return il.begin(
       il.AppendFailCont(cont(v)),
@@ -325,7 +325,7 @@ def _any(compiler, cont, item):
   any_cont = compiler.new_var(il.Var('any_cont'))
   return il.cfunction(any_cont, v, 
                 il.append_fail_cont(compiler, cont(v)),
-                item.cps_convert(compiler, any_cont))(None)
+                item.cps_convert(compiler, any_cont))(TRUE)
 
   
 @special
@@ -341,7 +341,7 @@ def _lazy_any(compiler, cont, item):
     il.cfunction(lazy_any_fcont, v,
         il.SetFailCont(fcont),
         cps_convert(compiler, item, lazy_any_cont)),    
-    lazy_any_cont(None))
+    lazy_any_cont(TRUE))
                              
 @special
 def _greedy_any(compiler, cont, item):
@@ -356,6 +356,6 @@ def _greedy_any(compiler, cont, item):
     il.cfunction(greedy_any_cont, v,
         il.SetFailCont(greedy_any_fcont),
          cps_convert(compiler, item, greedy_any_cont)),
-    greedy_any_cont(None))
+    greedy_any_cont(TRUE))
 
 from dao.interlang import LogicVar
