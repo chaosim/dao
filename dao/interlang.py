@@ -340,10 +340,17 @@ class Apply:
             args, changed2 = optimize_once(new_args, data)
             return Apply(self.caller.new(new_params, caller_body), args), changed1 or changed2
       else:
-        if bindings:
-          return optimize(subst(begin(*self.caller.body), bindings), data), True
+        if not isinstance(self.caller, Function):
+          if bindings:
+            return optimize(subst(begin(*self.caller.body), bindings), data), True
+          else:
+            return optimize(begin(*self.caller.body), data), True
         else:
-          return optimize(begin(*self.caller.body), data), True               
+          if bindings:
+            return Function(self.caller.name, (), optimize(subst(begin(*self.caller.body), bindings), data))(), True
+          else:
+            return Function(self.caller.name, (), optimize(begin(*self.caller.body), data))(), True
+          
     else: 
       changed = False
       caller, changed1 = optimize_once(self.caller, data)
