@@ -699,9 +699,23 @@ class Yield(Return):
   def __repr__(self):
     return 'il.Yield(%s)'%', '.join([repr(x) for x in self.args])
 
+class PseudoElse(Atom):
+  def __init__(self):
+    return
+  def code_size(self):
+    return 0
+  def __eq__(x, y):
+    return classeq(x, y)
+  
+  def __repr__(self):
+    return 'il.pseudo_else'
+
+pseudo_else = PseudoElse()
+
 class If(Element):
   def __init__(self, test, then, else_):
     self.test, self.then, self.else_ = test, then, else_
+    if else_==pseudo_else: self.is_statement = True
     
   def alpha_convert(self, env, compiler):
     return If(self.test.alpha_convert(env, compiler), self.then.alpha_convert(env, compiler), 
@@ -714,6 +728,7 @@ class If(Element):
 
   def find_assign_lefts(self):
     return self.then.find_assign_lefts() | self.else_.find_assign_lefts()
+  
   def optimization_analisys(self, data):  
     self.test.optimization_analisys(data)
     self.then.optimization_analisys(data)
@@ -764,14 +779,16 @@ class If(Element):
     then, has_statement2 = self.then.pythonize_exp(env, compiler)
     else_, has_statement3 = self.else_.pythonize_exp(env, compiler)
     if_ = If(test[-1], begin(*then), begin(*else_))
-    if_.is_statement = has_statement2 or has_statement3
-    return test[:-1]+(if_,), has_statement1 or has_statement2 or has_statement3
+    if_.is_statement = if_.is_statement or has_statement2 or has_statement3
+    return test[:-1]+(if_,), has_statement1 or if_.is_statement
     
   def to_code(self, coder):
     if self.is_statement:
-      return 'if %s: \n%s\nelse:\n%s' % (self.test.to_code(coder), 
-                                         coder.indent(self.then.to_code(coder)), 
-                                       coder.indent(self.else_.to_code(coder)))        
+      result = 'if %s: \n%s\n' % (self.test.to_code(coder), 
+                                  coder.indent(self.then.to_code(coder)))
+      if self.else_!=pseudo_else:
+        result += 'else:\n%s\n'% coder.indent(self.else_.to_code(coder)) 
+      return result
     else:
       return '%s if %s else %s' % (self.then.to_code(coder), 
                                    self.test.to_code(coder), 
@@ -780,12 +797,15 @@ class If(Element):
     return classeq(x, y) and x.test==y.test and x.then==y.then and x.else_==y.else_
   
   def __repr__(self):
-    if self.else_ is not None:
+    if self.else_!=pseudo_else:
       return 'il.If(%r, %r, %r)'%(self.test, self.then, self.else_)
     else:
       return 'il.If(%r, %r)'%(self.test, self.then)
 
-class If2(Element):
+def if2(test, then):
+  return If(test, then, pseudo_else)
+
+class xxxIf2(Element):
   is_statement = True
   def __init__(self, test, then):
     self.test, self.then = test, then
