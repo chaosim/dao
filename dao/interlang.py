@@ -3,15 +3,6 @@ from dao.base import classeq
 from dao.compilebase import optimize, MAX_EXTEND_CODE_SIZE, to_code_list
 from dao.compilebase import VariableNotBound, CompileTypeError
 
-def xxxis_statement(exp):
-  try: return exp.is_statement
-  except:
-    if isinstance(exp, list) or isinstance(exp, tuple) or\
-       isinstance(exp, int) or isinstance(exp, float) or\
-       isinstance(exp, str) or isinstance(exp, unicode):
-      return False
-  raise CompileTypeError(exp)
-
 def pythonize(self, env, compiler):
   exps, has_any_statement = self.pythonize_exp(env, compiler)
   return begin(*exps)
@@ -804,108 +795,6 @@ class If(Element):
 
 def if2(test, then):
   return If(test, then, pseudo_else)
-
-class xxxIf2(Element):
-  is_statement = True
-  def __init__(self, test, then):
-    self.test, self.then = test, then
-    
-  def alpha_convert(self, env, compiler):
-    return If2(env.alpha_convert(self.test, compiler), env.alpha_convert(self.then, compiler))
-    
-  def assign_convert(self, env, compiler):
-    return If(assign_convert(self.test, env, compiler), 
-                 assign_convert(self.then, env, compiler))
-    
-  def optimization_analisys(self, data):  
-    optimization_analisys(self.test, data)
-    optimization_analisys(self.then, data)
-    
-  def optimize_once(self, data):
-    return self, False
-  
-  def code_size(self):
-    return 3 + code_size(self.test) + \
-           code_size(self.then_)
-  
-  def side_effects(self):
-    return not side_effects(self.test) and\
-           not side_effects(self.then_)
-  
-  def subst(self, bindings):  
-    return If2(subst(self.test, bindings), 
-                 subst(self.then, bindings))
-    
-  #def optimize_once(exp, data):
-      #return If2(optimize(exp.test, data), optimize(exp.then, data))
-    
-  def pythonize_exp(self, env, compiler):
-    test, has_statement1 = pythonize_exp(self.test, env, compiler)
-    then, has_statement2 = pythonize_exp(self.then, env, compiler)
-    if_ = If2(test[-1], begin(*then))
-    return test[:-1]+(if_,), True
-    
-  def to_code(self, coder):
-    return 'if %s: \n%s\n' % (to_code(coder, self.test), coder.indent(to_code(coder, self.then)))
-
-  def __eq__(x, y):
-    return classeq(x, y) and x.test==y.test and x.then==y.then
-  
-  def __repr__(self):
-    return 'il.If2(%r, %r)'%(self.test, self.then)
-
-class Unify(Element):
-  def __init__(self, left, right, cont, fcont):
-    self.left, self.right, self.cont, self.fcont =  left, right, cont, fcont
-    
-  def alpha_convert(self, env, compiler):
-    return Unify(env.alpha_convert(self.left, compiler), env.alpha_convert(self.right),
-                 env.alpha_convert(self.cont, compiler), env.alpha_convert(self.fcont, compiler))
-    
-  def assign_convert(self, env, compiler):
-    return Unify(assign_convert(self.left, env, compiler), assign_convert(self.right, env, compiler),
-                 assign_convert(self.cont, env, compiler), assign_convert(self.fcont, env, compiler))
-    
-  def optimization_analisys(self, data):  
-    optimization_analisys(self.left, data)
-    optimization_analisys(self.right, data)
-    optimization_analisys(self.cont, data)
-    optimization_analisys(self.fcont, data)
-
-  def side_effects(self):
-      return False
-      
-  def code_size(self):
-    return code_size(self.left) + code_size(self.right) + code_size(self.cont) + code_size(self.fcont)
-    
-  def subst(self, bindings):  
-    return Unify(subst(self.left, bindings), subst(self.right, bindings),
-                 subst(self.cont, bindings), subst(self.fcont, bindings))
-
-  def optimize_once(self, data):
-    left, left_changed = optimize_once(self.left, data)
-    right, right_changed = optimize_once(self.right, data)
-    cont, cont_changed = optimize_once(self.cont, data)
-    fcont, fcont_changed = optimize_once(self.fcont, data)
-    return Unify(left, right, cont), left_changed or right_changed or cont_changed or fcont_changed
-    
-  def pythonize_exp(self, env, compiler):
-    raise Todo_Unify_pythonize_exp
-    defs, (left, right, cont) = pythonize_list((self.left, self.right, self.cont, self.fcont), env, compiler)
-    return collocate(defs, Unify(left, right, cont))
-    
-  def to_code(self, coder):
-    return 'unify(%s, %s, %s, %s)' % (to_code(coder, self.left), to_code(coder, self.right), 
-                                     to_code(coder, self.cont), to_code(coder, self.fcont))
-    
-  def __call__(self, v):
-    return Apply(self, (v,))
-    
-  def __eq__(x, y):
-    return classeq(x, y) and x.left==y.left and x.right==y.right and x.cont==y.cont and x.fcont==y.fcont
-  
-  def __repr__(self):
-    return 'il.Unify(%r, %r, %r, %r)'%(self.left, self.right, self.cont, self.fcont)
 
 class Begin(Element):
   is_statement = True

@@ -157,7 +157,7 @@ class TestBuiltin:
     result = cps_convert(char('a'))
     expect = il.Clamda(v, 
                        il.AssignFromList(text, pos, il.parse_state), 
-                       il.If2((pos>=il.Len(text)), il.failcont(v)), 
+                       il.if2((pos>=il.Len(text)), il.failcont(v)), 
                        il.If(il.Eq('a', text[pos]), 
                              il.begin(il.AppendFailCont(il.SetParseState((text, pos))), 
                                       il.SetParseState((text, il.add((pos, 1)))), 
@@ -171,7 +171,7 @@ class TestBuiltin:
     result = cps_convert(char(x))
     expect = il.Clamda(v, 
                        il.AssignFromList(text, pos, il.parse_state), 
-                       il.If2((pos>=il.Len(text)), 
+                       il.if2((pos>=il.Len(text)), 
                               il.failcont(v)), 
                        il.Assign(x, il.Deref(x)), 
                        il.If(il.Isinstance(x, 'str'), 
@@ -253,7 +253,7 @@ class TestBuiltin:
               il.AppendFailCont(done()(v)), 
               il.Clamda(v, 
                         il.AssignFromList(text, pos, il.parse_state), 
-                        il.If2((pos>=il.Len(text)), 
+                        il.if2((pos>=il.Len(text)), 
                                il.failcont(v)), 
                         il.If(il.Eq('1', text[pos]), 
                               il.begin(il.AppendFailCont(il.SetParseState((text, pos))), 

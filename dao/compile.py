@@ -63,7 +63,7 @@ il.Function(compiled_dao_function, (),
                                                       True, 
                                                       il.failcont(False)))(v), fc1(False)))), 
                                             il.begin(il.AssignFromList(text, pos, il.parse_state), 
-                                                     il.If2(False, il.failcont(v)), 
+                                                     il.if2(False, il.failcont(v)), 
                                                      il.If(('a'==il.GetItem(text, pos)), 
                                                            il.begin(il.Assign(fc11, il.failcont), 
                                                                     il.SetFailCont(

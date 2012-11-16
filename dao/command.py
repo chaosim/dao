@@ -82,7 +82,7 @@ def begin(compiler, cont, *exps):
 def if_(compiler, cont, test, then, else_):
   if else_ is None:
     return test.cps_convert(compiler, 
-            il.Clamda(v, il.If2(v, then.cps_convert(compiler, cont))))
+            il.Clamda(v, il.if2(v, then.cps_convert(compiler, cont))))
   else:
     return test.cps_convert(compiler, 
            il.Clamda(v, il.If(v, then.cps_convert(compiler, cont), 
@@ -216,7 +216,7 @@ def char(compiler, cont, argument):
   if isinstance(argument, il.String):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
-      il.If2(pos>=il.Len(text), il.failcont(v)),
+      il.if2(pos>=il.Len(text), il.failcont(v)),
       il.If(il.Eq(argument, il.GetItem(text, pos)),
             il.begin(il.append_fail_cont(compiler, 
                             il.SetParseState((text, pos))),
@@ -228,7 +228,7 @@ def char(compiler, cont, argument):
   elif isinstance(argument, il.Var):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
-      il.If2(pos>=il.Len(text), il.failcont(v)),
+      il.if2(pos>=il.Len(text), il.failcont(v)),
       il.Assign(argument, il.Deref(argument)),
       il.If(il.Isinstance(argument, 'str'),
             il.If(il.Eq(argument, il.GetItem(text, pos)),
