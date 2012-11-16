@@ -56,7 +56,9 @@ class TestControl:
     
   def test_let(self):
     x = il.Var('x')
-    eq_(eval(let([(x, 1)], x)), 1)
+    #eq_(eval(let([(x, 1)], x)), 1)
+    #eq_(eval(let([(x, 1)], let([(x, 2)], x))), 2)
+    eq_(eval(let([(x, 1)], let([(x, 2)], assign(x, 2)))), 2)
     
   def test_unify(self):
     x = il.Var('x')

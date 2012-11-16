@@ -165,11 +165,8 @@ class Tuple(Atom):
   def __repr__(self):
     return 'il.%s(%s)'%(self.__class__.__name__, self.value)
 
-def let(bindings, *body):
-  params = tuple(element(p) for p, _ in bindings)
-  args = tuple(element(a) for _, a in bindings)
-  body = begin(*(tuple(element(exp) for exp in body)))
-  return Lamda(params, body)(*args)
+def lamda(params, *body):
+  return Lamda(params, begin(*body))
 
 class Lamda(Element):
   def __init__(self, params, body):
@@ -265,6 +262,9 @@ class Lamda(Element):
   def __repr__(self):
     return 'il.Lamda((%s), %s)'%(', '.join([repr(x) for x in self.params]),
                               repr(self.body))
+
+def function( name, params, *body):
+  return Function(name, params, begin(*body))
 
 class Function(Lamda):
   '''recuvsive Function'''

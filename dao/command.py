@@ -26,6 +26,10 @@ class CommandCall(il.Element):
   def __init__(self, function, args):
     self.function, self.args = function, args
     
+  def subst(self, bindings):
+    return self.__class__(self.function, 
+                 tuple(arg.subst(bindings) for arg in self.args))
+    
   def __eq__(x, y):
     return classeq(x, y) and x.function==y.function and x.args==y.args
 
@@ -54,8 +58,11 @@ class Assign(Command):
 assign = Assign()
 
 class AssignCall(SpecialCall):
-  def __init__(self, var, value):
-    self.var, self.exp = var, value
+  def __init__(self, var, exp):
+    self.var, self.exp = var, exp
+    
+  def subst(self, bindings):
+    return AssignCall(self.var, self.exp.subst(bindings))
     
   def alpha_convert(self, env, compiler):
     try: var = env[self.var]
@@ -181,11 +188,44 @@ add = BuiltinFunction(il.add)
 
 LogicVar = il.LogicVar
 
-lamda = il.Lamda
+lamda = il.lamda
 
-let = il.let
+def let(bindings, *body):
+  bindings = tuple((var, il.element(value)) for var, value in bindings)
+  return Let(bindings, begin(*body))
 
-def letrec(bindings, *body):
+class Let(il.Element):
+  def __init__(self, bindings, body):
+    self.bindings = bindings
+    self.body = body
+  
+  def alpha_convert(self, env, compiler):
+    new_env = env.extend()
+    for var, value in self.bindings:
+      new_env.bindings[var] = compiler.new_var(var)
+    alphaed = self.body.alpha_convert(new_env, compiler) 
+    bindings = {new_env[var]:value for var, value in self.bindings}
+    return alphaed.subst(bindings)
+  
+  def subst(self, bindings):
+    bindings = tuple((var.subst(bindings), value.subst(bindings))
+                     for var, value in self.bindings)
+    body = self.body.subst(bindings)
+    return Let(bindings, body)
+  
+  def __repr__(self):
+    return 'Let(%r, %r)'%(self.bindings, self.body)
+    
+
+#TODO__letrec
+
+def xxxletrec(bindings, *body):
+  params = tuple(element(p) for p, _ in bindings)
+  args = tuple(element(a) for _, a in bindings)
+  body = begin(*(tuple(element(exp) for exp in body)))
+  return Lamda(params, body)(*args)
+
+def xxxletrec(bindings, *body):
   params = tuple(p for p, _ in bindings)
   args = tuple(a for _, a in bindings)
   assigns = tuple(assign(k, v) for k, v in bindings)
