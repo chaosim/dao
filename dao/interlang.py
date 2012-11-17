@@ -29,7 +29,7 @@ def pythonize_args(args, env, compiler):
   return exps, result, has_statement
     
 def cps_convert_exps(compiler, exps, cont):
-  v = Var('v')
+  v = compiler.new_var(Var('v'))
   if not exps: return Clamda(v, cont(il.tuple()))
   if len(exps)==1:
     return exps[0].cps_convert(compiler, cont)
@@ -166,6 +166,7 @@ class Tuple(Atom):
     return 'il.%s(%s)'%(self.__class__.__name__, self.value)
 
 def lamda(params, *body):
+  body = tuple(element(x) for x in body)
   return Lamda(params, begin(*body))
 
 class Lamda(Element):
@@ -176,7 +177,7 @@ class Lamda(Element):
     return self.__class__(params, body)
   
   def __call__(self, *args):
-    return Apply(self, args)
+    return Apply(self, tuple(element(arg) for arg in args))
   
   def alpha_convert(self, env, compiler):
     try:
@@ -194,7 +195,7 @@ class Lamda(Element):
     
   def cps_convert(self, compiler, cont):
     k = compiler.new_var(Var('cont'))
-    return cont(self.new(self.params+(k,), self.body.cps_convert_exps(compiler, k)))
+    return cont(self.new((k,)+self.params, self.body.cps_convert(compiler, k)))
   
   def find_assign_lefts(self):
     return self.body.find_assign_lefts()
@@ -264,6 +265,7 @@ class Lamda(Element):
                               repr(self.body))
 
 def function( name, params, *body):
+  body = tuple(element(x) for x in body)
   return Function(name, params, begin(*body))
 
 class Function(Lamda):
@@ -294,6 +296,7 @@ class Function(Lamda):
                                  repr(self.body))    
 
 def clamda(v, *body):
+  body = tuple(element(x) for x in body)
   return Clamda(v, begin(*body))
 
 class Clamda(Lamda):
@@ -322,6 +325,7 @@ class Done(Clamda):
     return 'il.Done(%r, %s)'%(self.params[0], repr(self.body))
 
 def cfunction(name, v, *body):
+  body = tuple(element(x) for x in body)
   return CFunction(name, v, begin(*body))
 
 class CFunction(Function):
@@ -346,7 +350,7 @@ def optimize_once_args(args, data):
     result.append(arg)
   return tuple(result), changed
     
-class Apply:
+class Apply(Element):
   is_statement = False
   
   def __init__(self, caller, args):
@@ -365,8 +369,8 @@ class Apply:
         fun = arg.cps_convert(compiler, Clamda(var, fun))
       return fun
     else:
-      function = Var('function')
-      vars = tuple(Var('a'+repr(i)) for i in range(len(self.args)))
+      function = compiler.new_var(Var('function'))
+      vars = tuple(compiler.new_var(Var('a'+repr(i))) for i in range(len(self.args)))
       fun = Apply(function, (cont,)+vars)
       for var, self in reversed(zip((function,)+vars, (self.caller,)+self.args)):
         fun = self.cps_convert(compiler, Clamda(var, fun))
@@ -570,6 +574,7 @@ class Var(Element):
     return classeq(x, y) and x.name==y.name
   
   def __call__(self, *args):
+    args = tuple(element(arg) for arg in args)
     return Apply(self, args)
   
   def free_variables(self):
@@ -942,7 +947,10 @@ class BinaryOperation(Element):
 
   def optimize_once(self, data):
     return self, False
-    
+  
+  def code_size(self): 
+    return 1
+  
   def pythonize_exp(self, env, compiler):
     return (self,), False
     
@@ -961,6 +969,7 @@ class BinaryOperation(Element):
     return 'il.%s'%self.name
 
 add = BinaryOperation('add', '+', False)
+sub = BinaryOperation('sub', '-', False)
 
 class BinaryOperationApply(Apply):
   is_statement = False
@@ -1015,6 +1024,10 @@ class BinaryOperationApply(Apply):
     
   def __repr__(self):
     return '%r(%r)'%(self.caller, self.args)
+  
+  def __repr__(self):
+    return '%r%s%r'%(self.args[0], self.caller.operator, self.args[1])
+  
 
 class VirtualOperation(Element):
   def __call__(self, *args):
@@ -1038,7 +1051,10 @@ class VirtualOperation(Element):
   
   def subst(self, bindings):  
     return self.__class__(*tuple(x.subst(bindings) for x in self.args))
-
+  
+  def code_size(self):
+    return 1
+  
   def optimize_once(self, data):
     return self, False
   
@@ -1067,7 +1083,7 @@ class VirtualOperation(Element):
 
 def vop(name, arity, code_format):
   class Vop(VirtualOperation): pass
-  Vop.__name__ = name
+  Vop.name = Vop.__name__  = name
   Vop.arity = arity
   Vop.code_format = code_format
   Vop.is_statement = False
@@ -1108,23 +1124,6 @@ SetFailCont = vop2('SetFailCont', 1, 'solver.fail_cont = %s')
 FailCont = vop('failcont', 0, 'solver.fail_cont')  
 failcont = FailCont()
 
-#def AppendFailCont_code_format(self, args, coder):
-  #fc = coder.newvar('old_fail_cont')
-  #new_fail_cont = coder.newvar('new_fail_cont')
-  #result = "%s = solver.fail_cont\n" % fc
-  #result += "def %s(v):\n"%new_fail_cont
-  #result += coder.indent_space+"solver.fail_cont = %s\n"%fc
-  #for stmt in args:
-    #result += coder.indent_space+to_code(coder, stmt)+'\n'
-  #result += 'solver.fail_cont = %s' % new_fail_cont
-  #return result
-#AppendFailCont = vop('AppendFailCont', -1, AppendFailCont_code_format) 
-#'''il.Assign(fc, get_failcont)
-  #SetFailCont(
-    #Clambda(v, 
-      #SetFailCont(fc),
-      #statements
-  #))'''  
 SetCutOrCont = vop2('SetCutOrCont', 1, 'solver.cut_or_cont = %s')
 CutOrCont = vop('CutOrCont', 0, 'solver.cut_or_cont')
 cut_or_cont = CutOrCont()
@@ -1148,7 +1147,7 @@ def binary(name, symbol):
   class Binary(VirtualOperation): 
     def __repr__(self):
       return '(%s%s%s)'%(repr(self.args[0]), self.__class__.symbol, repr(self.args[1]))
-  Binary.__name__ = name
+  Binary.__name__ = Binary.name = name
   Binary.arity = 2
   Binary.symbol = symbol
   Binary.code_format = binary_to_code

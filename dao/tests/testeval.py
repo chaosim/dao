@@ -4,10 +4,11 @@ from nose.tools import eq_, ok_, assert_raises
 
 from dao.solve import eval
 
-from dao.command import quote, add, assign, begin, if_
+from dao.command import quote, assign, begin, if_
 from dao.command import not_p, fail, succeed, or_
-from dao.command import let, unify
+from dao.command import unify, lamda, let, letrec
 from dao.command import settext, char, eoi, any
+from dao.command import add, eq, sub
 
 from dao.solvebase import NoSolution
 
@@ -32,7 +33,7 @@ class TestSimple:
     
   def testassign(self):
     a = il.Var('a')
-    eq_(eval(assign(a,2)), 2)
+    eq_(eval(assign(a,2)), None)
     
   def xtestdefine(self):
     eq_(eval(begin(define(x,1),define(x,2))), 2)
@@ -54,11 +55,24 @@ class TestControl:
     eq_(eval(or_(succeed, fail)), True)
     eq_(eval(or_(unify(1,1), unify(1,2))), True)
     
+  def test_lamda(self):
+    x = il.Var('x')
+    eq_(eval(lamda((x,), 1)(1)), 1)
+    
   def test_let(self):
     x = il.Var('x')
-    #eq_(eval(let([(x, 1)], x)), 1)
-    #eq_(eval(let([(x, 1)], let([(x, 2)], x))), 2)
-    eq_(eval(let([(x, 1)], let([(x, 2)], assign(x, 2)))), 2)
+    eq_(eval(let([(x, 1)], x)), 1)
+    eq_(eval(let([(x, 1)], let([(x, 2)], x))), 2)
+    eq_(eval(let([(x, 1)], let([(x, 2)], assign(x, 2)))), None)
+    
+  def test_letrec(self):
+    x, y = il.Var('x'), il.Var('y')
+    eq_(eval(letrec([(x, 1), (y, x)], y)), 1)
+    eq_(eval(letrec([(x, 1), (y, add(x, 1))], y)), 2)
+    
+  def test_letrec2(self):
+    x, f = il.Var('x'), il.Var('f')
+    eq_(eval(letrec([(f, lamda((x,), if_(eq(x,1), 1, f(sub(x,1)))))], f(2))), 1)
     
   def test_unify(self):
     x = il.Var('x')

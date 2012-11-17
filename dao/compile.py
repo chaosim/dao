@@ -48,3 +48,27 @@ def compile_to_pyfile(exp):
   file = open(r'f:\dao_all\dao\dao\tests\compiled.py', 'w')
   file.write(compile_to_python(exp))
   file.close()
+
+'''
+il.Clamda(v2, il.begin(
+  il.Assign(f, v2), 
+  il.Clamda(v, il.Clamda(function, il.Clamda(a0, 
+    function(il.Done(v, v), a0))(il.Integer(2)))(f))
+  (il.Atom(None))))
+(il.Lamda((x, cont), 
+  il.Clamda(a03, il.Clamda(a11, il.Clamda(v3, 
+    il.If(v3, cont(il.Integer(1)), 
+          il.Clamda(function1, il.Clamda(a02, il.Clamda(a1, il.Clamda(a01, 
+              function1(cont, a01))(a02-a1))(il.Integer(1)))(x))
+          (f)))
+                           ((a03==a11)))
+            (il.Integer(1)))
+  (x)))
+
+
+il.Function(compiled_dao_function, (), il.begin(
+  il.Assign(f, 
+    il.Lamda((x, cont), il.Clamda(a03, il.Clamda(a11, il.Clamda(v3, il.If(v3, cont(il.Integer(1)), il.Clamda(function1, il.Clamda(a02, il.Clamda(a1, il.Clamda(a01, function1(cont, a01))(a02-a1))(il.Integer(1)))(x))(f)))((a03==a11)))(il.Integer(1)))(x))
+    ), 
+  f(il.Done(v, v), il.Integer(2))))
+'''

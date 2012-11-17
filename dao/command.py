@@ -7,7 +7,7 @@ from dao.interlang import cps_convert_exps
 
 from dao.interlang import TRUE, FALSE, NONE
 
-v, fc = il.Var('v'), il.Var('fc')
+v0, fc0 = il.Var('v'), il.Var('fc')
 
 class Command: pass
 
@@ -32,6 +32,9 @@ class CommandCall(il.Element):
     
   def __eq__(x, y):
     return classeq(x, y) and x.function==y.function and x.args==y.args
+  
+  def __repr__(self):
+    return '%r(%s)'%(self.function, ', '.join([repr(x) for x in self.args]))
 
 class SpecialCall(CommandCall):
     
@@ -71,8 +74,8 @@ class AssignCall(SpecialCall):
     return AssignCall(var, self.exp.alpha_convert(env, compiler))
   
   def cps_convert(self, compiler, cont):
-    var, exp = self.var, self.exp
-    return exp.cps_convert(compiler, il.clamda(v, il.Assign(var, v), cont(v)))
+    v = compiler.new_var(v0)
+    return self.exp.cps_convert(compiler, il.clamda(v, il.Assign(self.var, v), cont(NONE)))
     
   def __repr__(self):
     return 'assign(%r, %r)'%(self.var, self.exp)
@@ -87,6 +90,7 @@ def begin(compiler, cont, *exps):
     
 @special
 def if_(compiler, cont, test, then, else_):
+  v = compiler.new_var(v0)
   if else_ is None:
     return test.cps_convert(compiler, 
             il.Clamda(v, il.if2(v, then.cps_convert(compiler, cont))))
@@ -109,6 +113,7 @@ fail = fail()
 
 @special
 def cut(compiler, cont):
+  v = compiler.new_var(v0)
   return il.Begin(il.SetFailCont(il.cut_cont), 
                   il.Clamda(v, cont(v)))
 
@@ -126,6 +131,7 @@ def not_p(compiler, cont, clause):
   
 @special
 def or_(compiler, cont, clause1, clause2):
+  v = compiler.new_var(v0)
   cut_or_cont = compiler.new_var(il.Var('cut_or_cont'))
   or_cont = il.clamda(v, il.SetCutOrCont(cut_or_cont), cont(v))
   return il.begin(
@@ -136,6 +142,8 @@ def or_(compiler, cont, clause1, clause2):
 
 @special
 def first_p(compiler, cont, clause1, clause2):
+  v = compiler.new_var(v0)
+  fc = compiler.new_var(fc)
   first_cont = il.Clamda(v, il.SetFailCont(fc), cont(v))
   return il.Begin(
     il.Assign(fc, il.failcont),
@@ -144,6 +152,7 @@ def first_p(compiler, cont, clause1, clause2):
 
 @special
 def if_p(compiler, cont, condition, action):
+  v = compiler.new_var(v0)
   return condition.cps_convert(compiler, 
                     il.Clamda(v, action.cps_convert(compiler, cont)))
 
@@ -178,13 +187,18 @@ class BuiltinFunctionCall(CommandCall):
   def cps_convert(self, compiler, cont):
     #see The 90 minute Scheme to C compiler by Marc Feeley
     args = self.args
-    vars = tuple(il.Var('a'+repr(i)) for i in range(len(args)))
+    vars = tuple(compiler.new_var(il.Var('a'+repr(i))) for i in range(len(args)))
     fun = cont(self.function(*vars))
     for var, arg in reversed(zip(vars, args)):
       fun = arg.cps_convert(compiler, il.Clamda(var, fun))
     return fun
      
+  def __repr__(self):
+    return '%s(%s)'%(self.function.name, ', '.join([repr(x) for x in self.args]))
+
 add = BuiltinFunction(il.add)
+eq = BuiltinFunction(il.Eq)
+sub = BuiltinFunction(il.sub)
 
 LogicVar = il.LogicVar
 
@@ -219,17 +233,23 @@ class Let(il.Element):
 
 #TODO__letrec
 
-def xxxletrec(bindings, *body):
-  params = tuple(element(p) for p, _ in bindings)
-  args = tuple(element(a) for _, a in bindings)
-  body = begin(*(tuple(element(exp) for exp in body)))
-  return Lamda(params, body)(*args)
+def letrec(bindings, *body):
+  return Letrec(bindings, body)
 
-def xxxletrec(bindings, *body):
-  params = tuple(p for p, _ in bindings)
-  args = tuple(a for _, a in bindings)
-  assigns = tuple(assign(k, v) for k, v in bindings)
-  return begin(*(assigns+(lamda(params, *body)(*params),)))
+class Letrec(il.Element):
+  def __init__(self, bindings, body):
+    self.bindings = bindings
+    self.body = body
+  
+  def alpha_convert(self, env, compiler):
+    new_env = env.extend()
+    for var, value in self.bindings:
+      new_env.bindings[var] = compiler.new_var(var)
+    body = begin(*(tuple(assign(var, value) for var, value in self.bindings)+self.body))
+    return body.alpha_convert(new_env, compiler) 
+  
+  def __repr__(self):
+    return 'Letrec(%r, %r)'%(self.bindings, self.body)
 
 @special
 def set_parse_state(compiler, cont, parse_state):
@@ -252,17 +272,18 @@ def parse_state(compiler, cont):
 
 @special
 def char(compiler, cont, argument):
+  #v = compiler.new_var(v0)
   text, pos = il.Var('text'), il.Var('pos')
   if isinstance(argument, il.String):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
-      il.if2(il.Ge(pos, il.Len(text)), il.Return(il.failcont(v))),
+      il.if2(il.Ge(pos, il.Len(text)), il.Return(il.failcont(NONE))),
       il.If(il.Eq(argument, il.GetItem(text, pos)),
             il.begin(il.append_fail_cont(compiler, 
                             il.SetParseState(il.Tuple(text, pos))),
                      il.SetParseState(il.Tuple(text, il.add(pos, il.Integer(1)))),
                      il.Return(cont(il.GetItem(text, pos)))),
-            il.Return(il.failcont(v)))
+            il.Return(il.failcont(NONE)))
     ))
   
   elif isinstance(argument, il.Var):
@@ -276,7 +297,7 @@ def char(compiler, cont, argument):
                                   il.SetParseState(il.Tuple(text, pos))),
                            il.SetParseState(il.Tuple(text, il.add(pos, 1))),
                            cont(il.GetItem(text, pos))),
-                  il.Return(il.failcont(v))),
+                  il.Return(il.failcont(NONE))),
             il.If(il.Isinstance(argument, 'LogicVar'),
                   il.begin(il.SetParseState(il.Tuple(text, il.add(pos,1))),
                            il.SetBinding(argument, il.GetItem(text, pos)),
@@ -302,15 +323,17 @@ eoi = Eoi()
 
 @special 
 def callcc(compiler, cont, fun):
+  v = compiler.new_var(v0)
   # have not been done.
   ''' call with current continuation '''
   return il.Clamda(v, fun(cont, cont))
 
 @special
 def findall(compiler, cont, goal, template=NONE, bag=None):
+  v = compiler.new_var(v0)
   if bag is None:
     return il.begin(
-      il.AppendFailCont(cont(v)),
+      il.AppendFailCont(cont(NONE)),
       cps_convert(compiler, goal, il.Clamda(v, il.failcont(v)))
       )
   else:
@@ -334,14 +357,17 @@ def may(item, mode=greedy):
 
 @special
 def _may(compiler, cont, item):
+  v = compiler.new_var(v0)
   return cps_convert(compiler, clause, cont, il.Clamda(v,  cont(v)))
 
 @special
 def _lazy_may(compiler, cont, item):
+  v = compiler.new_var(v0)
   return il.Clamda(v, cont(v, cps_convert(compiler, item, cont)))
 
 @special
 def _greedy_may(compiler, cont, item):
+  v = compiler.new_var(v0)
   return cps_convert(compiler, item, il.Clamda(v, cont(v)), 
                                       il.Clamda(v, cont(v)))
 
@@ -349,7 +375,8 @@ def _greedy_may(compiler, cont, item):
 # solutions: trampoline
 @special
 def repeat(compiler, cont):
-  function = il.Var('function')
+  v = compiler.new_var(v0)
+  function = compiler.new_var(il.Var('function'))
   return il.begin(il.SetFailCont(function), 
                   il.cfunction(function, v, cont(v)))
 
@@ -366,7 +393,7 @@ def _any(compiler, cont, item):
   fc = compiler.new_var(il.Var('old_fail_cont'))
   v = compiler.new_var(il.Var('v'))
   return il.cfunction(any_cont, v,
-                il.Assign(fc,il.failcont),
+                il.Assign(fc, il.failcont),
                 il.SetFailCont(il.clamda(v, 
                   il.SetFailCont(fc),
                   cont(v))),
