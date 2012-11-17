@@ -1,10 +1,30 @@
-from dao.term import Var, unify, deref, Cons, ClosureVar
-import dao.term as term
-from dao import builtin
-from dao.solve import mycont
+from dao.command import special, Command, SpecialCall
+import dao.interlang as il
+from dao.compilebase import CompileTypeError
+from dao.interlang import cps_convert_exps
+
+from dao.interlang import TRUE, FALSE, NONE
+
+from dao.interlang import LogicVar
+
+v0, fc0 = il.Var('v'), il.Var('fc')
 
 # analysing and construction terms
 
+@special
+def unify(compiler, cont, x, y):
+  try: 
+    x_cps_convert_unify = x.cps_convert_unify
+  except:
+    try: y_cps_convert_unify = y.cps_convert_unify
+    except:
+      if x==y: return cont(TRUE)
+      else: return il.failcont(TRUE)
+    return y_cps_convert_unify(x, compiler, cont)
+  return x_cps_convert_unify(y, compiler, cont)
+
+
+'''
 @builtin.macro()
 def getvalue(solver, item):
   return term.getvalue(item, solver.env, {})
@@ -299,3 +319,4 @@ def pycall(fun, *args):
 def py_apply(fun, args):  
   return fun(*args)
 
+'''

@@ -1,198 +1,105 @@
-from dao.term import Var, deref, CommandCall, getvalue
-from dao import builtin
-from dao.solve import CutException, mycont
-from dao.builtin import Builtin, Function
-from dao.term import CommandCall, unify
-from dao.solve import DaoError
+# logic control predicates
 
-# control predicates
+from dao.command import special, Command, SpecialCall
+import dao.interlang as il
+from dao.compilebase import CompileTypeError
+from dao.interlang import cps_convert_exps
 
-# call with current continuation
+from dao.interlang import TRUE, FALSE, NONE
 
-class ContinuationFunction(Builtin, Function):
-  def __init__(self, cont):
-    Builtin.__init__(self, cont, 'cont', 'cont', False)
-  def apply(self, solver, values, signatures):
-    if len(values)!=1: raise DaoError('Continuations expect one arguments!')
-    return self.function(values[0], solver) #function==solver.scont, look down!!! def some_cont(value, solver)
-  def __eq__(self, other): 
-    return isinstance(other,ContinuationFunction) and self.function==other.function 
-      
-@builtin.predicate('callcc', 'call/cc')
-def callcc(solver, fun):
-  ''' call with current continuation: fun(cc){...} '''
-  solver.scont = solver.cont((fun, ContinuationFunction(solver.scont)), solver.scont)
-  return fun
+v0, fc0 = il.Var('v'), il.Var('fc')
+
+@special
+def succeed(compiler, cont):
+  return cont(TRUE)
+
+succeed = succeed()
+
+@special
+def fail(compiler, cont):
+  return il.failcont(TRUE)
+
+fail = fail()
+
+@special
+def cut(compiler, cont):
+  v = compiler.new_var(v0)
+  return il.Begin(il.SetFailCont(il.cut_cont), 
+                  il.Clamda(v, cont(v)))
+
+@special
+def not_p(compiler, cont, clause):
+  fc = compiler.new_var(il.Var('old_fail_cont'))
+  return il.begin(il.Assign(fc, il.failcont), 
+                  il.SetFailCont(cont),
+                  clause.cps_convert(compiler, fc))
+  
+#@special
+#def cut_or(compiler, cont):
+  #return il.Begin(il.SetFailCont(il.cut_or_cont), 
+                  #il.Clamda(v, cont(v)))
+  
+@special
+def or_(compiler, cont, clause1, clause2):
+  v = compiler.new_var(v0)
+  cut_or_cont = compiler.new_var(il.Var('cut_or_cont'))
+  or_cont = il.clamda(v, il.SetCutOrCont(cut_or_cont), cont(v))
+  return il.begin(
+    il.Assign(cut_or_cont, il.cut_or_cont),
+    il.SetCutOrCont(il.failcont),  
+    il.append_fail_cont(compiler, clause2.cps_convert(compiler, or_cont)),
+    clause1.cps_convert(compiler, or_cont))
+
+@special
+def first_p(compiler, cont, clause1, clause2):
+  v = compiler.new_var(v0)
+  fc = compiler.new_var(fc)
+  first_cont = il.Clamda(v, il.SetFailCont(fc), cont(v))
+  return il.Begin(
+    il.Assign(fc, il.failcont),
+    il.AppendFailCont(clause2.cps_convert(compiler, first_cont)),
+    cps_convert(clause1.compiler, first_cont))
+
+@special
+def if_p(compiler, cont, condition, action):
+  v = compiler.new_var(v0)
+  return condition.cps_convert(compiler, 
+                    il.Clamda(v, action.cps_convert(compiler, cont)))
 
 # finding all solutions to a goal
 
-@builtin.macro()
-def findall(solver, goal, template=None, bag=None):
-  goal = deref(goal, solver.env)
-  if bag is not None:
-    result = []
-    for c, x in solver.exp_run_cont(goal, solver.scont):
-      result.append(getvalue(template, solver.env, {}))
-    return unify(bag, result, solver)
+@special
+def findall(compiler, cont, goal, template=NONE, bag=None):
+  v = compiler.new_var(v0)
+  if bag is None:
+    return il.begin(
+      il.AppendFailCont(cont(NONE)),
+      cps_convert(compiler, goal, il.Clamda(v, il.failcont(v)))
+      )
   else:
-    for c, x in solver.exp_run_cont(goal, solver.scont):
-      pass
-    return True
-    
-# meta call predicates
-
-@builtin.macro()
-def call(solver, pred): 
-  solver.scont = solver.cont(getvalue(pred, solver.env, {}), solver.scont)
-  return True
-
-@builtin.macro()
-def once(solver, pred):
-  for c, x in solver.exp_run_cont(getvalue(pred, solver.env, {}), solver.scont):
-    solver.scont = c
-    return x
-
-@builtin.function('succeed')
-def error(*args): 
-  raise DaoError(' '.join([repr(x) for x in args]))
-
-@builtin.macro('succeed')
-def Succeed(solver): 
-  return True
-succeed = Succeed()
-
-#Succeed.compile_to_cont 
-
-@builtin.macro('fail')
-def Fail(solver):  
-  solver.scont = solver.fcont
-fail = Fail()
-
-@builtin.macro()
-def Repeat(solver):
-  cont = solver.scont
-  @mycont(cont)
-  def repeat_cont(value, solver):
-    solver.scont = cont
-    return True
-##  repeat_cont.cut = True
-  solver.scont = solver.fcont = repeat_cont
-  return True
-
-repeat = Repeat()
+    result = il.Var('findall_result') # variable capture
+    return il.begin(
+       il.Assign(result, il.empty_list()),
+       il.AppendFailCont(
+          cps_convert(compiler, unify(bag, result), cont)),
+        cps_convert(compiler, goal, 
+          il.clamda(v, 
+            il.ListAppend(result, il.GetValue(template)),
+            il.failcont(v)))
+        )
   
-@builtin.macro('cut', '!')
-def Cut(solver):
-  old_fcont = solver.fcont
-  @mycont(old_fcont)
-  def fcont(value, solver):
-    cont = old_fcont
-    while cont is not solver.stop_cont and cont is not solver.fail_stop:
-      try: cont.cut
-      except: 
-        cont = cont.succ
-        continue
-      solver.scont = cont.succ
-      return
-    solver.scont = old_fcont
-  solver.fcont = fcont     
-  return True
-cut = Cut()
+# infinite recursive, maxizism recursive level
+# solutions: trampoline
+@special
+def repeat(compiler, cont):
+  v = compiler.new_var(v0)
+  function = compiler.new_var(il.Var('function'))
+  return il.begin(il.SetFailCont(function), 
+                  il.cfunction(function, v, cont(v)))
 
-@builtin.macro('cut_or', '!!')
-def CutOr(solver):
-  old_fcont = solver.fcont
-  @mycont(old_fcont)
-  def fcont(value, solver):
-    cont = old_fcont
-    while cont is not solver.stop_cont and cont is not solver.fail_stop:
-      try: cont.cut_or
-      except: 
-        cont = cont.succ
-        continue
-      solver.scont = cont.succ
-      return
-    solver.scont = old_fcont
-  solver.fcont = fcont     
-  return True
-cut = Cut()
-
-'''
-and_p(compiler, call1, call2) #compiler.exps_cont has done the same thing.
-call1
-call2
-'''
-
-@builtin.macro('and_p', '&!')
-def and_p(solver, *calls):
-  cont = solver.scont
-  if len(calls)==0:  
-    solver.scont = value_cont(None, cont)
-    return True
-  if len(calls)==1:
-    solver.scont = solver.cont(calls[0], cont)
-    return True
-  else:
-    @mycont(cont)
-    def and_cont(value, solver): 
-      solver.scont = solver.exps_cont(calls[1:], cont)
-      return value
-    solver.scont = solver.cont(calls[0], and_cont)
-    return True
-
-'''
-or_p(compiler, call1, call2)
-# fcont(value, compiler): # should be defined and setup in compile time 
-  compiler.fcont = old_fcont
-  call2
-  old_scont
-compiler.fcont = fcont  
-call1
-old_scont
-'''
-
-@builtin.macro('or_p', '|!')
-def or_p(solver, *calls):
-  cont = solver.scont
-  if len(calls)==0:  
-    solver.scont = value_cont(None, cont)
-    return True
-  call0 = deref(calls[0], solver.env)
-  if call0[0]==if_p: # A -> B; C
-    if_clause = deref(call0[1], solver.env)
-    then_clause = deref(call0[2], solver.env)
-    call0 = (and_p, if_clause, (Cut, ), then_clause)
-  old_fcont = solver.fcont
-  @mycont(old_fcont)
-  def or_cut_cont(value, solver):
-    solver.scont = old_fcont
-  or_cut_cont.cut_or = True
-  solver.fcont = or_cut_cont
-  env = solver.env
-  @mycont(or_cut_cont)
-  def or_fcont(value, solver):
-    solver.fcont = or_cut_cont
-    solver.env = env
-    if len(calls[1:])==1:
-      solver.scont = solver.cont(calls[1], cont)
-      return True
-    else:
-      solver.scont = solver.cont((or_p, )+calls[1:], cont)
-      return True
-  solver.fcont = or_fcont
-  solver.scont = solver.cont(call0, cont)
-  return True
+repeat = repeat()
   
-@builtin.macro('first_p', 'first!')
-def first_p(solver, *calls):
-  cont = solver.scont
-  for call in calls:
-    for c, value in solver.exp_run_cont(call, cont):
-      solver.scont = c
-      return value
-
-@builtin.macro('if_p', '->')  
-def if_p(solver, if_clause, then_clause):
+def xxxif_p(solver, if_clause, then_clause):
   # This unusual semantics is part of the ISO and all de-facto Prolog standards.
   # see SWI-Prolog help.
   cont = solver.scont
@@ -206,50 +113,4 @@ def if_p(solver, if_clause, then_clause):
     solver.scont = solver.cont(then_clause, cont)
     return True
   solver.scont = solver.cont(if_clause, if_p_cont)
-  return True
-
-
-'''
-# for compiler using two continuations
-def not_p(compiler, call):
-  def call_fail_cont(value, solver):
-    solver.fcont = old_fcont
-    old_scont
-  solver.fcont = call_fail_cont
-  parse_state = compiler.parse_state
-  call
-  compiler.parse_state = parse_state
-  compiler.fcont = old_fcont
-  old_fcont
-'''
-
-'''
-#two continuations
-@builtin.macro('not_p', 'not_p')  
-def not_p(solver, call):
-  parse_state = solver.parse_state
-  old_scont = solver.scont
-  old_fcont = solver.fcont
-  
-  @mycont(old_fcont):
-  def call_succeed_cont(value, solver):
-    solver.parse_state = parse_state
-    solver.fcont = old_fcont
-    solver.scont = old_fcont
-  @mycont(old_scont):
-  def call_fail_cont(value, solver):
-    solver.fcont = old_fcont
-    solver.scont = old_scont
-    
-  solver.fcont = call_fail_cont
-  solver.cont(call, call_succeed_cont)
-'''
-
-@builtin.macro('not_p', 'not_p')  
-def not_p(solver, call):
-  parse_state = solver.parse_state
-  for c, x in solver.exp_run_cont(call, solver.scont):
-    solver.parse_state = parse_state
-    solver.scont = solver.fcont
-    return False
   return True

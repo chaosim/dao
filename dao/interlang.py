@@ -864,7 +864,7 @@ class Begin(Element):
   def __init__(self, statements):
     self.statements = statements
     
-  def alpha_convert(self, env):
+  def alpha_convert(self, env, compiler):
     return Begin(tuple([x.alpha_convert(env, compiler) for x in self.statements]))
   
   def assign_convert(self, env, compiler):

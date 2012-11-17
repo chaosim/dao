@@ -4,12 +4,12 @@ from nose.tools import eq_, ok_, assert_raises
 
 from dao.solve import eval
 
-from dao.command import quote, assign, begin, if_
-from dao.command import not_p, fail, succeed, or_
-from dao.command import unify, lamda, let, letrec
-from dao.command import settext, char, eoi, any
-from dao.command import add, eq, sub
-from dao.command import eval_, callcc
+from dao.builtins import quote, assign, begin, if_
+from dao.builtins import not_p, fail, succeed, or_
+from dao.builtins import unify, lamda, let, letrec
+from dao.builtins import settext, char, eoi, any
+from dao.builtins import add, eq, sub
+from dao.builtins import eval_, callcc
 
 from dao.solvebase import NoSolution
 
@@ -120,6 +120,15 @@ class TestControl:
     #eq_(eval(eval_(quote(add(1, 1)))), (2))
   #def testeval2(self):
     #eq_(eval(let([(x,1)], eval_(quote(x)))), 1)
+    
+  def testblock(self):
+    f = Var('f')
+    eq_(eval(block('foo', let([(f, lambda_((), exit_block('foo',1)))], 
+                            mul(2, block('foo', f()))))), 
+        1)
+    
+  def testblock2(self):
+    eq_(eval(block('a', exit_block('a', 2), 3)), 2)
 
 class XTestLoop:
   def testloop(self):

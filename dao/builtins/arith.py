@@ -1,17 +1,17 @@
-from dao import builtin
-from dao.builtin import set_type
-from dao.term import Var, ClosureVar, deref, getvalue, CommandCall
-import operator
-from dao.solve import run_mode, interactive, to_sexpression
-from dao.solve import interactive_solver, interactive_tagger, interactive_parser
-from dao.solve import mycont
+from dao.command import special, Command, SpecialCall, BuiltinFunction
+import dao.interlang as il
+from dao.compilebase import CompileTypeError
+from dao.interlang import cps_convert_exps
 
-# compile
+from dao.interlang import TRUE, FALSE, NONE
 
-from dao.compile import code
-from dao import type
+v0, fc0 = il.Var('v'), il.Var('fc')
 
-class OperatorCall(CommandCall): pass
+add = BuiltinFunction(il.add)
+eq = BuiltinFunction(il.Eq)
+sub = BuiltinFunction(il.sub)
+
+'''
 
 _op_precedence = {'lt':10, 'le':10, 'eq':10, 'ne':10, 'ge':10,'gt':10,
            'add':60, 'sub':60,'mul':70, 'div':70,
@@ -180,3 +180,4 @@ ge_p = arith_predicate(operator.ge, 'ge_p', '>=!')
 
 #arith_builtins = builtin.collocet_builtins(globals())
 #print arith_builtins
+'''

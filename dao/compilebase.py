@@ -96,9 +96,9 @@ def optimize(exp, data):
   return exp
 
 def generate_code(exp):
-  exp = pythonize(exp, Environment())
+  exp = exp.pythonize_exp(Environment(), Compiler())
   coder = CodeGenerator()
-  return to_code(coder, exp)
+  return exp.to_code(coder)
 
 def to_code_list(coder, items, in_lambda=True):
   return tuple(x.to_code(coder) for x in items)

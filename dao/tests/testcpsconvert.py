@@ -4,11 +4,10 @@ from nose.tools import eq_, ok_, assert_raises
 
 import dao
 from dao.compilebase import Compiler, Environment, VariableNotBound
-from dao.compile import trampoline
-from dao.command import begin, quote, assign, if_, LogicVar, let, letrec
-from dao.command import add
-from dao.command import fail, succeed, or_, unify, repeat, _any
-from dao.command import lamda, add
+from dao.builtins import begin, quote, assign, if_, let, letrec
+from dao.builtins import add
+from dao.builtins import fail, succeed, or_, unify, repeat, any, nongreedy, LogicVar
+from dao.builtins import lamda, add
 
 from dao import interlang as il
 
@@ -22,7 +21,7 @@ def done():
   return Done(v, v)
   
 def cps_convert(exp):
-  return dao.compile.cps_convert(Compiler(), exp, done())
+  return exp.cps_convert(Compiler(), done())
 
 class TestCPSConvert:
   def test_integer(self):
@@ -141,7 +140,7 @@ class TestCPSConvert:
                          il.Lamda((k,), il.Clamda(function, function(k))(f)))
     eq_(result, expect)
     
-from dao.command import eoi, char, findall
+from dao.builtins import eoi, char, findall
 
 class TestBuiltin:
   def test_eoi(self):
@@ -241,7 +240,7 @@ class TestBuiltin:
     
   def test_any(self):
     any_cont = il.Var('any_cont')
-    result = cps_convert(_any(1))
+    result = cps_convert(any(1, nongreedy))
     expect = il.CFunction(any_cont, v, il.AppendFailCont(done()(v)), any_cont(1))(None)
     eq_(result, expect)
       

@@ -4,10 +4,10 @@
 from nose.tools import eq_, ok_, assert_raises
 
 from dao.compilebase import Compiler, Environment, OptimizationData
-from dao.compile import optimize, optimization_analisys, cps_convert, alpha_convert
-from dao.command import begin, quote, assign, if_, LogicVar
-from dao.command import add
-from dao.command import fail, succeed, or_, unify
+from dao.compile import optimize
+from dao.builtins import begin, quote, assign, if_
+from dao.builtins import add
+from dao.builtins import fail, succeed, or_, unify, LogicVar
 
 from dao import interlang as il
 
@@ -24,10 +24,10 @@ def done():
   return Done(v, v)
 
 def compile_optimize(exp):
-  exp = cps_convert(Compiler(), exp, done())
-  exp = alpha_convert(exp, Environment())
+  exp = exp.cps_convert(Compiler(), done())
+  exp = exp.alpha_convert(Environment(), Compiler())
   optimize_data = OptimizationData()
-  optimization_analisys(exp, optimize_data)
+  exp.optimization_analisys(optimize_data)
   return optimize(exp, optimize_data)
 
 class TestSimple:
@@ -100,7 +100,7 @@ class TestSimple:
 
 def optimize_it(exp):
   data = OptimizationData()
-  optimization_analisys(exp, data)
+  exp.optimization_analisys(data)
   return optimize(exp, data)
 
 class TestOptimize:

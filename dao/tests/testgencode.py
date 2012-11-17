@@ -3,10 +3,10 @@
 from nose.tools import eq_, ok_, assert_raises
 
 from dao.compilebase import Compiler, CodeGenerator
-from dao.compile import generate_code, cps_convert
-from dao.command import begin, quote, assign, if_, LogicVar
-from dao.command import add
-from dao.command import fail, succeed, or_, unify
+from dao.compilebase import generate_code
+from dao.builtins import begin, quote, assign, if_ 
+from dao.builtins import add
+from dao.builtins import fail, succeed, or_, unify, LogicVar
 
 from dao import interlang as il
 
@@ -20,7 +20,7 @@ def done():
   return Done(v, v)
 
 def compile(exp):
-  return generate_code(cps_convert(Compiler(), exp, done()))
+  return generate_code(exp.cps_convert(Compiler(), done()))
 
 
 class TestGenerateCode:

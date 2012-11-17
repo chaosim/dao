@@ -4,56 +4,67 @@
  solver.parse_state should have an interface similar to parse_state in parser.py.
  Lineparse_state in line_parser.py is comatible with parse_state.'''
 
-from dao.term import deref, unify, Var
-from dao import builtin
-from dao.builtins.matcher import matcher
-from dao.builtins.parser import next_char_, left_, parsed_, eoi_, last_char_
-from dao.solve import mycont
+from dao.command import special, Command, SpecialCall
+import dao.interlang as il
+from dao.compilebase import CompileTypeError
+from dao.interlang import cps_convert_exps
 
-@matcher()
-def char(solver, argument): 
-  argument = deref(argument, solver.env)
-  text, pos = solver.parse_state
-  if pos==len(text): 
-    solver.scont = solver.fcont
-    return
-  if unify(argument, text[pos], solver):
-    solver.parse_state = text, pos+1
-    old_fcont = solver.fcont
-    @mycont(old_fcont)
-    def fcont(value, solver):
-      solver.parse_state = text, pos
-      solver.scont = old_fcont
-    solver.fcont = fcont
-    return text[pos]
+from dao.interlang import TRUE, FALSE, NONE
 
-'''  for compiler
-def char(solver, argument):
-  vop.Deref(argument)
-  Assign(('text', 'pos'), vop.parser_state)
-  if pos==len(text):
-    vop.fail
-    return
-  vop.Unify(argument, PyCode('text[pos]',
-      vop.SaveParseState
-      solver.fcont = vop.RestoreParseState+solver.fcont
-      vop.SetParse_State(PyCode('text, pos+1')
-      return text[pos]
-      )
+v0, fc0 = il.Var('v'), il.Var('fc')
 
-def old_fcont(value, solver): 
-  old_fcont_things;
-
-def char_fcont(value, solver): #should be defined in def char(solver, argument)
-  solver.parse_state = text, pos
-| return old_fcont(value, solver)
-|=> return old_fcont_things
-
-or: solver.scont = old_fcont
-    return
+@special
+def Eoi(compiler, cont):
+  '''end of parse_state'''
+  return il.If(il.Eq(il.GetItem(il.parse_state, il.Integer(1)), 
+                     il.Len(il.GetItem(il.parse_state, il.Integer(0)))),
+          cont(TRUE),
+          il.failcont(FALSE))
     
-'''
+eoi = Eoi()
 
+@special
+def char(compiler, cont, argument):
+  #v = compiler.new_var(v0)
+  text, pos = il.Var('text'), il.Var('pos')
+  if isinstance(argument, il.String):
+    return il.Begin((
+      il.AssignFromList(text, pos, il.parse_state),
+      il.if2(il.Ge(pos, il.Len(text)), il.Return(il.failcont(NONE))),
+      il.If(il.Eq(argument, il.GetItem(text, pos)),
+            il.begin(il.append_fail_cont(compiler, 
+                            il.SetParseState(il.Tuple(text, pos))),
+                     il.SetParseState(il.Tuple(text, il.add(pos, il.Integer(1)))),
+                     il.Return(cont(il.GetItem(text, pos)))),
+            il.Return(il.failcont(NONE)))
+    ))
+  
+  elif isinstance(argument, il.Var):
+    return il.Begin((
+      il.AssignFromList(text, pos, il.parse_state),
+      il.if2(il.Ge(pos,il.Len(text)), il.Return(il.failcont(v))),
+      il.Assign(argument, il.Deref(argument)),
+      il.If(il.Isinstance(argument, 'str'),
+            il.If(il.Eq(argument, il.GetItem(text, pos)),
+                  il.begin(il.append_fail_cont(compiler, 
+                                  il.SetParseState(il.Tuple(text, pos))),
+                           il.SetParseState(il.Tuple(text, il.add(pos, 1))),
+                           cont(il.GetItem(text, pos))),
+                  il.Return(il.failcont(NONE))),
+            il.If(il.Isinstance(argument, 'LogicVar'),
+                  il.begin(il.SetParseState(il.Tuple(text, il.add(pos,1))),
+                           il.SetBinding(argument, il.GetItem(text, pos)),
+                           il.append_fail_cont(compiler, 
+                              il.SetParseState(il.Tuple(text, pos)),
+                              il.DelBinding(argument)),
+                           il.Return(cont(il.GetItem(text, pos)))),
+                  il.RaiseTypeError(argument)))
+    ))
+      
+  # elif isinstance(argument, il.LogicVar) #how about this? It should be include above.
+  else: raise CompileTypeError(argument)
+
+'''
 @matcher()
 def char2(solver, argument): 
   char = deref(argument, solver.env)
@@ -74,7 +85,7 @@ def char3(solver):
 
 @matcher()
 def ch(solver, char):
-  '''one char'''
+  'one char'
   text, pos = solver.parse_state
   if pos==len(text): return
   if text[pos]==char: 
@@ -84,7 +95,7 @@ def ch(solver, char):
 
 @matcher()
 def chs0(solver, char):
-  '''0 or more char'''
+  '0 or more char'
   text, pos = solver.parse_state
   p = pos
   while text[p]==char: p += 1 
@@ -94,7 +105,7 @@ def chs0(solver, char):
 
 @matcher()
 def chs(solver, char):
-  '''1 or more char'''
+  '1 or more char'
   text, pos = solver.parse_state
   if pos==len(text): return
   if text[pos]!=char: return
@@ -107,7 +118,7 @@ def chs(solver, char):
 
 @matcher()
 def Eoi(solver):
-  '''end of parse_state'''
+  'end of parse_state'
   if solver.parse_state[1]>=len(solver.parse_state[0]): 
     yield cont,  True
 eoi = Eoi()
@@ -213,7 +224,7 @@ unify_whitespace = char_in(whitespace_string, repr_string='spacesChar')
 
 @matcher()
 def any_chars_except(solver, except_chars):
-  '''any chars until meet except_chars'''
+  'any chars until meet except_chars'
   text, pos = solver.parse_state
   length = len(text)
   p = pos
@@ -226,7 +237,7 @@ def any_chars_except(solver, except_chars):
 
 @matcher()
 def space(solver):
-  '''one space'''
+  'one space'
   text, pos = solver.parse_state
   if pos==len(text): return
   if text[pos]==' ': 
@@ -237,7 +248,7 @@ space = space()
 
 @matcher()
 def tab(solver):
-  '''one tab'''
+  'one tab'
   text, pos = solver.parse_state
   if pos==len(text): return
   if text[pos]=='\t': 
@@ -248,7 +259,7 @@ tab = tab()
 
 @matcher()
 def tabspace(solver):
-  '''one space or tab'''
+  'one space or tab'
   text, pos = solver.parse_state
   if pos==len(text): return
   if text[pos]==' ' or text[pos]=='\t': 
@@ -259,7 +270,7 @@ tabspace = tabspace()
 
 @matcher()
 def whitespace(solver):
-  '''one space or tab'''
+  'one space or tab'
   text, pos = solver.parse_state
   if pos==len(text): return
   if text[pos] in ' \t\r\n': 
@@ -270,7 +281,7 @@ whitespace = whitespace()
 
 @matcher()
 def newline(solver):
-  '''one newline'''
+  'one newline'
   text, pos = solver.parse_state
   if pos==len(text): return
   if text[pos]=='\r' or text[pos]=='\n':
@@ -319,8 +330,8 @@ unify_whitespaces0 = string_in(whitespace_string, once_more=False, repr_string='
 unify_whitespaces = string_in(whitespace_string, repr_string='whitespaces')
 
 @matcher()
-def spaces0(solver):
-  '''0 or more space'''
+def spaces0(solver)
+  '0 or more space'
   text, pos = solver.parse_state
   length = len(text)
   p = pos
@@ -332,7 +343,7 @@ spaces0 = spaces0()
 
 @matcher()
 def tabs0(solver):
-  '''0 or more tab'''
+  '0 or more tab'
   text, pos = solver.parse_state
   length = len(text)
   p = pos
@@ -344,7 +355,7 @@ tabs0 = tabs0()
 
 @matcher()
 def _Tabspaces0(solver):
-  '''0 or more space or tab'''
+  '0 or more space or tab'
   text, pos = solver.parse_state
   length = len(text)
   p = pos
@@ -356,7 +367,6 @@ tabspaces0 = _Tabspaces0()
 
 @matcher()
 def whitespaces0(solver):
-  ''' 0 or more space or tab or newline'''
   text, pos = solver.parse_state
   length = len(text)
   p = pos
@@ -368,7 +378,6 @@ whitespaces0 = whitespaces0()
 
 @matcher()
 def newlines0(solver):
-  ''' 0 or more newline'''
   text, pos = solver.parse_state
   length = len(text)
   p = pos
@@ -380,7 +389,7 @@ newlines0 = newlines0()
 
 @matcher()
 def spaces(solver):
-  '''1 or more space or tab'''
+  '1 or more space or tab'
   text, pos = solver.parse_state
   if pos==len(text): return
   if text[pos]!=' ': return
@@ -393,7 +402,7 @@ spaces = spaces()
 
 @matcher()
 def tabs(solver):
-  '''1 or more space or tab'''
+  '1 or more space or tab'
   text, pos = solver.parse_state
   if pos==len(text): return
   if text[pos]!='\t': return
@@ -406,7 +415,7 @@ tabs = tabs()
 
 @matcher()
 def _Tabspaces(solver):
-  '''1 or more space or tab'''
+  '1 or more space or tab'
   text, pos = solver.parse_state
   if pos==len(text): return
   if text[pos]!=' ' and text[pos]!='\t': return
@@ -419,7 +428,7 @@ tabspaces = _Tabspaces()
 
 @matcher()
 def pad_tabspaces(solver):
-  '''if not leading space, 1 or more space or tab'''
+  'if not leading space, 1 or more space or tab'
   text, pos = solver.parse_state
   if pos==len(text): return
   if text[pos]!=' ' and text[pos]!='\t': 
@@ -435,7 +444,7 @@ pad_tabspaces = pad_tabspaces()
 
 @matcher()
 def tabspaces_if_need(solver):
-  '''1 or more tabspace not before punctuation '",;:.{}[]()!?\r\n '''
+  '1 or more tabspace not before punctuation '",;:.{}[]()!?\r\n '
   text, pos = solver.parse_state
   if pos==len(text): 
     yield cont, ''
@@ -453,7 +462,7 @@ tabspaces_if_need = tabspaces_if_need()
 
 @matcher()
 def tabspaces_unless(solver, chars):
-  '''1 or more tabspace if not before chars, else 0 or more tabspace '''
+  '1 or more tabspace if not before chars, else 0 or more tabspace '
   chars = deref(chars, solver.env)
   text, pos = solver.parse_state
   if pos==len(text): 
@@ -472,7 +481,7 @@ tabspaces_unless = tabspaces_unless()
 
 @matcher()
 def whitespaces(solver):
-  ''' 1 or more space or tab or newline'''
+  '1 or more space or tab or newline'
   text, pos = solver.parse_state
   if pos==len(text): return
   if text[pos] not in ' \t\r\n': return
@@ -485,7 +494,7 @@ whitespaces = whitespaces()
 
 @matcher()
 def newlines(solver):
-  ''' 1 or more  newline'''
+  ' 1 or more  newline'
   text, pos = solver.parse_state
   if pos==len(text): return
   if text[pos] not in '\r\n': return
@@ -571,7 +580,7 @@ number = float
 
 @matcher()
 def literal(solver,  arg0):
-  '''any given instance string'''
+  'any given instance string'
   arg0 = deref(arg0, solver.env)
   text, pos = solver.parse_state
   if text[pos:].startswith(arg0):
@@ -581,7 +590,7 @@ def literal(solver,  arg0):
     
 @matcher()
 def identifier(solver, arg):
-  '''underline or letter lead, follow underline, letter or digit''' 
+  'underline or letter lead, follow underline, letter or digit' 
   text, pos = solver.parse_state
   length = len(text)
   if pos>=length: return
@@ -598,7 +607,7 @@ def identifier(solver, arg):
 
 @matcher()
 def word(solver, arg):
-  '''word of letters''' 
+  'word of letters' 
   text, pos = solver.parse_state
   length = len(text)
   if pos>=length: return
@@ -610,3 +619,4 @@ def word(solver, arg):
     solver.parse_state = text, p
     yield cont,  text[pos:p]
     solver.parse_state = text, pos
+'''

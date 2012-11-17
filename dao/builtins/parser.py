@@ -1,24 +1,34 @@
-from dao import builtin
-from dao.solve import mycont
-from dao.term import unify
-from dao.builtins.matcher import matcher
+from dao.command import special, Command, SpecialCall
+import dao.interlang as il
+from dao.compilebase import CompileTypeError
+from dao.interlang import cps_convert_exps
+
+from dao.interlang import TRUE, FALSE, NONE
+
+v0, fc0 = il.Var('v'), il.Var('fc')
 
 # set and manipulate parse_state for parsing 
 
-@builtin.nomemo
-@matcher()
-def set_parse_state(solver, parse_state):
-  old_parse_state = solver.parse_state
-  solver.parse_state = parse_state  
-  sign_state2cont = solver.sign_state2cont
-  sign_state2results = solver.sign_state2results
-  solver.sign_state2cont = {}
-  solver.sign_state2results = {}
-  yield cont, solver.parse_state
-  solver.parse_state = old_parse_state
-  solver.sign_state2cont = sign_state2cont
-  solver.sign_state2results = sign_state2results
-  
+@special
+def parse_state(compiler, cont):
+  return cont(il.parse_state)
+
+@special
+def set_parse_state(compiler, cont, parse_state):
+  old_parse_state = compiler.new_var(il.Var('old_parse_state'))
+  return il.begin(il.Assign(old_parse_state, il.parse_state),
+                  il.SetParseState(parse_state),
+                  il.append_fail_cont(compiler, il.SetParseState(old_parse_state)),
+                  cont(TRUE))
+@special
+def settext(compiler, cont, text):
+  old_parse_state = compiler.new_var(il.Var('old_parse_state'))
+  return il.begin(il.Assign(old_parse_state, il.parse_state),
+                  il.SetParseState(il.Tuple(text, il.Integer(0))),
+                  il.append_fail_cont(compiler, il.SetParseState(old_parse_state)),
+                  cont(TRUE))
+
+'''
 @builtin.nomemo
 @matcher()
 def set_sequence(solver, text):
@@ -172,3 +182,4 @@ def goto(solver, position):
   solver.parse_state = text, position
   yield cont, text[position:]
   solver.parse_state = text, pos
+'''
