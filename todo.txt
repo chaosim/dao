@@ -8,7 +8,7 @@ todo: more builtin
   todo: parser builtin
 
 done: assemble alpha convert, assign convert, optimizal transformation, 
-      tail recursive, trampoline, generate code
+      tail recursive, trampoline, generate code, solve/eval
 
 todo: tail recursive
 

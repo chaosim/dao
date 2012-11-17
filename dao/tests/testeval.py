@@ -9,6 +9,7 @@ from dao.command import not_p, fail, succeed, or_
 from dao.command import unify, lamda, let, letrec
 from dao.command import settext, char, eoi, any
 from dao.command import add, eq, sub
+from dao.command import eval_
 
 from dao.solvebase import NoSolution
 
@@ -39,8 +40,12 @@ class TestSimple:
     eq_(eval(begin(define(x,1),define(x,2))), 2)
     
 class TestControl:
-  def testbegin(self):
+  def test_begin(self):
     eq_(eval(begin(1, 2)), 2)
+    
+  def test_eval(self):
+    eq_(eval(eval_(quote(begin(1, 2)))), 2)
+    eq_(eval(eval_(quote(begin(1, add(1, 1))))), 2)
     
   def testif_(self):
     eq_(eval(if_(0, 1, 2)), 2)

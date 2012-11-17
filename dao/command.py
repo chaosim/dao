@@ -83,7 +83,13 @@ class AssignCall(SpecialCall):
 @special
 def quote(compiler, cont, exp):
     return cont(exp)
-  
+
+from dao.compilebase import Environment, Compiler
+
+@special
+def eval_(compiler, cont, exp):
+  return exp.cps_convert(compiler, il.Done()).cps_convert(compiler, cont)
+
 @special
 def begin(compiler, cont, *exps):
     return cps_convert_exps(compiler, exps, cont)
