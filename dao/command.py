@@ -91,6 +91,10 @@ def eval_(compiler, cont, exp):
   return exp.cps_convert(compiler, il.Done()).cps_convert(compiler, cont)
 
 @special
+def callcc(compiler, cont, function):
+  return function(cont)
+
+@special
 def begin(compiler, cont, *exps):
     return cps_convert_exps(compiler, exps, cont)
     
@@ -327,12 +331,12 @@ def Eoi(compiler, cont):
     
 eoi = Eoi()
 
-@special 
-def callcc(compiler, cont, fun):
-  v = compiler.new_var(v0)
-  # have not been done.
-  ''' call with current continuation '''
-  return il.Clamda(v, fun(cont, cont))
+#@special 
+#def callcc(compiler, cont, fun):
+  #v = compiler.new_var(v0)
+  ## have not been done.
+  #''' call with current continuation '''
+  #return il.Clamda(v, fun(cont, cont))
 
 @special
 def findall(compiler, cont, goal, template=NONE, bag=None):

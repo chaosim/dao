@@ -9,7 +9,7 @@ from dao.command import not_p, fail, succeed, or_
 from dao.command import unify, lamda, let, letrec
 from dao.command import settext, char, eoi, any
 from dao.command import add, eq, sub
-from dao.command import eval_
+from dao.command import eval_, callcc
 
 from dao.solvebase import NoSolution
 
@@ -45,7 +45,11 @@ class TestControl:
     
   def test_eval(self):
     eq_(eval(eval_(quote(begin(1, 2)))), 2)
-    eq_(eval(eval_(quote(begin(1, add(1, 1))))), 2)
+    eq_(eval(eval_(quote(begin(1, add(1, 2))))), 3)
+    
+  def test_callcc(self):
+    k = il.Var('k')
+    eq_(eval(add(callcc(lamda((k,), k(1))),2)), 3)
     
   def testif_(self):
     eq_(eval(if_(0, 1, 2)), 2)

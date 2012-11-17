@@ -4,7 +4,7 @@
 
 todo: more builtin
   todo: block, catch/throw, unwind-protect, callcc, callfc, 
-  todo: eval, module, marco, rules
+  todo: eval(done), module, marco, rules
   todo: parser builtin
 
 done: assemble alpha convert, assign convert, optimizal transformation, 
