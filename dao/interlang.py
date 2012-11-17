@@ -664,7 +664,8 @@ class Assign(Element):
     return Assign(self.var, self.exp.subst(bindings))
         
   def optimize_once(self, data):
-    return self, False
+    exp, changed = self.exp.optimize_once(data)
+    return Assign(self.var, exp), changed
     
   def pythonize_exp(self, env, compiler):
     exps, has_statement = self.exp.pythonize_exp(env, compiler)

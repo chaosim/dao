@@ -1,4 +1,13 @@
-﻿todo: assemble alpha convert, assign convert, optimizal transformation, 
+﻿todo: more optimization
+  todo: more ananlysis for optimization(assign side effects analysys, 
+    io side effects, state change sideeffects, type inference)
+
+todo: more builtin
+  todo: block, catch/throw, unwind-protect, callcc, callfc, 
+  todo: eval, module, marco, rules
+  todo: parser builtin
+
+done: assemble alpha convert, assign convert, optimizal transformation, 
       tail recursive, trampoline, generate code
 
 todo: tail recursive
@@ -6,8 +15,8 @@ todo: tail recursive
 todo: trampoline
 
 todo: compile to python 
-  todo: use python var as t var
-  todo：logic var become python var with LogicVar instance as its value, 
+  done: use python var as t var
+  done：logic var become LogicVar, 
         but other var is compiled to python var with other values.
 
 restart at 2012.10
