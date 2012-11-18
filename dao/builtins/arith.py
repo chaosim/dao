@@ -10,6 +10,8 @@ v0, fc0 = il.Var('v'), il.Var('fc')
 add = BuiltinFunction(il.add)
 eq = BuiltinFunction(il.Eq)
 sub = BuiltinFunction(il.sub)
+mul = BuiltinFunction(il.mul)
+div = BuiltinFunction(il.div)
 
 '''
 

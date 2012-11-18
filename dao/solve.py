@@ -2,8 +2,6 @@
 
 import os
 
-from dao.base import is_subclass
-
 from dao.solvebase import Solutions
 from dao.compile import compile_to_pyfile
 

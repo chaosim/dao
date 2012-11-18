@@ -119,6 +119,8 @@ class Atom(Element):
   def __eq__(x, y):
     return classeq(x, y) and x.value==y.value
   
+  def __hash__(self): return hash(self.value)
+  
   def __repr__(self):
     return 'il.%s(%s)'%(self.__class__.__name__, self.value)
   
@@ -971,6 +973,8 @@ class BinaryOperation(Element):
 
 add = BinaryOperation('add', '+', False)
 sub = BinaryOperation('sub', '-', False)
+mul = BinaryOperation('mul', '*', False)
+div = BinaryOperation('div', '-', False)
 
 class BinaryOperationApply(Apply):
   is_statement = False

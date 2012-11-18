@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 '''code for compilation:
-alpha convert -> cps convert -> assign-convert 
+alpha convert -> cps convert -> assign convert 
 -> optimization 
 -> tail recursive convert -> trampoline 
 -> pythonize -> generate code
@@ -23,7 +23,8 @@ solver = Solver()
 
 '''
 
-def compile_to_python(exp, done=None):  
+def compile_to_python(exp, done=None): 
+  '''assemble steps from dao expression to python code'''
   if done is None:
     done = il.Done()
   compiler = Compiler()
@@ -48,13 +49,3 @@ def compile_to_pyfile(exp):
   file = open(r'f:\dao_all\dao\dao\tests\compiled.py', 'w')
   file.write(compile_to_python(exp))
   file.close()
-  
-
-'''
-add(callcc(il.Lamda((k), k(il.Integer(1)))), il.Integer(2))
-
-il.Clamda(v, 
-  il.Lamda((k), 
-  k(il.Integer(1)))
-  (il.Clamda(a0, il.Clamda(a1, a0+a1)(il.Integer(2))), il.Clamda(a0, il.Clamda(a1, a0+a1)(il.Integer(2)))))
-'''

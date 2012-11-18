@@ -23,25 +23,6 @@ def is_var(obj):
 # important function's definitions for unification and match:
 # deref, getvalue, closure, match, unify
 # copy, copy_rule_head
-
-def unify(x, y, solver, occurs_check=False):
-  try: x_unify = x.unify
-  except AttributeError: 
-    try: y_unify = y.unify 
-    except AttributeError: 
-      if (isinstance(x, list) or isinstance(x, tuple))\
-          and (isinstance(y, list) or isinstance(y, tuple)):
-        return unify_list(x, y, solver, occurs_check)
-      else: return x==y
-    return y_unify(x, solver, occurs_check)
-  return x_unify(y, solver, occurs_check)
-
-def unify_list(list1, list2, solver, occurs_check=False):
-  '''unify list1 with list2 in solver.'''
-  if len(list1)!=len(list2): return False
-  for x, y in zip(list1, list2):
-    if not unify(x, y, solver, occurs_check): return False 
-  return True
     
 def deref(x, env):
   try: x_deref = x.deref

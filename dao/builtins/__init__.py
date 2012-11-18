@@ -1,7 +1,7 @@
 from speical import let, letrec, lamda, callcc, callfc, eval_
-from speical import quote, assign, begin, if_
+from speical import quote, assign, begin, if_, block, exit_block
 
-from arith import add, sub, eq
+from arith import add, sub, mul, div, eq
 
 from control import succeed, fail, not_p, or_, findall, first_p, cut, repeat
 

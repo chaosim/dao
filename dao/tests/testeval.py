@@ -8,8 +8,8 @@ from dao.builtins import quote, assign, begin, if_
 from dao.builtins import not_p, fail, succeed, or_
 from dao.builtins import unify, lamda, let, letrec
 from dao.builtins import settext, char, eoi, any
-from dao.builtins import add, eq, sub
-from dao.builtins import eval_, callcc
+from dao.builtins import add, eq, sub, mul
+from dao.builtins import eval_, callcc, block, exit_block
 
 from dao.solvebase import NoSolution
 
@@ -122,8 +122,8 @@ class TestControl:
     #eq_(eval(let([(x,1)], eval_(quote(x)))), 1)
     
   def testblock(self):
-    f = Var('f')
-    eq_(eval(block('foo', let([(f, lambda_((), exit_block('foo',1)))], 
+    f = il.Var('f')
+    eq_(eval(block('foo', let([(f, lamda((), exit_block('foo',1)))], 
                             mul(2, block('foo', f()))))), 
         1)
     

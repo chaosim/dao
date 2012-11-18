@@ -11,22 +11,13 @@ v0, fc0 = il.Var('v'), il.Var('fc')
 
 @special
 def quote(compiler, cont, exp):
-    return cont(exp)
+  return cont(exp)
 
 @special
 def eval_(compiler, cont, exp):
   return exp.cps_convert(compiler, il.Done()).cps_convert(compiler, cont)
 
-class Assign(Command):
-  def __call__(self, var, value):
-    return AssignCall(il.element(var), il.element(value))
-  
-  def __repr__(self):
-    return 'assign'
-
-assign = Assign()
-
-class AssignCall(SpecialCall):
+class Assign(SpecialCall):
   def __init__(self, var, exp):
     self.var, self.exp = var, exp
     
@@ -45,6 +36,8 @@ class AssignCall(SpecialCall):
     
   def __repr__(self):
     return 'assign(%r, %r)'%(self.var, self.exp)
+
+assign = Assign
 
 @special
 def begin(compiler, cont, *exps):
@@ -116,3 +109,48 @@ def callfc(compiler, cont, function):
   Todo_callfc_need_tests
   return function(il.failcont)
 
+def block(label, *exps):
+  return Block(label, begin(*tuple(element(x) for x in exps)))
+               
+class Block(il.Element):
+  def __init__(self, label, body):
+    self.label = label
+    self.body = body
+    
+  def alpha_convert(self, env, compiler):
+    compiler.block_level.append((self.label, compiler.new_var(self.label)))
+    return self.body.alpha_convert(env, compiler)
+  
+  def cps_convert(self, compiler, cont):
+    compiler.exit_block_cont_map[label] = cont
+    compiler.next_block_cont_map[label] = result = self.body.cps_convert(compiler, cont)
+    return result
+    
+class ExitBlock(il.Element):
+  def __init__(self, label=NONE, value=NONE):
+    self.label = label
+    self.value = value
+    
+  def alpha_convert(self, env, compiler):
+    if self.label==NONE:
+      label = env.get_inner_block_label(NONE)
+    else:
+      label = env.get_block_label(self.label)
+    return ExitBlock(label, self.value.alpha_convert(env, compiler))
+  
+  def cps_convert(self, compiler, cont):
+    return compiler.exit_block_cont_map[self.label](self.value)
+  
+class ContinueBlock(il.Element):
+  def __init__(self, label=NONE):
+    self.label = label
+    
+  def alpha_convert(self, env, compiler):
+    if self.label==NONE:
+      label = env.get_inner_block_label(NONE)
+    else:
+      label = env.get_block_label(self.label)
+    return ContinueBlock(label)
+  
+  def cps_convert(self, compiler, cont):
+    return compiler.next_block_cont_map[self.label](NONE)

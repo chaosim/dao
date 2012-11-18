@@ -26,6 +26,8 @@ class DaoNotImplemented(Exception):
 class Compiler:
   def __init__(self):
     self.newvar_map = {} #{'name':index}
+    self.exit_block_cont_map = {}
+    self.next_block_cont_map = {}
 
   def new_var(self, var):
     try: 
@@ -37,6 +39,7 @@ class Compiler:
       return var
   
 class Environment:
+  '''environment for compile, especilly for alpha convert, block/exit/continue'''
   def __init__(self, outer=None):
     self.bindings = {}
     self.outer = outer
@@ -56,7 +59,18 @@ class Environment:
   
   def __setitem__(self, var, value):
     self.bindings[var] = value
-     
+    
+  def get_inner_block_label(self):
+    if self.outer is None:
+      raise BlockError("should not escape from top level outside of block.")
+    else: return self.outer.get_inner_block_label()
+    
+  def get_block_label(self, old_label):   
+    if self.outer is None:
+      raise BlockError("Block %s is not found."%old_label)
+    else: 
+      return self.outer.get_block_label(old_label)
+    
   def __repr__(self):
     result = ''
     while self is not None:
@@ -64,6 +78,22 @@ class Environment:
       self = self.outer
     return result
        
+class BlockEnvironment(Environment):
+  def __init__(self, old_label, new_label):
+    self.old_label = old_label
+    self.new_label = new_label
+    
+  def get_inner_block_label(self):
+    return self.new_label
+  
+  def get_block_label(self, old_label):
+    if old_label==self.old_label:
+      return self.new_label
+    elif self.outer is None:
+      raise BlockError("Block %s is not found."%old_label)
+    else: 
+      return self.outer.get_block_label(old_label)
+
 class OptimizationData:
   def __init__(self):
     self.ref_count = {}
