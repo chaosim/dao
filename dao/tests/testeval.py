@@ -9,7 +9,7 @@ from dao.builtins import not_p, fail, succeed, or_
 from dao.builtins import unify, lamda, let, letrec
 from dao.builtins import settext, char, eoi, any
 from dao.builtins import add, eq, sub, mul
-from dao.builtins import eval_, callcc, block, exit_block
+from dao.builtins import eval_, callcc, block, exit_block, continue_block
 
 from dao.solvebase import NoSolution
 
@@ -123,12 +123,19 @@ class TestControl:
     
   def testblock(self):
     f = il.Var('f')
-    eq_(eval(block('foo', let([(f, lamda((), exit_block('foo',1)))], 
-                            mul(2, block('foo', f()))))), 
+    foo = il.Var('foo')
+    eq_(eval(block(foo, let([(f, lamda((), exit_block(foo,1)))], 
+                            mul(2, block(foo, f()))))), 
         1)
     
   def testblock2(self):
-    eq_(eval(block('a', exit_block('a', 2), 3)), 2)
+    a = il.Var('a')
+    eq_(eval(block(a, exit_block(a, 2), 3)), 2)
+    
+  def testblock3(self):
+    a = il.Var('a')
+    eq_(eval(block(a, 1, continue_block(a), exit_block(a, 2), 3)), 2)
+
 
 class XTestLoop:
   def testloop(self):

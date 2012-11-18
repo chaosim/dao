@@ -26,6 +26,7 @@ class DaoNotImplemented(Exception):
 class Compiler:
   def __init__(self):
     self.newvar_map = {} #{'name':index}
+    self.block_label_stack = []
     self.exit_block_cont_map = {}
     self.next_block_cont_map = {}
 
@@ -37,6 +38,19 @@ class Compiler:
     except:
       self.newvar_map[var.name] = 1
       return var
+    
+  def get_inner_block_label(self):
+    if self.block_label_stack:
+      return self.block_label_stack[-1][1]
+    else: 
+      raise BlockError("should not escape from top level outside of all block.")
+    
+  def get_block_label(self, old_label): 
+    for i in range(len(self.block_label_stack)):
+      if old_label==self.block_label_stack[-(i+1)][0]:
+        return self.block_label_stack[-(i+1)][1]
+    raise BlockError("Block %s is not found."%old_label)
+    
   
 class Environment:
   '''environment for compile, especilly for alpha convert, block/exit/continue'''
@@ -60,17 +74,6 @@ class Environment:
   def __setitem__(self, var, value):
     self.bindings[var] = value
     
-  def get_inner_block_label(self):
-    if self.outer is None:
-      raise BlockError("should not escape from top level outside of block.")
-    else: return self.outer.get_inner_block_label()
-    
-  def get_block_label(self, old_label):   
-    if self.outer is None:
-      raise BlockError("Block %s is not found."%old_label)
-    else: 
-      return self.outer.get_block_label(old_label)
-    
   def __repr__(self):
     result = ''
     while self is not None:
@@ -78,22 +81,6 @@ class Environment:
       self = self.outer
     return result
        
-class BlockEnvironment(Environment):
-  def __init__(self, old_label, new_label):
-    self.old_label = old_label
-    self.new_label = new_label
-    
-  def get_inner_block_label(self):
-    return self.new_label
-  
-  def get_block_label(self, old_label):
-    if old_label==self.old_label:
-      return self.new_label
-    elif self.outer is None:
-      raise BlockError("Block %s is not found."%old_label)
-    else: 
-      return self.outer.get_block_label(old_label)
-
 class OptimizationData:
   def __init__(self):
     self.ref_count = {}

@@ -17,18 +17,21 @@ def quote(compiler, cont, exp):
 def eval_(compiler, cont, exp):
   return exp.cps_convert(compiler, il.Done()).cps_convert(compiler, cont)
 
+def assign(var, exp):
+  return Assign(il.element(var), il.element(exp))
+
 class Assign(SpecialCall):
   def __init__(self, var, exp):
     self.var, self.exp = var, exp
     
   def subst(self, bindings):
-    return AssignCall(self.var, self.exp.subst(bindings))
+    return Assign(self.var, self.exp.subst(bindings))
     
   def alpha_convert(self, env, compiler):
     try: var = env[self.var]
     except VariableNotBound:
       env[self.var] = var = compiler.new_var(self.var)
-    return AssignCall(var, self.exp.alpha_convert(env, compiler))
+    return Assign(var, self.exp.alpha_convert(env, compiler))
   
   def cps_convert(self, compiler, cont):
     v = compiler.new_var(v0)
@@ -36,8 +39,6 @@ class Assign(SpecialCall):
     
   def __repr__(self):
     return 'assign(%r, %r)'%(self.var, self.exp)
-
-assign = Assign
 
 @special
 def begin(compiler, cont, *exps):
@@ -110,7 +111,7 @@ def callfc(compiler, cont, function):
   return function(il.failcont)
 
 def block(label, *exps):
-  return Block(label, begin(*tuple(element(x) for x in exps)))
+  return Block(label, begin(*tuple(il.element(x) for x in exps)))
                
 class Block(il.Element):
   def __init__(self, label, body):
@@ -118,14 +119,27 @@ class Block(il.Element):
     self.body = body
     
   def alpha_convert(self, env, compiler):
-    compiler.block_level.append((self.label, compiler.new_var(self.label)))
-    return self.body.alpha_convert(env, compiler)
+    label = compiler.new_var(self.label)
+    compiler.block_label_stack.append((self.label, label))
+    body = self.body.alpha_convert(env, compiler)
+    compiler.block_label_stack.pop()
+    return Block(label, body)
+  
+  def subst(self, bindings):
+    return Block(self.label, self.body.subst(bindings))
   
   def cps_convert(self, compiler, cont):
-    compiler.exit_block_cont_map[label] = cont
-    compiler.next_block_cont_map[label] = result = self.body.cps_convert(compiler, cont)
+    compiler.exit_block_cont_map[self.label] = cont
+    result = self.body.cps_convert(compiler, cont)
+    compiler.next_block_cont_map[self.label] = result
     return result
+  
+  def __repr__(self):
+    return 'Block(%s, %s)'%(self.label, self.body)
     
+def exit_block(label=NONE, value=NONE):
+  return ExitBlock(il.element(label), il.element(value))
+
 class ExitBlock(il.Element):
   def __init__(self, label=NONE, value=NONE):
     self.label = label
@@ -133,13 +147,27 @@ class ExitBlock(il.Element):
     
   def alpha_convert(self, env, compiler):
     if self.label==NONE:
-      label = env.get_inner_block_label(NONE)
+      label = compiler.get_inner_block_label(NONE)
     else:
-      label = env.get_block_label(self.label)
+      label = compiler.get_block_label(self.label)
     return ExitBlock(label, self.value.alpha_convert(env, compiler))
   
   def cps_convert(self, compiler, cont):
     return compiler.exit_block_cont_map[self.label](self.value)
+
+  def __repr__(self):
+    return 'exit_block(%s, %s)'%(self.label, self.value)
+
+def continue_block(label=NONE):
+  return ContinueBlock(il.element(label))
+
+class BackFilledContinueContinuation:
+  def __init__(self, cont_map, label):
+    self.cont_map = cont_map
+    self.label = label
+    
+  def optimization_analisys(self, data):
+    (self.cont_map[self.label](NONE)).optimization_analisys(data)
   
 class ContinueBlock(il.Element):
   def __init__(self, label=NONE):
@@ -147,10 +175,13 @@ class ContinueBlock(il.Element):
     
   def alpha_convert(self, env, compiler):
     if self.label==NONE:
-      label = env.get_inner_block_label(NONE)
+      label = compiler.get_inner_block_label(NONE)
     else:
-      label = env.get_block_label(self.label)
+      label = compiler.get_block_label(self.label)
     return ContinueBlock(label)
   
   def cps_convert(self, compiler, cont):
-    return compiler.next_block_cont_map[self.label](NONE)
+    return BackFilledContinueContinuation(compiler.next_block_cont_map, self.label)
+  
+  def __repr__(self):
+    return 'continue_block(%s, %s)'%(self.label)

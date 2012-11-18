@@ -1,5 +1,5 @@
 from speical import let, letrec, lamda, callcc, callfc, eval_
-from speical import quote, assign, begin, if_, block, exit_block
+from speical import quote, assign, begin, if_, block, exit_block, continue_block
 
 from arith import add, sub, mul, div, eq
 
