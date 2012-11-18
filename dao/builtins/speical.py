@@ -129,10 +129,13 @@ class Block(il.Element):
     return Block(self.label, self.body.subst(bindings))
   
   def cps_convert(self, compiler, cont):
+    # use cfunction, continue_block means recursive call.
+    # tail recursive cfunction can be used to transform to while 1/break/continue.
+    v = compiler.new_var(v0)
     compiler.exit_block_cont_map[self.label] = cont
-    result = self.body.cps_convert(compiler, cont)
-    compiler.next_block_cont_map[self.label] = result
-    return result
+    block_fun = compiler.new_var(il.Var('block_'+self.label.name))
+    compiler.next_block_cont_map[self.label] = block_fun(NONE)
+    return il.cfunction(block_fun, v, self.body.cps_convert(compiler, cont))(NONE)
   
   def __repr__(self):
     return 'Block(%s, %s)'%(self.label, self.body)
@@ -181,7 +184,7 @@ class ContinueBlock(il.Element):
     return ContinueBlock(label)
   
   def cps_convert(self, compiler, cont):
-    return BackFilledContinueContinuation(compiler.next_block_cont_map, self.label)
+    return compiler.next_block_cont_map[self.label]
   
   def __repr__(self):
     return 'continue_block(%s, %s)'%(self.label)
