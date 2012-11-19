@@ -24,8 +24,12 @@ def pythonize_args(args, env, compiler):
   for arg in args:
     exps2, has_statement1 = arg.pythonize_exp(env, compiler)
     has_statement = has_statement or has_statement1
-    result.append(exps2[-1])
-    exps += exps2[:-1]
+    if exps2[-1].is_statement:
+      result.append(NONE)
+      exps += exps2
+    else:
+      result.append(exps2[-1])
+      exps += exps2[:-1]      
   return exps, result, has_statement
     
 def cps_convert_exps(compiler, exps, cont):
@@ -244,7 +248,7 @@ class Lamda(Element):
   
   def pythonize_exp(self, env, compiler):
     body_exps, body_has_any_statement = self.body.pythonize_exp(env, compiler)
-    if not body_has_any_statement:
+    if 0:#not body_has_any_statement:
       return (self.new(self.params, begin(*body_exps)),), False
     else:
       if not body_exps[-1].is_statement:
@@ -1120,6 +1124,15 @@ empty_list = EmptyList()
 ListAppend = vop('ListAppend', 2, '%s.append(%s)')
 Len = vop('Len', 1, 'len(%s)')
 RaiseTypeError = vop2('RaiseTypeError', 1, 'raise %s')
+
+PopCatchCont = vop('PopCatchCont', 1, "solver.pop_catch_cont(%s)")
+FindCatchCont = vop('FindCatchCont', 1, "solver.find_catch_cont(%s)")
+PushCatchCont = vop2('PushCatchCont', 2, "solver.push_catch_cont(%s, %s)")
+PushUnwindCont = vop2("PushUnwindCont", 1, "solver.push_unwind_cont(%s)")
+pop_unwind_cont = vop('pop_unwind_cont', 0, "solver.pop_unwind_cont()")()
+unwind_cont_stack_length = vop('unwind_cont_stack_length', 0, "len(solver.unwind_cont_stack)")()
+Unwind = vop('Unwind', 1, "solver.unwind(%s)")
+
 SetContent = vop2('SetContent', 2, '%s[0] = %s')
 Content = vop('Content', 1, '%s[0]')
 #MakeCell = vop('MakeCell', 1, '[%s]') # assign to upper level variable is possible.
@@ -1142,6 +1155,8 @@ GetValue = vop('GetValue', 1, 'getvalue(%s, solver.bindings')
 SetParseState = vop2('SetParseState', 1, 'solver.parse_state = %s')
 ParseState = vop('parse_state', 0, 'solver.parse_state')
 parse_state = ParseState()
+
+Prin = vop2('Prin', 1, 'print %s,')
 
 def binary_to_code(self, coder):
   return '(%s) %s (%s)'%(self.args[0].to_code(coder), 
@@ -1192,3 +1207,4 @@ def element(exp):
 TRUE = Atom(True)
 FALSE = Atom(False)
 NONE = Atom(None)
+

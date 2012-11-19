@@ -3,7 +3,7 @@
     io side effects, state change sideeffects, type inference)
 
 todo: more builtin
-  todo: block, catch/throw, unwind-protect, callcc(done), callfc(coded, but not tested), 
+  todo: block(done), catch/throw, unwind-protect, callcc(done), callfc(coded, but not tested), 
   todo: eval(done), module, marco, rules
   todo: parser builtin
 

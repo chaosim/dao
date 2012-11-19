@@ -59,3 +59,31 @@ class Solver:
     self.cut_or_cont = self.fail_cont
     self.bindings = Bindings()
     self.parse_state = None
+    self.catch_cont_map = {}
+    self.unwind_cont_stack = []
+    
+  def push_catch_cont(self, tag, cont):
+    self.catch_cont_map.setdefault(tag, []).append(cont)
+
+  def pop_catch_cont(self, tag):
+    result = self.catch_cont_map[tag].pop()
+    if not self.catch_cont_map[tag]:
+      del self.catch_cont_map[tag]
+    return result
+      
+  def find_catch_cont(self, tag):
+    try:
+      cont_stack = self.catch_cont_map[tag]
+    except:
+      raise CatchError(tag)
+    return cont_stack.pop()  
+      
+  def push_unwind_cont(self, cont):
+    self.unwind_cont_stack.append(cont)
+
+  def pop_unwind_cont(self, tag):
+    self.unwind_cont_stack.pop()
+    
+  def unwind(self, old_unwind_cont_stack_length):
+    while len(self.unwind_cont_stack)>old_unwind_cont_stack_length:
+      self.unwind_cont_stack.pop()(None)

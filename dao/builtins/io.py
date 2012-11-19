@@ -1,43 +1,40 @@
 import os
-from dao import builtin
+from dao import interlang as il
+from dao.command import BuiltinFunction
 
 # intput and output
 
-@builtin.function()
-def format(format_string, *args):
-  return format_string%args
+#def format(format_string, *args):
+  #return format_string%args
 
-@builtin.function()
-def read(file):
-  return file.read()
+#@builtin.function()
+#def read(file):
+  #return file.read()
 
-@builtin.function()
-def readline(file):
-  return file.readline()
+#@builtin.function()
+#def readline(file):
+  #return file.readline()
 
-@builtin.function()
-def readlines(file):
-  return file.readlines()
+#@builtin.function()
+#def readlines(file):
+  #return file.readlines()
 
-@builtin.function('prin', 'print')
-def prin(*args):
-  for arg in args: 
-    print arg,
+prin = BuiltinFunction(il.Prin)
 
-@builtin.function()
-def println(*args):
-  for arg in args: print arg,
-  print
+#@builtin.function()
+#def println(*args):
+  #for arg in args: print arg,
+  #print
 
-@builtin.function()
-def write(file, *args):
-  if isinstance(file, str):
-    file = open(file)
-  for arg in args: file.write('%s'%arg)
+#@builtin.function()
+#def write(file, *args):
+  #if isinstance(file, str):
+    #file = open(file)
+  #for arg in args: file.write('%s'%arg)
   
-@builtin.function()
-def writeln(file, *args):
-  if isinstance(file, str):
-    file = open(file)
-  for arg in args: file.write('%s'%arg)
-  file.write('\n')
+#@builtin.function()
+#def writeln(file, *args):
+  #if isinstance(file, str):
+    #file = open(file)
+  #for arg in args: file.write('%s'%arg)
+  #file.write('\n')

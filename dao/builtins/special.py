@@ -188,3 +188,38 @@ class ContinueBlock(il.Element):
   
   def __repr__(self):
     return 'continue_block(%s, %s)'%(self.label)
+
+@special
+def catch(compiler, cont, tag, *form):
+  v = compiler.new_var(il.Var('v'))
+  v2 = compiler.new_var(il.Var('v'))
+  old_unwind_cont_stack_length = compiler.new_var(il.Var('old_unwind_cont_stack_length'))
+  return tag.cps_convert(compiler, il.clamda(v,
+    il.Assign(old_unwind_cont_stack_length, il.unwind_cont_stack_length),
+    il.PushCatchCont(v, il.clamda(v2,
+      il.Unwind(old_unwind_cont_stack_length),
+      #il.PopCatchCont(v), # do not pop here, when throw to find, the cont is popped.
+      cont(v2))),
+    begin(*form).cps_convert(compiler, cont)))
+  
+@special
+def throw(compiler, cont, tag, form):
+  v = compiler.new_var(il.Var('v'))
+  v2 = compiler.new_var(il.Var('v'))
+  return tag.cps_convert(compiler, 
+      il.clamda(v,
+          form.cps_convert(compiler, 
+            il.clamda(v2, il.FindCatchCont(v)(v2)))))
+  
+@special
+def unwind_protect(compiler, cont, form, *cleanup):
+  v = compiler.new_var(il.Var('v'))
+  v2 = compiler.new_var(il.Var('v'))
+  protect_cont = compiler.new_var(il.Var('protect_cont'))
+  return il.clamda(v,
+    il.Assign(protect_cont, 
+      il.clamda(v, 
+          il.pop_unwind_cont,
+          begin(*cleanup).cps_convert(compiler, il.clamda(v2, cont(v))))),
+    il.PushUnwindCont(protect_cont),
+    form.cps_convert(compiler, protect_cont))(NONE)
