@@ -61,6 +61,8 @@ class Solver:
     self.parse_state = None
     self.catch_cont_map = {}
     self.unwind_cont_stack = []
+    self.exit_block_cont_map = {}
+    self.continue_block_cont_map = {}
     
   def push_catch_cont(self, tag, cont):
     self.catch_cont_map.setdefault(tag, []).append(cont)

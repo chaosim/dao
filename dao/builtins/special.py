@@ -132,10 +132,15 @@ class Block(il.Element):
     # use cfunction, continue_block means recursive call.
     # tail recursive cfunction can be used to transform to while 1/break/continue.
     v = compiler.new_var(v0)
-    compiler.exit_block_cont_map[self.label] = cont
+    old_unwind_cont_stack_length = compiler.new_var(il.Var('old_unwind_cont_stack_length'))
     block_fun = compiler.new_var(il.Var('block_'+self.label.name))
-    compiler.next_block_cont_map[self.label] = block_fun(NONE)
-    return il.cfunction(block_fun, v, self.body.cps_convert(compiler, cont))(NONE)
+    return il.cfunction(block_fun, v,
+                il.Assign(old_unwind_cont_stack_length, il.unwind_cont_stack_length),
+                il.SetExitBlockContMap(il.String(self.label.name),  il.clamda(v, 
+                      il.Unwind(old_unwind_cont_stack_length), cont(v))),
+                il.SetContinueBlockContMap(il.String(self.label.name),  il.clamda(v, 
+                      il.Unwind(old_unwind_cont_stack_length), block_fun(v))),
+                self.body.cps_convert(compiler, cont))(NONE)
   
   def __repr__(self):
     return 'Block(%s, %s)'%(self.label, self.body)
@@ -156,7 +161,7 @@ class ExitBlock(il.Element):
     return ExitBlock(label, self.value.alpha_convert(env, compiler))
   
   def cps_convert(self, compiler, cont):
-    return compiler.exit_block_cont_map[self.label](self.value)
+    return il.GetExitBlockCont(il.String(self.label.name))(self.value)
 
   def __repr__(self):
     return 'exit_block(%s, %s)'%(self.label, self.value)
@@ -164,14 +169,6 @@ class ExitBlock(il.Element):
 def continue_block(label=NONE):
   return ContinueBlock(il.element(label))
 
-class BackFilledContinueContinuation:
-  def __init__(self, cont_map, label):
-    self.cont_map = cont_map
-    self.label = label
-    
-  def optimization_analisys(self, data):
-    (self.cont_map[self.label](NONE)).optimization_analisys(data)
-  
 class ContinueBlock(il.Element):
   def __init__(self, label=NONE):
     self.label = label
@@ -184,7 +181,7 @@ class ContinueBlock(il.Element):
     return ContinueBlock(label)
   
   def cps_convert(self, compiler, cont):
-    return compiler.next_block_cont_map[self.label]
+    return il.GetContinueBlockCont(il.String(self.label.name))(NONE)
   
   def __repr__(self):
     return 'continue_block(%s, %s)'%(self.label)

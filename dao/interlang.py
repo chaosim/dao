@@ -1125,6 +1125,11 @@ ListAppend = vop('ListAppend', 2, '%s.append(%s)')
 Len = vop('Len', 1, 'len(%s)')
 RaiseTypeError = vop2('RaiseTypeError', 1, 'raise %s')
 
+SetExitBlockContMap = vop2('SetExitBlockContMap', 2, 'solver.exit_block_cont_map[%s] = %s')
+SetContinueBlockContMap = vop2('SetContinueBlockContMap', 2, 'solver.continue_block_cont_map[%s] = %s')
+GetExitBlockCont = vop('GetExitBlockCont', 1, 'solver.exit_block_cont_map[%s]')
+GetContinueBlockCont = vop('GetContinueBlockCont', 1, 'solver.continue_block_cont_map[%s]')
+
 PopCatchCont = vop('PopCatchCont', 1, "solver.pop_catch_cont(%s)")
 FindCatchCont = vop('FindCatchCont', 1, "solver.find_catch_cont(%s)")
 PushCatchCont = vop2('PushCatchCont', 2, "solver.push_catch_cont(%s, %s)")
