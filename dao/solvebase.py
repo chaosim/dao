@@ -56,16 +56,16 @@ class Solver:
     if end_cont is None:
       self.fail_cont = default_end_cont
     else: self.fail_cont = end_cont
-    self.cut_or_cont = self.fail_cont
-    self.bindings = Bindings()
-    self.parse_state = None
-    self.catch_cont_map = {}
-    self.unwind_cont_stack = []
-    self.exit_block_cont_map = {}
-    self.continue_block_cont_map = {}
+    self.cut_or_cont = self.fail_cont # for cut to logic or clauses
+    self.bindings = Bindings() # for logic variable, unify
+    self.parse_state = None # for parser
+    self.catch_cont_map = {} # for catch/throw
+    self.unwind_cont_stack = [] # for unwind_protect
+    self.exit_block_cont_map = {} # for block/exit
+    self.continue_block_cont_map = {} # for block/continue
     
-  def push_catch_cont(self, tag, cont):
-    self.catch_cont_map.setdefault(tag, []).append(cont)
+  #def push_catch_cont(self, tag, cont):
+    #self.catch_cont_map.setdefault(tag, []).append(cont)
 
   def pop_catch_cont(self, tag):
     result = self.catch_cont_map[tag].pop()
@@ -77,15 +77,18 @@ class Solver:
     try:
       cont_stack = self.catch_cont_map[tag]
     except:
-      raise CatchError(tag)
+      raise DaoUncaughtThrow(tag)
     return cont_stack.pop()  
       
-  def push_unwind_cont(self, cont):
-    self.unwind_cont_stack.append(cont)
+  #def push_unwind_cont(self, cont):
+    #self.unwind_cont_stack.append(cont)
 
-  def pop_unwind_cont(self, tag):
-    self.unwind_cont_stack.pop()
+  #def pop_unwind_cont(self):
+    #self.unwind_cont_stack.pop()
     
-  def unwind(self, old_unwind_cont_stack_length):
-    while len(self.unwind_cont_stack)>old_unwind_cont_stack_length:
-      self.unwind_cont_stack.pop()(None)
+  #def top_unwind_cont(self):
+    #self.unwind_cont_stack[-1]
+    
+  #def unwind(self, old_unwind_cont_stack_length):
+    #while len(self.unwind_cont_stack)>old_unwind_cont_stack_length:
+      #self.unwind_cont_stack[-1](None)

@@ -123,7 +123,8 @@ class TestControl:
     #eq_(eval(eval_(quote(add(1, 1)))), (2))
   #def testeval2(self):
     #eq_(eval(let([(x,1)], eval_(quote(x)))), 1)
-    
+
+class TestLispConstruct:    
   def testblock(self):
     f = il.Var('f')
     foo = il.Var('foo')

@@ -1132,11 +1132,18 @@ GetContinueBlockCont = vop('GetContinueBlockCont', 1, 'solver.continue_block_con
 
 PopCatchCont = vop('PopCatchCont', 1, "solver.pop_catch_cont(%s)")
 FindCatchCont = vop('FindCatchCont', 1, "solver.find_catch_cont(%s)")
-PushCatchCont = vop2('PushCatchCont', 2, "solver.push_catch_cont(%s, %s)")
-PushUnwindCont = vop2("PushUnwindCont", 1, "solver.push_unwind_cont(%s)")
-pop_unwind_cont = vop('pop_unwind_cont', 0, "solver.pop_unwind_cont()")()
+#PushCatchCont = vop2('PushCatchCont', 2, "solver.push_catch_cont(%s, %s)")
+PushCatchCont = vop2('PushCatchCont', 2, "solver.catch_cont_map.setdefault(%s, []).append(%s)")
+#PushUnwindCont = vop2("PushUnwindCont", 1, "solver.push_unwind_cont(%s)")
+PushUnwindCont = vop2("PushUnwindCont", 1, "solver.unwind_cont_stack.append(%s)")
+#top_unwind_cont = vop('top_unwind_cont', 0, "solver.top_unwind_cont()")()
+#top_unwind_cont = vop('top_unwind_cont', 0, "solver.unwind_cont_stack[-1]")()
+#pop_unwind_cont = vop('pop_unwind_cont', 0, "solver.pop_unwind_cont()")()
+pop_unwind_cont = vop('pop_unwind_cont', 0, "solver.unwind_cont_stack.pop()")()
 unwind_cont_stack_length = vop('unwind_cont_stack_length', 0, "len(solver.unwind_cont_stack)")()
-Unwind = vop('Unwind', 1, "solver.unwind(%s)")
+#Unwind = vop('Unwind', 1, "solver.unwind(%s)")
+Unwind = vop('Unwind', 1, "while len(solver.unwind_cont_stack)>%s:\n"
+                          "    solver.unwind_cont_stack[-1](None)")
 
 SetContent = vop2('SetContent', 2, '%s[0] = %s')
 Content = vop('Content', 1, '%s[0]')
