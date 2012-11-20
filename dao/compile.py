@@ -10,18 +10,23 @@ alpha convert -> cps convert -> assign convert
 from dao.compilebase import Environment, Compiler, CodeGenerator, OptimizationData
 from dao.compilebase import CompileTypeError, VariableNotBound
 from dao.compilebase import optimize
-from dao.interlang import pythonize
 from dao import interlang as il
 
 prelude = '''# -*- coding: utf-8 -*-
 # generated file after compiling dao expression.
 
+# from dao.interlang import Expression
 from dao.interlang import LogicVar
+from dao.command import LogicVar as DaoLogicVar
 from dao.solvebase import Solver, deref
 
 solver = Solver()
 
 '''
+
+def pythonize(exp, env, compiler):
+  exps, has_any_statement = exp.pythonize_exp(env, compiler)
+  return il.begin(*exps)
 
 def compile_to_python(exp, done=None): 
   '''assemble steps from dao expression to python code'''

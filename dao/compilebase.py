@@ -104,7 +104,7 @@ class CodeGenerator:
 MAX_EXTEND_CODE_SIZE = 10
 
 def lambda_side_effects(exp):
-  return side_effects(exp.body)
+  return exp.body.side_effects()
 
 def optimize(exp, data):
   changed = True

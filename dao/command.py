@@ -1,18 +1,113 @@
 # -*- coding: utf-8 -*-
 
-from dao.base import classeq
-import dao.interlang as il
+from dao.base import classeq, Element
+
 from dao.compilebase import CompileTypeError, VariableNotBound
-
-from dao.interlang import cps_convert_exps
-
 from dao.interlang import TRUE, FALSE, NONE
+import dao.interlang as il
 
 v0, fc0 = il.Var('v'), il.Var('fc')
 
-class Command: pass
+class Command(Element): pass
 
-class special(Command):
+class Var(Element):        
+  def __init__(self, name):
+    self.name = name
+        
+  def __call__(self, *args):
+    return Apply(self, tuple(il.element(arg) for arg in args))
+  
+  def alpha_convert(self, env, compiler):
+    try: 
+      return env[self]
+    except KeyError: 
+      raise VariableNotBound(self)
+    
+  def subst(self, bindings):  
+    try: return bindings[self]
+    except: return self
+      
+  def cps_convert(self, compiler, cont):
+    return cont(il.Var(self.name))
+  
+  def cps_convert_unify(x, y, compiler, cont):
+    x = x.interlang()
+    y = y.interlang()
+    try: 
+      y.cps_convert_unify
+    except:
+      x1 = compiler.new_var(il.Var('x'))
+      return il.begin(
+        il.Assign(x1, il.Deref(x)), #for LogicVar, could be optimized when generate code.
+        il.If(il.IsLogicVar(x1),
+           il.begin(il.SetBinding(x1, y),
+                 il.append_fail_cont(compiler, il.DelBinding(x1)),
+                 cont(il.TRUE)),
+                il.If(il.Eq(x1, y), cont(TRUE), il.failcont(TRUE))))
+    x1 = compiler.new_var(il.Var('x'))
+    y1 = compiler.new_var(il.Var('y'))
+    return begin(
+      il.Assign(x1, il.Deref(x)), #for LogicVar, could be optimized when generate code.
+      il.Assign(y1, il.Deref(y)),
+      il.If(il.IsLogicVar(x1),
+         il.begin(il.SetBinding(x1, y1),
+               il.append_fail_cont(compiler, il.DelBinding(x1)),
+               cont(il.TRUE)),
+         il.begin(
+           il.If(il.IsLogicVar(y1),
+              il.begin(il.SetBinding(y1, x1),
+                    il.append_fail_cont(compiler, il.DelBinding(y1)),
+                    cont(il.TRUE)),
+              il.If(il.Eq(x1, y1), cont(il.TRUE), il.failcont(il.TRUE))))))
+  
+  def cps_convert_call(self, compiler, cont, args):
+    # see The 90 minute Scheme to C compiler by Marc Feeley
+    function = compiler.new_var(il.Var('function'))
+    vars = tuple(compiler.new_var(il.Var('a'+repr(i))) for i in range(len(args)))
+    fun = il.Apply(function, (cont,)+vars)
+    for var, self in reversed(zip((function,)+vars, (self,)+args)):
+      fun = self.cps_convert(compiler, il.Clamda(var, fun))
+    return fun
+  
+  def interlang(self):
+    return il.Var(self.name)
+
+  def __repr__(self):
+    return self.name #enough in tests
+
+class LogicVar(Var):  
+  def alpha_convert(self, env, compiler):
+    return self
+  
+  def interlang(self):
+    return il.LogicVar(self.name)
+  
+  def to_code(self, coder):
+    return "DaoLogicVar('%s')"%self.name
+  
+  def __eq__(x, y):
+    return classeq(x, y) and x.name==y.name
+
+class Apply(Element):
+  def __init__(self, caller, args):
+    self.caller, self.args = caller, args
+
+  def alpha_convert(self, env, compiler):
+    return self.__class__(self.caller.alpha_convert(env, compiler), 
+                 tuple(arg.alpha_convert(env, compiler) for arg in self.args))
+  
+  def cps_convert(self, compiler, cont):
+    # see The 90 minute Scheme to C compiler by Marc Feeley
+    return self.caller.cps_convert_call(compiler, cont, self.args)
+
+  def subst(self, bindings):  
+    return self.__class__(self.caller.subst(bindings), 
+                 tuple(arg.subst(bindings) for arg in self.args))
+      
+  def __repr__(self):
+    return '%r(%s)'%(self.caller, ', '.join([repr(x) for x in self.args]))
+  
+class Special(Command):
   def __init__(self, function):
     self.function = function
     
@@ -22,6 +117,8 @@ class special(Command):
   
   def __repr__(self):
     return self.function.__name__
+
+special = Special
 
 class CommandCall(il.Element): 
   def __init__(self, function, args):
@@ -77,119 +174,3 @@ class BuiltinFunctionCall(CommandCall):
      
   def __repr__(self):
     return '%s(%s)'%(self.function.name, ', '.join([repr(x) for x in self.args]))
-
-'''
-class Builtin: 
-  def __init__(self, function, name, symbol, is_global):
-    if name is None: name = function.__name__
-    self.function = function
-    self.name = name
-    self.symbol = symbol if symbol else name
-    self.is_global = is_global
-    
-  def copy(self): return self.__class__(self.function, self.name)
-  def __hash__(self): return hash(self.function)
-  def __eq__(self, other): 
-    return isinstance(other, self.__class__) and self.function==other.function
-  def __repr__(self): return '<%s>'%(self.name)
-  
-  # compile
-  
-  def code(self): return self.name
-  
-_memorable = False
-
-class BuiltinFunction(Builtin, Function):
-  command_type = BUILTIN_FUNCTION
-  memorable = _memorable
-  type = type.builtin_function
-  def __call__(self, *args):
-    return CommandCall(self, *args)
-  
-  def get_argument(self, arg, cont, solver):
-    solver.scont = solver.cont(arg, cont)
-    return True
-  
-  @classmethod
-  def compile_argument(cls, arg, cont, compiler):
-    compiler.scont = compiler.cont(arg, cont)
-    return compiler.scont
-    
-  def apply(self, solver, values, signatures):
-    #solver.scont = cont
-    return self.function(*values)  
-    
-class BuiltinPredicateCont:
-  def __init__(self, operator, args):
-    self.operator, self.args = operator, args
-  def code(self):
-    return 
-def builtin_predicate_fun():
-  for values in apply_generator_fun_list([%s]):
-    for x in %s(*values):
-      yield x
-for x in builtin_predicate_fun():
-  print x
-'', '.join([code(x) for x in self.args]), code(self.operator))
-    
-class BuiltinPredicate(Builtin, Function):
-  command_type = BUILTIN_PREDICATE
-  memorable = _memorable
-  type = type.builtin_predicate
-  def __call__(self, *args):
-    return CommandCall(self, *args)
-  def apply(self, solver, values, signatures):
-    return self.function(solver, *values)
-    
-class BuiltinMacroCont:
-  def __init__(self, operator, args):
-    self.operator, self.args = operator, args
-  def code(self):
-    return '
-def builtin_macro_fun():
-  for x in %s(%s):
-    yield x
-for x in builtin_macro_fun():
-  print x
-'%(
-      code(self.operator), ', '.join([code(x) for x in self.args]))
-    
-class BuiltinMacro(Builtin, Macro):
-  type = type.builtin_macro
-  command_type = BUILTIN_MACRO
-  memorable = _memorable
-  def __call__(self, *args):
-    return CommandCall(self, *args)
-  def apply(self, solver, args, signatures):
-    return self.function(solver, *args)
-    
-def builtin(klass):
-  def builtin(name=None, symbol=None, **kw):
-    def makeBuiltin(func):
-      if name is None: name1 = func.__name__
-      else: name1 = name
-      is_global = kw.get('is_global', False)
-      b = klass(func, name1, symbol, is_global)
-      return b
-    return makeBuiltin
-  return builtin
-
-def memo(builtin):
-  builtin.memorable = True
-  return builtin
-
-def nomemo(builtin):
-  builtin.memorable = False
-  return builtin
-
-def set_type(type):
-  def set_type_func(builtin):
-    builtin.type = type
-    return builtin
-  return set_type_func
-
-
-function = builtin(BuiltinFunction)
-predicate = builtin(BuiltinPredicate)
-macro = builtin(BuiltinMacro)
-'''

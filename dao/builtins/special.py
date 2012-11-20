@@ -1,17 +1,16 @@
 ''' many lisp style special forms'''
 
-from dao.command import special, Command, SpecialCall
-import dao.interlang as il
+from dao.base import Element
+from dao.command import special, Command, SpecialCall, Apply
 from dao.compilebase import CompileTypeError, VariableNotBound
-from dao.interlang import cps_convert_exps
-
 from dao.interlang import TRUE, FALSE, NONE
+import dao.interlang as il
 
 v0, fc0 = il.Var('v'), il.Var('fc')
 
 @special
 def quote(compiler, cont, exp):
-  return cont(exp)
+  return cont(il.Expression(exp))
 
 @special
 def eval_(compiler, cont, exp):
@@ -35,7 +34,7 @@ class Assign(SpecialCall):
   
   def cps_convert(self, compiler, cont):
     v = compiler.new_var(v0)
-    return self.exp.cps_convert(compiler, il.clamda(v, il.Assign(self.var, v), cont(NONE)))
+    return self.exp.cps_convert(compiler, il.clamda(v, il.Assign(self.var.interlang(), v), cont(NONE)))
     
   def __repr__(self):
     return 'assign(%r, %r)'%(self.var, self.exp)
@@ -55,7 +54,61 @@ def if_(compiler, cont, test, then, else_):
            il.Clamda(v, il.If(v, then.cps_convert(compiler, cont), 
                                  else_.cps_convert(compiler, cont))))
 
-lamda = il.lamda
+def cps_convert_exps(compiler, exps, cont):
+  v = compiler.new_var(il.Var('v'))
+  if not exps: return Clamda(v, cont(il.tuple()))
+  if len(exps)==1:
+    return exps[0].cps_convert(compiler, cont)
+  else:
+    return exps[0].cps_convert(compiler, 
+                  il.Clamda(v, cps_convert_exps(compiler, exps[1:], cont)))
+
+def lamda(params, *body):
+  body = tuple(il.element(x) for x in body)
+  return Lamda(params, begin(*body))
+
+class Lamda(Element):
+  def __init__(self, params, body):
+    self.params, self.body = params, body
+    
+  def __repr__(self):
+    return 'Lamda((%s), %s)'%(', '.join([repr(x) for x in self.params]),
+                              repr(self.body))
+  
+  def new(self, params, body):
+    return self.__class__(params, body)
+  
+  def __call__(self, *args):
+    return Apply(self, tuple(il.element(arg) for arg in args))
+  
+  def cps_convert_call(self, compiler, cont, args):
+    # see The 90 minute Scheme to C compiler by Marc Feeley
+    fun = self.body.cps_convert(compiler, cont)
+    for var, arg in reversed(zip(self.params, args)):
+      fun = arg.cps_convert(compiler, il.Clamda(var, fun))
+    return fun
+  
+  def alpha_convert(self, env, compiler):
+    try:
+      self.before_alpha_convert
+      return self
+    except: self.before_alpha_convert  = self.params, self.body
+    
+    new_env = env.extend()
+    for p in self.params: 
+      new_env.bindings[p] = compiler.new_var(p)
+    self.params = tuple(new_env[p] for p in self.params)
+    self.body = self.body.alpha_convert(new_env, compiler)
+    self.variables = new_env.bindings.values()
+    return self
+    
+  def cps_convert(self, compiler, cont):
+    k = compiler.new_var(il.Var('cont'))
+    params = tuple(x.interlang() for x in self.params)
+    return cont(il.Lamda((k,)+params, self.body.cps_convert(compiler, k)))
+  
+  def interlang(self):
+    return il.Lamda(tuple(x.interlang() for x in self.params), self.body.interlang())
 
 def let(bindings, *body):
   bindings = tuple((var, il.element(value)) for var, value in bindings)
@@ -103,7 +156,12 @@ class Letrec(il.Element):
 
 @special
 def callcc(compiler, cont, function):
-  return function(cont)
+  k = compiler.new_var(il.Var('cont'))
+  params = tuple(x.interlang() for x in function.params)
+  function1 = il.Lamda((k,)+params, function.body.cps_convert(compiler, k))
+  k1 = compiler.new_var(il.Var('cont'))
+  v = compiler.new_var(il.Var(v0))
+  return function1(cont, il.Lamda((k1, v), cont(v)))
 
 @special
 def callfc(compiler, cont, function):

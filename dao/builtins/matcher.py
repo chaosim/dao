@@ -9,8 +9,6 @@ from dao.base import classeq
 import dao.interlang as il
 from dao.compilebase import CompileTypeError, VariableNotBound
 
-from dao.interlang import cps_convert_exps
-
 from dao.interlang import TRUE, FALSE, NONE
 
 from dao.command import special

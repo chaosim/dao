@@ -1,7 +1,6 @@
 from dao.command import special, Command, SpecialCall
 import dao.interlang as il
 from dao.compilebase import CompileTypeError
-from dao.interlang import cps_convert_exps
 
 from dao.interlang import TRUE, FALSE, NONE
 

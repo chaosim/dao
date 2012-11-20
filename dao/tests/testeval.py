@@ -4,6 +4,8 @@ from nose.tools import eq_, ok_, assert_raises
 
 from dao.solve import eval
 
+from dao.command import Var, LogicVar
+
 from dao.builtins import quote, assign, begin, if_
 from dao.builtins import not_p, fail, succeed, or_
 from dao.builtins import unify, lamda, let, letrec
@@ -32,11 +34,11 @@ class TestSimple:
     #eq_(eval(div(2, 2)), 1)
     
   def test_quote(self):
-    lo_x = il.LogicVar('$x')
-    eq_(eval(quote(lo_x)), il.LogicVar('$x'))
+    lo_x = LogicVar('$x')
+    eq_(eval(quote(lo_x)), LogicVar('$x'))
     
   def testassign(self):
-    a = il.Var('a')
+    a = Var('a')
     eq_(eval(assign(a,2)), None)
     
   def xtestdefine(self):
@@ -51,7 +53,7 @@ class TestControl:
     eq_(eval(eval_(quote(begin(1, add(1, 2))))), 3)
     
   def test_callcc(self):
-    k = il.Var('k')
+    k = Var('k')
     eq_(eval(add(callcc(lamda((k,), k(1))),2)), 3)
     
   def testif_(self):
@@ -72,23 +74,23 @@ class TestControl:
     eq_(eval(lamda((x,), 1)(1)), 1)
     
   def test_let(self):
-    x = il.Var('x')
+    x = Var('x')
     eq_(eval(let([(x, 1)], x)), 1)
     eq_(eval(let([(x, 1)], let([(x, 2)], x))), 2)
     eq_(eval(let([(x, 1)], let([(x, 2)], assign(x, 2)))), None)
     
   def test_letrec(self):
-    x, y = il.Var('x'), il.Var('y')
+    x, y = Var('x'), Var('y')
     eq_(eval(letrec([(x, 1), (y, x)], y)), 1)
     eq_(eval(letrec([(x, 1), (y, add(x, 1))], y)), 2)
     
   def test_letrec2(self):
-    x, f = il.Var('x'), il.Var('f')
+    x, f = Var('x'), Var('f')
     eq_(eval(letrec([(f, lamda((x,), if_(eq(x,1), 1, f(sub(x,1)))))], f(2))), 1)
     
   def test_unify(self):
-    x = il.Var('x')
-    Lx = il.LogicVar('$x')
+    x = Var('x')
+    Lx = LogicVar('$x')
     assert_raises(NoSolution, eval, begin(unify(Lx, 1), unify(Lx,2)))
     eq_(eval(let([(x,1)], unify(x,1))), True)
     eq_(eval(unify(Lx,1)), True)
@@ -126,14 +128,14 @@ class TestControl:
 
 class TestLispConstruct:    
   def testblock(self):
-    f = il.Var('f')
-    foo = il.Var('foo')
+    f = Var('f')
+    foo = Var('foo')
     eq_(eval(block(foo, let([(f, lamda((), exit_block(foo,1)))], 
                             mul(2, block(foo, f()))))), 
         1)
     
   def testblock2(self):
-    a = il.Var('a')
+    a = Var('a')
     eq_(eval(block(a, exit_block(a, 2), 3)), 2)
     
   def testblock3(self):
@@ -147,11 +149,11 @@ class TestLispConstruct:
     eq_(eval(catch(1, throw(1, 2), 3)), 2)
     
   def test_unwind_protect(self):
-    foo = il.Var('foo')
+    foo = Var('foo')
     eq_(eval(block(foo, unwind_protect(exit_block(foo, 1), prin(2)))), 1)
     
   def test_unwind_protect2(self):
-    foo = il.Var('foo')
+    foo = Var('foo')
     eq_(eval(block(foo, unwind_protect(exit_block(foo, 1), 
                             prin(2), prin(3)))), 1)
 

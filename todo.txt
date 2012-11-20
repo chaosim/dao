@@ -1,6 +1,7 @@
 ﻿todo: more optimization
   todo: more ananlysis for optimization(assign side effects analysys, 
     io side effects, state change sideeffects, type inference)
+  todo: Apply of clamda and cfunction can be subst by their body directly.
 
 todo: more builtin
   todo: callcc(done), callfc(coded, but not tested), 
