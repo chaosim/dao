@@ -1,6 +1,6 @@
 from special import let, letrec, lamda, callcc, callfc, eval_
 from special import quote, assign, begin, if_, block, exit_block, continue_block
-from special import catch, throw, unwind_protect
+from special import catch, throw, unwind_protect, rules
 
 from arith import add, sub, mul, div, eq
 

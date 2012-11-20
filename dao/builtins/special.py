@@ -1,9 +1,9 @@
 ''' many lisp style special forms'''
 
 from dao.base import Element
-from dao.command import special, Command, SpecialCall, Apply
+from dao.command import special, Command, SpecialCall, Apply, Var
 from dao.compilebase import CompileTypeError, VariableNotBound
-from dao.interlang import TRUE, FALSE, NONE
+from dao.interlang import TRUE, FALSE, NONE, element
 import dao.interlang as il
 
 v0, fc0 = il.Var('v'), il.Var('fc')
@@ -39,10 +39,21 @@ class Assign(SpecialCall):
   def __repr__(self):
     return 'assign(%r, %r)'%(self.var, self.exp)
 
+def begin(*exps):
+  if len(exps)==1: return exps[0]
+  else:
+    result = []
+    for exp in exps:
+      if isinstance(exp, SpecialCall) and exp.function.func_name=='_begin':
+        result += list(exp.args)
+      else:
+        result.append(exp)
+    return _begin(*result)        
+  
 @special
-def begin(compiler, cont, *exps):
+def _begin(compiler, cont, *exps):
     return cps_convert_exps(compiler, exps, cont)
-    
+
 @special
 def if_(compiler, cont, test, then, else_):
   v = compiler.new_var(v0)
@@ -81,14 +92,6 @@ class Lamda(Element):
   def __call__(self, *args):
     return Apply(self, tuple(il.element(arg) for arg in args))
   
-  def cps_convert_call(self, compiler, cont, args):
-    # see The 90 minute Scheme to C compiler by Marc Feeley
-    fun = self.body.cps_convert(compiler, cont)
-    params = tuple(x.interlang() for x in self.params)
-    for var, arg in reversed(zip(params, args)):
-      fun = arg.cps_convert(compiler, il.Clamda(var, fun))
-    return fun
-  
   def alpha_convert(self, env, compiler):
     try:
       self.before_alpha_convert
@@ -107,6 +110,14 @@ class Lamda(Element):
     k = compiler.new_var(il.Var('cont'))
     params = tuple(x.interlang() for x in self.params)
     return cont(il.Lamda((k,)+params, self.body.cps_convert(compiler, k)))
+  
+  def cps_convert_call(self, compiler, cont, args):
+    # see The 90 minute Scheme to C compiler by Marc Feeley
+    fun = self.body.cps_convert(compiler, cont)
+    params = tuple(x.interlang() for x in self.params)
+    for var, arg in reversed(zip(params, args)):
+      fun = arg.cps_convert(compiler, il.Clamda(var, fun))
+    return fun
   
   def interlang(self):
     return il.Lamda(tuple(x.interlang() for x in self.params), self.body.interlang())
@@ -140,7 +151,7 @@ class Let(il.Element):
 def letrec(bindings, *body):
   return Letrec(bindings, body)
 
-class Letrec(il.Element):
+class Letrec(Element):
   def __init__(self, bindings, body):
     self.bindings = bindings
     self.body = body
@@ -154,7 +165,68 @@ class Letrec(il.Element):
   
   def __repr__(self):
     return 'Letrec(%r, %r)'%(self.bindings, self.body)
+  
+def alpha_rule_head(head, env, compiler):
+  new_env = env.extend()
+  head2 = []
+  for item in head:
+    if isinstance(item, Var):
+      new_env.bindings[item] = new_var = compiler.new_var(item)
+      head2.append(new_var)
+    else:
+      head2.append(item)
+  return tuple(head2), new_env
+      
+def rules(*rules):
+  result = []
+  for rule in rules:
+    head = tuple(element(x) for x in rule[0])
+    body = begin(*(element(x) for x in rule[1:]))
+    result.append((head, body))
+  return Rules(result)
 
+from dao.builtins.control import or_
+from dao.builtins.term import unify
+
+def unify_list(list1, list2):
+  return begin(*tuple(unify(x, y) for x, y, in zip(list1, list2)))
+    
+class Rules(Element):
+  def __init__(self, rules):
+    self.rules = rules
+
+  def __call__(self, *args):
+    clauses = []
+    for head, body in self.rules:
+      if len(head)==len(args):
+        clauses.append(begin(unify_list(args, head), body))
+    return or_(*clauses)
+  
+  def alpha_convert(self, env, compiler):
+    rules = []
+    for head, body in self.rules:
+      head, new_env = alpha_rule_head(head, env, compiler)
+      body = body.alpha_convert(env, compiler)
+      rules.append((head, body))
+    return Rules(rules)
+      
+  def cps_convert(self, compiler, cont):
+    k = compiler.new_var(il.Var('cont'))
+    params = compiler.new_var(il.Var('params'))
+    v = compiler.new_var(il.Var('v'))
+    failcont = il.failcont
+    for head, body in reversed(self.rules):
+      rule_body = unify(head, params, il.clamda(v, self.body.cps_convert(compiler, k)), failcont)
+      failcont = il.clamda(v, rule_body)
+    return cont(il.Lamda((k,)+params, rule_body))
+  
+  #def cps_convert_call(self, compiler, cont, args):
+    #clauses = []
+    #for head, body in self.rules:
+      #if len(head)==len(args):
+        #clauses.append(begin(unify_list(args, head), body))
+    #return or_(*clauses)
+  
 @special
 def callcc(compiler, cont, function):
   k = compiler.new_var(il.Var('cont'))

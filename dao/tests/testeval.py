@@ -13,7 +13,7 @@ from dao.builtins import settext, char, eoi, any
 from dao.builtins import add, eq, sub, mul
 from dao.builtins import eval_, callcc
 from dao.builtins import block, exit_block, continue_block
-from dao.builtins import catch, throw, unwind_protect
+from dao.builtins import catch, throw, unwind_protect, rules
 from dao.builtins import prin
 
 from dao.solvebase import NoSolution
@@ -183,7 +183,21 @@ class TestLispConstruct:
     eq_(eval(block(foo, unwind_protect(exit_block(foo, 1), 
                             prin(2), prin(3)))), 1)
 
-
+class TestRules:
+  def test1(self):
+    #eq_(eval(rules([[1], 1])(1)), 1) 
+    #eq_(eval(rules([[1], 1],[[x],x])(2)), 2) 
+    eq_(eval(rules([[1], 1],[[2],2])(2)), 2) 
+    #eq_(eval(rules([[1], 1],[[2],2])(x)), 1)
+    
+  def testdouble(self):
+    eq_(eval(rules([[x], add(x, x)])(2)), 4)
+    
+  def testdouble2(self):
+    f = Var('f')
+    eq_(eval(let([(f, rules([[x], x+x]))], f(1))), 2) 
+    eq_(eval(let([(f, rules([[x], x+x]))], f(f(1)))), 4) 
+    
 class XTestLoop:
   def testloop(self):
     eq_(eval(let([(i,3)], 
@@ -208,33 +222,23 @@ class XTestLoop:
   def testEachForm2(self):
     eq_(eval(tag_loop_label(EachForm((i, j), zip(range(3), range(3)), [prin(i, j)]))), None)
     
-class XTestFunction:
-  def test1(self):
-    eq_(eval(function([[1], 1],[[x],x])(2)), 2) 
-    eq_(eval(function([[1], 1])(1)), 1) 
-    eq_(eval(function([[1], 1],[[2],2])(2)), 2) 
-    eq_(eval(function([[1], 1],[[2],2])(x)), 1) 
-  def testdouble(self):
-    eq_(eval(function([[x], add(x, x)])(2)), 4) 
-  def testdouble2(self):
-    f = Var('f')
-    eq_(eval(let([(f, function([[x], x+x]))], f(1))), 2) 
-    eq_(eval(let([(f, function([[x], x+x]))], f(f(1)))), 4) 
-    
 class XTest_letr:
   def testembedvar1(self):
     e, e2, f, g, h = Var('e'), Var('e2'), Var('f'), Var('g'), Var('h')
     eq_(eval(letr([(f, function([[1], 1]))],
                 f(e), e)), 1)
+    
   def testembedvar2(self):
     e, e2, f, g, h = Var('e'), Var('e2'), Var('f'), Var('g'), Var('h')
     eq_(eval(letr([(f, macro([[cons(1, e2)], g(e2)])),
                      (g, function([[e], h(e)])),
                      (h, function([[1], True]))],
                 f(e), e)), cons(1, 1))
+    
   def testletr(self):
     eq_(eval(letr([(f, function([[1], 1],[[x],f(x-1)]))], f(1))), 1)
-    eq_(eval(letr([(f, function([[1], 1],[[x],f(x-1)]))], f(2))), 1) 
+    eq_(eval(letr([(f, function([[1], 1],[[x],f(x-1)]))], f(2))), 1)
+    
   def testletr(self):
     eq_(eval(letr([(f, lambda_([n], if_(eq(n, 1), 1, f(sub(n, 1)))))],
                   f(2))), 1)
