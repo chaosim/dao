@@ -41,7 +41,7 @@ class Var(Element):
         il.Assign(x1, il.Deref(x)), #for LogicVar, could be optimized when generate code.
         il.If(il.IsLogicVar(x1),
            il.begin(il.SetBinding(x1, y),
-                 il.append_fail_cont(compiler, il.DelBinding(x1)),
+                 il.append_failcont(compiler, il.DelBinding(x1)),
                  cont(il.TRUE)),
                 il.If(il.Eq(x1, y), cont(TRUE), il.failcont(TRUE))))
     x1 = compiler.new_var(il.Var('x'))
@@ -51,12 +51,12 @@ class Var(Element):
       il.Assign(y1, il.Deref(y)),
       il.If(il.IsLogicVar(x1),
          il.begin(il.SetBinding(x1, y1),
-               il.append_fail_cont(compiler, il.DelBinding(x1)),
+               il.append_failcont(compiler, il.DelBinding(x1)),
                cont(il.TRUE)),
          il.begin(
            il.If(il.IsLogicVar(y1),
               il.begin(il.SetBinding(y1, x1),
-                    il.append_fail_cont(compiler, il.DelBinding(y1)),
+                    il.append_failcont(compiler, il.DelBinding(y1)),
                     cont(il.TRUE)),
               il.If(il.Eq(x1, y1), cont(il.TRUE), il.failcont(il.TRUE))))))
   

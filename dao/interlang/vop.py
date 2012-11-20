@@ -280,7 +280,7 @@ Ne = binary('Ne', '!=')
 Ge = binary('Ge', '>=')
 Gt = binary('Gt', '>')
 
-def append_fail_cont(compiler, exp):
+def append_failcont(compiler, exp):
   v, fc = Var('v'), Var('fc1')
   v1 =  compiler.new_var(v)
   fc1 = compiler.new_var(fc)

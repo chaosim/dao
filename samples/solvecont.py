@@ -248,15 +248,15 @@ class Solver:
       
       elif exp[0]==findall: 
         print findall
-        def findall_next(v):
-          print 'findall next'
-          return self.fcont(v)
         fc = self.fcont
         def findall_done(v):
           self.fcont = fc 
           print 'findall done'
           return cont(v)
         self.fcont = findall_done
+        def findall_next(v):
+          print 'findall next'
+          return self.fcont(v)
         return self.cps(exp[1], findall_next)
   
       elif exp[0]==any: # nongreedy any

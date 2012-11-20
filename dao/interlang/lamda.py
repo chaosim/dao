@@ -113,7 +113,7 @@ class Lamda(Element):
   
   def pythonize_exp(self, env, compiler):
     body_exps, body_has_any_statement = self.body.pythonize_exp(env, compiler)
-    if 0:#not body_has_any_statement:
+    if not body_has_any_statement:
       return (self.new(self.params, begin(*body_exps)),), False
     else:
       #if not body_exps[-1].is_statement:

@@ -185,10 +185,11 @@ class TestLispConstruct:
 
 class TestRules:
   def test1(self):
-    #eq_(eval(rules([[1], 1])(1)), 1) 
+    x = LogicVar('$x')
+    eq_(eval(rules([[1], 1])(1)), 1) 
     #eq_(eval(rules([[1], 1],[[x],x])(2)), 2) 
     eq_(eval(rules([[1], 1],[[2],2])(2)), 2) 
-    #eq_(eval(rules([[1], 1],[[2],2])(x)), 1)
+    eq_(eval(rules([[1], 1],[[2],2])(x)), 1)
     
   def testdouble(self):
     eq_(eval(rules([[x], add(x, x)])(2)), 4)

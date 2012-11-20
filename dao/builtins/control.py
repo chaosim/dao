@@ -38,6 +38,8 @@ def not_p(compiler, cont, clause):
   #return il.Begin(il.SetFailCont(il.cut_or_cont), 
                   #il.Clamda(v, cont(v)))
 
+from special import begin as and_
+
 def or_(*clauses):
   if not clauses: raise CompileTypeError("should have least 1 clauses in or")
   if len(clauses)==1: return clauses[0]
@@ -48,21 +50,26 @@ def or_(*clauses):
 #@special
 #def or2(compiler, cont, clause1, clause2):
   #v = compiler.new_var(v0)
+  #v1 = compiler.new_var(v0)
   #cut_or_cont = compiler.new_var(il.Var('cut_or_cont'))
   #or_cont = il.clamda(v, il.SetCutOrCont(cut_or_cont), cont(v))
   #return il.begin(
     #il.Assign(cut_or_cont, il.cut_or_cont),
     #il.SetCutOrCont(il.failcont),  
-    #il.append_fail_cont(compiler, clause2.cps_convert(compiler, or_cont)),
+    #il.SetFailCont(il.clamda(v1, clause2.cps_convert(compiler, or_cont))),
     #clause1.cps_convert(compiler, or_cont))
 
 @special
 def or2(compiler, cont, clause1, clause2):
   v = compiler.new_var(v0)
   v1 = compiler.new_var(v0)
+  fc = compiler.new_var(il.Var('old_failcont'))
   or_cont = il.clamda(v, cont(v))
   return il.begin(
-    il.SetFailCont(il.clamda(v1, clause2.cps_convert(compiler, or_cont))),
+    il.Assign(fc, il.failcont),
+    il.SetFailCont(il.clamda(v1, 
+      il.SetFailCont(fc),
+      clause2.cps_convert(compiler, or_cont))),
     clause1.cps_convert(compiler, or_cont))
 
 @special
@@ -86,18 +93,25 @@ def if_p(compiler, cont, condition, action):
 @special
 def findall(compiler, cont, goal, template=NONE, bag=None):
   v = compiler.new_var(v0)
+  v2 = compiler.new_var(v0)
+  fc = compiler.new_var(il.Var('old_failcont'))
   if bag is None:
     return il.begin(
-      il.AppendFailCont(cont(NONE)),
-      cps_convert(compiler, goal, il.Clamda(v, il.failcont(v)))
+      il.Assign(fc, il.failcont), 
+      il.SetFailCont(il.clamda(v2, 
+            il.SetFailCont(fc),
+            cont(v2))),
+      goal.cps_convert(compiler, il.Clamda(v, il.failcont(v)))
       )
   else:
-    result = il.Var('findall_result') # variable capture
+    result = compiler.new_var(il.Var('findall_result')) # variable capture
     return il.begin(
        il.Assign(result, il.empty_list()),
-       il.AppendFailCont(
-          cps_convert(compiler, unify(bag, result), cont)),
-        cps_convert(compiler, goal, 
+       il.Assign(fc, il.failcont), 
+       il.SetFailCont(il.clamda(v2,
+          il.SetFailCont(fc),
+          unify(bag, result).cps_convert(compiler, cont))),
+        goal.cps_convert(compiler, 
           il.clamda(v, 
             il.ListAppend(result, il.GetValue(template)),
             il.failcont(v)))

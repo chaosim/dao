@@ -185,7 +185,10 @@ class Assign(Element):
     
   def pythonize_exp(self, env, compiler):
     exps, has_statement = self.exp.pythonize_exp(env, compiler)
-    return exps[:-1]+(Assign(self.var, exps[-1]),), True
+    if exps[-1].is_statement:
+      return exps+(Assign(self.var, NONE),), True
+    else:
+      return exps[:-1]+(Assign(self.var, exps[-1]),), True
     
   def to_code(self, coder):
     return  '%s = %s' % (self.var.to_code(coder), self.exp.to_code(coder))

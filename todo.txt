@@ -7,6 +7,7 @@
 todo: more builtin
   done: eval(done), callcc(done), callfc(coded, but not tested), 
   done: block(done), catch/throw(done), unwind-protect(done)
+  todo: findall
   todo: module, marco, rules
   todo: parser builtin
 

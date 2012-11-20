@@ -17,14 +17,14 @@ def set_parse_state(compiler, cont, parse_state):
   old_parse_state = compiler.new_var(il.Var('old_parse_state'))
   return il.begin(il.Assign(old_parse_state, il.parse_state),
                   il.SetParseState(parse_state),
-                  il.append_fail_cont(compiler, il.SetParseState(old_parse_state)),
+                  il.append_failcont(compiler, il.SetParseState(old_parse_state)),
                   cont(TRUE))
 @special
 def settext(compiler, cont, text):
   old_parse_state = compiler.new_var(il.Var('old_parse_state'))
   return il.begin(il.Assign(old_parse_state, il.parse_state),
                   il.SetParseState(il.Tuple(text, il.Integer(0))),
-                  il.append_fail_cont(compiler, il.SetParseState(old_parse_state)),
+                  il.append_failcont(compiler, il.SetParseState(old_parse_state)),
                   cont(TRUE))
 
 '''
