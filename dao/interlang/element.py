@@ -314,14 +314,18 @@ class If(Element):
     return result, changed or test_changed or then_changed or else__changed
 
   def insert_return_yield(self, klass):
-    return If(self.test, 
+    result = If(self.test, 
               self.then.insert_return_yield(klass), 
               self.else_.insert_return_yield(klass))
+    result.is_statement = True
+    return result
   
   def replace_return_yield(self, klass):
-    return If(self.test, 
+    result = If(self.test, 
               self.then.replace_return_yield(klass), 
               self.else_.replace_return_yield(klass))
+    result.is_statement = True
+    return result
   
   def pythonize_exp(self, env, compiler):
     test, has_statement1 = self.test.pythonize_exp(env, compiler)

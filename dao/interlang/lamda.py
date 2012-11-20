@@ -116,11 +116,14 @@ class Lamda(Element):
     if 0:#not body_has_any_statement:
       return (self.new(self.params, begin(*body_exps)),), False
     else:
-      if not body_exps[-1].is_statement:
-        body_exps = body_exps[:-1]+(Return(body_exps[-1]),)
+      #if not body_exps[-1].is_statement:
+        #body_exps = body_exps[:-1]+(Return(body_exps[-1]),)
+      #name = compiler.new_var(Var('function'))
+      #return (Function(name, self.params, begin(*body_exps)), name), True
       name = compiler.new_var(Var('function'))
-      return (Function(name, self.params, begin(*body_exps)), name), True
-        
+      body = begin(*body_exps).insert_return_yield(Return)
+      return (Function(name, self.params, body), name), True 
+    
   def to_code(self, coder):
     head = "lambda %s: " % ', '.join(to_code_list(coder, self.params))
     result = head + '%s'%self.body.to_code_if_in_lambda_body(coder)
@@ -193,7 +196,7 @@ class Clamda(Lamda):
       if ref_count==0:
         return begin(arg, self.body), True
       else:
-        return begin(Assign(p, arg), self.body), True
+        return begin(Assign(param, arg), self.body), True
 
   def __repr__(self):
     return 'il.Clamda(%r, %s)'%(self.params[0], repr(self.body))

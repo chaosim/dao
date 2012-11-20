@@ -84,7 +84,8 @@ class Lamda(Element):
   def cps_convert_call(self, compiler, cont, args):
     # see The 90 minute Scheme to C compiler by Marc Feeley
     fun = self.body.cps_convert(compiler, cont)
-    for var, arg in reversed(zip(self.params, args)):
+    params = tuple(x.interlang() for x in self.params)
+    for var, arg in reversed(zip(params, args)):
       fun = arg.cps_convert(compiler, il.Clamda(var, fun))
     return fun
   
@@ -123,9 +124,9 @@ class Let(il.Element):
     new_env = env.extend()
     for var, value in self.bindings:
       new_env.bindings[var] = compiler.new_var(var)
-    alphaed = self.body.alpha_convert(new_env, compiler) 
-    bindings = {new_env[var]:value for var, value in self.bindings}
-    return alphaed.subst(bindings)
+    alphaed_body = self.body.alpha_convert(new_env, compiler)
+    assign_bindings = tuple(assign(new_env[var], value) for var, value in self.bindings)
+    return begin(*(assign_bindings+(alphaed_body,)))
   
   def subst(self, bindings):
     bindings = tuple((var.subst(bindings), value.subst(bindings))

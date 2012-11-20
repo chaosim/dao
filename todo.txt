@@ -5,9 +5,9 @@
     # notice the side effects of argument and reference count.
 
 todo: more builtin
-  done: callcc(done), callfc(coded, but not tested), 
+  done: eval(done), callcc(done), callfc(coded, but not tested), 
   done: block(done), catch/throw(done), unwind-protect(done)
-  todo: eval(done), module, marco, rules
+  todo: module, marco, rules
   todo: parser builtin
 
 done: assemble alpha convert, assign convert, optimizal transformation, 

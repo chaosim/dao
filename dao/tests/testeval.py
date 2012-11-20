@@ -69,25 +69,6 @@ class TestControl:
     eq_(eval(or_(succeed, fail)), True)
     eq_(eval(or_(unify(1,1), unify(1,2))), True)
     
-  def test_lamda(self):
-    x = il.Var('x')
-    eq_(eval(lamda((x,), 1)(1)), 1)
-    
-  def test_let(self):
-    x = Var('x')
-    eq_(eval(let([(x, 1)], x)), 1)
-    eq_(eval(let([(x, 1)], let([(x, 2)], x))), 2)
-    eq_(eval(let([(x, 1)], let([(x, 2)], assign(x, 2)))), None)
-    
-  def test_letrec(self):
-    x, y = Var('x'), Var('y')
-    eq_(eval(letrec([(x, 1), (y, x)], y)), 1)
-    eq_(eval(letrec([(x, 1), (y, add(x, 1))], y)), 2)
-    
-  def test_letrec2(self):
-    x, f = Var('x'), Var('f')
-    eq_(eval(letrec([(f, lamda((x,), if_(eq(x,1), 1, f(sub(x,1)))))], f(2))), 1)
-    
   def test_unify(self):
     x = Var('x')
     Lx = LogicVar('$x')
@@ -125,6 +106,51 @@ class TestControl:
     #eq_(eval(eval_(quote(add(1, 1)))), (2))
   #def testeval2(self):
     #eq_(eval(let([(x,1)], eval_(quote(x)))), 1)
+
+class Test_Lambda_Let:
+  def test_lamda(self):
+    x, y = Var('x'), Var('y')
+    eq_(eval(lamda((x,), 1)(1)), 1)
+    eq_(eval(lamda((x,), 1)(2)), 1)
+    eq_(eval(lamda((x,), x)(2)), 2)
+    eq_(eval(lamda((x, y), add(x, y))(1, 3)), 4)
+    
+  def test_let(self):
+    x, y = Var('x'), Var('y')
+    eq_(eval(let([(x, 1)], x)), 1)
+    eq_(eval(let([(x, 1)], let([(x, 2)], x))), 2)
+    eq_(eval(let([(x, 1)], let([(x, 2)], assign(x, 2)))), None)
+    eq_(eval(let([(x,1), (y,2)], add(x, y))), 3)
+    
+  def test_let_assign(self):
+    a, b = Var('a'), Var('b')
+    eq_(eval(let([(a, 1)], assign(a,2), a)), 2)
+    eq_(eval(let([(a,1)], 
+                  let([(b,1)], assign(a,2), a))), 2)
+    
+  def test_letrec(self):
+    x, y = Var('x'), Var('y')
+    eq_(eval(letrec([(x, 1), (y, x)], y)), 1)
+    eq_(eval(letrec([(x, 1), (y, add(x, 1))], y)), 2)
+    
+  def test_letrec2(self):
+    x, f = Var('x'), Var('f')
+    eq_(eval(letrec([(f, lamda((x,), if_(eq(x,1), 1, f(sub(x,1)))))], f(2))), 1)
+    
+  def testletdouble(self):
+    x, f = Var('x'), Var('f')
+    eq_(eval(let([(f, lamda([x], add(x, x)))], f(1))), 2)
+    
+  def testletrfac(self):
+    from util import m, n, fac
+    eq_(eval(letrec([(fac, lamda([n], if_(eq(n,1), 1, mul(n, fac(sub(n, 1))))))],
+                  fac(3))), 6)
+    
+  def test_letrec_odd_even(self):
+    from util import n, odd, even  
+    eq_(eval(letrec([(odd, lamda([n], if_(eq(n,0), 0, even(sub(n,1))))),
+                    (even, lamda([n], if_(eq(n,0), 1, odd(sub(n, 1)))))],
+                  odd(3))), 1)
 
 class TestLispConstruct:    
   def testblock(self):
@@ -183,21 +209,6 @@ class XTestLoop:
     eq_(eval(tag_loop_label(EachForm((i, j), zip(range(3), range(3)), [prin(i, j)]))), None)
     
 class XTestFunction:
-  def test_let_set(self):
-    eq_(eval(let([(a,1)], set(a,2), a)), 2)
-    eq_(eval(let([(a,1)], 
-                  let([(b,1)], set(a,2), a))), 2)
-  def testLambda(self):
-    eq_(eval(lambda_([x], 1)(2)), 1)
-    eq_(eval(lambda_([x], x)(2)), 2)
-    eq_(eval(lambda_((x, y), add(x, y))(1, 3)), 4)
-  def testlet(self):
-    eq_(eval(let([(x,1)], x)), (1))
-    eq_(eval(let([(x,1)], let([(x,2)], x))), 2)
-    eq_(eval(let([(x,1), (y,2)], add(x, y))), 3)
-  def testletdouble(self):
-    f = Var('f')
-    eq_(eval(let([(f, lambda_([x], add(x, x)))], f(1))), 2)
   def test1(self):
     eq_(eval(function([[1], 1],[[x],x])(2)), 2) 
     eq_(eval(function([[1], 1])(1)), 1) 
@@ -227,13 +238,6 @@ class XTest_letr:
   def testletr(self):
     eq_(eval(letr([(f, lambda_([n], if_(eq(n, 1), 1, f(sub(n, 1)))))],
                   f(2))), 1)
-  def testletrfac(self):
-    eq_(eval(letr([(fac, lambda_([n], if_(eq(n,1), 1, mul(n, fac(sub(n, 1))))))],
-                  fac(3))), 6)
-  def testletroddeven(self):
-    eq_(eval(letr([(odd, lambda_([n], if_(eq(n,0), 0, even(sub(n,1))))),
-                    (even, lambda_([n], if_(eq(n,0), 1, odd(sub(n, 1)))))],
-                  odd(3))), 1)
 
 class XTestCut:
   #http://en.wikibooks.org/wiki/Prolog/Cuts_and_Negatio
