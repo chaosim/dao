@@ -1,11 +1,12 @@
 ﻿todo: more optimization
   todo: more ananlysis for optimization(assign side effects analysys, 
     io side effects, state change sideeffects, type inference)
-  todo: Apply of clamda and cfunction can be subst by their body directly.
+  done: Apply of clamda and cfunction can be subst by their body directly.
+    # notice the side effects of argument and reference count.
 
 todo: more builtin
-  todo: callcc(done), callfc(coded, but not tested), 
-  todo: block(done), catch/throw(done), unwind-protect(done)
+  done: callcc(done), callfc(coded, but not tested), 
+  done: block(done), catch/throw(done), unwind-protect(done)
   todo: eval(done), module, marco, rules
   todo: parser builtin
 

@@ -190,14 +190,16 @@ class Block(il.Element):
     # use cfunction, continue_block means recursive call.
     # tail recursive cfunction can be used to transform to while 1/break/continue.
     v = compiler.new_var(v0)
+    v1 = compiler.new_var(v0)
+    v2 = compiler.new_var(v0)
     old_unwind_cont_stack_length = compiler.new_var(il.Var('old_unwind_cont_stack_length'))
     block_fun = compiler.new_var(il.Var('block_'+self.label.name))
     return il.cfunction(block_fun, v,
                 il.Assign(old_unwind_cont_stack_length, il.unwind_cont_stack_length),
-                il.SetExitBlockContMap(il.String(self.label.name),  il.clamda(v, 
-                      il.Unwind(old_unwind_cont_stack_length), cont(v))),
-                il.SetContinueBlockContMap(il.String(self.label.name),  il.clamda(v, 
-                      il.Unwind(old_unwind_cont_stack_length), block_fun(v))),
+                il.SetExitBlockContMap(il.String(self.label.name),  il.clamda(v1, 
+                      il.Unwind(old_unwind_cont_stack_length), cont(v1))),
+                il.SetContinueBlockContMap(il.String(self.label.name),  il.clamda(v2, 
+                      il.Unwind(old_unwind_cont_stack_length), block_fun(v2))),
                 self.body.cps_convert(compiler, cont))(NONE)
   
   def __repr__(self):
@@ -269,12 +271,13 @@ def throw(compiler, cont, tag, form):
 @special
 def unwind_protect(compiler, cont, form, *cleanup):
   v = compiler.new_var(il.Var('v'))
+  v1 = compiler.new_var(il.Var('v'))
   v2 = compiler.new_var(il.Var('v'))
   protect_cont = compiler.new_var(il.Var('protect_cont'))
   return il.clamda(v,
     il.Assign(protect_cont, 
-      il.clamda(v, 
+      il.clamda(v1, 
           il.pop_unwind_cont,
-          begin(*cleanup).cps_convert(compiler, il.clamda(v2, cont(v))))),
+          begin(*cleanup).cps_convert(compiler, il.clamda(v2, cont(v1))))),
     il.PushUnwindCont(protect_cont),
     form.cps_convert(compiler, protect_cont))(NONE)

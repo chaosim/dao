@@ -54,3 +54,26 @@ def compile_to_pyfile(exp):
   file = open(r'f:\dao_all\dao\dao\tests\compiled.py', 'w')
   file.write(compile_to_python(exp))
   file.close()
+
+'''
+il.Function(compiled_dao_function, (), il.CFunction(block_foo, v, il.begin(il.Assign(old_unwind_cont_stack_length, il.unwind_cont_stack_length), 
+il.SetExitBlockContMap(il.String(foo), il.Clamda(v1, il.begin(il.Unwind(old_unwind_cont_stack_length), v1))), 
+il.SetContinueBlockContMap(il.String(foo), il.Clamda(v2, il.begin(il.Unwind(old_unwind_cont_stack_length), block_foo(v2)))), 
+il.Clamda(v4, il.begin(il.Assign(protect_cont, il.Clamda(v5, il.begin(il.pop_unwind_cont, il.Clamda(a01, 
+il.Clamda(v7, il.Clamda(a0, il.Clamda(v6, v5)(il.Prin(a0)))(il.Integer(3)))(il.Prin(a01)))(il.Integer(2))))), 
+il.PushUnwindCont(protect_cont), il.GetExitBlockCont(il.String(foo))(il.Integer(1))))(il.Atom(None))))(il.Atom(None)))
+
+il.Function(compiled_dao_function, (), il.CFunction(block_foo, v, il.begin(il.Assign(old_unwind_cont_stack_length, il.unwind_cont_stack_length), 
+il.SetExitBlockContMap(il.String(foo), il.Clamda(v1, il.begin(il.Unwind(old_unwind_cont_stack_length), v1))), 
+il.SetContinueBlockContMap(il.String(foo), il.Clamda(v2, il.begin(il.Unwind(old_unwind_cont_stack_length), block_foo(v2)))), 
+il.Assign(protect_cont, il.Clamda(v5, il.begin(il.pop_unwind_cont, v5))), il.PushUnwindCont(protect_cont), 
+il.GetExitBlockCont(il.String(foo))(il.Integer(1))))(il.Atom(None)))
+
+il.Function(compiled_dao_function, (), 
+            il.Yield(il.CFunction(block_foo, v, il.begin(il.Assign(old_unwind_cont_stack_length, il.unwind_cont_stack_length), 
+  il.SetExitBlockContMap(il.String(foo), il.Clamda(v1, il.begin(il.Unwind(old_unwind_cont_stack_length), v1))), 
+  il.SetContinueBlockContMap(il.String(foo), il.Clamda(v2, il.begin(il.Unwind(old_unwind_cont_stack_length), 
+  block_foo(v2)))), il.Assign(protect_cont, il.Clamda(v5, il.begin(il.pop_unwind_cont, v5))), il.PushUnwindCont(protect_cont), 
+  il.GetExitBlockCont(il.String(foo))(il.Integer(1))))(il.Atom(None))))
+
+'''

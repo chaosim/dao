@@ -3,7 +3,9 @@ from dao.base import classeq
 from dao.compilebase import optimize, MAX_EXTEND_CODE_SIZE, to_code_list, lambda_side_effects
 from dao.compilebase import VariableNotBound, CompileTypeError
 
-from element import Element, element, begin, pythonize_args, Return, Assign, optimize_once_args
+from element import pythonize_args, optimize_once_args
+from element import Element, element, begin, Return, Assign
+from element import NONE
 
 def lamda(params, *body):
   body = tuple(element(x) for x in body)
@@ -59,6 +61,53 @@ class Lamda(Element):
     body, changed = self.body.optimize_once(data)
     return self.new(self.params, body), changed
   
+  def optimize_once_apply(self, data, args):
+    #1. ((lambda () body))  =>  body 
+    if len(self.params)==0:
+      return optimize(self.body, data), True
+    
+    #2. (lamda x: ...x...)(y) => (lambda : ... y ...)() 
+    bindings = {}
+    new_params, new_args = (), ()
+    for i, p in enumerate(self.params):
+      arg = args[i]
+      if arg.side_effects():
+        new_params += (p,)
+        new_args += (arg,)
+        continue
+      else:
+        ref_count = data.ref_count.get(p, 0)
+        if ref_count==0:
+          continue
+        elif ref_count==1:
+          bindings[p] = arg
+        else:
+          if arg.code_size()*ref_count>MAX_EXTEND_CODE_SIZE: 
+            # a(...y...), and a is (lamda ...x...: ...x...), 
+            #then convert as above if code size is ok. 
+            new_params += (p,)
+            new_args += (arg,)
+          else: 
+            bindings[p] = arg
+    
+    if new_params:
+      if bindings:
+        return Apply(self.new(new_params, optimize(self.body.subst(bindings), data)), 
+                        tuple(optimize(arg, data) for arg in new_args)), True
+      else:
+        if len(new_params)!=len(self.params):
+          Apply(self.new(new_params, self.body.subst(bindings).optimize(data)), 
+                tuple(optimize(arg, data) for arg in new_args)), True            
+        else:
+          caller_body, changed1 = self.body.optimize_once(data)
+          args, changed2 = optimize_once_args(new_args, data)
+          return Apply(self.new(new_params, caller_body), args), changed1 or changed2
+    else:
+      if bindings:
+        return optimize(self.body.subst(bindings), data), True
+      else:
+        return optimize(self.body, data), True
+  
   def insert_return_yield(self, klass):
     return klass(self)
   
@@ -102,6 +151,11 @@ class Function(Lamda):
   def new(self, params, body):
     return self.__class__(self.name, params, body)
   
+  def optimize_once_apply(self, data, args):
+    body, changed = self.body.optimize_once(data)
+    args, changed1 = optimize_once_args(args, data)
+    return Apply(self.new(self.params, body), tuple(args)), changed or changed1
+    
   def pythonize_exp(self, env, compiler):
     body_exps, has_any_statement = self.body.pythonize_exp(env, compiler)
     if not body_exps[-1].is_statement:
@@ -123,12 +177,24 @@ def clamda(v, *body):
 
 class Clamda(Lamda):
   def __init__(self, v, body):
-    self.params, self.body = (v, ), body
+    self.params = (v, )
+    self.body = body
     self.name = None
     
   def new(self, params, body):
     return self.__class__(params[0], body)
   
+  def optimize_once_apply(self, data, args):
+    param, arg = self.params[0], args[0]
+    if not arg.side_effects():
+      return optimize(self.body.subst({param: arg}), data), True
+    else:
+      ref_count = data.ref_count.get(param, 0)
+      if ref_count==0:
+        return begin(arg, self.body), True
+      else:
+        return begin(Assign(p, arg), self.body), True
+
   def __repr__(self):
     return 'il.Clamda(%r, %s)'%(self.params[0], repr(self.body))
 
@@ -160,6 +226,10 @@ class CFunction(Function):
   def new(self, params, body):
     return self.__class__(self.name, params[0], body)
   
+  def optimize_once_apply(self, data, args):
+    return CFunction(self.name, self.params[0], 
+        optimize(self.body.subst({self.params[0]:args[0]}), data))(NONE), False
+        
   def __repr__(self):
     return 'il.CFunction(%r, %r, %s)'%(self.name, self.params[0],repr(self.body))
   
@@ -198,67 +268,9 @@ class Apply(Element):
                  tuple(arg.subst(bindings) for arg in self.args))
       
   def optimize_once(self, data):    
-    if isinstance(self.caller, Function):
-      body, changed = self.caller.body.optimize_once(data)
-      args, changed1 = optimize_once_args(self.args, data)
-      return Apply(self.caller.new(self.caller.params, body), tuple(args)), changed or changed1
-    
     if isinstance(self.caller, Lamda):
-      #1. ((lambda () body))  =>  body 
-      if len(self.caller.params)==0:
-        return optimize(self.caller.body, data), True
-      
-      #2. (lamda x: ...x...)(y) => (lambda : ... y ...)() 
-      bindings = {}
-      args = self.args
-      new_params, new_args = (), ()
-      for i, p in enumerate(self.caller.params):
-        arg = args[i]
-        if arg.side_effects():
-          new_params += (p,)
-          new_args += (arg,)
-          continue
-        else:
-          ref_count = data.ref_count.get(p, 0)
-          if ref_count==0:
-            continue
-          elif ref_count==1:
-            bindings[p] = arg
-          else:
-            if arg.code_size()*ref_count>MAX_EXTEND_CODE_SIZE: 
-              # a(...y...), and a is (lamda ...x...: ...x...), 
-              #then convert as above if code size is ok. 
-              new_params += (p,)
-              new_args += (arg,)
-            else: 
-              bindings[p] = arg
-      
-      if new_params:
-        if bindings:
-          return Apply(self.caller.new(new_params, optimize(self.caller.body.subst(bindings), data)), 
-                          tuple(optimize(arg, data) for arg in new_args)), True
-        else:
-          if len(new_params)!=len(self.caller.params):
-            Apply(self.caller.new(new_params, self.caller.body.subst(bindings).optimize(data)), 
-                  tuple(optimize(arg, data) for arg in new_args)), True            
-          else:
-            caller_body, changed1 = self.caller.body.optimize_once(data)
-            args, changed2 = optimize_once_args(new_args, data)
-            return Apply(self.caller.new(new_params, caller_body), args), changed1 or changed2
-      else:
-        if not isinstance(self.caller, Function):
-          if bindings:
-            return optimize(self.caller.body.subst(bindings), data), True
-          else:
-            return optimize(self.caller.body, data), True
-        else:
-          if bindings:
-            return Function(self.caller.name, (), 
-                            optimize(self.caller.body.subst(bindings), data))(), True
-          else:
-            return Function(self.caller.name, (), 
-                            optimize(self.caller.body, data))(), True
-          
+      return self.caller.optimize_once_apply(data, self.args)
+    
     else: 
       changed = False
       caller, changed1 = self.caller.optimize_once(data)
