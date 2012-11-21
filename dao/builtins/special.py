@@ -1,7 +1,7 @@
 ''' many lisp style special forms'''
 
 from dao.base import Element
-from dao.command import special, Command, SpecialCall, Apply, Var
+from dao.command import special, Command, CommandCall, SpecialCall, Apply, Var
 from dao.compilebase import CompileTypeError, VariableNotBound
 from dao.interlang import TRUE, FALSE, NONE, element
 import dao.interlang as il
@@ -19,7 +19,7 @@ def eval_(compiler, cont, exp):
 def assign(var, exp):
   return Assign(il.element(var), il.element(exp))
 
-class Assign(SpecialCall):
+class Assign(CommandCall):
   def __init__(self, var, exp):
     self.var, self.exp = var, exp
     
@@ -55,11 +55,11 @@ def _begin(compiler, cont, *exps):
     return cps_convert_exps(compiler, exps, cont)
 
 @special
-def if_(compiler, cont, test, then, else_):
+def if_(compiler, cont, test, then, else_=None):
   v = compiler.new_var(v0)
   if else_ is None:
     return test.cps_convert(compiler, 
-            il.Clamda(v, il.if2(v, then.cps_convert(compiler, cont))))
+            il.Clamda(v, il.If(v, then.cps_convert(compiler, cont), cont(NONE))))
   else:
     return test.cps_convert(compiler, 
            il.Clamda(v, il.If(v, then.cps_convert(compiler, cont), 
@@ -317,7 +317,7 @@ class ContinueBlock(il.Element):
     return il.GetContinueBlockCont(il.String(self.label.name))(NONE)
   
   def __repr__(self):
-    return 'continue_block(%s, %s)'%(self.label)
+    return 'continue_block(%s)'%(self.label)
 
 @special
 def catch(compiler, cont, tag, *form):

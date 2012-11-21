@@ -112,7 +112,11 @@ class Lamda(Element):
     return klass(self)
   
   def pythonize_exp(self, env, compiler):
+      
     body_exps, body_has_any_statement = self.body.pythonize_exp(env, compiler)
+    global_vars = self.find_assign_lefts()-set(self.params)
+    if global_vars:
+      body_exps = (GlobalDecl(global_vars),)+body_exps
     if not body_has_any_statement:
       return (self.new(self.params, begin(*body_exps)),), False
     else:
@@ -142,6 +146,16 @@ def function( name, params, *body):
   body = tuple(element(x) for x in body)
   return Function(name, params, begin(*body))
 
+class GlobalDecl(Element):
+  def __init__(self, args):
+    self.args = args
+    
+  def to_code(self, coder):
+    return "global %s" % (', '.join([x.to_code(coder) for x in self.args]))
+  
+  def __repr__(self):
+    return 'GlobalDecl(%s)'%self.args
+  
 class Function(Lamda):
   '''recuvsive Function'''
   is_statement = True
@@ -161,8 +175,13 @@ class Function(Lamda):
     
   def pythonize_exp(self, env, compiler):
     body_exps, has_any_statement = self.body.pythonize_exp(env, compiler)
+    global_vars = self.find_assign_lefts()-set(self.params)
+    if global_vars:
+      body_exps = (GlobalDecl(global_vars),)+body_exps
     if not body_exps[-1].is_statement:
       body_exps = body_exps[:-1] + (Return(body_exps[-1]),)
+    else:
+      body_exps = body_exps[:-1] + (body_exps[-1].replace_return_yield(Return),)
     return (self.new(self.params, begin(*body_exps)), self.name), True
     
   def to_code(self, coder):
@@ -283,6 +302,9 @@ class Apply(Element):
   def insert_return_yield(self, klass):
     return klass(self)
   
+  def replace_return_yield(self, klass):
+    return klass(self)
+  
   def pythonize_exp(self, env, compiler):
     exps, has_statement = self.caller.pythonize_exp(env, compiler)
     caller = exps[-1]
@@ -333,6 +355,9 @@ class Var(Element):
     return self, False
       
   def insert_return_yield(self, klass):
+    return klass(self)
+  
+  def replace_return_yield(self, klass):
     return klass(self)
   
   def pythonize_exp(self, env, compiler):

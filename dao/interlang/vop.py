@@ -150,6 +150,9 @@ class VirtualOperation(Element):
   def insert_return_yield(self, klass):
     return klass(self)
   
+  def replace_return_yield(self, klass):
+    return klass(self)
+  
   def pythonize_exp(self, env, compiler):
     exps, args, has_statement = pythonize_args(self.args, env, compiler)
     try: self_is_statement = self.is_statement
@@ -186,8 +189,15 @@ def vop(name, arity, code_format):
   Vop.is_statement = False
   return Vop
 
+class VirtualOperation2(VirtualOperation):
+  def insert_return_yield(self, klass):
+    return self
+  
+  def replace_return_yield(self, klass):
+    return self
+    
 def vop2(name, arity, code_format):
-  class Vop(VirtualOperation): pass
+  class Vop(VirtualOperation2): pass
   Vop.__name__ = name
   Vop.arity = arity
   Vop.code_format = code_format
@@ -212,7 +222,6 @@ empty_list = EmptyList()
 ListAppend = vop('ListAppend', 2, '%s.append(%s)')
 Len = vop('Len', 1, 'len(%s)')
 RaiseTypeError = vop2('RaiseTypeError', 1, 'raise %s')
-
 SetExitBlockContMap = vop2('SetExitBlockContMap', 2, 'solver.exit_block_cont_map[%s] = %s')
 SetContinueBlockContMap = vop2('SetContinueBlockContMap', 2, 'solver.continue_block_cont_map[%s] = %s')
 GetExitBlockCont = vop('GetExitBlockCont', 1, 'solver.exit_block_cont_map[%s]')
@@ -230,7 +239,7 @@ PushUnwindCont = vop2("PushUnwindCont", 1, "solver.unwind_cont_stack.append(%s)"
 pop_unwind_cont = vop('pop_unwind_cont', 0, "solver.unwind_cont_stack.pop()")()
 unwind_cont_stack_length = vop('unwind_cont_stack_length', 0, "len(solver.unwind_cont_stack)")()
 #Unwind = vop('Unwind', 1, "solver.unwind(%s)")
-Unwind = vop('Unwind', 1, "while len(solver.unwind_cont_stack)>%s:\n"
+Unwind = vop2('Unwind', 1, "while len(solver.unwind_cont_stack)>%s:\n"
                           "    solver.unwind_cont_stack[-1](None)")
 
 SetContent = vop2('SetContent', 2, '%s[0] = %s')

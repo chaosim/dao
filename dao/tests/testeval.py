@@ -168,6 +168,20 @@ class TestLispConstruct:
     a = il.Var('a')
     eq_(eval(block(a, 1, continue_block(a), exit_block(a, 2), 3)), 2)
 
+  def testloop(self):
+    from util import a, i
+    eq_(eval(let([(i,3)], 
+                 block(a, assign(i, sub(i, 1)), 
+                            if_(eq(i, 0), exit_block(a, 1)),
+                            continue_block(a)), i)), 0)
+    
+  def test_unwind_protect_loop(self):
+    from util import a, i
+    eq_(eval(let([(i,3)], 
+                 block(a, assign(i, sub(i, 1)), 
+                            if_(eq(i, 0), exit_block(a, 1)),
+                            unwind_protect(continue_block(a), prin(i))), i)), 0)
+    
   def testcatch1(self):
     eq_(eval(catch(1, 2)), 2)
     
@@ -200,16 +214,6 @@ class TestRules:
     eq_(eval(let([(f, rules([[x], x+x]))], f(f(1)))), 4) 
     
 class XTestLoop:
-  def testloop(self):
-    eq_(eval(let([(i,3)], 
-                 block(a, set(i, sub(i, 1)), 
-                            if_(eq(i, 0), exit_block(a, 1)),
-                            continue_block(a)), i)), 0)
-  def test_unwind_protect_loop(self):
-    eq_(eval(let([(i,3)], 
-                 block(a, set(i, sub(i, 1)), 
-                            if_(eq(i, 0), exit_block(a, 1)),
-                            unwind_protect(continue_block(a), prin(2))), i)), 0)
   def testLoopTimes(self):
     eq_(eval(tag_loop_label(let([(i,3)], LoopTimesForm(3, (set(i, sub(i, 1)), prin(i)))))), None)
   def testLoopWhen(self):
@@ -333,34 +337,6 @@ class XTestMacro:
   def test4(self):
     eq_(eval(macro([[x], x])(prin(1))), None) 
     
-class XTestCallccBlockCatch:
-  def testblock(self):
-    f = Var('f')
-    eq_(eval(block('foo', let([(f, lambda_((), exit_block('foo',1)))], 
-                            mul(2,block('foo', f()))))), 
-        1)
-  def testblock2(self):
-    eq_(eval(block('a', exit_block('a', 2), 3)), 2)
-  def testcatch1(self):
-    eq_(eval(catch(1, 2)), 2)
-  def testcatch2(self):
-    eq_(eval(catch(1, throw(1, 2), 3)), 2)
-  def test_unwind_protect(self):
-    eq_(eval(block('foo', unwind_protect(exit_block('foo', 1), prin(2)))), 1)
-  def test_unwind_protect2(self):
-    eq_(eval(block('foo', unwind_protect(exit_block('foo', 1), 
-                            prin(2), prin(3)))), 1)
-  def testcallcc1(self):
-    from dao.solve import done
-    eq_(eval(callcc(lambda_([k], k(2)))), 2)
-  def testcallcc2(self):
-    from dao.solve import done
-    assert_raises(DaoError, eval, callcc(lambda_([k], k(2,3))))
-  def testcallcc3(self):
-    eq_(eval(callcc(callcc)), ContinuationFunction(done))
-  #def testcallcc4(self):
-    ##assert 0, '((call/cc call/cc) (call/cc call/cc)) infinite loop.'
-
 class XTestModule:
   def testbindings(self):
     a = Var('a')

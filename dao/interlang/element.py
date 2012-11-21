@@ -19,6 +19,9 @@ class Element(base.Element):
   def tail_recursive_convert(self):
     return self
   
+  def find_assign_lefts(self):
+    return set()
+  
   def trampoline(self):
     return self
     
@@ -72,6 +75,9 @@ class Atom(Element):
     return self
   
   def insert_return_yield(self, klass):
+    return klass(self)
+  
+  def replace_return_yield(self, klass):
     return klass(self)
   
   def pythonize_exp(self, env, compiler):
@@ -152,12 +158,6 @@ class Assign(Element):
   def __init__(self, var, exp):
     self.var, self.exp =  var, exp
   
-  def alpha_convert(self, env, compiler):
-    try: converted_var = env[self.var]
-    except VariableNotBound:
-      converted_var = env.bindings[self.var] = compiler.new_var(self.var)
-    return Assign(converted_var, self.exp.alpha_convert(env, compiler))
-    
   def assign_convert(self, env, compiler):
     return SetContent(env[self.var], self.exp.assign_convert(env, compiler))
   
@@ -245,10 +245,10 @@ class Return(Element):
     return  'return %s' % ', '.join([x.to_code(coder) for x in self.args])
   
   def insert_return_yield(self, klass):
-    return klass(*self.args)
+    return self
   
   def replace_return_yield(self, klass):
-    return klass(*self.args)
+    return self
   
   def __eq__(x, y):
     return classeq(x, y) and x.args==y.args

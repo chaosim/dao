@@ -3,6 +3,7 @@
     io side effects, state change sideeffects, type inference)
   done: Apply of clamda and cfunction can be subst by their body directly.
     # notice the side effects of argument and reference count.
+  todo: block/exit/continue become while/break/coninute + block label
 
 todo: more builtin
   done: eval(done), callcc(done), callfc(coded, but not tested), 
