@@ -54,26 +54,3 @@ def compile_to_pyfile(exp):
   file = open(r'f:\dao_all\dao\dao\tests\compiled.py', 'w')
   file.write(compile_to_python(exp))
   file.close()
-
-'''
-il.Function(compiled_dao_function, (), 
-il.Clamda(v11, 
-  il.begin(
-    il.Assign(i, v11), 
-    il.Clamda(v, il.CFunction(block_a, v3, 
-      il.begin(
-        il.Assign(old_unwind_cont_stack_length, il.unwind_cont_stack_length), 
-        il.SetExitBlockContMap(il.String(a), 
-          il.Clamda(v4, 
-            il.begin(
-              il.Unwind(old_unwind_cont_stack_length), 
-              il.Clamda(v1, i)(v4)))), 
-        il.SetContinueBlockContMap(il.String(a), 
-          il.Clamda(v5, 
-            il.begin(il.Unwind(old_unwind_cont_stack_length), 
-              block_a(v5)))), 
-        il.Clamda(a01, il.Clamda(a11, il.Clamda(v10, il.begin(
-          il.Assign(i, v10), 
-          il.Clamda(v6, il.Clamda(a0, il.Clamda(a1, il.Clamda(v9, 
-            il.If(v9, il.GetExitBlockCont(il.String(a))(il.Integer(1))))((a0==a1)))(il.Integer(0)))(i))(il.Atom(None))))(a01-a11))(il.Integer(1)))(i)))(il.Atom(None)))(il.Atom(None))))(il.Integer(3)))
-'''

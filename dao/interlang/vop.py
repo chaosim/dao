@@ -151,7 +151,7 @@ class VirtualOperation(Element):
     return klass(self)
   
   def replace_return_yield(self, klass):
-    return klass(self)
+    return self
   
   def pythonize_exp(self, env, compiler):
     exps, args, has_statement = pythonize_args(self.args, env, compiler)

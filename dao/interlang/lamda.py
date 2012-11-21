@@ -181,7 +181,7 @@ class Function(Lamda):
     if not body_exps[-1].is_statement:
       body_exps = body_exps[:-1] + (Return(body_exps[-1]),)
     else:
-      body_exps = body_exps[:-1] + (body_exps[-1].replace_return_yield(Return),)
+      body_exps = body_exps[:-1] + (body_exps[-1].insert_return_yield(Return),)
     return (self.new(self.params, begin(*body_exps)), self.name), True
     
   def to_code(self, coder):

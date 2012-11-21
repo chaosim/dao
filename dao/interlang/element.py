@@ -248,7 +248,7 @@ class Return(Element):
     return self
   
   def replace_return_yield(self, klass):
-    return self
+    return klass(*self.args)
   
   def __eq__(x, y):
     return classeq(x, y) and x.args==y.args
