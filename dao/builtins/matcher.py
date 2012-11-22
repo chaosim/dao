@@ -13,7 +13,7 @@ from dao.interlang import TRUE, FALSE, NONE
 
 from dao.command import special
 
-v0, fc0 = il.Var('v'), il.Var('fc')
+v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
 # lazy: match at least, except matchers that followed fail. 尽量少吃进，除非别人逼我多吃一点
 # nongreedy, match at most, throw out if matchers followed fail.先尽量多吃，如果别人要再吐出来
@@ -49,9 +49,9 @@ def any(item, mode=nongreedy):
   
 @special
 def _any(compiler, cont, item):
-  any_cont = compiler.new_var(il.Var('any_cont'))
-  fc = compiler.new_var(il.Var('old_fail_cont'))
-  v = compiler.new_var(il.Var('v'))
+  any_cont = compiler.new_var(il.LocalVar('any_cont'))
+  fc = compiler.new_var(il.LocalVar('old_fail_cont'))
+  v = compiler.new_var(il.LocalVar('v'))
   return il.cfunction(any_cont, v,
                 il.Assign(fc, il.failcont),
                 il.SetFailCont(il.clamda(v, 
@@ -62,10 +62,10 @@ def _any(compiler, cont, item):
   
 @special
 def _lazy_any(compiler, cont, item):
-  fcont = compiler.new_var(il.Var('fcont'))
-  lazy_any_cont = compiler.new_var(il.Var('lazy_any_cont'))
-  lazy_any_fcont = compiler.new_var(il.Var('lazy_any_fcont'))
-  v = compiler.new_var(il.Var('v'))
+  fcont = compiler.new_var(il.LocalVar('fcont'))
+  lazy_any_cont = compiler.new_var(il.LocalVar('lazy_any_cont'))
+  lazy_any_fcont = compiler.new_var(il.LocalVar('lazy_any_fcont'))
+  v = compiler.new_var(il.LocalVar('v'))
   return  il.begin(
     il.Assign(fcont, il.failcont),
     il.cfunction(lazy_any_cont, v,
@@ -78,9 +78,9 @@ def _lazy_any(compiler, cont, item):
                              
 @special
 def _greedy_any(compiler, cont, item):
-  fcont = compiler.new_var(il.Var('fcont'))
-  greedy_any_fcont = compiler.new_var(il.Var('greedy_any_fcont'))
-  greedy_any_cont = compiler.new_var(il.Var('greedy_any_cont'))
+  fcont = compiler.new_var(il.LocalVar('fcont'))
+  greedy_any_fcont = compiler.new_var(il.LocalVar('greedy_any_fcont'))
+  greedy_any_cont = compiler.new_var(il.LocalVar('greedy_any_cont'))
   return il.begin(
     il.Assign(fcont, il.failcont),
     il.cfunction(greedy_any_fcont, v,

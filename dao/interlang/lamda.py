@@ -112,9 +112,9 @@ class Lamda(Element):
     return klass(self)
   
   def pythonize_exp(self, env, compiler):
-      
     body_exps, body_has_any_statement = self.body.pythonize_exp(env, compiler)
     global_vars = self.find_assign_lefts()-set(self.params)
+    global_vars = set([x for x in global_vars if not isinstance(x, LocalVar)])
     if global_vars:
       body_exps = (GlobalDecl(global_vars),)+body_exps
     if not body_has_any_statement:
@@ -122,9 +122,9 @@ class Lamda(Element):
     else:
       #if not body_exps[-1].is_statement:
         #body_exps = body_exps[:-1]+(Return(body_exps[-1]),)
-      #name = compiler.new_var(Var('function'))
+      #name = compiler.new_var(LocalVar('function'))
       #return (Function(name, self.params, begin(*body_exps)), name), True
-      name = compiler.new_var(Var('function'))
+      name = compiler.new_var(LocalVar('function'))
       body = begin(*body_exps).insert_return_yield(Return)
       return (Function(name, self.params, body), name), True 
     
@@ -214,6 +214,9 @@ class RulesDict(Element):
       data.occur_count[self] = data.occur_count.setdefault(self, 0)+1
       for arity, body in self.arity_body_map.items():
         body.optimization_analisys(data)
+  
+  def subst(self, bindings):
+    return RulesDict({arity:body.subst(bindings) for arity, body in self.arity_body_map.items()})
   
   def optimize_once(self, data):
     for arity, body in self.arity_body_map.items():
@@ -414,6 +417,8 @@ class Var(Element):
 
   def __repr__(self):
     return self.name #enough in tests
+
+class LocalVar(Var): pass
 
 class LogicVar(Var):
   is_statement = False

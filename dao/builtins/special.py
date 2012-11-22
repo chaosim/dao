@@ -6,7 +6,7 @@ from dao.compilebase import CompileTypeError, VariableNotBound
 from dao.interlang import TRUE, FALSE, NONE, element
 import dao.interlang as il
 
-v0, fc0 = il.Var('v'), il.Var('fc')
+v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
 @special
 def quote(compiler, cont, exp):
@@ -66,7 +66,7 @@ def if_(compiler, cont, test, then, else_=None):
                                  else_.cps_convert(compiler, cont))))
 
 def cps_convert_exps(compiler, exps, cont):
-  v = compiler.new_var(il.Var('v'))
+  v = compiler.new_var(il.LocalVar('v'))
   if not exps: return Clamda(v, cont(il.tuple()))
   if len(exps)==1:
     return exps[0].cps_convert(compiler, cont)
@@ -107,7 +107,7 @@ class Lamda(Element):
     return self
     
   def cps_convert(self, compiler, cont):
-    k = compiler.new_var(il.Var('cont'))
+    k = compiler.new_var(il.LocalVar('cont'))
     params = tuple(x.interlang() for x in self.params)
     return cont(il.Lamda((k,)+params, self.body.cps_convert(compiler, k)))
   
@@ -208,7 +208,7 @@ def unify_head_item(compiler, cont, head_item, param):
     head_item.cps_convert_unify
   except:
     head_item = head_item.interlang()
-    x1 = compiler.new_var(il.Var('x'))
+    x1 = compiler.new_var(il.LocalVar('x'))
     return il.begin(
       il.Assign(x1, il.Deref(param)),
       il.If(il.IsLogicVar(x1),
@@ -218,8 +218,8 @@ def unify_head_item(compiler, cont, head_item, param):
               il.If(il.Eq(x1, head_item), cont(TRUE), il.failcont(TRUE))))
   
   head_item = head_item.interlang()
-  x1 = compiler.new_var(il.Var('x'))
-  y1 = compiler.new_var(il.Var('y'))
+  x1 = compiler.new_var(il.LocalVar('x'))
+  y1 = compiler.new_var(il.LocalVar('y'))
   return il.begin(
     il.Assign(x1, il.Deref(param)), #for LogicVar, could be optimized when generate code.
     il.Assign(y1, il.Deref(head_item)),
@@ -274,23 +274,29 @@ class Rules(Element):
     return Rules(rules1)
       
   def cps_convert(self, compiler, cont):
-    k = compiler.new_var(il.Var('cont'))
-    params = compiler.new_var(il.Var('params'))
-    v = compiler.new_var(il.Var('v'))
-    arity_body_map = compiler.new_var(il.Var('arity_body_map'))
-    rules_function = compiler.new_var(il.Var('rules_function'))
+    k = compiler.new_var(il.LocalVar('cont'))
+    params = compiler.new_var(il.LocalVar('params'))
+    v = compiler.new_var(il.LocalVar('v'))
+    arity_body_map = compiler.new_var(il.LocalVar('arity_body_map'))
+    rules_function = compiler.new_var(il.LocalVar('rules_function'))
+    cut_cont = compiler.new_var(il.LocalVar('cut_cont'))
     arity_body_pairs = []
     assigns = []
+    rules_cont = il.clamda(v, il.SetCutCont(cut_cont), k(v))
     for arity, rules in self.rules.items():
       clauses = []
       for head_vars, head, body in rules:
         assign_head_vars = il.begin(*(tuple(il.Assign(var.interlang(), il.new_logicvar(il.String(var.name)))
                       for var in head_vars)))
         clauses.append(begin(DirectInterlang(assign_head_vars), unify_head_params(head, params), body))
-      arity_fun = il.lamda((), or_(*clauses).cps_convert(compiler, k))
-      arity_fun_name = compiler.new_var(il.Var('arity_fun_%s'%arity))
+      arity_fun = il.lamda((), 
+            il.Assign(cut_cont, il.cut_cont),
+            il.SetCutCont(il.failcont), 
+            or_(*clauses).cps_convert(compiler, rules_cont))
+      arity_fun_name = compiler.new_var(il.LocalVar('arity_fun_%s'%arity))
       assigns.append(il.Assign(arity_fun_name, arity_fun))
       arity_body_pairs.append((arity, arity_fun_name))  
+    
     rules_body = il.begin(
       il.begin(*assigns),
       il.Assign(arity_body_map, il.RulesDict({arity:body for arity, body in arity_body_pairs})),
@@ -301,11 +307,11 @@ class Rules(Element):
     
 @special
 def callcc(compiler, cont, function):
-  k = compiler.new_var(il.Var('cont'))
+  k = compiler.new_var(il.LocalVar('cont'))
   params = tuple(x.interlang() for x in function.params)
   function1 = il.Lamda((k,)+params, function.body.cps_convert(compiler, k))
-  k1 = compiler.new_var(il.Var('cont'))
-  v = compiler.new_var(il.Var(v0))
+  k1 = compiler.new_var(il.LocalVar('cont'))
+  v = compiler.new_var(v0)
   return function1(cont, il.Lamda((k1, v), cont(v)))
 
 @special
@@ -337,8 +343,8 @@ class Block(il.Element):
     v = compiler.new_var(v0)
     v1 = compiler.new_var(v0)
     v2 = compiler.new_var(v0)
-    old_unwind_cont_stack_length = compiler.new_var(il.Var('old_unwind_cont_stack_length'))
-    block_fun = compiler.new_var(il.Var('block_'+self.label.name))
+    old_unwind_cont_stack_length = compiler.new_var(il.LocalVar('old_unwind_cont_stack_length'))
+    block_fun = compiler.new_var(il.LocalVar('block_'+self.label.name))
     return il.cfunction(block_fun, v,
                 il.Assign(old_unwind_cont_stack_length, il.unwind_cont_stack_length),
                 il.SetExitBlockContMap(il.String(self.label.name),  il.clamda(v1, 
@@ -393,9 +399,9 @@ class ContinueBlock(il.Element):
 
 @special
 def catch(compiler, cont, tag, *form):
-  v = compiler.new_var(il.Var('v'))
-  v2 = compiler.new_var(il.Var('v'))
-  old_unwind_cont_stack_length = compiler.new_var(il.Var('old_unwind_cont_stack_length'))
+  v = compiler.new_var(il.LocalVar('v'))
+  v2 = compiler.new_var(il.LocalVar('v'))
+  old_unwind_cont_stack_length = compiler.new_var(il.LocalVar('old_unwind_cont_stack_length'))
   return tag.cps_convert(compiler, il.clamda(v,
     il.Assign(old_unwind_cont_stack_length, il.unwind_cont_stack_length),
     il.PushCatchCont(v, il.clamda(v2,
@@ -406,8 +412,8 @@ def catch(compiler, cont, tag, *form):
   
 @special
 def throw(compiler, cont, tag, form):
-  v = compiler.new_var(il.Var('v'))
-  v2 = compiler.new_var(il.Var('v'))
+  v = compiler.new_var(il.LocalVar('v'))
+  v2 = compiler.new_var(il.LocalVar('v'))
   return tag.cps_convert(compiler, 
       il.clamda(v,
           form.cps_convert(compiler, 
@@ -415,10 +421,10 @@ def throw(compiler, cont, tag, form):
   
 @special
 def unwind_protect(compiler, cont, form, *cleanup):
-  v = compiler.new_var(il.Var('v'))
-  v1 = compiler.new_var(il.Var('v'))
-  v2 = compiler.new_var(il.Var('v'))
-  protect_cont = compiler.new_var(il.Var('protect_cont'))
+  v = compiler.new_var(il.LocalVar('v'))
+  v1 = compiler.new_var(il.LocalVar('v'))
+  v2 = compiler.new_var(il.LocalVar('v'))
+  protect_cont = compiler.new_var(il.LocalVar('protect_cont'))
   return il.clamda(v,
     il.Assign(protect_cont, 
       il.clamda(v1, 

@@ -6,7 +6,7 @@ from dao.solvebase import NoSolution
 
 from dao.builtins.special import *
 from dao.builtins.arith import eq, sub, mul, add, div
-from dao.builtins.control import succeed, fail, or_, and_, not_p#, repeat
+from dao.builtins.control import succeed, fail, or_, and_, not_p, cut_or#, repeat
 from dao.builtins.control import findall#, call, once
 from dao.builtins.parser import settext
 from dao.builtins.terminal import char
@@ -24,8 +24,12 @@ class TestControl:
   def xtest_succeed(self):
     eq_(eval(let([(f,function([[1], succeed]))], f(x))), True)
 
-  def test_Or(self):
+  def test_or(self):
     eq_(eval(or_(fail, succeed)), True)
+    
+  def test_cut_or(self):
+    eq_(eval(or_(begin(prin(1), fail), prin(2))), None)
+    assert_raises(NoSolution, eval, or_(begin(prin(1), cut_or, fail), prin(2)))
     
   def test_and(self):
     eq_(eval(and_(succeed, succeed)), True)

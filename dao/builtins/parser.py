@@ -4,7 +4,7 @@ from dao.compilebase import CompileTypeError
 
 from dao.interlang import TRUE, FALSE, NONE
 
-v0, fc0 = il.Var('v'), il.Var('fc')
+v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
 # set and manipulate parse_state for parsing 
 
@@ -14,14 +14,14 @@ def parse_state(compiler, cont):
 
 @special
 def set_parse_state(compiler, cont, parse_state):
-  old_parse_state = compiler.new_var(il.Var('old_parse_state'))
+  old_parse_state = compiler.new_var(il.LocalVar('old_parse_state'))
   return il.begin(il.Assign(old_parse_state, il.parse_state),
                   il.SetParseState(parse_state),
                   il.append_failcont(compiler, il.SetParseState(old_parse_state)),
                   cont(TRUE))
 @special
 def settext(compiler, cont, text):
-  old_parse_state = compiler.new_var(il.Var('old_parse_state'))
+  old_parse_state = compiler.new_var(il.LocalVar('old_parse_state'))
   return il.begin(il.Assign(old_parse_state, il.parse_state),
                   il.SetParseState(il.Tuple(text, il.Integer(0))),
                   il.append_failcont(compiler, il.SetParseState(old_parse_state)),

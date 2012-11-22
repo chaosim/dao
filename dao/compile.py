@@ -16,9 +16,8 @@ prelude = '''# -*- coding: utf-8 -*-
 # generated file after compiling dao expression.
 
 # from dao.interlang import Expression
-from dao.interlang import LogicVar
 from dao.command import LogicVar as DaoLogicVar
-from dao.solvebase import Solver, deref
+from dao.solvebase import Solver, deref, LogicVar
 
 solver = Solver()
 
@@ -36,7 +35,7 @@ def compile_to_python(exp, done=None):
   env = Environment()
   exp = exp.alpha_convert(env, compiler)
   exp = exp.cps_convert(compiler, done)
-  function = compiler.new_var(il.Var('compiled_dao_function'))
+  function = compiler.new_var(il.LocalVar('compiled_dao_function'))
   exp = il.Function(function, (), exp)
   #exp = assign_convert(exp, {}, compiler)
   data = OptimizationData()

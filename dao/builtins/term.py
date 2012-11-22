@@ -6,7 +6,7 @@ from dao.interlang import TRUE, FALSE, NONE
 
 from dao.interlang import LogicVar
 
-v0, fc0 = il.Var('v'), il.Var('fc')
+v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
 # analysing and construction terms
 

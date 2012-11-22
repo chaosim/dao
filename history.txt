@@ -1,5 +1,20 @@
 details of history:
 
+2012-11-22
+rules finished 
+
+fix bug:
+def callcc(compiler, cont, function):
+  ...
+  ### v = compiler.new_var(il.Var(v0) --->
+  v = compiler.new_var(v0)
+
+fix bug: wrong global declaration of local variables
+  # add class LocalVar as subclass of il.Var
+
+restart at 2012.10
+===========================================================
+
 2011-11-28 14:58:36 
 start typer
 

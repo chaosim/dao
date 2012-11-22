@@ -4,7 +4,7 @@ from dao.compilebase import CompileTypeError
 
 from dao.interlang import TRUE, FALSE, NONE
 
-v0, fc0 = il.Var('v'), il.Var('fc')
+v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
 add = BuiltinFunction(il.add)
 eq = BuiltinFunction(il.Eq)

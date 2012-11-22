@@ -10,7 +10,7 @@ from dao.compilebase import CompileTypeError
 
 from dao.interlang import TRUE, FALSE, NONE
 
-v0, fc0 = il.Var('v'), il.Var('fc')
+v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
 @special
 def Eoi(compiler, cont):
@@ -25,7 +25,7 @@ eoi = Eoi()
 @special
 def char(compiler, cont, argument):
   #v = compiler.new_var(v0)
-  text, pos = il.Var('text'), il.Var('pos')
+  text, pos = il.LocalVar('text'), il.LocalVar('pos')
   if isinstance(argument, il.String):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),

@@ -6,7 +6,7 @@ from arith import add, sub, mul, div, eq
 
 from io import prin
 
-from control import succeed, fail, not_p, or_, findall, first_p, cut, repeat
+from control import succeed, fail, not_p, or_, findall, first_p, cut, cut_or, repeat
 
 from term import unify, LogicVar
 

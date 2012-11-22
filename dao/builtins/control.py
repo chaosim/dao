@@ -6,7 +6,7 @@ from dao.compilebase import CompileTypeError
 
 from dao.interlang import TRUE, FALSE, NONE
 
-v0, fc0 = il.Var('v'), il.Var('fc')
+v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
 @special
 def succeed(compiler, cont):
@@ -21,22 +21,23 @@ def fail(compiler, cont):
 fail = fail()
 
 @special
-def cut(compiler, cont):
-  v = compiler.new_var(v0)
-  return il.Begin(il.SetFailCont(il.cut_cont), 
-                  il.Clamda(v, cont(v)))
-
-@special
 def not_p(compiler, cont, clause):
-  fc = compiler.new_var(il.Var('old_fail_cont'))
+  fc = compiler.new_var(il.LocalVar('old_fail_cont'))
   return il.begin(il.Assign(fc, il.failcont), 
                   il.SetFailCont(cont),
                   clause.cps_convert(compiler, fc))
   
-#@special
-#def cut_or(compiler, cont):
-  #return il.Begin(il.SetFailCont(il.cut_or_cont), 
-                  #il.Clamda(v, cont(v)))
+@special
+def cut(compiler, cont):
+  return il.begin(il.SetFailCont(il.cut_cont), 
+                  cont(NONE))
+cut = cut()
+
+@special
+def cut_or(compiler, cont):
+  return il.begin(il.SetFailCont(il.cut_or_cont), 
+                  cont(NONE))
+cut_or = cut_or()
 
 from special import begin as and_
 
@@ -51,7 +52,7 @@ def or_(*clauses):
 #def or2(compiler, cont, clause1, clause2):
   #v = compiler.new_var(v0)
   #v1 = compiler.new_var(v0)
-  #cut_or_cont = compiler.new_var(il.Var('cut_or_cont'))
+  #cut_or_cont = compiler.new_var(il.LocalVar('cut_or_cont'))
   #or_cont = il.clamda(v, il.SetCutOrCont(cut_or_cont), cont(v))
   #return il.begin(
     #il.Assign(cut_or_cont, il.cut_or_cont),
@@ -63,9 +64,12 @@ def or_(*clauses):
 def or2(compiler, cont, clause1, clause2):
   v = compiler.new_var(v0)
   v1 = compiler.new_var(v0)
-  fc = compiler.new_var(il.Var('old_failcont'))
-  or_cont = il.clamda(v, cont(v))
+  fc = compiler.new_var(il.LocalVar('old_failcont'))
+  cut_or_cont = compiler.new_var(il.LocalVar('cut_or_cont'))
+  or_cont = il.clamda(v, il.SetCutOrCont(cut_or_cont), cont(v))
   return il.begin(
+    il.Assign(cut_or_cont, il.cut_or_cont),
+    il.SetCutOrCont(il.failcont),
     il.Assign(fc, il.failcont),
     il.SetFailCont(il.clamda(v1, 
       il.SetFailCont(fc),
@@ -94,7 +98,7 @@ def if_p(compiler, cont, condition, action):
 def findall(compiler, cont, goal, template=NONE, bag=None):
   v = compiler.new_var(v0)
   v2 = compiler.new_var(v0)
-  fc = compiler.new_var(il.Var('old_failcont'))
+  fc = compiler.new_var(il.LocalVar('old_failcont'))
   if bag is None:
     return il.begin(
       il.Assign(fc, il.failcont), 
@@ -104,7 +108,7 @@ def findall(compiler, cont, goal, template=NONE, bag=None):
       goal.cps_convert(compiler, il.Clamda(v, il.failcont(v)))
       )
   else:
-    result = compiler.new_var(il.Var('findall_result')) # variable capture
+    result = compiler.new_var(il.LocalVar('findall_result')) # variable capture
     return il.begin(
        il.Assign(result, il.empty_list()),
        il.Assign(fc, il.failcont), 
@@ -122,7 +126,7 @@ def findall(compiler, cont, goal, template=NONE, bag=None):
 @special
 def repeat(compiler, cont):
   v = compiler.new_var(v0)
-  function = compiler.new_var(il.Var('function'))
+  function = compiler.new_var(il.LocalVar('function'))
   return il.begin(il.SetFailCont(function), 
                   il.cfunction(function, v, cont(v)))
 

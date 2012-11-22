@@ -3,7 +3,7 @@ from dao.base import classeq
 from dao.compilebase import optimize, MAX_EXTEND_CODE_SIZE, to_code_list
 from dao.compilebase import VariableNotBound, CompileTypeError
 from element import Element, Begin, Assign#, element
-from lamda import Apply, optimize_once_args, Var, clamda
+from lamda import Apply, optimize_once_args, Var, LocalVar, clamda
 from element import pythonize_args, FALSE
 
 #from element import Integer
@@ -51,7 +51,7 @@ class BinaryOperation(Element):
 add = BinaryOperation('add', '+', False)
 sub = BinaryOperation('sub', '-', False)
 mul = BinaryOperation('mul', '*', False)
-div = BinaryOperation('div', '-', False)
+div = BinaryOperation('div', '/', False)
 in_ = BinaryOperation('in', 'in', False)
 
 class BinaryOperationApply(Apply):
@@ -260,9 +260,14 @@ SetFailCont = vop2('SetFailCont', 1, 'solver.fail_cont = %s')
 FailCont = vop('failcont', 0, 'solver.fail_cont')  
 failcont = FailCont()
 
+SetCutCont = vop2('SetCutCont', 1, 'solver.cut_cont = %s')
+CutCont = vop('CutCont', 0, 'solver.cut_cont')
+cut_cont = CutCont()
+
 SetCutOrCont = vop2('SetCutOrCont', 1, 'solver.cut_or_cont = %s')
 CutOrCont = vop('CutOrCont', 0, 'solver.cut_or_cont')
 cut_or_cont = CutOrCont()
+
 
 IsLogicVar = vop('IsLogicVar', 1, 'isinstance(%s, LogicVar)')
 Deref = vop('Deref', 1, 'deref(%s, solver.bindings)')
@@ -300,7 +305,7 @@ Ge = binary('Ge', '>=')
 Gt = binary('Gt', '>')
 
 def append_failcont(compiler, exp):
-  v, fc = Var('v'), Var('fc1')
+  v, fc = LocalVar('v'), LocalVar('fc1')
   v1 =  compiler.new_var(v)
   fc1 = compiler.new_var(fc)
   return Begin((
@@ -311,5 +316,3 @@ def append_failcont(compiler, exp):
                 exp,
                 fc1(FALSE)))
     ))
-
-

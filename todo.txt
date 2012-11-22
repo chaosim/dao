@@ -11,7 +11,8 @@ todo: more builtin
   done: eval(done), callcc(done), callfc(coded, but not tested), 
   done: block(done), catch/throw(done), unwind-protect(done)
   done: findall
-  doing: rules
+  todo: rules(done mostly)
+    todo: cut
   todo: marco
   todo: module
   todo: parser builtin
@@ -29,9 +30,9 @@ doing: compile to python
   done：logic var become LogicVar, 
         but other var is compiled to python var with other values.
 
-restart at 2012.10
+restart at 2012.10.10, but start committing at 2012.10.27
 ===========================================================
-stop at 2011.11
+stop at near 2011.12.21(last commit to git)
 
 todo: T language
   todo: grammar

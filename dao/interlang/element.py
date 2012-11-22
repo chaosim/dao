@@ -47,6 +47,9 @@ class Atom(Element):
   def cps_convert(self, compiler, cont):
     return cont(self)
     
+  def vars(self):
+    return set()
+  
   def interlang(self):
     return self
   
@@ -109,9 +112,10 @@ class Integer(Atom): pass
 class Float(Atom): pass
 class String(Atom): pass
 class List(Atom): pass
+class Bool(Atom): pass
 
-TRUE = Atom(True)
-FALSE = Atom(False)
+TRUE = Bool(True)
+FALSE = Bool(False)
 NONE = Atom(None)
 
 def make_tuple(value):
@@ -453,7 +457,7 @@ class Begin(Element):
   def __repr__(self):
     return 'il.begin(%s)'%', '.join([repr(x) for x in self.statements])
 
-type_map = {int:Integer, float: Float, str:String, unicode: String, tuple: make_tuple, list:List}
+type_map = {int:Integer, float: Float, str:String, unicode: String, tuple: make_tuple, list:List, bool:Bool}
 
 def optimize_once_args(args, data):
   changed = False

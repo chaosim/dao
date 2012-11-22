@@ -6,7 +6,7 @@ from dao.compilebase import CompileTypeError, VariableNotBound
 from dao.interlang import TRUE, FALSE, NONE
 import dao.interlang as il
 
-v0, fc0 = il.Var('v'), il.Var('fc')
+v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
 class Command(Element): pass
 
@@ -37,7 +37,7 @@ class Var(Element):
     try: 
       y.cps_convert_unify
     except:
-      x1 = compiler.new_var(il.Var('x'))
+      x1 = compiler.new_var(il.LocalVar('x'))
       return il.begin(
         il.Assign(x1, il.Deref(x)), #for LogicVar, could be optimized when generate code.
         il.If(il.IsLogicVar(x1),
@@ -45,8 +45,8 @@ class Var(Element):
                  il.append_failcont(compiler, il.DelBinding(x1)),
                  cont(il.TRUE)),
                 il.If(il.Eq(x1, y), cont(TRUE), il.failcont(TRUE))))
-    x1 = compiler.new_var(il.Var('x'))
-    y1 = compiler.new_var(il.Var('y'))
+    x1 = compiler.new_var(il.LocalVar('x'))
+    y1 = compiler.new_var(il.LocalVar('y'))
     return begin(
       il.Assign(x1, il.Deref(x)), #for LogicVar, could be optimized when generate code.
       il.Assign(y1, il.Deref(y)),
@@ -63,8 +63,8 @@ class Var(Element):
   
   def cps_convert_call(self, compiler, cont, args):
     # see The 90 minute Scheme to C compiler by Marc Feeley
-    function = compiler.new_var(il.Var('function'))
-    vars = tuple(compiler.new_var(il.Var('a'+repr(i))) for i in range(len(args)))
+    function = compiler.new_var(il.LocalVar('function'))
+    vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
     fun = il.Apply(function, (cont,)+vars)
     for var, self in reversed(zip((function,)+vars, (self,)+args)):
       fun = self.cps_convert(compiler, il.Clamda(var, fun))
@@ -173,7 +173,7 @@ class BuiltinFunctionCall(CommandCall):
   def cps_convert(self, compiler, cont):
     #see The 90 minute Scheme to C compiler by Marc Feeley
     args = self.args
-    vars = tuple(compiler.new_var(il.Var('a'+repr(i))) for i in range(len(args)))
+    vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
     fun = cont(self.function(*vars))
     for var, arg in reversed(zip(vars, args)):
       fun = arg.cps_convert(compiler, il.Clamda(var, fun))

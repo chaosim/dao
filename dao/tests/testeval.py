@@ -7,7 +7,7 @@ from dao.solve import eval
 from dao.command import Var, LogicVar
 
 from dao.builtins import quote, assign, begin, if_
-from dao.builtins import not_p, fail, succeed, or_
+from dao.builtins import not_p, fail, succeed, or_, cut
 from dao.builtins import unify, lamda, let, letrec
 from dao.builtins import settext, char, eoi, any
 from dao.builtins import add, eq, sub, mul
@@ -37,6 +37,10 @@ class TestSimple:
     lo_x = LogicVar('$x')
     eq_(eval(quote(lo_x)), LogicVar('$x'))
     
+  def test_quote2(self):
+    x = Var('x')
+    eq_(eval(quote(x)), LogicVar('x'))
+    
   def testassign(self):
     a = Var('a')
     eq_(eval(assign(a,2)), None)
@@ -51,6 +55,14 @@ class TestControl:
   def test_eval(self):
     eq_(eval(eval_(quote(begin(1, 2)))), 2)
     eq_(eval(eval_(quote(begin(1, add(1, 2))))), 3)
+    
+  def testeval1(self):
+    eq_(eval(eval_(quote(1))), (1))
+    eq_(eval(eval_(quote(add(1, 1)))), (2))
+    
+  def testeval2(self):
+    x = Var('x')
+    eq_(eval(let([(x,1)], eval_(quote(x)))), 1)
     
   def test_callcc(self):
     k = Var('k')
@@ -101,13 +113,8 @@ class TestControl:
     #eq_(eval(iff(((0, prin(1)), (0,prin(2))), prin(3))), None)
   #def testCaseForm(self):
     #eq_(eval(CaseForm(2, {0: [prin(0)], 1:[prin(1)], 2:[prin(2)]}, [prin(3)])), None)
-  #def testeval1(self):
-    #eq_(eval(eval_(quote(1))), (1))
-    #eq_(eval(eval_(quote(add(1, 1)))), (2))
-  #def testeval2(self):
-    #eq_(eval(let([(x,1)], eval_(quote(x)))), 1)
 
-class Test_Lambda_Let:
+class TestLambdaLet:
   def test_lamda(self):
     x, y = Var('x'), Var('y')
     eq_(eval(lamda((x,), 1)(1)), 1)
@@ -141,7 +148,7 @@ class Test_Lambda_Let:
     x, f = Var('x'), Var('f')
     eq_(eval(let([(f, lamda([x], add(x, x)))], f(1))), 2)
     
-  def testletrfac(self):
+  def test_letrec_fac(self):
     from util import m, n, fac
     eq_(eval(letrec([(fac, lamda([n], if_(eq(n,1), 1, mul(n, fac(sub(n, 1))))))],
                   fac(3))), 6)
@@ -244,70 +251,87 @@ class XTestLoop:
 class XTest_letr:
   def testembedvar2(self):
     e, e2, f, g, h = Var('e'), Var('e2'), Var('f'), Var('g'), Var('h')
-    eq_(eval(letr([(f, macro([[cons(1, e2)], g(e2)])),
+    eq_(eval(letrec([(f, macro([[cons(1, e2)], g(e2)])),
                      (g, function([[e], h(e)])),
                      (h, function([[1], True]))],
                 f(e), e)), cons(1, 1))
     
-class XTestCut:
+class TestCut:
   #http://en.wikibooks.org/wiki/Prolog/Cuts_and_Negatio
   def testCut1(self):
     a, b, c, x = Var('a'), Var('b'), Var('c'), Var('x'), 
-    eq_(eval(letr([(a, function([[x], b(x)&cut&c(x)])), #[cut] = cut = cut() 
-                     (b, function([[1], True],
+    eq_(eval(letrec([(a, rules([[x], begin(b(x), cut, c(x))])), 
+                     (b, rules([[1], True],
                                  [[2], True],
                                  [[3], True])),
-                     (c, function([[1], True]))],
-             a(x), x)), (1)) 
+                     (c, rules([[1], True]))],
+             a(x), x)), 1) 
+    
   def test_cut2(self):
     a, b, c, x = Var('a'), Var('b'), Var('c'), Var('x'), 
-    assert_raises(NoSolutionFound, eval, letr([(a, function([[x], b(x)&cut&c(x)])),
-                     (b, function([[1], True],
+    assert_raises(NoSolution, eval, letrec([(a, rules([[x], begin(b(x), cut, c(x))])),
+                     (b, rules([[1], True],
                                     [[2], True],
                                     [[3], True])),
-                     (c, function([[2], True]))],
+                     (c, rules([[2], True]))],
              a(x), x))
+    
   def test_cut2_no_Cut_and_p(self):
     a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x'), 
-    eq_(eval(letr([(a, function([[x], b(x)&c(x)],
+    eq_(eval(letrec([(a, rules([[x], begin(b(x), c(x))],
                                  [[x], d(x)])),
-                     (b, function([[1], 'b1'],
+                     (b, rules([[1], 'b1'],
                                  [[4], 'b4'])),
-                     (c, function([[4], 'c4'])),
-                     (d, function([[3], 'd3']))],
+                     (c, rules([[4], 'c4'])),
+                     (d, rules([[3], 'd3']))],
              a(x), x)), 4) 
+    
   def test_cut2_no_Cut2_and_(self):
     # test_cut2_no_Cut_and_p work correct.
     # but this test and test_cut2_no_Cut3_begin work wrong because the bug below:
     # bug in Var.getvalue/Var.setvalue: 
     # dont't restore the longer chain of bindings after shorten it.
     a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x')
-    from dao.builtins.arith import and_
-    eq_(eval(letr([(a, function([[x], and_(b(x),c(x))],
+    eq_(eval(letrec([(a, rules([[x], begin(b(x),c(x))],
                                  [[x], d(x)])),
-                     (b, function([[1], True],
+                     (b, rules([[1], True],
                                  [[4], True])),
-                     (c, function([[4], True])),
-                     (d, function([[3], True]))],
+                     (c, rules([[4], True])),
+                     (d, rules([[3], True]))],
              a(x), x)), 4) 
+    
   def test_cut2_no_Cut3_begin(self):
     a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x')
-    eq_(eval(letr([(a, function([[x], begin(b(x),c(x))],
+    eq_(eval(letrec([(a, rules([[x], begin(b(x),c(x))],
                                  [[x], d(x)])),
-                     (b, function([[1], 'b1'],
+                     (b, rules([[1], 'b1'],
                                  [[4], 'b4'])),
-                     (c, function([[4], 'c4'])),
-                     (d, function([[3], 'd3']))],
+                     (c, rules([[4], 'c4'])),
+                     (d, rules([[3], 'd3']))],
              a(x), x)), 4) 
+    
   def testCut4(self):
     a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x'), 
-    eq_(eval(letr([(a, function([[x], b(x)&cut&c(x)],
+    assert_raises(NoSolution, eval, letrec([(a, rules([[x], begin(b(x), cut, c(x))],
                           [[x], d(x)])),
-                     (b, function([[1], 'b1'],
+                     (b, rules([[1], 'b1'],
                                  [[4], 'b4'])),
-                     (c, function([[4], 'c4'])),
-                     (d, function([[3], 'd3']))],
-             a(x), x)), 3)
+                     (c, rules([[4], 'c4'])),
+                     (d, rules([[3], 'd3']))],
+             a(x), x))
+    
+  def testCut5(self):
+    start, a, b, c, d, x = Var('start'), Var('a'), Var('b'), Var('c'), Var('d'), Var('x'), 
+    eq_(eval(letrec([
+      (start, rules([[x], a(x)],
+                    [[x], d(x)])),      
+      (a, rules([[x], begin(b(x), cut, c(x))],
+                [[x], d(x)])),
+      (b, rules([[1], 'b1'],
+                [[4], 'b4'])),
+      (c, rules([[4], 'c4'])),
+      (d, rules([[3], 'd3']))],
+      start(x), x)), 3)
     
 class XTestMacro:
   def test1(self):

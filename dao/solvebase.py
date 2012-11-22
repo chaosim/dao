@@ -51,14 +51,36 @@ def deref(exp, bindings):
 def default_end_cont(v):
   raise NoSolution(v)
 
-from dao.interlang import LogicVar
+class LogicVar(object):
+  def __init__(self, name):
+    self.name = name
+        
+  def deref(self, bindings):
+    # todo:
+    # how to shorten the binding chain? need to change solver.fail_cont.
+    # deref(self, solver) can help
+    while 1: 
+      next = bindings[self]
+      if not isinstance(next, LogicVar) or next==self:
+        return next
+      else: 
+        self = next
+  
+  def __eq__(x, y):
+    return x.__class__==y.__class__ and x.name==y.name
+  
+  def __hash__(self): return hash(self.name)
+  
+  def __repr__(self):
+    return "%s"%self.name 
 
 class Solver:
   def __init__(self, end_cont=None):
     if end_cont is None:
       self.fail_cont = default_end_cont
     else: self.fail_cont = end_cont
-    self.cut_or_cont = self.fail_cont # for cut to logic or clauses
+    self.cut_cont = self.fail_cont # for cut rules to logic or clauses
+    self.cut_or_cont = self.fail_cont # for cut or to logic or clauses
     self.bindings = Bindings() # for logic variable, unify
     self.parse_state = None # for parser
     self.catch_cont_map = {} # for catch/throw
