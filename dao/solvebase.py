@@ -51,6 +51,8 @@ def deref(exp, bindings):
 def default_end_cont(v):
   raise NoSolution(v)
 
+from dao.interlang import LogicVar
+
 class Solver:
   def __init__(self, end_cont=None):
     if end_cont is None:
@@ -63,6 +65,7 @@ class Solver:
     self.unwind_cont_stack = [] # for unwind_protect
     self.exit_block_cont_map = {} # for block/exit
     self.continue_block_cont_map = {} # for block/continue
+    self.new_logicvar_map = {} #{'name':index} for generating new logic variable
     
   #def push_catch_cont(self, tag, cont):
     #self.catch_cont_map.setdefault(tag, []).append(cont)
@@ -79,7 +82,16 @@ class Solver:
     except:
       raise DaoUncaughtThrow(tag)
     return cont_stack.pop()  
-      
+  
+  def new_logicvar(self, name):
+    try: 
+      suffix = str(self.new_logicvar_map[name])
+      self.new_logicvar_map[name] += 1
+      return LogicVar(name+suffix)
+    except:
+      self.new_logicvar_map[name] = 1
+      return LogicVar(name)
+    
   #def push_unwind_cont(self, cont):
     #self.unwind_cont_stack.append(cont)
 

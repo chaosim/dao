@@ -1,7 +1,7 @@
 ''' many lisp style special forms'''
 
 from dao.base import Element
-from dao.command import special, Command, CommandCall, SpecialCall, Apply, Var
+from dao.command import special, Command, CommandCall, SpecialCall, Apply, Var, LogicVar
 from dao.compilebase import CompileTypeError, VariableNotBound
 from dao.interlang import TRUE, FALSE, NONE, element
 import dao.interlang as il
@@ -189,6 +189,19 @@ def rules(*rules):
 from dao.builtins.control import or_
 from dao.builtins.term import unify
 
+def direct_interlang(*exps):
+  return DirectInterlang(il.begin(*exps))
+
+class DirectInterlang(Element):
+  def __init__(self, body):
+    self.body = body
+  
+  def alpha_convert(self, env, compiler):
+    return self
+  
+  def cps_convert(self, compiler, cont):
+    return cont(self.body)
+  
 @special
 def unify_head_item(compiler, cont, head_item, param):
   try: 
@@ -227,7 +240,13 @@ def unify_head_params(head, params):
 
 def unify_list(list1, list2):
   return begin(*tuple(unify(x, y) for x, y, in zip(list1, list2)))
-    
+
+def get_tuple_vars(exps):
+  result = set()
+  for x in exps:
+    result |= x.vars()
+  return result
+
 class Rules(Element):
   def __init__(self, rules):
     self.rules = rules
@@ -237,7 +256,10 @@ class Rules(Element):
     if len(args) not in self.rules:
       return il.failcont
     for head, body in self.rules[len(args)]:
-      clauses.append(begin(unify_list(args, head), body))
+      head_vars = get_tuple_vars(head)
+      bindings = {var: LogicVar(var.name) for var in head_vars}
+      head = tuple(x.subst(bindings) for x in head)
+      clauses.append(begin(unify_list(args, head), body.subst(bindings)))
     return or_(*clauses)
   
   def alpha_convert(self, env, compiler):
@@ -247,7 +269,7 @@ class Rules(Element):
       for head, body in rules:
         head, new_env = alpha_rule_head(head, env, compiler)
         body = body.alpha_convert(new_env, compiler)
-        result.append((head, body))
+        result.append((new_env.bindings.values(), head, body))
       rules1[arity] = result
     return Rules(rules1)
       
@@ -261,8 +283,10 @@ class Rules(Element):
     assigns = []
     for arity, rules in self.rules.items():
       clauses = []
-      for head, body in rules:
-        clauses.append(begin(unify_head_params(head, params), body))
+      for head_vars, head, body in rules:
+        assign_head_vars = il.begin(*(tuple(il.Assign(var.interlang(), il.new_logicvar(il.String(var.name)))
+                      for var in head_vars)))
+        clauses.append(begin(DirectInterlang(assign_head_vars), unify_head_params(head, params), body))
       arity_fun = il.lamda((), or_(*clauses).cps_convert(compiler, k))
       arity_fun_name = compiler.new_var(il.Var('arity_fun_%s'%arity))
       assigns.append(il.Assign(arity_fun_name, arity_fun))

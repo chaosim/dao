@@ -206,15 +206,26 @@ class TestRules:
     eq_(eval(rules([[1], 1],[[2],2])(x)), 1)
     
   def testdouble(self):
-    x = LogicVar('$x')
+    x = Var('x')
     eq_(eval(rules([[x], add(x, x)])(2)), 4)
     
   def testdouble2(self):
     f = Var('f')
-    x = LogicVar('$x')
-    #eq_(eval(let([(f, rules([[x], add(x, x)]))], f(1))), 2) 
-    #eq_(eval(let([(f, rules([[x], add(x, x)]))], f(1, 2))), 2) 
+    x = Var('x')
+    eq_(eval(let([(f, rules([[x], add(x, x)]))], f(1))), 2) 
+    assert_raises(NoSolution, eval, let([(f, rules([[x], add(x, x)]))], f(1, 2)))
     eq_(eval(let([(f, rules([[x], add(x, x)]))], f(f(1)))), 4) 
+    
+  def test_embed_var1(self):
+    e, f = Var('e'), Var('f')
+    eq_(eval(letrec([(f, rules([[1], 1]))], f(e), e)), 1)
+    
+  def test_letrec_rules(self):
+    f = Var('f')
+    x = Var('x')
+    eq_(eval(letrec([(f, rules([[1], 1],[[x],f(sub(x,1))]))], f(1))), 1)
+    eq_(eval(letrec([(f, rules([[1], 1],[[x],f(sub(x,1))]))], f(2))), 1)
+    
     
 class XTestLoop:
   def testLoopTimes(self):
@@ -231,11 +242,6 @@ class XTestLoop:
     eq_(eval(tag_loop_label(EachForm((i, j), zip(range(3), range(3)), [prin(i, j)]))), None)
     
 class XTest_letr:
-  def testembedvar1(self):
-    e, e2, f, g, h = Var('e'), Var('e2'), Var('f'), Var('g'), Var('h')
-    eq_(eval(letr([(f, function([[1], 1]))],
-                f(e), e)), 1)
-    
   def testembedvar2(self):
     e, e2, f, g, h = Var('e'), Var('e2'), Var('f'), Var('g'), Var('h')
     eq_(eval(letr([(f, macro([[cons(1, e2)], g(e2)])),
@@ -243,14 +249,6 @@ class XTest_letr:
                      (h, function([[1], True]))],
                 f(e), e)), cons(1, 1))
     
-  def testletr(self):
-    eq_(eval(letr([(f, function([[1], 1],[[x],f(x-1)]))], f(1))), 1)
-    eq_(eval(letr([(f, function([[1], 1],[[x],f(x-1)]))], f(2))), 1)
-    
-  def testletr(self):
-    eq_(eval(letr([(f, lambda_([n], if_(eq(n, 1), 1, f(sub(n, 1)))))],
-                  f(2))), 1)
-
 class XTestCut:
   #http://en.wikibooks.org/wiki/Prolog/Cuts_and_Negatio
   def testCut1(self):

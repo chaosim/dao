@@ -274,6 +274,7 @@ SetParseState = vop2('SetParseState', 1, 'solver.parse_state = %s')
 ParseState = vop('parse_state', 0, 'solver.parse_state')
 parse_state = ParseState()
 
+new_logicvar = vop('new_logicvar', 1, 'solver.new_logicvar(%s)')
 Prin = vop2('Prin', 1, 'print %s,')
 
 def binary_to_code(self, coder):

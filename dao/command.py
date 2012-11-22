@@ -20,15 +20,16 @@ class Var(Element):
   def alpha_convert(self, env, compiler):
     try: 
       return env[self]
-    except KeyError: 
-      raise VariableNotBound(self)
+    except VariableNotBound: 
+      env[self] = result = compiler.new_var(LogicVar(self.name))
+      return result
     
   def subst(self, bindings):  
     try: return bindings[self]
     except: return self
       
   def cps_convert(self, compiler, cont):
-    return cont(il.Var(self.name))
+    return cont(il.Deref(il.Var(self.name)))
   
   def cps_convert_unify(x, y, compiler, cont):
     x = x.interlang()
@@ -71,7 +72,10 @@ class Var(Element):
   
   def interlang(self):
     return il.Var(self.name)
-
+  
+  def vars(self):
+    return set([self])
+  
   def __repr__(self):
     return self.name #enough in tests
 
