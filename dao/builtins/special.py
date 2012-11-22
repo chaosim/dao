@@ -136,7 +136,8 @@ class Let(il.Element):
     for var, value in self.bindings:
       new_env.bindings[var] = compiler.new_var(var)
     alphaed_body = self.body.alpha_convert(new_env, compiler)
-    assign_bindings = tuple(assign(new_env[var], value) for var, value in self.bindings)
+    assign_bindings = tuple(assign(new_env[var], value.alpha_convert(env, compiler)) 
+                            for var, value in self.bindings)
     return begin(*(assign_bindings+(alphaed_body,)))
   
   def subst(self, bindings):
@@ -178,15 +179,51 @@ def alpha_rule_head(head, env, compiler):
   return tuple(head2), new_env
       
 def rules(*rules):
-  result = []
+  result = {}
   for rule in rules:
     head = tuple(element(x) for x in rule[0])
     body = begin(*(element(x) for x in rule[1:]))
-    result.append((head, body))
+    result.setdefault(len(head), []).append((head, body))
   return Rules(result)
 
 from dao.builtins.control import or_
 from dao.builtins.term import unify
+
+@special
+def unify_head_item(compiler, cont, head_item, param):
+  try: 
+    head_item.cps_convert_unify
+  except:
+    head_item = head_item.interlang()
+    x1 = compiler.new_var(il.Var('x'))
+    return il.begin(
+      il.Assign(x1, il.Deref(param)),
+      il.If(il.IsLogicVar(x1),
+         il.begin(il.SetBinding(x1, head_item),
+               il.append_failcont(compiler, il.DelBinding(x1)),
+               cont(il.TRUE)),
+              il.If(il.Eq(x1, head_item), cont(TRUE), il.failcont(TRUE))))
+  
+  head_item = head_item.interlang()
+  x1 = compiler.new_var(il.Var('x'))
+  y1 = compiler.new_var(il.Var('y'))
+  return il.begin(
+    il.Assign(x1, il.Deref(param)), #for LogicVar, could be optimized when generate code.
+    il.Assign(y1, il.Deref(head_item)),
+    il.If(il.IsLogicVar(x1),
+       il.begin(il.SetBinding(x1, y1),
+             il.append_failcont(compiler, il.DelBinding(x1)),
+             cont(il.TRUE)),
+       il.begin(
+         il.If(il.IsLogicVar(y1),
+            il.begin(il.SetBinding(y1, x1),
+                  il.append_failcont(compiler, il.DelBinding(y1)),
+                  cont(il.TRUE)),
+            il.If(il.Eq(x1, y1), cont(il.TRUE), il.failcont(il.FALSE))))))
+  
+def unify_head_params(head, params):
+  return begin(*tuple(unify_head_item(x, il.GetItem(params, il.Integer(i))) 
+                      for (i, x) in enumerate(head)))
 
 def unify_list(list1, list2):
   return begin(*tuple(unify(x, y) for x, y, in zip(list1, list2)))
@@ -197,36 +234,47 @@ class Rules(Element):
 
   def __call__(self, *args):
     clauses = []
-    for head, body in self.rules:
-      if len(head)==len(args):
-        clauses.append(begin(unify_list(args, head), body))
+    if len(args) not in self.rules:
+      return il.failcont
+    for head, body in self.rules[len(args)]:
+      clauses.append(begin(unify_list(args, head), body))
     return or_(*clauses)
   
   def alpha_convert(self, env, compiler):
-    rules = []
-    for head, body in self.rules:
-      head, new_env = alpha_rule_head(head, env, compiler)
-      body = body.alpha_convert(env, compiler)
-      rules.append((head, body))
-    return Rules(rules)
+    rules1 = {}
+    for arity, rules in self.rules.items():
+      result = []
+      for head, body in rules:
+        head, new_env = alpha_rule_head(head, env, compiler)
+        body = body.alpha_convert(new_env, compiler)
+        result.append((head, body))
+      rules1[arity] = result
+    return Rules(rules1)
       
   def cps_convert(self, compiler, cont):
     k = compiler.new_var(il.Var('cont'))
     params = compiler.new_var(il.Var('params'))
     v = compiler.new_var(il.Var('v'))
-    failcont = il.failcont
-    for head, body in reversed(self.rules):
-      rule_body = unify(head, params, il.clamda(v, self.body.cps_convert(compiler, k)), failcont)
-      failcont = il.clamda(v, rule_body)
-    return cont(il.Lamda((k,)+params, rule_body))
-  
-  #def cps_convert_call(self, compiler, cont, args):
-    #clauses = []
-    #for head, body in self.rules:
-      #if len(head)==len(args):
-        #clauses.append(begin(unify_list(args, head), body))
-    #return or_(*clauses)
-  
+    arity_body_map = compiler.new_var(il.Var('arity_body_map'))
+    rules_function = compiler.new_var(il.Var('rules_function'))
+    arity_body_pairs = []
+    assigns = []
+    for arity, rules in self.rules.items():
+      clauses = []
+      for head, body in rules:
+        clauses.append(begin(unify_head_params(head, params), body))
+      arity_fun = il.lamda((), or_(*clauses).cps_convert(compiler, k))
+      arity_fun_name = compiler.new_var(il.Var('arity_fun_%s'%arity))
+      assigns.append(il.Assign(arity_fun_name, arity_fun))
+      arity_body_pairs.append((arity, arity_fun_name))  
+    rules_body = il.begin(
+      il.begin(*assigns),
+      il.Assign(arity_body_map, il.RulesDict({arity:body for arity, body in arity_body_pairs})),
+      il.If(il.in_(il.Len(params), arity_body_map),
+            il.Apply(il.GetItem(arity_body_map, il.Len(params)), ()),
+            il.failcont(NONE)))
+    return cont(il.RulesFunction(rules_function, (k, params), rules_body))
+    
 @special
 def callcc(compiler, cont, function):
   k = compiler.new_var(il.Var('cont'))

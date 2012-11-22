@@ -1,15 +1,19 @@
 ﻿todo: more optimization
-  todo: more ananlysis for optimization(assign side effects analysys, 
-    io side effects, state change sideeffects, type inference)
   done: Apply of clamda and cfunction can be subst by their body directly.
     # notice the side effects of argument and reference count.
+  todo: more ananlysis for optimization(assign side effects analysys, 
+    io side effects, state change sideeffects
+  todo: type inference
+  todo: partial evaluation
   todo: block/exit/continue become while/break/coninute + block label
 
 todo: more builtin
   done: eval(done), callcc(done), callfc(coded, but not tested), 
   done: block(done), catch/throw(done), unwind-protect(done)
-  todo: findall
-  todo: module, marco, rules
+  done: findall
+  doing: rules
+  todo: marco
+  todo: module
   todo: parser builtin
 
 done: assemble alpha convert, assign convert, optimizal transformation, 
@@ -18,8 +22,9 @@ done: assemble alpha convert, assign convert, optimizal transformation,
 todo: tail recursive
 
 todo: trampoline
+  # maybe don't need any more.
 
-todo: compile to python 
+doing: compile to python 
   done: use python var as t var
   done：logic var become LogicVar, 
         but other var is compiled to python var with other values.

@@ -52,6 +52,7 @@ add = BinaryOperation('add', '+', False)
 sub = BinaryOperation('sub', '-', False)
 mul = BinaryOperation('mul', '*', False)
 div = BinaryOperation('div', '-', False)
+in_ = BinaryOperation('in', 'in', False)
 
 class BinaryOperationApply(Apply):
   is_statement = False
@@ -100,9 +101,14 @@ class BinaryOperationApply(Apply):
     return exps+(self.__class__(self.caller, args),), has_statement
   
   def to_code(self, coder):
-    return '%s%s%s'%(self.args[0].to_code(coder), 
+    if not self.caller.operator[0].isalpha():
+      return '%s%s%s'%(self.args[0].to_code(coder), 
                         self.caller.to_code(coder), 
                         self.args[1].to_code(coder))
+    else:
+      return '%s %s %s'%(self.args[0].to_code(coder), 
+                              self.caller.to_code(coder), 
+                              self.args[1].to_code(coder))      
     
   def __repr__(self):
     return '%r(%r)'%(self.caller, self.args)
@@ -169,6 +175,9 @@ class VirtualOperation(Element):
         return self.__class__.code_format % (', '.join([x.to_code(coder) for x in self.args]))
     else: 
       return self.__class__.code_format(self, coder)
+    
+  def __eq__(x, y):
+    return classeq(x, y) and x.args==y.args
       
   def __hash__(self):
     return hash(self.__class__.__name__)

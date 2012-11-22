@@ -200,18 +200,21 @@ class TestLispConstruct:
 class TestRules:
   def test1(self):
     x = LogicVar('$x')
+    eq_(eval(rules([[1], 1],[[x],x])(2)), 2) 
     eq_(eval(rules([[1], 1])(1)), 1) 
-    #eq_(eval(rules([[1], 1],[[x],x])(2)), 2) 
     eq_(eval(rules([[1], 1],[[2],2])(2)), 2) 
     eq_(eval(rules([[1], 1],[[2],2])(x)), 1)
     
   def testdouble(self):
+    x = LogicVar('$x')
     eq_(eval(rules([[x], add(x, x)])(2)), 4)
     
   def testdouble2(self):
     f = Var('f')
-    eq_(eval(let([(f, rules([[x], x+x]))], f(1))), 2) 
-    eq_(eval(let([(f, rules([[x], x+x]))], f(f(1)))), 4) 
+    x = LogicVar('$x')
+    #eq_(eval(let([(f, rules([[x], add(x, x)]))], f(1))), 2) 
+    #eq_(eval(let([(f, rules([[x], add(x, x)]))], f(1, 2))), 2) 
+    eq_(eval(let([(f, rules([[x], add(x, x)]))], f(f(1)))), 4) 
     
 class XTestLoop:
   def testLoopTimes(self):

@@ -82,6 +82,9 @@ class LogicVar(Var):
   def interlang(self):
     return il.LogicVar(self.name)
   
+  def cps_convert(self, compiler, cont):
+    return cont(il.Deref(il.LogicVar(self.name)))
+  
   def to_code(self, coder):
     return "DaoLogicVar('%s')"%self.name
   

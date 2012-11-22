@@ -142,10 +142,6 @@ class Lamda(Element):
     return 'il.Lamda((%s), %s)'%(', '.join([repr(x) for x in self.params]),
                               repr(self.body))
 
-def function( name, params, *body):
-  body = tuple(element(x) for x in body)
-  return Function(name, params, begin(*body))
-
 class GlobalDecl(Element):
   def __init__(self, args):
     self.args = args
@@ -192,6 +188,44 @@ class Function(Lamda):
   def __repr__(self):
     return 'il.Function(%s, (%s), %s)'%(self.name, ', '.join([repr(x) for x in self.params]),
                                  repr(self.body))    
+
+class RulesFunction(Function):
+  def __init__(self, name, params, body):
+    self.name, self.params, self.body = name, params, body
+    
+  def __call__(self, *args):
+    return Apply(self, tuple(element(x) for x in args))
+  
+  def to_code(self, coder):
+    head = "def %s(%s, *%s):\n" % (self.name, 
+                                   self.params[0].to_code(coder), 
+                                   self.params[1].to_code(coder))
+    result =  head + coder.indent(self.body.to_code(coder))
+    return result
+  
+class RulesDict(Element):
+  def __init__(self, arity_body_map):
+    self.arity_body_map = arity_body_map
+    
+  def optimization_analisys(self, data):
+    try: self.seen
+    except:
+      self.seen = True
+      data.occur_count[self] = data.occur_count.setdefault(self, 0)+1
+      for arity, body in self.arity_body_map.items():
+        body.optimization_analisys(data)
+  
+  def optimize_once(self, data):
+    for arity, body in self.arity_body_map.items():
+      self.arity_body_map[arity], changed = body.optimize_once(data) 
+    return self, False
+  
+  def pythonize_exp(self, enf, compiler):
+    return (self,), False
+
+  def to_code(self, coder):
+    return '{%s}'%', '.join('%s: %s'%(arity, funcname.to_code(coder))
+                            for arity, funcname in self.arity_body_map.items())
 
 def clamda(v, *body):
   body = tuple(element(x) for x in body)

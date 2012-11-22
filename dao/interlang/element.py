@@ -245,7 +245,7 @@ class Return(Element):
     return  'return %s' % ', '.join([x.to_code(coder) for x in self.args])
   
   def insert_return_yield(self, klass):
-    return self
+    return klass(*self.args)
   
   def replace_return_yield(self, klass):
     return klass(*self.args)
@@ -260,6 +260,9 @@ class Yield(Return):
   def to_code(self, coder):
     return  'yield %s' % ', '.join([x.to_code(coder) for x in self.args])
 
+  def insert_return_yield(self, klass):
+    return self
+  
   def __repr__(self):
     return 'il.Yield(%s)'%', '.join([repr(x) for x in self.args])
 
@@ -364,8 +367,16 @@ def if2(test, then):
 class PseudoElse(Atom):
   def __init__(self):
     return
+  
   def code_size(self):
     return 0
+  
+  def insert_return_yield(self, klass):
+    return self
+  
+  def replace_return_yield(self, klass):
+    return self
+  
   def __eq__(x, y):
     return classeq(x, y)
   
