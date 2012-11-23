@@ -421,6 +421,126 @@ class PseudoElse(Atom):
 
 pseudo_else = PseudoElse()
 
+def while_(test, *exps):
+  return While(element(test), begin(*[x for x in exps]))
+
+class While(Element):
+  def __init__(self, test, body):
+    self.test, self.body = test, body
+    
+  def assign_convert(self, env, compiler):
+    return While(self.test.assign_convert(env, compiler), 
+                 self.body.assign_convert(env, compiler))
+
+  def find_assign_lefts(self):
+    return self.body.find_assign_lefts()
+  
+  def optimization_analisys(self, data):  
+    self.test.optimization_analisys(data)
+    self.body.optimization_analisys(data)
+    
+  def code_size(self):
+    return 3 + self.test.code_size() + \
+           self.body.code_size()
+  
+  def side_effects(self):
+    return not self.test.side_effects() and\
+           not self.body.side_effects()
+    
+  def subst(self, bindings):  
+    return While(self.test.subst(bindings),
+              self.body.subst(bindings))
+    
+  def optimize_once(self, data):
+    return self, False
+
+  def insert_return_statement(self, klass):
+    result = While(self.test, 
+              self.body.insert_return_statement(klass))
+    result.is_statement = True
+    return result
+  
+  def replace_return_with_yield(self):
+    result = While(self.test, 
+              self.body.replace_return_with_yield())
+    result.is_statement = True
+    return result
+  
+  def pythonize_exp(self, env, compiler):
+    test, has_statement1 = self.test.pythonize_exp(env, compiler)
+    body, has_statement2 = self.body.pythonize_exp(env, compiler)
+    result = While(test[-1], begin(*body))
+    return test[:-1]+(result,), True
+    
+  def to_code(self, coder):
+    return 'while %s:\n%s\n' % (self.test.to_code(coder), 
+                                  coder.indent(self.body.to_code(coder)))
+           
+  def __eq__(x, y):
+    return classeq(x, y) and x.test==y.test and x.body==y.body
+  
+  def __repr__(self):
+    return 'il.While(%r, %r)'%(self.test, self.body)
+
+def for_(var, range, *exps):
+  return For(element(var), element(range), begin(*[x for x in exps]))
+
+class For(Element):
+  def __init__(self, var, range, body):
+    self.var, self.range, self.body = var, range, body
+    
+  def assign_convert(self, env, compiler):
+    return For(self.var.assign_convert(env, compiler), 
+               self.range.assign_convert(env, compiler), 
+               self.body.assign_convert(env, compiler))
+
+  def find_assign_lefts(self):
+    return self.body.find_assign_lefts()
+  
+  def optimization_analisys(self, data):  
+    self.var.optimization_analisys(data)
+    self.range.optimization_analisys(data)
+    self.body.optimization_analisys(data)
+    
+  def code_size(self):
+    return 3 + self.var.code_size() + self.range.code_size() + self.body.code_size()
+  
+  def side_effects(self):
+    return not self.var.side_effects() and\
+           not self.range.side_effects() and\
+           not self.body.side_effects()
+    
+  def subst(self, bindings):  
+    return For(self.var.subst(bindings),
+               self.range.subst(bindings),
+               self.body.subst(bindings))
+    
+  def optimize_once(self, data):
+    return self, False
+
+  def insert_return_statement(self, klass):
+    return For(self.var, self.range, self.body.insert_return_statement(klass))
+  
+  def replace_return_with_yield(self):
+    return For(self.var, self.range, self.body.replace_return_with_yield())
+  
+  def pythonize_exp(self, env, compiler):
+    var, has_statement1 = self.var.pythonize_exp(env, compiler)
+    range, has_statement1 = self.range.pythonize_exp(env, compiler)
+    body, has_statement2 = self.body.pythonize_exp(env, compiler)
+    return (For(var[-1], range[-1], begin(*body)),), True
+    
+  def to_code(self, coder):
+    return 'for %s in %s:\n%s\n' % (self.var.to_code(coder), 
+                                    self.range.to_code(coder), 
+                                  coder.indent(self.body.to_code(coder)))
+           
+  def __eq__(x, y):
+    return classeq(x, y) and x.var==y.var and x.range==y.range and x.body==y.body
+  
+  def __repr__(self):
+    return 'il.For(%r, %r)'%(self.var, self.range, self.body)
+
 def begin(*exps):
   assert isinstance(exps, tuple)
   if len(exps)==0: return exps

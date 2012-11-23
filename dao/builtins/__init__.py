@@ -19,7 +19,7 @@ from parser import set_parse_state, parse_state, set_sequence, set_text, parse_s
 from parser import eoi, left, step, next_char, position, goto, skip, subtext
 from parser import unify_parse_sequence, unify_parse_text
 
-from terminal import char
+from terminal import char, word, identifier, integer, literal
 
 
 

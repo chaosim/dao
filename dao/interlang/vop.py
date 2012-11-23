@@ -2,7 +2,7 @@ from dao.base import classeq
 
 from dao.compilebase import optimize, MAX_EXTEND_CODE_SIZE, to_code_list
 from dao.compilebase import VariableNotBound, CompileTypeError
-from element import Element, Begin, Assign#, element
+from element import Element, Begin, Assign, begin#, element
 from lamda import Apply, optimize_once_args, Var, LocalVar, clamda
 from element import pythonize_args, FALSE
 
@@ -54,7 +54,21 @@ mul = BinaryOperation('mul', '*', False)
 div = BinaryOperation('div', '/', False)
 in_ = BinaryOperation('in', 'in', False)
 IsNot = BinaryOperation('is_not', 'is not', False)
+And = BinaryOperation('and', 'and', False)
+Or = BinaryOperation('or', 'or', False)
 
+def and_(*exps):
+  if len(exps)==2:
+    return And(*exps)
+  else:
+    return And(exps[0], and_(*exps[1:]))
+               
+def or_(*exps):
+  if len(exps)==2:
+    return Or(*exps)
+  else:
+    return Or(exps[0], or_(*exps[1:]))
+               
 class BinaryOperationApply(Apply):
   is_statement = False
   
@@ -103,11 +117,11 @@ class BinaryOperationApply(Apply):
   
   def to_code(self, coder):
     if not self.caller.operator[0].isalpha():
-      return '%s%s%s'%(self.args[0].to_code(coder), 
+      return '(%s)%s(%s)'%(self.args[0].to_code(coder), 
                         self.caller.to_code(coder), 
                         self.args[1].to_code(coder))
     else:
-      return '%s %s %s'%(self.args[0].to_code(coder), 
+      return '(%s) %s (%s)'%(self.args[0].to_code(coder), 
                               self.caller.to_code(coder), 
                               self.args[1].to_code(coder))      
     
@@ -242,6 +256,9 @@ UnquoteSplice = vop('UnquoteSplice', 1, "UnquoteSplice(%s)")
 Attr = vop('Attr', 2, '%s.%s')
 MakeTuple = vop('MakeTuple', 1, 'tuple(%s)')
 
+Cle = vop('Cle', 3, '(%s) <= (%s) <= (%s)')
+Cge = vop('Cge', 3, '(%s) >= (%s) >= (%s)')
+
 PopCatchCont = vop('PopCatchCont', 1, "solver.pop_catch_cont(%s)")
 FindCatchCont = vop('FindCatchCont', 1, "solver.find_catch_cont(%s)")
 #PushCatchCont = vop2('PushCatchCont', 2, "solver.push_catch_cont(%s, %s)")
@@ -317,7 +334,7 @@ Ne = binary('Ne', '!=')
 Ge = binary('Ge', '>=')
 Gt = binary('Gt', '>')
 
-def append_failcont(compiler, exp):
+def append_failcont(compiler, *exps):
   v, fc = LocalVar('v'), LocalVar('fc1')
   v1 =  compiler.new_var(v)
   fc1 = compiler.new_var(fc)
@@ -326,6 +343,6 @@ def append_failcont(compiler, exp):
     SetFailCont(
       clamda(v1, 
                 SetFailCont(fc1),
-                exp,
+                begin(*exps),
                 fc1(FALSE)))
     ))

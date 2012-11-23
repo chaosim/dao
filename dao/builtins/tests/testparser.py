@@ -8,9 +8,9 @@ from dao.builtins import fail, or_, and_, not_p, cut
 from dao.builtins import add
 from dao.builtins import set_text, parse_text, unify_parse_text
 from dao.builtins import step, next_char, position, goto, skip, left, subtext
-from dao.builtins import char, eoi#, integer, eoi, literal, letter, digit 
+from dao.builtins import char, eoi, word, literal#, integer, eoi, literal, letter, digit 
 #from dao.builtins import dqstring, sqstring, unify_tabspaces, unify_whitespaces, uLetterdigitString
-from dao.builtins import may, nullword#, optional, parallel
+from dao.builtins import may, nullword, identifier, integer#, optional, parallel
 from dao.builtins import any#, some, times, times_more, times_less, seplist
 from dao.builtins import lazy#, times_between
 #from dao.builtins import contain
@@ -78,14 +78,22 @@ class Testterminal:
     assert_raises(NoSolution, eval, parse_text(rule, 'a b'))
     assert_raises(NoSolution, eval, parse_text(rule, 'a'))
     
+  def test_word(self):
+    eq_(eval(begin(parse_text(word(x), 'ab'), x)), 'ab')
+    eq_(eval(begin(parse_text(word('ab'), 'ab'))), 'ab')
+     
+  def test_identifier(self):
+    eq_(eval(begin(parse_text(identifier(x), '_a1b_23'), x)), '_a1b_23')
+    eq_(eval(begin(parse_text(identifier('_a1b_23'), '_a1b_23'))), '_a1b_23')
+     
   def test_number(self):
     x, y, z = Var('y'), Var('x'), Var('z')
-    eq_(eval(begin(parse_text(integer(x), '2'), x)), 2)
-    eq_(eval(begin(parse_text(integer(y), '234'), y)), 234)
-    eq_(eval(begin(parse_text(integer(z), '0232'), z)), 154) #0ctal
+    eq_(eval(begin(parse_text(integer(x), '2'), x)), '2')
+    eq_(eval(begin(parse_text(integer(y), '234'), y)), '234')
+    eq_(eval(begin(parse_text(integer(z), '0232'), z)), '0232') 
     
   def test_literal(self):
-    eq_(eval(parse_text(literal('if'), 'if')), True)
+    eq_(eval(parse_text(literal('if'), 'if')), 'if')
     assert_raises(NoSolution, eval, parse_text(literal('if'), 'ssf'))
 
   def test_string(self):

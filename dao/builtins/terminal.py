@@ -4,7 +4,7 @@
  solver.parse_state should have an interface similar to parse_state in parser.py.
  Lineparse_state in line_parser.py is comatible with parse_state.'''
 
-from dao.command import special, Command, SpecialCall
+from dao.command import special, Command, SpecialCall, Var
 import dao.interlang as il
 from dao.compilebase import CompileTypeError
 
@@ -60,17 +60,22 @@ def word(compiler, cont, arg):
   text = compiler.new_var(il.LocalVar('text'))
   pos = compiler.new_var(il.LocalVar('pos'))
   p = compiler.new_var(il.LocalVar('p'))
+  length = compiler.new_var(il.LocalVar('length'))
   if isinstance(arg, Var):
+    arg = arg.interlang()
     x = compiler.new_var(il.LocalVar('x'))
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
-      il.If2(il.Ge(pos, length), il.Return(il.failcont(FALSE))),
-      IL.If2(il.And(il.Not(il.Cle('a', il.GetItem(text, pos), 'z')), 
-                   il.Not(il.Cle('A', il.GetItem(text, pos), 'Z'))), 
+      il.if2(il.Ge(pos, length), il.Return(il.failcont(FALSE))),
+      il.if2(il.And(il.Not(il.Cle(il.String('a'), il.GetItem(text, pos), il.String('z'))), 
+                   il.Not(il.Cle(il.String('A'), il.GetItem(text, pos), il.String('Z')))), 
              il.Return(il.failcont(FALSE))),
-      il.Assign(p, il.add(pos, 1)),
-      il.While(il.And(il.Gt(p, length), il.Or(il.Cge('a', text[p], 'z'), il.Cge('A',text[p],'Z'))), il.AddAssign(p, 1)),
+      il.Assign(p, il.add(pos, il.Integer(1))),
+      il.while_(il.And(il.Lt(p, length), 
+                      il.Or(il.Cle(il.String('a'), il.GetItem(text, p), il.String('z')), 
+                            il.Cle(il.String('A'),il.GetItem(text, p),il.String('Z')))), 
+               il.AddAssign(p, il.Integer(1))),
       il.Assign(x, il.Deref(arg)),
       il.If(il.IsLogicVar(x),
             il.begin(il.SetParseState(il.Tuple(text, p)),
@@ -79,7 +84,7 @@ def word(compiler, cont, arg):
                               il.SetParseState(il.Tuple(text, pos)),
                               il.DelBinding(x)),
                            il.Return(cont(il.GetItem(text, pos)))),
-            il.If(il.Isinstance(x, 'str'),
+            il.If(il.Isinstance(x, il.String('str')),
                   il.If(il.Eq(x, il.GetItem(text, il.Slice2(pos, p))),
                         il.begin(il.append_failcont(compiler, 
                           il.SetParseState(il.Tuple(text, pos))),
@@ -87,26 +92,194 @@ def word(compiler, cont, arg):
                           cont(il.GetItem(text, pos))),
                         il.Return(il.failcont(NONE))),
                   il.RaiseTypeError(x)))))
-  elif isinstance(arg, str):
+  elif isinstance(arg, il.String):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
-      il.If2(il.Ge(pos, length), il.Return(il.failcont(FALSE))),
-      IL.If2(il.And(il.Not(il.Cle('a', il.GetItem(text, pos), 'z')), 
-                   il.Not(il.Cle('A', il.GetItem(text, pos), 'Z'))), 
+      il.if2(il.Ge(pos, length), il.Return(il.failcont(FALSE))),
+      il.if2(il.And(il.Not(il.Cle(il.String('a'), il.GetItem(text, pos), il.String('z'))), 
+                   il.Not(il.Cle(il.String('A'), il.GetItem(text, pos), il.String('Z')))), 
              il.Return(il.failcont(FALSE))),
-      il.Assign(p, il.add(pos, 1)),
-      il.While(il.And(il.Gt(p, length), il.Or(il.Cge('a', text[p], 'z'), il.Cge('A',text[p],'Z'))), il.AddAssign(p, 1)),
+      il.Assign(p, il.add(pos, il.Integer(1))),
+      il.while_(il.And(il.Lt(p, length), 
+                      il.Or(il.Cle(il.String('a'), il.GetItem(text, p), il.String('z')), 
+                            il.Cle(il.String('A'),il.GetItem(text, p), il.String('Z')))), 
+              il.AddAssign(p, il.Integer(1))),
       il.If(il.Eq(arg, il.GetItem(text, il.Slice2(pos, p))),
             il.begin(il.append_failcont(compiler, 
               il.SetParseState(il.Tuple(text, pos))),
               il.SetParseState(il.Tuple(text, p)),
-              cont(il.GetItem(text, pos))),
+              cont(arg)),
             il.Return(il.failcont(NONE)))
     ))
   else:
     raise CompileTypeError
   
+@special
+def identifier(compiler, cont, arg):
+  '''underline or letter lead, follow underline, letter or digit'''
+  text = compiler.new_var(il.LocalVar('text'))
+  pos = compiler.new_var(il.LocalVar('pos'))
+  p = compiler.new_var(il.LocalVar('p'))
+  length = compiler.new_var(il.LocalVar('length'))
+  if isinstance(arg, Var):
+    arg = arg.interlang()
+    x = compiler.new_var(il.LocalVar('x'))
+    return il.Begin((
+      il.AssignFromList(text, pos, il.parse_state),
+      il.Assign(length, il.Len(text)),
+      il.if2(il.Ge(pos, length), il.Return(il.failcont(FALSE))),
+      il.if2(il.and_(il.Ne(il.GetItem(text, pos), il.String('_')),
+                     il.Not(il.Cle(il.String('a'), il.GetItem(text, pos), il.String('z'))), 
+                     il.Not(il.Cle(il.String('A'), il.GetItem(text, pos), il.String('Z')))), 
+             il.Return(il.failcont(FALSE))),
+      il.Assign(p, il.add(pos, il.Integer(1))),
+      il.while_(il.And(il.Lt(p, length), 
+                      il.or_(il.Eq(il.GetItem(text, pos), il.String('_')),
+                            il.Cle(il.String('a'), il.GetItem(text, p), il.String('z')), 
+                            il.Cle(il.String('A'),il.GetItem(text, p),il.String('Z')),
+                            il.Cle(il.String('0'),il.GetItem(text, p),il.String('9')))), 
+               il.AddAssign(p, il.Integer(1))),
+      il.Assign(x, il.Deref(arg)),
+      il.If(il.IsLogicVar(x),
+            il.begin(il.SetParseState(il.Tuple(text, p)),
+                           il.SetBinding(x, il.GetItem(text, il.Slice2(pos, p))),
+                           il.append_failcont(compiler, 
+                              il.SetParseState(il.Tuple(text, pos)),
+                              il.DelBinding(x)),
+                           il.Return(cont(il.GetItem(text, pos)))),
+            il.If(il.Isinstance(x, il.String('str')),
+                  il.If(il.Eq(x, il.GetItem(text, il.Slice2(pos, p))),
+                        il.begin(il.append_failcont(compiler, 
+                          il.SetParseState(il.Tuple(text, pos))),
+                          il.SetParseState(il.Tuple(text, p)),
+                          cont(il.GetItem(text, pos))),
+                        il.Return(il.failcont(NONE))),
+                  il.RaiseTypeError(x)))))
+  elif isinstance(arg, il.String):
+    return il.Begin((
+      il.AssignFromList(text, pos, il.parse_state),
+      il.Assign(length, il.Len(text)),
+      il.if2(il.Ge(pos, length), il.Return(il.failcont(FALSE))),
+      il.if2(il.and_(il.Ne(il.GetItem(text, pos), il.String('_')),
+                     il.Not(il.Cle(il.String('a'), il.GetItem(text, pos), il.String('z'))), 
+                     il.Not(il.Cle(il.String('A'), il.GetItem(text, pos), il.String('Z')))), 
+             il.Return(il.failcont(FALSE))),
+      il.Assign(p, il.add(pos, il.Integer(1))),
+      il.while_(il.And(il.Lt(p, length), 
+                      il.or_(il.Eq(il.GetItem(text, pos), il.String('_')),
+                            il.Cle(il.String('a'), il.GetItem(text, p), il.String('z')), 
+                            il.Cle(il.String('A'),il.GetItem(text, p),il.String('Z')),
+                            il.Cle(il.String('0'),il.GetItem(text, p),il.String('9')))), 
+               il.AddAssign(p, il.Integer(1))),
+      il.If(il.Eq(arg, il.GetItem(text, il.Slice2(pos, p))),
+            il.begin(il.append_failcont(compiler, 
+              il.SetParseState(il.Tuple(text, pos))),
+              il.SetParseState(il.Tuple(text, p)),
+              cont(arg)),
+            il.Return(il.failcont(NONE)))
+    ))
+  else:
+    raise CompileTypeError
+  
+@special
+def integer(compiler, cont, arg):
+  '''integer'''
+  text = compiler.new_var(il.LocalVar('text'))
+  pos = compiler.new_var(il.LocalVar('pos'))
+  p = compiler.new_var(il.LocalVar('p'))
+  length = compiler.new_var(il.LocalVar('length'))
+  if isinstance(arg, Var):
+    arg = arg.interlang()
+    x = compiler.new_var(il.LocalVar('x'))
+    return il.Begin((
+      il.AssignFromList(text, pos, il.parse_state),
+      il.Assign(length, il.Len(text)),
+      il.if2(il.Ge(pos, length), il.Return(il.failcont(FALSE))),
+      il.if2(il.Not(il.Cle(il.String('0'), il.GetItem(text, pos), il.String('9'))),
+             il.Return(il.failcont(FALSE))),
+      il.Assign(p, il.add(pos, il.Integer(1))),
+      il.while_(il.And(il.Lt(p, length), 
+                      il.Cle(il.String('0'),il.GetItem(text, p),il.String('9'))), 
+               il.AddAssign(p, il.Integer(1))),
+      il.Assign(x, il.Deref(arg)),
+      il.If(il.IsLogicVar(x),
+            il.begin(il.SetParseState(il.Tuple(text, p)),
+                           il.SetBinding(x, il.GetItem(text, il.Slice2(pos, p))),
+                           il.append_failcont(compiler, 
+                              il.SetParseState(il.Tuple(text, pos)),
+                              il.DelBinding(x)),
+                           il.Return(cont(il.GetItem(text, pos)))),
+            il.If(il.Isinstance(x, il.String('str')),
+                  il.If(il.Eq(x, il.GetItem(text, il.Slice2(pos, p))),
+                        il.begin(il.append_failcont(compiler, 
+                          il.SetParseState(il.Tuple(text, pos))),
+                          il.SetParseState(il.Tuple(text, p)),
+                          cont(il.GetItem(text, pos))),
+                        il.Return(il.failcont(NONE))),
+                  il.RaiseTypeError(x)))))
+  elif isinstance(arg, il.String):
+    return il.Begin((
+      il.AssignFromList(text, pos, il.parse_state),
+      il.Assign(length, il.Len(text)),
+      il.if2(il.Ge(pos, length), il.Return(il.failcont(FALSE))),
+      il.if2(il.Not(il.Cle(il.String('0'), il.GetItem(text, pos), il.String('9'))),
+             il.Return(il.failcont(FALSE))),
+      il.Assign(p, il.add(pos, il.Integer(1))),
+      il.while_(il.And(il.Lt(p, length), 
+                      il.Cle(il.String('0'),il.GetItem(text, p),il.String('9'))), 
+               il.AddAssign(p, il.Integer(1))),
+      il.If(il.Eq(arg, il.GetItem(text, il.Slice2(pos, p))),
+            il.begin(il.append_failcont(compiler, 
+              il.SetParseState(il.Tuple(text, pos))),
+              il.SetParseState(il.Tuple(text, p)),
+              cont(arg)),
+            il.Return(il.failcont(NONE)))
+    ))
+  else:
+    raise CompileTypeError
+  
+@special
+def literal(compiler, cont, arg):
+  '''any given instance string'''
+  text = compiler.new_var(il.LocalVar('text'))
+  pos = compiler.new_var(il.LocalVar('pos'))
+  p = compiler.new_var(il.LocalVar('p'))
+  x = compiler.new_var(il.LocalVar('x'))
+  char = compiler.new_var(il.LocalVar('char'))
+  length = compiler.new_var(il.LocalVar('length'))  
+  if isinstance(arg, Var):
+    return il.Begin((
+      il.Assign(x, il.Deref(arg)),
+      il.AssignFromList(text, pos, il.parse_state),
+      il.Assign(length, il.Len(text)),
+      il.Assign(p, pos),
+      il.For(char, x, 
+        il.if2(il.Ge(p, il.Len(text)), il.Return(il.failcont(NONE))),
+        il.if2(il.Ne(char, il.GetItem(text, p)),  il.Return(il.failcont(NONE))),
+        il.AddAssign(p, il.Integer(1))),
+      il.begin(il.append_failcont(compiler, 
+        il.SetParseState(il.Tuple(text, pos))),
+        il.SetParseState(il.Tuple(text, p)),
+        cont(arg))
+    ))
+  elif isinstance(arg, il.String):
+    return il.Begin((
+      il.AssignFromList(text, pos, il.parse_state),
+      il.Assign(length, il.Len(text)),
+      il.Assign(p, pos),
+      il.for_(char, arg, 
+        il.if2(il.Ge(p, il.Len(text)), il.Return(il.failcont(NONE))),
+        il.if2(il.Ne(char, il.GetItem(text, p)),  il.Return(il.failcont(NONE))),
+        il.AddAssign(p, il.Integer(1))),
+      il.begin(il.append_failcont(compiler, 
+        il.SetParseState(il.Tuple(text, pos))),
+        il.SetParseState(il.Tuple(text, p)),
+        cont(arg))
+    ))
+  else:
+    raise CompileTypeError
+    
 '''
 @matcher()
 def chs0(solver, char):
@@ -549,23 +722,6 @@ dqstring = quote_string('"', 'doublequotestring')
 sqstring = quote_string("'", 'singlequotestring')
 
 @matcher()
-def integer(solver,  arg0): 
-  text, pos = solver.parse_state
-  length = len(text)
-  if pos>=length: return
-  if not '0'<=text[pos]<='9': return
-  p = pos
-  while p<length: 
-    char = text[p]
-    if not '0'<=char<='9': break
-    p += 1
-  val = eval(text[pos:p])
-  for _ in unify(arg0, val, solver.env):
-    solver.parse_state = text, p
-    yield cont,  True
-    solver.parse_state = text, pos
-
-@matcher()
 def float(solver,  arg0): 
   text, pos = solver.parse_state
   length = len(text)  
@@ -585,32 +741,5 @@ def float(solver,  arg0):
     solver.parse_state = text, pos
 
 number = float
-
-@matcher()
-def literal(solver,  arg0):
-  'any given instance string'
-  arg0 = deref(arg0, solver.env)
-  text, pos = solver.parse_state
-  if text[pos:].startswith(arg0):
-    solver.parse_state = text, pos+len(arg0)
-    yield cont,  True
-    solver.parse_state = text, pos
-    
-@matcher()
-def identifier(solver, arg):
-  'underline or letter lead, follow underline, letter or digit' 
-  text, pos = solver.parse_state
-  length = len(text)
-  if pos>=length: return
-  if text[pos]!='_' and not 'a'<=text[pos]<='z' and not 'A'<=text[pos]<='Z': 
-    return
-  p = pos+1
-  while p<length and (text[p]=='_' or 'a'<=text[p]<='z' or 'A'<=text[p]<='Z'
-                       '0'<=text[p]<='9'): 
-    p += 1
-  for _ in unify(arg, text[pos:p], solver.env):
-    solver.parse_state = text, p
-    yield cont,  text[pos:p]
-    solver.parse_state = text, pos
 
 '''
