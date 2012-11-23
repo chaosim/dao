@@ -54,35 +54,60 @@ def char(compiler, cont, argument):
   # elif isinstance(argument, il.LogicVar) #how about this? It should be include above.
   else: raise CompileTypeError(argument)
 
+@special
+def word(compiler, cont, arg):
+  'word of letters'
+  text = compiler.new_var(il.LocalVar('text'))
+  pos = compiler.new_var(il.LocalVar('pos'))
+  p = compiler.new_var(il.LocalVar('p'))
+  if isinstance(arg, Var):
+    x = compiler.new_var(il.LocalVar('x'))
+    return il.Begin((
+      il.AssignFromList(text, pos, il.parse_state),
+      il.Assign(length, il.Len(text)),
+      il.If2(il.Ge(pos, length), il.Return(il.failcont(FALSE))),
+      IL.If2(il.And(il.Not(il.Cle('a', il.GetItem(text, pos), 'z')), 
+                   il.Not(il.Cle('A', il.GetItem(text, pos), 'Z'))), 
+             il.Return(il.failcont(FALSE))),
+      il.Assign(p, il.add(pos, 1)),
+      il.While(il.And(il.Gt(p, length), il.Or(il.Cge('a', text[p], 'z'), il.Cge('A',text[p],'Z'))), il.AddAssign(p, 1)),
+      il.Assign(x, il.Deref(arg)),
+      il.If(il.IsLogicVar(x),
+            il.begin(il.SetParseState(il.Tuple(text, p)),
+                           il.SetBinding(x, il.GetItem(text, il.Slice2(pos, p))),
+                           il.append_failcont(compiler, 
+                              il.SetParseState(il.Tuple(text, pos)),
+                              il.DelBinding(x)),
+                           il.Return(cont(il.GetItem(text, pos)))),
+            il.If(il.Isinstance(x, 'str'),
+                  il.If(il.Eq(x, il.GetItem(text, il.Slice2(pos, p))),
+                        il.begin(il.append_failcont(compiler, 
+                          il.SetParseState(il.Tuple(text, pos))),
+                          il.SetParseState(il.Tuple(text, p)),
+                          cont(il.GetItem(text, pos))),
+                        il.Return(il.failcont(NONE))),
+                  il.RaiseTypeError(x)))))
+  elif isinstance(arg, str):
+    return il.Begin((
+      il.AssignFromList(text, pos, il.parse_state),
+      il.Assign(length, il.Len(text)),
+      il.If2(il.Ge(pos, length), il.Return(il.failcont(FALSE))),
+      IL.If2(il.And(il.Not(il.Cle('a', il.GetItem(text, pos), 'z')), 
+                   il.Not(il.Cle('A', il.GetItem(text, pos), 'Z'))), 
+             il.Return(il.failcont(FALSE))),
+      il.Assign(p, il.add(pos, 1)),
+      il.While(il.And(il.Gt(p, length), il.Or(il.Cge('a', text[p], 'z'), il.Cge('A',text[p],'Z'))), il.AddAssign(p, 1)),
+      il.If(il.Eq(arg, il.GetItem(text, il.Slice2(pos, p))),
+            il.begin(il.append_failcont(compiler, 
+              il.SetParseState(il.Tuple(text, pos))),
+              il.SetParseState(il.Tuple(text, p)),
+              cont(il.GetItem(text, pos))),
+            il.Return(il.failcont(NONE)))
+    ))
+  else:
+    raise CompileTypeError
+  
 '''
-@matcher()
-def char2(solver, argument): 
-  char = deref(argument, solver.env)
-  text, pos = solver.parse_state
-  if pos==len(text): return
-  if text[pos]==char: 
-    solver.parse_state = text, pos+1
-    yield cont,  char
-    solver.parse_state = text, pos
-
-@matcher()
-def char3(solver): 
-  text, pos = solver.parse_state
-  if pos==len(text): return
-  solver.parse_state = text, pos+1
-  yield cont, text[pos]
-  solver.parse_state = text, pos
-
-@matcher()
-def ch(solver, char):
-  'one char'
-  text, pos = solver.parse_state
-  if pos==len(text): return
-  if text[pos]==char: 
-    solver.parse_state = text, pos+1
-    yield cont,  char
-    solver.parse_state = text, pos
-
 @matcher()
 def chs0(solver, char):
   '0 or more char'
@@ -105,13 +130,6 @@ def chs(solver, char):
     solver.parse_state = text, p
     yield cont, text[pos:p]
     solver.parse_state = text, pos
-
-@matcher()
-def Eoi(solver):
-  'end of parse_state'
-  if solver.parse_state[1]>=len(solver.parse_state[0]): 
-    yield cont,  True
-eoi = Eoi()
 
 @matcher()
 def lead_chars(solver, chars):
@@ -595,18 +613,4 @@ def identifier(solver, arg):
     yield cont,  text[pos:p]
     solver.parse_state = text, pos
 
-@matcher()
-def word(solver, arg):
-  'word of letters' 
-  text, pos = solver.parse_state
-  length = len(text)
-  if pos>=length: return
-  if not 'a'<=text[pos]<='z' and not 'A'<=text[pos]<='Z': 
-    return
-  p = pos+1
-  while p<length and ('a'<=text[p]<='z' or 'A'<=text[p]<='Z'): p += 1
-  for _ in unify(arg, text[pos:p], solver.env):
-    solver.parse_state = text, p
-    yield cont,  text[pos:p]
-    solver.parse_state = text, pos
 '''

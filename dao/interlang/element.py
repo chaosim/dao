@@ -28,7 +28,7 @@ class Element(base.Element):
   def to_code_if_in_lambda_body(self, coder):
     return self.to_code(coder)
   
-  def replace_return_yield(self, klass):
+  def replace_return_with_yield(self):
     return self
   
   def __eq__(x, y):
@@ -80,10 +80,10 @@ class Atom(Element):
   def trampoline(self):
     return self
   
-  def insert_return_yield(self, klass):
+  def insert_return_statement(self, klass):
     return klass(self)
   
-  def replace_return_yield(self, klass):
+  def replace_return_with_yield(self):
     return klass(self)
   
   def pythonize_exp(self, env, compiler):
@@ -203,7 +203,7 @@ class Assign(Element):
   def optimization_analisys(self, data):  
     self.exp.optimization_analisys(data)
   
-  def insert_return_yield(self, klass):
+  def insert_return_statement(self, klass):
     return begin(self, klass(None))
   
   def code_size(self):
@@ -280,11 +280,11 @@ class Return(Element):
   def to_code(self, coder):
     return  'return %s' % ', '.join([x.to_code(coder) for x in self.args])
   
-  def insert_return_yield(self, klass):
+  def insert_return_statement(self, klass):
     return klass(*self.args)
   
-  def replace_return_yield(self, klass):
-    return klass(*self.args)
+  def replace_return_with_yield(self):
+    return Yield(*self.args)
   
   def __eq__(x, y):
     return classeq(x, y) and x.args==y.args
@@ -296,7 +296,7 @@ class Yield(Return):
   def to_code(self, coder):
     return  'yield %s' % ', '.join([x.to_code(coder) for x in self.args])
 
-  def insert_return_yield(self, klass):
+  def insert_return_statement(self, klass):
     return self
   
   def __repr__(self):
@@ -355,17 +355,17 @@ class If(Element):
                                              #result.then, result.else_))
     return result, changed or test_changed or then_changed or else__changed
 
-  def insert_return_yield(self, klass):
+  def insert_return_statement(self, klass):
     result = If(self.test, 
-              self.then.insert_return_yield(klass), 
-              self.else_.insert_return_yield(klass))
+              self.then.insert_return_statement(klass), 
+              self.else_.insert_return_statement(klass))
     result.is_statement = True
     return result
   
-  def replace_return_yield(self, klass):
+  def replace_return_with_yield(self):
     result = If(self.test, 
-              self.then.replace_return_yield(klass), 
-              self.else_.replace_return_yield(klass))
+              self.then.replace_return_with_yield(), 
+              self.else_.replace_return_with_yield())
     result.is_statement = True
     return result
   
@@ -407,10 +407,10 @@ class PseudoElse(Atom):
   def code_size(self):
     return 0
   
-  def insert_return_yield(self, klass):
+  def insert_return_statement(self, klass):
     return self
   
-  def replace_return_yield(self, klass):
+  def replace_return_with_yield(self):
     return self
   
   def __eq__(x, y):
@@ -466,13 +466,12 @@ class Begin(Element):
       changed = changed or x_changed
     return begin(*tuple(result)), changed
         
-  def insert_return_yield(self, klass):
-    replaced = tuple(exp.replace_return_yield(klass) for exp in self.statements[:-1])
-    inserted = self.statements[-1].insert_return_yield(klass)
-    return Begin(replaced+(inserted,))
+  def insert_return_statement(self, klass):
+    inserted = self.statements[-1].insert_return_statement(klass)
+    return Begin(self.statements[:-1]+(inserted,))
   
-  def replace_return_yield(self, klass):
-    return Begin(tuple(exp.replace_return_yield(klass) for exp in self.statements))
+  def replace_return_with_yield(self):
+    return Begin(tuple(exp.replace_return_with_yield() for exp in self.statements))
   
   def pythonize_exp(self, env, compiler):
     return pythonize_exps(self.statements, env, compiler)

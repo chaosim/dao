@@ -7,6 +7,8 @@ DummyVar, println
 settext -> set_text
 set_sequence, parse, parse_sequence, eoi, boi, step, skip, goto, next_element/next_char, position, left, subtext, subsequence
 
+process inserting yield and return better.
+
 2012-11-22
 rules, cut, cut_or finished 
 

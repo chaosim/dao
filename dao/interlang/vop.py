@@ -94,7 +94,7 @@ class BinaryOperationApply(Apply):
     args, changed2 = optimize_once_args(self.args, data)
     return self.__class__(caller, args), changed1 or changed2
 
-  def insert_return_yield(self, klass):
+  def insert_return_statement(self, klass):
     return klass(self)
   
   def pythonize_exp(self, env, compiler):
@@ -154,10 +154,10 @@ class VirtualOperation(Element):
   def optimize_once(self, data):
     return self, False
   
-  def insert_return_yield(self, klass):
+  def insert_return_statement(self, klass):
     return klass(self)
   
-  def replace_return_yield(self, klass):
+  def replace_return_with_yield(self):
     return self
   
   def pythonize_exp(self, env, compiler):
@@ -200,10 +200,10 @@ def vop(name, arity, code_format):
   return Vop
 
 class VirtualOperation2(VirtualOperation):
-  def insert_return_yield(self, klass):
+  def insert_return_statement(self, klass):
     return self
   
-  def replace_return_yield(self, klass):
+  def replace_return_with_yield(self):
     return self
     
 def vop2(name, arity, code_format):

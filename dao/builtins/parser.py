@@ -42,11 +42,11 @@ def parse(compiler, cont, predicate, parse_state):
                                 cont(v))))
 
 @special
-def parse_sequence(compiler, cont, predicate, parse_state):
+def parse_sequence(compiler, cont, predicate, sequence):
   old_parse_state = compiler.new_var(il.LocalVar('old_parse_state'))
   v = compiler.new_var(il.LocalVar('v'))
   return il.begin(il.Assign(old_parse_state, il.parse_state),
-                   il.SetParseState(il.Tuple(sequence, il.Integer(0))),
+                  il.SetParseState(il.Tuple(sequence, il.Integer(0))),
                   il.append_failcont(compiler, il.SetParseState(old_parse_state)),
                   predicate.cps_convert(compiler, 
                       il.clamda(v, 

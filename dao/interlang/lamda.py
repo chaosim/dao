@@ -108,7 +108,7 @@ class Lamda(Element):
       else:
         return optimize(self.body, data), True
   
-  def insert_return_yield(self, klass):
+  def insert_return_statement(self, klass):
     return klass(self)
   
   def pythonize_exp(self, env, compiler):
@@ -120,12 +120,8 @@ class Lamda(Element):
     if not body_has_any_statement:
       return (self.new(self.params, begin(*body_exps)),), False
     else:
-      #if not body_exps[-1].is_statement:
-        #body_exps = body_exps[:-1]+(Return(body_exps[-1]),)
-      #name = compiler.new_var(LocalVar('function'))
-      #return (Function(name, self.params, begin(*body_exps)), name), True
       name = compiler.new_var(LocalVar('function'))
-      body = begin(*body_exps).insert_return_yield(Return)
+      body = begin(*body_exps).insert_return_statement(Return)
       return (Function(name, self.params, body), name), True 
     
   def to_code(self, coder):
@@ -177,7 +173,7 @@ class Function(Lamda):
     if not body_exps[-1].is_statement:
       body_exps = body_exps[:-1] + (Return(body_exps[-1]),)
     else:
-      body_exps = body_exps[:-1] + (body_exps[-1].insert_return_yield(Return),)
+      body_exps = body_exps[:-1] + (body_exps[-1].insert_return_statement(Return),)
     return (self.new(self.params, begin(*body_exps)), self.name), True
     
   def to_code(self, coder):
@@ -336,11 +332,11 @@ class Apply(Element):
       args, changed2 = optimize_once_args(self.args, data)
       return self.__class__(caller, args), changed1 or changed2
 
-  def insert_return_yield(self, klass):
+  def insert_return_statement(self, klass):
     return klass(self)
   
-  def replace_return_yield(self, klass):
-    return klass(self)
+  def replace_return_with_yield(self):
+    return self
   
   def pythonize_exp(self, env, compiler):
     exps, has_statement = self.caller.pythonize_exp(env, compiler)
@@ -391,11 +387,11 @@ class Var(Element):
   def optimize_once(self, data):
     return self, False
       
-  def insert_return_yield(self, klass):
+  def insert_return_statement(self, klass):
     return klass(self)
   
-  def replace_return_yield(self, klass):
-    return klass(self)
+  def replace_return_with_yield(self):
+    return self
   
   def pythonize_exp(self, env, compiler):
     return (self,), False

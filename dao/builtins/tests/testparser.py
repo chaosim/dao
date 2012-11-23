@@ -8,9 +8,9 @@ from dao.builtins import fail, or_, and_, not_p, cut
 from dao.builtins import add
 from dao.builtins import set_text, parse_text, unify_parse_text
 from dao.builtins import step, next_char, position, goto, skip, left, subtext
-from dao.builtins import char#, integer, eoi, literal, letter, digit 
+from dao.builtins import char, eoi#, integer, eoi, literal, letter, digit 
 #from dao.builtins import dqstring, sqstring, unify_tabspaces, unify_whitespaces, uLetterdigitString
-from dao.builtins import may #nullword, optional, parallel
+from dao.builtins import may, nullword#, optional, parallel
 from dao.builtins import any#, some, times, times_more, times_less, seplist
 from dao.builtins import lazy#, times_between
 #from dao.builtins import contain
@@ -64,13 +64,16 @@ class TestParameterize:
 class Testterminal:
   def test_char(self):
     eq_(eval(parse_text(char('a'), 'a')), 'a')
+    
   def test_nullword1(self):
-    eq_(eval(parse_text(char('a')&nullword&char('b'), 'ab')), 'b')    
+    eq_(eval(parse_text(begin(char('a'), nullword, char('b')), 'ab')), 'b')
+    
   def testnullword2(self):
-    assert_raises(NoSolution, eval, parse_text(and_p(nullword, eoi), 'a')) 
+    assert_raises(NoSolution, eval, parse_text(and_(nullword, eoi), 'a')) 
     eq_(eval(parse_text(nullword, '')), True)
+    
   def testnullword3(self):
-    rule = and_p(char('a'), nullword, char('b'))
+    rule = and_(char('a'), nullword, char('b'))
     eq_(eval(parse_text(rule, 'ab')), 'b')
     assert_raises(NoSolution, eval, parse_text(rule, 'a b'))
     assert_raises(NoSolution, eval, parse_text(rule, 'a'))
