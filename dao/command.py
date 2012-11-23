@@ -127,6 +127,19 @@ class Special(Command):
 
 special = Special
 
+def quasiquote_args(self, args):
+  if not args: yield ()
+  elif len(args)==1: 
+    for x in self.quasiquote(args[0]):
+      try: yield x.unquote_splice
+      except: yield (x,)
+  else:
+    for x in self.quasiquote(args[0]):
+      for y in self.quasiquote_args(args[1:]):
+        try: x = x.unquote_splice
+        except: x = (x,)
+        yield x+y
+          
 class CommandCall(il.Element): 
   def __init__(self, function, args):
     self.function, self.args = function, args
@@ -134,6 +147,20 @@ class CommandCall(il.Element):
   def subst(self, bindings):
     return self.__class__(self.function, 
                  tuple(arg.subst(bindings) for arg in self.args))
+  
+  def quasiquote(self, compiler, cont):
+    result = compiler.new_var(il.LocalVar('result'))
+    vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(self.args)))
+    body = (il.Assign(result, il.empty_list),)+tuple(
+      il.If(il.Isinstance(var, il.Klass('UnquoteSplice')),
+                  il.AddAssign(result, il.Attr(var, il.Symbol('item'))),
+                  il.ListAppend(result, var),
+                  ) for var in vars)+(
+      cont(il.Call(il.Klass(self.__class__.__name__), il.QuoteItem(self.function), il.MakeTuple(result))),)
+    fun = il.begin(*body)
+    for var, arg in reversed(zip(vars, self.args)):
+      fun = arg.quasiquote(compiler, il.clamda(var, fun))
+    return fun
     
   def __eq__(x, y):
     return classeq(x, y) and x.function==y.function and x.args==y.args
@@ -178,6 +205,13 @@ class BuiltinFunctionCall(CommandCall):
     for var, arg in reversed(zip(vars, args)):
       fun = arg.cps_convert(compiler, il.Clamda(var, fun))
     return fun
+
+  def optimization_analisys(self, data):
+    # unquote to interlang level
+    return
+  
+  def to_code(self, coder):
+    return 'BuiltinFunctionCall(%s, (%s))'%(repr(self.function), ', '.join([x.to_code(coder) for x in self.args]))
      
   def __repr__(self):
     return '%s(%s)'%(self.function.name, ', '.join([repr(x) for x in self.args]))

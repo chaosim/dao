@@ -47,6 +47,9 @@ class Atom(Element):
   def cps_convert(self, compiler, cont):
     return cont(self)
     
+  def quasiquote(self, compiler, cont):
+    return cont(self)
+   
   def vars(self):
     return set()
   
@@ -108,12 +111,41 @@ class Expression(Atom):
     #return 'Expression(%s)'%self.value.to_code(coder)
     return '%s'%self.value.to_code(coder)
   
-class Integer(Atom): pass
-class Float(Atom): pass
-class String(Atom): pass
-class List(Atom): pass
-class Bool(Atom): pass
+class Integer(Atom): 
+  def __eq__(x, y):
+    return Atom.__eq__(x, y) or (isinstance(y, int) and x.value==y)
+  
+class Float(Atom): 
+  def __eq__(x, y):
+    return Atom.__eq__(x, y) or (isinstance(y, float) and x.value==y)
+  
+class String(Atom): 
+  def __eq__(x, y):
+    return Atom.__eq__(x, y) or (isinstance(y, str) and x.value==y)
+  
+class List(Atom): 
+  def __eq__(x, y):
+    return Atom.__eq__(x, y) or (isinstance(y, list) and x.value==y)
+  
+class Bool(Atom): 
+  def __eq__(x, y):
+    return Atom.__eq__(x, y) or (isinstance(y, bool) and x.value==y)
+  
 
+class Symbol(Atom): 
+  def to_code(self, coder):
+    return self.value
+  def __eq__(x, y):
+    return classeq(x, y) and x.value==y.value
+    
+
+class Klass(Atom):
+  def to_code(self, coder):
+    return self.value
+  
+  def __repr__(self):
+    return 'il.Klass(%s)'%(self.value)
+  
 TRUE = Bool(True)
 FALSE = Bool(False)
 NONE = Atom(None)

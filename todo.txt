@@ -11,9 +11,11 @@ todo: more builtin
   done: eval(done), callcc(done), callfc(coded, but not tested), 
   done: block(done), catch/throw(done), unwind-protect(done)
   done: findall
-  todo: rules(done mostly)
-    todo: cut
+  done: rules(done mostly)
+    done: cut
+  doing: lisp style's quasiquote/unquote/splice_unquote
   todo: marco
+  todo: dummy variable
   todo: module
   todo: parser builtin
 

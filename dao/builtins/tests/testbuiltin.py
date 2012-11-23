@@ -163,31 +163,35 @@ class XTestStringConstruct:
              [L("a", "b")])
   def test_findall_string_concat2(self):
     eq_(eval(begin(findall(concat(x, y, "abc"), L(x, y), z), z)), 
-             [L("a", "bc"), L("ab", "c")])
-    
+             [L("a", "bc"), L("ab", "c")])    
 
 #from dao.builtins.term import copy_term
 class XTestTermConstruct:
   def test_copy_term(self):
     eq_(eval(begin(copy_term(L("abc", 1), x), x)), L("abc", 1))
-    
-#from dao.builtins.quasiquote import quasiquote, unquote, unquote_splice
-class XTestQuasiquote:
+
+from dao.builtins.quasiquote import DaoSyntaxError
+from dao.builtins import quasiquote as qq, unquote as uq, unquote_splice as uqs
+
+class TestQuasiquote:
   def test_simple1(self):
-    eq_(eval(quasiquote(1)), 1)
+    eq_(eval(qq(1)), 1)
+    
   def test_unquote1(self):
-    eq_(eval(quasiquote(unquote(add(1,1)))), 2)
-  def test_unquote_slice1(self):
-    assert_raises(DaoSyntaxError, eval, quasiquote(unquote_splice(add(1,1))))
+    eq_(eval(qq(uq(add(1,1)))), 2)
+    
   def test_tuple1(self):
-    eq_(eval(quasiquote((1,))), (1,))
-    #eq_(eval(quasiquote((1,2))), (1,2))
-    #eq_(eval(quasiquote((add(1,1),2))), ((add,1,1),2))
+    eq_(eval(qq((1,))), (1,))
+    eq_(eval(qq((1,2))), (1,2))
+    eq_(eval(qq((add(1,1),2))), (add(1,1),2))
+    
   def test_unquote_add(self):
-    eq_(eval(quasiquote((unquote(add(1,1)),2))), (2,2))
+    eq_(eval(qq(uq(add(1,1)))), 2)
+    
   def test_unquote_slice(self):
-    eq_(eval(quasiquote((unquote(add(1,1)),unquote_splice(quote((3,4)))))), (2,3,4))
+    eq_(eval(qq(add(uqs(quote((3,4)))))), add(3, 4))
+    
   def test_too_many_unquote(self):
-   assert_raises(DaoSyntaxError, eval, quasiquote((unquote(unquote(add(1,1))),2)))
+    assert_raises(DaoSyntaxError, eval, qq(uq(uq(add(1,1)))))
    
   

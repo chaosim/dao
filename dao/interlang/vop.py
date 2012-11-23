@@ -225,6 +225,7 @@ def AssignFromList_to_code(self, coder):
   return "%s = %s" % (', '.join([x.to_code(coder) for x in self.args[:-1]]), 
                       self.args[-1].to_code(coder))
 AssignFromList = vop2('AssignFromList', -1, AssignFromList_to_code)
+AddAssign = vop2('AddAssign', 2, '%s += %s')
 Isinstance = vop('Isinstance', 2, "isinstance(%s, %s)")
 EmptyList = vop('empty_list', 0, '[]')
 empty_list = EmptyList()
@@ -235,6 +236,15 @@ SetExitBlockContMap = vop2('SetExitBlockContMap', 2, 'solver.exit_block_cont_map
 SetContinueBlockContMap = vop2('SetContinueBlockContMap', 2, 'solver.continue_block_cont_map[%s] = %s')
 GetExitBlockCont = vop('GetExitBlockCont', 1, 'solver.exit_block_cont_map[%s]')
 GetContinueBlockCont = vop('GetContinueBlockCont', 1, 'solver.continue_block_cont_map[%s]')
+def Call_to_code(self, coder):
+  return '%s(%s)'%(self.args[0].to_code(coder), ', '.join([x.to_code(coder) for x in self.args[1:]]))  
+Call = vop('Call', -1, Call_to_code)
+def QuoteItem_to_code(self, coder):
+  return '%s'%repr(self.args[0])
+QuoteItem = vop('QuoteItem', 1, QuoteItem_to_code)
+UnquoteSplice = vop('UnquoteSplice', 1, "UnquoteSplice(%s)")
+Attr = vop('Attr', 2, '%s.%s')
+MakeTuple = vop('MakeTuple', 1, 'tuple(%s)')
 
 PopCatchCont = vop('PopCatchCont', 1, "solver.pop_catch_cont(%s)")
 FindCatchCont = vop('FindCatchCont', 1, "solver.find_catch_cont(%s)")

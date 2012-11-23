@@ -1,7 +1,10 @@
 details of history:
 
+2012-11-23
+quasiquote/backquote
+
 2012-11-22
-rules finished 
+rules, cut, cut_or finished 
 
 fix bug:
 def callcc(compiler, cont, function):

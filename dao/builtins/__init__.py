@@ -10,6 +10,8 @@ from control import succeed, fail, not_p, or_, findall, first_p, cut, cut_or, re
 
 from term import unify, LogicVar
 
+from quasiquote import quasiquote, unquote, unquote_splice
+
 from matcher import may, any, lazy, nongreedy, greedy
 
 from parser import set_parse_state, parse_state, settext

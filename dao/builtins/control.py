@@ -120,7 +120,10 @@ def findall(compiler, cont, goal, template=NONE, bag=None):
             il.ListAppend(result, il.GetValue(template)),
             il.failcont(v)))
         )
-  
+
+#findall:
+  #findall goal: goal, fail
+    
 # infinite recursive, maxizism recursive level
 # solutions: trampoline
 @special

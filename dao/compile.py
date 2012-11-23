@@ -18,6 +18,9 @@ prelude = '''# -*- coding: utf-8 -*-
 # from dao.interlang import Expression
 from dao.command import LogicVar as DaoLogicVar
 from dao.solvebase import Solver, deref, LogicVar
+from dao.solvebase import UnquoteSplice
+from dao.command import BuiltinFunctionCall
+from dao import interlang as il
 
 solver = Solver()
 

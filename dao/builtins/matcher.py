@@ -46,6 +46,18 @@ def any(item, mode=nongreedy):
   if mode==greedy: return _greedy_any(item)
   elif mode==nongreedy: return _any(item)
   else: return _lazy_any(item)
+
+#any
+  #item: item, any(item)
+  #item: succeed
+  
+#greedy_any:
+  #item: item, cut, greedy_any(item)
+  #item: succeed
+
+#lazy_any:
+  #item: succeed
+  #item: item, lazy_any(item)
   
 @special
 def _any(compiler, cont, item):
@@ -59,7 +71,16 @@ def _any(compiler, cont, item):
                   cont(v))),
                 item.cps_convert(compiler, any_cont))(TRUE)
 
-  
+@special
+def _any2(compiler, cont, item, result, template):
+  todo_for_expriment_macro_expand
+  result2 = compiler.new_var(Var('result2'))
+  macro_expanded = begin(assign(result2, empty_list), 
+               _any(begin(item, 
+                          logic_list_append(result2, getvalue(template)), 
+                          unify(result, result2))))
+  return expanded.cps_convert(compiler, cont)
+
 @special
 def _lazy_any(compiler, cont, item):
   fcont = compiler.new_var(il.LocalVar('fcont'))
@@ -77,6 +98,15 @@ def _lazy_any(compiler, cont, item):
     lazy_any_cont(TRUE))
                              
 @special
+def _any2(compiler, cont, item, result, template):
+  result2 = compiler.new_var(Var('result2'))
+  macro_expanded = begin(assign(result2, empty_list), 
+               _lazy_any(begin(item, 
+                          logic_list_append(result2, getvalue(template)), 
+                          unify(result, result2))))
+  return expanded.cps_convert(compiler, cont)
+
+@special
 def _greedy_any(compiler, cont, item):
   fcont = compiler.new_var(il.LocalVar('fcont'))
   greedy_any_fcont = compiler.new_var(il.LocalVar('greedy_any_fcont'))
@@ -90,3 +120,13 @@ def _greedy_any(compiler, cont, item):
         il.SetFailCont(greedy_any_fcont),
          cps_convert(compiler, item, greedy_any_cont)),
     greedy_any_cont(TRUE))
+
+@special
+def _greedy_any2(compiler, cont, item, result, template):
+  result2 = compiler.new_var(Var('result2'))
+  macro_expanded = begin(assign(result2, empty_list), 
+               _greedy_any(begin(item, 
+                          logic_list_append(result2, getvalue(template)), 
+                          unify(result, result2))))
+  return expanded.cps_convert(compiler, cont)
+

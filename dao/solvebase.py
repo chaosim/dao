@@ -74,6 +74,13 @@ class LogicVar(object):
   def __repr__(self):
     return "%s"%self.name 
 
+class UnquoteSplice:
+  def __init__(self, item):
+    self.item = item
+  
+  def __repr__(self):
+    return ',@%s'%self.item
+
 class Solver:
   def __init__(self, end_cont=None):
     if end_cont is None:
