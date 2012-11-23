@@ -9,7 +9,7 @@ from dao.command import Var, LogicVar
 from dao.builtins import quote, assign, begin, if_
 from dao.builtins import not_p, fail, succeed, or_, cut
 from dao.builtins import unify, lamda, let, letrec
-from dao.builtins import settext, char, eoi, any
+from dao.builtins import set_text, char, eoi, any
 from dao.builtins import add, eq, sub, mul
 from dao.builtins import eval_, callcc
 from dao.builtins import block, exit_block, continue_block
@@ -95,14 +95,14 @@ class TestControl:
     eq_(eval(begin(unify(1, 1), unify(2, 2))), True)
     
   def test_parse(self):
-    eq_(eval(begin(settext('abcde'), char('a'))), 'a')
+    eq_(eval(begin(set_text('abcde'), char('a'))), 'a')
     
   def test_parse2(self):
-    eq_(eval(begin(settext('a'), char('a'), eoi)), True)
-    assert_raises(NoSolution, eval, begin(settext('ab'), char('a'), eoi))
+    eq_(eval(begin(set_text('a'), char('a'), eoi)), True)
+    assert_raises(NoSolution, eval, begin(set_text('ab'), char('a'), eoi))
     
   def test_parse3(self):
-    eq_(eval(begin(settext('aaa'), any(char('a')), eoi)), True)
+    eq_(eval(begin(set_text('aaa'), any(char('a')), eoi)), True)
     
   #def testif_add_sub(self):
     #eq_(eval(if_(0, add, sub)(1, 1)), 0)

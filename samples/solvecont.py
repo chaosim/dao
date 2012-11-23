@@ -52,10 +52,10 @@ def deref(item, bindings):
 
 (begin, print_, if_, quote,
  succeed, fail, and_, or_, findall, not_, unify,
- settext, char, eoi, any, lazy_any, greedy_any) = (
+ set_text, char, eoi, any, lazy_any, greedy_any) = (
   'begin', 'print', 'if', 'quote',
   'succeed', 'fail', 'and', 'or', 'findall', "not", "unify",
- 'settext', 'char', 'eoi', 'any', 'lazy any', 'greedy any')
+ 'set_text', 'char', 'eoi', 'any', 'lazy any', 'greedy any')
 
 def solve(exp):
   solver = Solver()
@@ -191,14 +191,14 @@ class Solver:
         if x==y: return cont(True)
         else: return fc(False)
       
-      elif exp[0]==settext:
+      elif exp[0]==set_text:
         fc = self.fcont
         old_parse_state = self.parse_state
         self.parse_state =  exp[1], 0
-        def settext_fcont(v):
+        def set_text_fcont(v):
           self.parse_state = old_parse_state
           return fc(v)
-        self.fcont = settext_fcont
+        self.fcont = set_text_fcont
         return cont(None)
         
       elif exp[0]==eoi:

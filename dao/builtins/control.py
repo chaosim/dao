@@ -48,18 +48,6 @@ def or_(*clauses):
   else:
     return or2(clauses[0], or_(*clauses[1:]))
   
-#@special
-#def or2(compiler, cont, clause1, clause2):
-  #v = compiler.new_var(v0)
-  #v1 = compiler.new_var(v0)
-  #cut_or_cont = compiler.new_var(il.LocalVar('cut_or_cont'))
-  #or_cont = il.clamda(v, il.SetCutOrCont(cut_or_cont), cont(v))
-  #return il.begin(
-    #il.Assign(cut_or_cont, il.cut_or_cont),
-    #il.SetCutOrCont(il.failcont),  
-    #il.SetFailCont(il.clamda(v1, clause2.cps_convert(compiler, or_cont))),
-    #clause1.cps_convert(compiler, or_cont))
-
 @special
 def or2(compiler, cont, clause1, clause2):
   v = compiler.new_var(v0)

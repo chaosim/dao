@@ -53,6 +53,7 @@ sub = BinaryOperation('sub', '-', False)
 mul = BinaryOperation('mul', '*', False)
 div = BinaryOperation('div', '/', False)
 in_ = BinaryOperation('in', 'in', False)
+IsNot = BinaryOperation('is_not', 'is not', False)
 
 class BinaryOperationApply(Apply):
   is_statement = False
@@ -213,13 +214,8 @@ def vop2(name, arity, code_format):
   Vop.is_statement = True
   return Vop
 
-class GetItem(Element):
-  arity = 2
-  
-  def __repr__(self):
-    return '%r[%r]'%(self.args)
-
 GetItem = vop('GetItem', 2, '(%s)[%s]')  
+Slice2 = vop('Slice2', 2, '%s:%s')
 Not = vop('Not', 1, "not %s")
 def AssignFromList_to_code(self, coder):
   return "%s = %s" % (', '.join([x.to_code(coder) for x in self.args[:-1]]), 
@@ -290,7 +286,14 @@ ParseState = vop('parse_state', 0, 'solver.parse_state')
 parse_state = ParseState()
 
 new_logicvar = vop('new_logicvar', 1, 'solver.new_logicvar(%s)')
-Prin = vop2('Prin', 1, 'print %s,')
+
+def Prin_to_code(self, coder):
+  return 'print %s,'%', '.join([x.to_code(coder) for x in self.args])
+Prin = vop2('Prin', -1, Prin_to_code)
+
+def Print_to_code(self, coder):
+  return 'print %s'%', '.join([x.to_code(coder) for x in self.args])
+PrintLn = vop2('PrintLn', -1, Print_to_code)
 
 def binary_to_code(self, coder):
   return '(%s) %s (%s)'%(self.args[0].to_code(coder), 

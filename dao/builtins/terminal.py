@@ -13,19 +13,10 @@ from dao.interlang import TRUE, FALSE, NONE
 v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
 @special
-def Eoi(compiler, cont):
-  '''end of parse_state'''
-  return il.If(il.Eq(il.GetItem(il.parse_state, il.Integer(1)), 
-                     il.Len(il.GetItem(il.parse_state, il.Integer(0)))),
-          cont(TRUE),
-          il.failcont(FALSE))
-    
-eoi = Eoi()
-
-@special
 def char(compiler, cont, argument):
   #v = compiler.new_var(v0)
-  text, pos = il.LocalVar('text'), il.LocalVar('pos')
+  text = compiler.new_var(il.LocalVar('text'))
+  pos = compiler.new_var(il.LocalVar('pos'))
   if isinstance(argument, il.String):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),

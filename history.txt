@@ -3,6 +3,10 @@ details of history:
 2012-11-23
 quasiquote/backquote
 
+DummyVar, println
+settext -> set_text
+set_sequence, parse, parse_sequence, eoi, boi, step, skip, goto, next_element/next_char, position, left, subtext, subsequence
+
 2012-11-22
 rules, cut, cut_or finished 
 

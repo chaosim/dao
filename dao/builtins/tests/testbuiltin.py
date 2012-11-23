@@ -8,7 +8,7 @@ from dao.builtins.special import *
 from dao.builtins.arith import eq, sub, mul, add, div
 from dao.builtins.control import succeed, fail, or_, and_, not_p, cut_or#, repeat
 from dao.builtins.control import findall#, call, once
-from dao.builtins.parser import settext
+from dao.builtins.parser import set_text
 from dao.builtins.terminal import char
 from dao.builtins.term import unify#, notunify
 from dao.builtins.io import prin #write, 
@@ -44,12 +44,12 @@ class TestControl:
   def xtest_repeat(self):
     return
     # the code below loops for ever, after modifie the behaviour of solver.parse_state and terminals.
-    eq_(eval(and_p(settext('123'), repeat, char(x), unify(x, '3'))), True)
+    eq_(eval(and_p(set_text('123'), repeat, char(x), unify(x, '3'))), True)
     
   def xtest_repeat2(self):
     return
     # the code below loops for ever.
-    eq_(eval(and_p(settext('123'), repeat, char(x), unify(x, '4'))), True) 
+    eq_(eval(and_p(set_text('123'), repeat, char(x), unify(x, '4'))), True) 
     
   def xtest_if_p(self):
     from dao.builtins.control import if_p

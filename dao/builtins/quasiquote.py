@@ -18,9 +18,8 @@ class Quasiquote(CommandCall):
   def cps_convert(self, compiler, cont):
     return self.item.quasiquote(compiler, cont)
       
-  #just don't need, same as in base_class.quasiquote.
   def quasiquote(self, compiler, cont):
-     return cont(self)
+    return cont(self)
    
   def __repr__(self):
     return ',@%s'%repr(self.item)

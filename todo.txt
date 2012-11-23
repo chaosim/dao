@@ -13,9 +13,9 @@ todo: more builtin
   done: findall
   done: rules(done mostly)
     done: cut
-  doing: lisp style's quasiquote/unquote/splice_unquote
-  todo: marco
+  done: lisp style's quasiquote/unquote/splice_unquote
   todo: dummy variable
+  todo: marco
   todo: module
   todo: parser builtin
 

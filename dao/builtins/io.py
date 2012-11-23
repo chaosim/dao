@@ -20,6 +20,7 @@ from dao.command import BuiltinFunction
   #return file.readlines()
 
 prin = BuiltinFunction(il.Prin)
+println = BuiltinFunction(il.PrintLn)
 
 #@builtin.function()
 #def println(*args):

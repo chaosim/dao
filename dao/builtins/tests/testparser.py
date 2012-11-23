@@ -1,30 +1,22 @@
 from nose.tools import eq_, assert_raises
 
-from dao.term import Var, DummyVar, Cons, nil, conslist as L, vars
-from dao.solve import eval, preparse, NoSolutionFound, to_sexpression, make_solver
-from dao.special import function, let, letr, macro, begin, eval_
+from dao.command import Var, DummyVar
+from dao.solve import eval
+from dao.solvebase import NoSolution
+from dao.builtins import rules, let, letrec, begin, eval_
+from dao.builtins import fail, or_, and_, not_p, cut
+from dao.builtins import add
+from dao.builtins import set_text, parse_text, unify_parse_text
+from dao.builtins import step, next_char, position, goto, skip, left, subtext
+from dao.builtins import char#, integer, eoi, literal, letter, digit 
+#from dao.builtins import dqstring, sqstring, unify_tabspaces, unify_whitespaces, uLetterdigitString
+from dao.builtins import may #nullword, optional, parallel
+from dao.builtins import any#, some, times, times_more, times_less, seplist
+from dao.builtins import lazy#, times_between
+#from dao.builtins import contain
+from dao.builtins import println
 
-from dao.builtins.control import fail, or_p, and_p, not_p, cut
-from dao.builtins.arith import add
-from dao.builtins.parser import set_text, parse_text
-from dao.builtins.parser import step, left, next_char, position, subtext, goto, skip
-from dao.builtins.terminal import char, integer, eoi, literal, letter, digit 
-from dao.builtins.terminal import dqstring, sqstring, unify_tabspaces, unify_whitespaces, uLetterdigitString
-from dao.builtins.matcher import nullword, optional, parallel
-from dao.builtins.matcher import any, some, times, times_more, times_less, seplist
-from dao.builtins.matcher import lazy, times_between
-from dao.builtins.container import contain
-from dao.builtins.io import println
-
-from dao.util import *
-
-from dao.solve import set_run_mode, noninteractive
-set_run_mode(noninteractive)
-
-def eval(exp):
-  exp = preparse(exp)
-  sexp = to_sexpression(exp)
-  return make_solver().eval(sexp)
+from dao.tests.util import *
 
 class TestLowLevelPrimitive:
   def test_step(self):
@@ -44,7 +36,10 @@ class TestLowLevelPrimitive:
   def test_skip(self):
     eq_(eval(begin(set_text('abcde'), goto(2), next_char())), 'c')
   def test_goto(self):
-    eq_(eval(begin(set_text('abcde'), goto(1))), 'bcde')
+    eq_(eval(begin(set_text('abcde'), goto(1))), 'b')
+  def test_unify_parse_text(self):
+    eq_(eval(begin(set_text('abcde'), unify_parse_text(x), x)), 'abcde')
+    eq_(eval(begin(set_text('abcde'), unify_parse_text('abcde'))), True)
 
 class TestParameterize:
   def test_chars(self):
@@ -72,13 +67,13 @@ class Testterminal:
   def test_nullword1(self):
     eq_(eval(parse_text(char('a')&nullword&char('b'), 'ab')), 'b')    
   def testnullword2(self):
-    assert_raises(NoSolutionFound, eval, parse_text(and_p(nullword, eoi), 'a')) 
+    assert_raises(NoSolution, eval, parse_text(and_p(nullword, eoi), 'a')) 
     eq_(eval(parse_text(nullword, '')), True)
   def testnullword3(self):
     rule = and_p(char('a'), nullword, char('b'))
     eq_(eval(parse_text(rule, 'ab')), 'b')
-    assert_raises(NoSolutionFound, eval, parse_text(rule, 'a b'))
-    assert_raises(NoSolutionFound, eval, parse_text(rule, 'a'))
+    assert_raises(NoSolution, eval, parse_text(rule, 'a b'))
+    assert_raises(NoSolution, eval, parse_text(rule, 'a'))
     
   def test_number(self):
     x, y, z = Var('y'), Var('x'), Var('z')
@@ -88,7 +83,7 @@ class Testterminal:
     
   def test_literal(self):
     eq_(eval(parse_text(literal('if'), 'if')), True)
-    assert_raises(NoSolutionFound, eval, parse_text(literal('if'), 'ssf'))
+    assert_raises(NoSolution, eval, parse_text(literal('if'), 'ssf'))
 
   def test_string(self):
     x ,y  = Var('x'), Var('y')
@@ -117,7 +112,7 @@ class Testrule:
     eq_(eval(letr([(f,function1)], 
                parse_text(f(),'b'), parse_text(f(),'ab'), parse_text(f(),'aab'))), 
         'b')
-    assert_raises(NoSolutionFound, eval, letr([(f,function1)], parse_text(f(), 'a')))
+    assert_raises(NoSolution, eval, letr([(f,function1)], parse_text(f(), 'a')))
     
   def test_right_recursive2(self):
     x, p = Var('x'), Var('p')
@@ -125,7 +120,7 @@ class Testrule:
                      ((),char(x))))]
     eq_(eval(letr(function1, parse_text(p(),'a'), parse_text(p(),'ab'), parse_text(p(),'abc'))),
         'c')
-    assert_raises(NoSolutionFound, eval, letr(function1, parse_text(p(), '')))
+    assert_raises(NoSolution, eval, letr(function1, parse_text(p(), '')))
 
   def test_unify_right_recursive(self):
     x, p = Var('x'), Var('p')
@@ -133,8 +128,8 @@ class Testrule:
                           ((x,),char(x))))]
     eq_(eval(letr(function1, parse_text(p(x), 'aa'))), 'a')
     eq_(eval(letr(function1, parse_text(p(x), 'a'))), 'a')
-    assert_raises(NoSolutionFound, eval, letr(function1, parse_text(and_p(p(x), eoi), 'xy')))
-    assert_raises(NoSolutionFound, eval, letr(function1, parse_text(p(x), '')))
+    assert_raises(NoSolution, eval, letr(function1, parse_text(and_p(p(x), eoi), 'xy')))
+    assert_raises(NoSolution, eval, letr(function1, parse_text(p(x), '')))
     
   def xxxtest_left_recursive(self):
     assert 0, 'a good idea is waiting to be implemented'
@@ -157,21 +152,21 @@ class TestOr:
                 (two, function( (('2',),char('2'))))]
     eq_(eval(letr(ruleList, parse_text(s(x), '1'))), '1')
     eq_(eval(letr(ruleList, parse_text(s(y),  '2'))), '2')         
-    assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(s(x), '3')))
-    assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(and_p(s(x), eoi), '12')))
-    assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(s(x), '')))
+    assert_raises(NoSolution, eval, letr(ruleList, parse_text(s(x), '3')))
+    assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(s(x), eoi), '12')))
+    assert_raises(NoSolution, eval, letr(ruleList, parse_text(s(x), '')))
 
 class TestOptional:
   def test_optional(self):
     x = Var('x')
-    assert_raises(NoSolutionFound, eval, preparse(parse_text(~char(x)+char('1'), '1')))
+    assert_raises(NoSolution, eval, preparse(parse_text(~char(x)+char('1'), '1')))
     eq_(eval(parse_text(optional(char(x)), '1')), '1')
     eq_(eval(parse_text(optional(char(x)), '')), True)
 
   def testoptionalRule(self):
     x, s = Var('x'), Var('s')
     ruleList =[(s, function( ((x,), and_p(~char('a'),char(x)))))]
-    assert_raises(NoSolutionFound, eval, let(ruleList, parse_text(s(x), 'a'), x))
+    assert_raises(NoSolution, eval, let(ruleList, parse_text(s(x), 'a'), x))
     eq_(eval(let(ruleList, parse_text(s(x),  'aa'), x)), 'a')         
     eq_(eval(let(ruleList, parse_text(s(x),  'b'), x)), 'b')
     
@@ -187,13 +182,13 @@ class TestOptional:
     ruleList = [(s, function( ((x,), and_p(-char('a'), cut, char(x)))))]
     eq_(eval(let(ruleList, parse_text(s(x),  'aa'), x)), 'a')         
     eq_(eval(let(ruleList, parse_text(s(x),  'b'), x)), 'b') 
-    assert_raises(NoSolutionFound, eval, let(ruleList, parse_text(s(x), 'a'), x))
+    assert_raises(NoSolution, eval, let(ruleList, parse_text(s(x), 'a'), x))
     
 class TestParallel:
   def test_parallel(self):
     x = Var('x')
     eq_(eval(parse_text(parallel(letter(x), char(x)), 'a')), 'a')
-    assert_raises(NoSolutionFound, eval, parse_text(parallel(integer(x), char('3')), '2'))
+    assert_raises(NoSolution, eval, parse_text(parallel(integer(x), char('3')), '2'))
     
   def testparallelRule(self):
     x, s, gt, lt = Var('x'), Var('s'), Var('>'), Var('<')
@@ -201,9 +196,9 @@ class TestParallel:
                 (gt,function( ((4, 3),char('4')))),
                 (lt,function( ((4, 5),char('4'))))]
     eq_(eval(letr(ruleList, parse_text(s(x), '4'), x)), 4)
-    assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(s(x), '6'), x))
-    assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(and_p(s(x), eoi), '41'), x))
-    assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(s(x), ''), x))
+    assert_raises(NoSolution, eval, letr(ruleList, parse_text(s(x), '6'), x))
+    assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(s(x), eoi), '41'), x))
+    assert_raises(NoSolution, eval, letr(ruleList, parse_text(s(x), ''), x))
         
 class TestAnySomeTimesSepList:
   def test_any_some(self):
@@ -226,24 +221,24 @@ class TestAnySomeTimesSepList:
     X, Y = Var('X'), Var('Y')
     eq_(eval(begin(parse_text(some(char(X), X, Y), '222'), Y)), ['2','2','2'])
     eq_(eval(begin(parse_text(some(char(X), X, Y), '234'), Y)), ['2'])
-    assert_raises(NoSolutionFound, eval, begin(parse_text(some(char(X), X, Y), ''), Y))
+    assert_raises(NoSolution, eval, begin(parse_text(some(char(X), X, Y), ''), Y))
   def test_some2(self):
     X = Var('X')
     eq_(eval(parse_text(and_p(some( char(X)),char('4')), '224')), '4')
     eq_(eval(parse_text(and_p(some(char(X)), cut, char('4')), '224')), '4')
-    assert_raises(NoSolutionFound, eval, parse_text(and_p(some(char(X)), char('3'), char('5')), '2234'))
+    assert_raises(NoSolution, eval, parse_text(and_p(some(char(X)), char('3'), char('5')), '2234'))
   def test_some3(self):
     eq_(eval(parse_text(some(or_p(char('1'),char('2'))), '2')), True)
   def test_dumy_some(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(begin(parse_text(some(char(_), _, Y), '222'), Y)), ['2','2','2'])
     eq_(eval(begin(parse_text(some(char(_), _, Y), '234'), Y)),['2', '3', '4'])
-    assert_raises(NoSolutionFound, eval, begin(parse_text(some(char(_), _, Y), ''), Y))
+    assert_raises(NoSolution, eval, begin(parse_text(some(char(_), _, Y), ''), Y))
     
   def test_times(self):
     X, Y = Var('X'), Var('Y')
     eq_(eval(begin(parse_text(times(char(X), 3, X, Y), '222'), Y)), ['2','2','2'])
-    assert_raises(NoSolutionFound, eval, parse_text(times(char(X), 3, X, Y), '2234'))
+    assert_raises(NoSolution, eval, parse_text(times(char(X), 3, X, Y), '2234'))
   def test_dummy_times(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(begin(parse_text(times(char(_), 3, _, Y), '234'), Y)), ['2','3','4'])
@@ -251,13 +246,13 @@ class TestAnySomeTimesSepList:
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(begin(parse_text((times_more,char(_), 3, _, Y), '234'), Y)), ['2','3','4'])
     eq_(eval(begin(parse_text((times_more,char(_), 3, _, Y), '2345'), Y)), ['2','3','4', '5'])
-    assert_raises(NoSolutionFound, eval, begin(parse_text(times_more(char(_), 3, _, Y), '23'), Y))
+    assert_raises(NoSolution, eval, begin(parse_text(times_more(char(_), 3, _, Y), '23'), Y))
   def test_dummy_times_less(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(preparse(begin(parse_text(times_less(char(_), 3, _, Y)+char('4'), '234'), Y))), ['2','3'])
     eq_(eval(begin(parse_text(times_less(char(_), 3, _, Y), '234'), Y)), ['2','3','4'])
     eq_(eval(begin(parse_text(times_less(char(_), 3, _, Y), '23'), Y)), ['2','3'])
-    assert_raises(NoSolutionFound, eval, preparse(begin(parse_text(times_less(char(_), 3, _, Y)+eoi, '2345'), Y)))
+    assert_raises(NoSolution, eval, preparse(begin(parse_text(times_less(char(_), 3, _, Y)+eoi, '2345'), Y)))
   def test_dummy_times_less_lazy(self):
     _, Y = DummyVar('_'), Var('Y')
     eq_(eval(preparse(begin(parse_text(times_less(char(_), 3, _, Y, lazy)+char('4'), '234'), Y))), ['2','3'])
@@ -266,14 +261,14 @@ class TestAnySomeTimesSepList:
     eq_(eval(begin(parse_text(times_between(char(_), 2, 3, _, Y), '234'), Y)), ['2','3', '4'])
     eq_(eval(begin(parse_text(times_between(char(_), 2, 3, _, Y), '23'), Y)), ['2','3'])
     eq_(eval(begin(parse_text(times_between(char(_), 2, 3, _, Y), '2345'), Y)), ['2','3', '4'])
-    assert_raises(NoSolutionFound, eval, begin(parse_text(times_between(char(_), 2, 3, _, Y), '2'), Y))
-    assert_raises(NoSolutionFound, eval, begin(parse_text((and_p, times_between(char(_), 2, 3, _, Y), eoi), '2345'), Y))
+    assert_raises(NoSolution, eval, begin(parse_text(times_between(char(_), 2, 3, _, Y), '2'), Y))
+    assert_raises(NoSolution, eval, begin(parse_text((and_p, times_between(char(_), 2, 3, _, Y), eoi), '2345'), Y))
   def test_times_a2(self): 
     X, Y, S = Var('X'), Var('Y'), Var('S')
     function1 = function(((Y,), times(char('a'), 2, 'a', Y)))
     eq_(eval(begin(parse_text(function1(X),'aa'), X)), ['a', 'a'])
-    assert_raises(NoSolutionFound, eval, begin(parse_text(function1(X), 'a'), X))
-    assert_raises(NoSolutionFound, eval, begin(parse_text(and_p(function1(X), eoi), 'aaa'), X))
+    assert_raises(NoSolution, eval, begin(parse_text(function1(X), 'a'), X))
+    assert_raises(NoSolution, eval, begin(parse_text(and_p(function1(X), eoi), 'aaa'), X))
   def test_times_an(self): 
     X, Y, S, n = Var('X'), Var('Y'), Var('S'), Var('n')
     function1 = function( ((Y,), times(char('a'), n, 'a', Y)))
@@ -302,8 +297,8 @@ class TestKleeneByfunction:
                   ((nil,), nullword)))]
     eq_(eval(letr(ruleList, parse_text(s(x), 'aa'), x)), L('a', 'a'))
     eq_(eval(letr(ruleList, parse_text(s(x), ''), x)), nil)
-    assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(and_p(s(x), eoi), '6'), x))
-    assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(and_p(s(x), eoi), '41'), x))
+    assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(s(x), eoi), '6'), x))
+    assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(s(x), eoi), '41'), x))
 
   def testKleene2(self):
     x, c, s, kleene = Var('x'), Var('c'), Var('s'), Var('kleene')
@@ -315,9 +310,9 @@ class TestKleeneByfunction:
     eq_(eval(letr(ruleList, parse_text(s(x), 'aaa'), x)), L('a', 'a', 'a'))
     eq_(eval(letr(ruleList, parse_text(s(x), 'bbb'), x)), L('b', 'b', 'b'))
     eq_(eval(letr(ruleList, parse_text(s(x), ''), x)), nil)
-    assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(and_p(s(x), eoi), 'aab'), x))
-    assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(and_p(s(x), eoi), 'abc'), x))
-    assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(and_p(s(x), eoi), '41'), x))
+    assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(s(x), eoi), 'aab'), x))
+    assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(s(x), eoi), 'abc'), x))
+    assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(s(x), eoi), '41'), x))
 
   def testKleene3(self):
     x, c, kleene = Var('x'), Var('c'), Var('kleene')
@@ -388,11 +383,11 @@ class TestExpression:
     eq_(eval(letr(ruleList, parse_text(E(e, 1),  '1/1/1'), e)), (1, '/', (1, '/', 1)))
     eq_(eval(letr(ruleList, parse_text(E(e, 1),  '1/1'), e)), (1, '/', 1))
     eq_(eval(letr(ruleList, parse_text(E(e, 1),  '1'), e)), 1)
-    assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(and_p(E(e, 1), eoi), '1+1/1'), e))
-    assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(and_p(E(e, 1), eoi), '2'), e))
-    assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(and_p(E(e, 1), eoi), '1/'), e))
-    assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(and_p(E(e, 1), eoi), '/'), e))
-    assert_raises(NoSolutionFound, eval, letr(ruleList, parse_text(and_p(E(e, 1), eoi), ''), e))
+    assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(E(e, 1), eoi), '1+1/1'), e))
+    assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(E(e, 1), eoi), '2'), e))
+    assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(E(e, 1), eoi), '1/'), e))
+    assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(E(e, 1), eoi), '/'), e))
+    assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(E(e, 1), eoi), ''), e))
 
 class TestLeftRecursive:          
   def testDirectLeftRecursive(self):

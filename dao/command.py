@@ -94,7 +94,17 @@ class LogicVar(Var):
   
   def __eq__(x, y):
     return classeq(x, y) and x.name==y.name
+  
+class DummyVar(Var):
+  def interlang(self):
+    return il.DummyVar(self.name)
+  
+  def cps_convert(self, compiler, cont):
+    return cont(il.Deref(il.DummyVar(self.name)))
 
+  def to_code(self, coder):
+    return "DaoDummyVar('%s')"%self.name
+  
 class Apply(Element):
   def __init__(self, caller, args):
     self.caller, self.args = caller, args
