@@ -1,5 +1,20 @@
 details of history:
 
+2012-11-24
+split builtins\special.py to define.py+special.py
+
+fix bug: 
+  when calling function rules directly, missed evaluating the arguments.
+fix bug: 
+  unify(x, y), y.interlang() was called too early, so LogicVar become il.LogicVar, 
+  and LogicVar.cps_convert disappeared.
+
+big bug:
+  eval_ is not correct except quote.
+  fix: 
+    exp.cps_convert(compiler, cont)..cps_convert(compiler, cont) -->
+    exp.cps_convert(compiler, il.clamda(v, cont(eval_exp(compiler, v))))
+
 2012-11-23
 quasiquote/backquote
 

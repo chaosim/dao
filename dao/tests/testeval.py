@@ -7,13 +7,13 @@ from dao.solve import eval
 from dao.command import Var, LogicVar
 
 from dao.builtins import quote, assign, begin, if_
-from dao.builtins import not_p, fail, succeed, or_, cut
-from dao.builtins import unify, lamda, let, letrec
+from dao.builtins import unify, not_p, fail, succeed, or_, cut
+from dao.builtins import lamda, let, letrec, rules, macro
 from dao.builtins import set_text, char, eoi, any
 from dao.builtins import add, eq, sub, mul
 from dao.builtins import eval_, callcc
 from dao.builtins import block, exit_block, continue_block
-from dao.builtins import catch, throw, unwind_protect, rules
+from dao.builtins import catch, throw, unwind_protect
 from dao.builtins import prin
 
 from dao.solvebase import NoSolution
@@ -64,6 +64,14 @@ class TestControl:
     x = Var('x')
     eq_(eval(let([(x,1)], eval_(quote(x)))), 1)
     
+  def testeval3(self):
+    x = Var('x')
+    eq_(eval(let([(x, quote(1))], eval_(x))), 1)
+    
+  def testeval4(self):
+    x = Var('x')
+    eq_(eval(let([(x, quote(add(1,1)))], eval_(x))), 2)
+    
   def test_callcc(self):
     k = Var('k')
     eq_(eval(add(callcc(lamda((k,), k(1))),2)), 3)
@@ -83,7 +91,7 @@ class TestControl:
     
   def test_unify(self):
     x = Var('x')
-    Lx = LogicVar('$x')
+    Lx = LogicVar('x')
     assert_raises(NoSolution, eval, begin(unify(Lx, 1), unify(Lx,2)))
     eq_(eval(let([(x,1)], unify(x,1))), True)
     eq_(eval(unify(Lx,1)), True)
@@ -206,7 +214,7 @@ class TestLispConstruct:
 
 class TestRules:
   def test1(self):
-    x = LogicVar('$x')
+    x = LogicVar('x')
     eq_(eval(rules([[1], 1],[[x],x])(2)), 2) 
     eq_(eval(rules([[1], 1])(1)), 1) 
     eq_(eval(rules([[1], 1],[[2],2])(2)), 2) 
@@ -215,13 +223,14 @@ class TestRules:
   def testdouble(self):
     x = Var('x')
     eq_(eval(rules([[x], add(x, x)])(2)), 4)
+    eq_(eval(rules([[x], x])(add(2, 2))), 4)
     
-  def testdouble2(self):
+  def testdouble3(self):
     f = Var('f')
     x = Var('x')
     eq_(eval(let([(f, rules([[x], add(x, x)]))], f(1))), 2) 
-    assert_raises(NoSolution, eval, let([(f, rules([[x], add(x, x)]))], f(1, 2)))
-    eq_(eval(let([(f, rules([[x], add(x, x)]))], f(f(1)))), 4) 
+    #assert_raises(NoSolution, eval, let([(f, rules([[x], add(x, x)]))], f(1, 2)))
+    #eq_(eval(let([(f, rules([[x], add(x, x)]))], f(f(1)))), 4) 
     
   def test_embed_var1(self):
     e, f = Var('e'), Var('f')
@@ -333,16 +342,24 @@ class TestCut:
       (d, rules([[3], 'd3']))],
       start(x), x)), 3)
     
-class XTestMacro:
+class TestMacro:
   def test1(self):
     eq_(eval(macro([[], prin(1)])()), None) 
     
+  def test2(self):
+    x = Var('x')
+    eq_(eval(macro([[x], x])(prin(1))), None) 
+    
   def test_eval(self):
+    x, y = Var('x'), Var('y')
     eq_(eval(macro([[x, y], eval_(x)],
-                   [[x, y],eval_(y)])(prin(1), prin(2))), None) 
+                   [[x, y], eval_(y)])(prin(1), prin(2))), None) 
+    
   def test_or_p(self):
+    x, y = Var('x'), Var('y')
     eq_(eval(macro([[x, y], x],
-                   [[x, y],y])(prin(1), prin(2))), None) 
+                   [[x, y], y])(prin(1), prin(2))), None) 
+    
   def test_closure1(self):
     eq_(eval(let([(f, macro([[x], prin(eval_(x))])),
                   (x, 1)],
@@ -358,9 +375,7 @@ class XTestMacro:
   def test_closure4(self):
     eq_(eval(let([(f, macro([[x], x])),
                   (x, 1)],
-             f(x+x))), 2) 
-  def test4(self):
-    eq_(eval(macro([[x], x])(prin(1))), None) 
+             f(x+x))), 2)
     
 class XTestModule:
   def testbindings(self):

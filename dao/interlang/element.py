@@ -80,11 +80,11 @@ class Atom(Element):
   def trampoline(self):
     return self
   
-  def insert_return_statement(self, klass):
-    return klass(self)
+  def insert_return_statement(self):
+    return Return(self)
   
   def replace_return_with_yield(self):
-    return klass(self)
+    return self
   
   def pythonize_exp(self, env, compiler):
     return (self,), False
@@ -94,6 +94,10 @@ class Atom(Element):
   
   def to_code(self, coder):
     return repr(self.value) 
+  
+  def free_vars(self):
+    return set()
+  
   
   def __eq__(x, y):
     return classeq(x, y) and x.value==y.value
@@ -203,8 +207,8 @@ class Assign(Element):
   def optimization_analisys(self, data):  
     self.exp.optimization_analisys(data)
   
-  def insert_return_statement(self, klass):
-    return begin(self, klass(None))
+  def insert_return_statement(self):
+    return begin(self, Return(NONE))
   
   def code_size(self):
     return code_size(self.exp)+2
@@ -280,11 +284,11 @@ class Return(Element):
   def to_code(self, coder):
     return  'return %s' % ', '.join([x.to_code(coder) for x in self.args])
   
-  def insert_return_statement(self, klass):
-    return klass(*self.args)
+  def insert_return_statement(self):
+    return Return(*self.args)
   
   def replace_return_with_yield(self):
-    return Yield(*self.args)
+    return Begin((Yield(*self.args), Return()))
   
   def __eq__(x, y):
     return classeq(x, y) and x.args==y.args
@@ -296,7 +300,7 @@ class Yield(Return):
   def to_code(self, coder):
     return  'yield %s' % ', '.join([x.to_code(coder) for x in self.args])
 
-  def insert_return_statement(self, klass):
+  def insert_return_statement(self):
     return self
   
   def __repr__(self):
@@ -355,10 +359,10 @@ class If(Element):
                                              #result.then, result.else_))
     return result, changed or test_changed or then_changed or else__changed
 
-  def insert_return_statement(self, klass):
+  def insert_return_statement(self):
     result = If(self.test, 
-              self.then.insert_return_statement(klass), 
-              self.else_.insert_return_statement(klass))
+              self.then.insert_return_statement(), 
+              self.else_.insert_return_statement())
     result.is_statement = True
     return result
   
@@ -407,7 +411,7 @@ class PseudoElse(Atom):
   def code_size(self):
     return 0
   
-  def insert_return_statement(self, klass):
+  def insert_return_statement(self):
     return self
   
   def replace_return_with_yield(self):
@@ -420,6 +424,64 @@ class PseudoElse(Atom):
     return 'il.pseudo_else'
 
 pseudo_else = PseudoElse()
+
+class Try(Element):
+  def __init__(self, test, body):
+    self.test, self.body = test, body
+    
+  def assign_convert(self, env, compiler):
+    return Try(self.test.assign_convert(env, compiler), 
+                 self.body.assign_convert(env, compiler))
+
+  def find_assign_lefts(self):
+    return self.body.find_assign_lefts()
+  
+  def optimization_analisys(self, data):  
+    self.test.optimization_analisys(data)
+    self.body.optimization_analisys(data)
+    
+  def code_size(self):
+    return 3 + self.test.code_size() + \
+           self.body.code_size()
+  
+  def side_effects(self):
+    return not self.test.side_effects() and\
+           not self.body.side_effects()
+    
+  def subst(self, bindings):  
+    return Try(self.test.subst(bindings),
+              self.body.subst(bindings))
+    
+  def optimize_once(self, data):
+    return self, False
+
+  def insert_return_statement(self):
+    result = Try(self.test, 
+              self.body.insert_return_statement())
+    result.is_statement = True
+    return result
+  
+  def replace_return_with_yield(self):
+    result = Try(self.test, 
+              self.body.replace_return_with_yield())
+    result.is_statement = True
+    return result
+  
+  def pythonize_exp(self, env, compiler):
+    test, has_statement1 = self.test.pythonize_exp(env, compiler)
+    body, has_statement2 = self.body.pythonize_exp(env, compiler)
+    result = Try(test[-1], begin(*body))
+    return test[:-1]+(result,), True
+    
+  def to_code(self, coder):
+    return 'try:\n%s\nexcept:\n%s\n' % (coder.indent(self.test.to_code(coder)), 
+                                  coder.indent(self.body.to_code(coder)))
+           
+  def __eq__(x, y):
+    return classeq(x, y) and x.test==y.test and x.body==y.body
+  
+  def __repr__(self):
+    return 'il.Try(%r, %r)'%(self.test, self.body)
 
 def while_(test, *exps):
   return While(element(test), begin(*[x for x in exps]))
@@ -454,9 +516,9 @@ class While(Element):
   def optimize_once(self, data):
     return self, False
 
-  def insert_return_statement(self, klass):
+  def insert_return_statement(self):
     result = While(self.test, 
-              self.body.insert_return_statement(klass))
+              self.body.insert_return_statement())
     result.is_statement = True
     return result
   
@@ -518,8 +580,8 @@ class For(Element):
   def optimize_once(self, data):
     return self, False
 
-  def insert_return_statement(self, klass):
-    return For(self.var, self.range, self.body.insert_return_statement(klass))
+  def insert_return_statement(self):
+    return For(self.var, self.range, self.body.insert_return_statement())
   
   def replace_return_with_yield(self):
     return For(self.var, self.range, self.body.replace_return_with_yield())
@@ -539,7 +601,7 @@ class For(Element):
     return classeq(x, y) and x.var==y.var and x.range==y.range and x.body==y.body
   
   def __repr__(self):
-    return 'il.For(%r, %r)'%(self.var, self.range, self.body)
+    return 'il.For(%r, %r, %r)'%(self.var, self.range, self.body)
 
 def begin(*exps):
   assert isinstance(exps, tuple)
@@ -570,6 +632,9 @@ class Begin(Element):
       result |= exp.find_assign_lefts()
     return result
   
+  def side_effects(self):
+    return True
+  
   def optimization_analisys(self, data):  
     for x in self.statements:
       x.optimization_analisys(data)  
@@ -586,8 +651,8 @@ class Begin(Element):
       changed = changed or x_changed
     return begin(*tuple(result)), changed
         
-  def insert_return_statement(self, klass):
-    inserted = self.statements[-1].insert_return_statement(klass)
+  def insert_return_statement(self):
+    inserted = self.statements[-1].insert_return_statement()
     return Begin(self.statements[:-1]+(inserted,))
   
   def replace_return_with_yield(self):
@@ -608,7 +673,8 @@ class Begin(Element):
   def __repr__(self):
     return 'il.begin(%s)'%', '.join([repr(x) for x in self.statements])
 
-type_map = {int:Integer, float: Float, str:String, unicode: String, tuple: make_tuple, list:List, bool:Bool}
+type_map = {int:Integer, float: Float, str:String, unicode: String, 
+            tuple: make_tuple, list:List, bool:Bool, type(None): Atom}
 
 def optimize_once_args(args, data):
   changed = False

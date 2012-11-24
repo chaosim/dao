@@ -1,6 +1,8 @@
-from special import let, letrec, lamda, callcc, callfc, eval_
-from special import quote, assign, begin, if_, block, exit_block, continue_block
-from special import catch, throw, unwind_protect, rules
+from special import callcc, callfc, eval_
+from special import quote, begin, if_, block, exit_block, continue_block, Begin
+from special import catch, throw, unwind_protect
+
+from define import assign, let, letrec, lamda, rules, macro
 
 from arith import add, sub, mul, div, eq
 

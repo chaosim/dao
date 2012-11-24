@@ -2,9 +2,9 @@ from dao.base import classeq
 
 from dao.compilebase import optimize, MAX_EXTEND_CODE_SIZE, to_code_list
 from dao.compilebase import VariableNotBound, CompileTypeError
-from element import Element, Begin, Assign, begin#, element
+from element import Element, Begin, Assign, begin, Return, Yield#, element
 from lamda import Apply, optimize_once_args, Var, LocalVar, clamda
-from element import pythonize_args, FALSE
+from element import pythonize_args, FALSE, NONE
 
 #from element import Integer
 
@@ -108,8 +108,8 @@ class BinaryOperationApply(Apply):
     args, changed2 = optimize_once_args(self.args, data)
     return self.__class__(caller, args), changed1 or changed2
 
-  def insert_return_statement(self, klass):
-    return klass(self)
+  def insert_return_statement(self):
+    return Return(self)
   
   def pythonize_exp(self, env, compiler):
     exps, args, has_statement = pythonize_args(self.args, env, compiler)
@@ -168,8 +168,8 @@ class VirtualOperation(Element):
   def optimize_once(self, data):
     return self, False
   
-  def insert_return_statement(self, klass):
-    return klass(self)
+  def insert_return_statement(self):
+    return Return(self)
   
   def replace_return_with_yield(self):
     return self
@@ -214,15 +214,15 @@ def vop(name, arity, code_format):
   return Vop
 
 class VirtualOperation2(VirtualOperation):
-  def insert_return_statement(self, klass):
-    return self
+  def insert_return_statement(self):
+    return Begin((self, Return()))
   
   def replace_return_with_yield(self):
     return self
     
 def vop2(name, arity, code_format):
   class Vop(VirtualOperation2): pass
-  Vop.__name__ = name
+  Vop.__name__ = Vop.name  = name
   Vop.arity = arity
   Vop.code_format = code_format
   Vop.is_statement = True
@@ -304,6 +304,11 @@ parse_state = ParseState()
 
 new_logicvar = vop('new_logicvar', 1, 'solver.new_logicvar(%s)')
 
+Optargs = vop('Optargs', 1, '*%s')
+
+Continue = vop('Continue', 0, "continue\n")
+continue_ = Continue()
+
 def Prin_to_code(self, coder):
   return 'print %s,'%', '.join([x.to_code(coder) for x in self.args])
 Prin = vop2('Prin', -1, Prin_to_code)
@@ -346,3 +351,6 @@ def append_failcont(compiler, *exps):
                 begin(*exps),
                 fc1(FALSE)))
     ))
+
+
+Eval_exp = vop('Eval', 1, 'eval_exp(%s)')

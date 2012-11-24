@@ -19,8 +19,8 @@ from dao.command import BuiltinFunction
 #def readlines(file):
   #return file.readlines()
 
-prin = BuiltinFunction(il.Prin)
-println = BuiltinFunction(il.PrintLn)
+prin = BuiltinFunction('prin', il.Prin)
+println = BuiltinFunction('println', il.PrintLn)
 
 #@builtin.function()
 #def println(*args):

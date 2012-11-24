@@ -6,11 +6,11 @@ from dao.interlang import TRUE, FALSE, NONE
 
 v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
-add = BuiltinFunction(il.add)
-eq = BuiltinFunction(il.Eq)
-sub = BuiltinFunction(il.sub)
-mul = BuiltinFunction(il.mul)
-div = BuiltinFunction(il.div)
+add = BuiltinFunction('add', il.add)
+eq = BuiltinFunction('eq', il.Eq)
+sub = BuiltinFunction('sub', il.sub)
+mul = BuiltinFunction('mul', il.mul)
+div = BuiltinFunction('div', il.div)
 
 '''
 

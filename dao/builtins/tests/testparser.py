@@ -41,7 +41,7 @@ class TestLowLevelPrimitive:
     eq_(eval(begin(set_text('abcde'), unify_parse_text(x), x)), 'abcde')
     eq_(eval(begin(set_text('abcde'), unify_parse_text('abcde'))), True)
 
-class TestParameterize:
+class XTestParameterize:
   def test_chars(self):
     x, cs,chars = Var('x'), Var('cs'), Var('chars')
     eq_(eval(let([(chars, function(((x, cs), and_p(char(x), contain(cs, x)))))],
@@ -96,22 +96,22 @@ class Testterminal:
     eq_(eval(parse_text(literal('if'), 'if')), 'if')
     assert_raises(NoSolution, eval, parse_text(literal('if'), 'ssf'))
 
-  def test_string(self):
+  def xtest_string(self):
     x ,y  = Var('x'), Var('y')
     eq_(eval(begin(parse_text(dqstring(x), '"2"'), x)), "2")
     eq_(eval(begin(parse_text(sqstring(y), "'1'"), y)), "1")
 
-  def test_spaces(self):
+  def xtest_spaces(self):
     x ,y  = Var('x'), Var('y')
     eq_(eval(begin(parse_text(unify_tabspaces(x), ' '), x)), " ")
     eq_(eval(begin(parse_text(unify_whitespaces(y), "\r\t\n"), y)), "\r\t\n")
 
-  def test_uLetterdigit(self):
+  def xtest_uLetterdigit(self):
     x ,y  = Var('x'), Var('y')
     eq_(eval(begin(parse_text(uLetterdigitString(x), '_ad123'), x)), "_ad123")
     eq_(eval(begin(parse_text(uLetterdigitString(y), "ad1sff23"), y)), "ad1sff23")
     
-class Testrule:
+class XTestrule:
   def test_two_rule(self):
     eq_(eval(letr([(f,function( ((),char('a')),((),char('b'))))], 
                parse_text(f(),'a'), parse_text(f(), 'b'))), 
@@ -155,7 +155,7 @@ class Testrule:
     engine.run(f(X), '2')
     assert_raises(UnifyFail, engine.run, f(X), '1')
       
-class TestOr:
+class XTestOr:
   def testOr(self):
     x, s, one, two = Var('x'), Var('s'), Var('one'), Var('two')
     ruleList = [(s, function( ((x,), or_p(one(x), two(x))))),
@@ -167,7 +167,7 @@ class TestOr:
     assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(s(x), eoi), '12')))
     assert_raises(NoSolution, eval, letr(ruleList, parse_text(s(x), '')))
 
-class TestOptional:
+class XTestOptional:
   def test_optional(self):
     x = Var('x')
     assert_raises(NoSolution, eval, preparse(parse_text(~char(x)+char('1'), '1')))
@@ -195,7 +195,7 @@ class TestOptional:
     eq_(eval(let(ruleList, parse_text(s(x),  'b'), x)), 'b') 
     assert_raises(NoSolution, eval, let(ruleList, parse_text(s(x), 'a'), x))
     
-class TestParallel:
+class XTestParallel:
   def test_parallel(self):
     x = Var('x')
     eq_(eval(parse_text(parallel(letter(x), char(x)), 'a')), 'a')
@@ -211,7 +211,7 @@ class TestParallel:
     assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(s(x), eoi), '41'), x))
     assert_raises(NoSolution, eval, letr(ruleList, parse_text(s(x), ''), x))
         
-class TestAnySomeTimesSepList:
+class XTestAnySomeTimesSepList:
   def test_any_some(self):
     X, Y = Var('X'), Var('Y')
     eq_(eval(begin(parse_text(char(X)+any(~char('b')+some(char(X)))+eoi, 'abaaaa'), X)), 'a')
@@ -299,7 +299,7 @@ class TestAnySomeTimesSepList:
     eq_(eval(begin(parse_text(seplist(char(_), char(','), _, Y), '2,3,4'), Y)), ['2', '3', '4'])
     eq_(eval(begin(parse_text(seplist(char(_), char(','), _, Y), '2'), Y)), ['2'])
     
-class TestKleeneByfunction:  
+class XTestKleeneByfunction:  
   def testKleene1(self): #occurs_check
     x, s, kleene = Var('x'), Var('s'), Var('kleene')
     ruleList = [(s,function( ((x,), kleene(x)))),
@@ -351,7 +351,7 @@ class TestKleeneByfunction:
     eq_(eval(letr(ruleList, parse_text(s(x), ''), x)), nil)
 
 
-class testIndentUndent:
+class XTestIndentUndent:
   def testIndentUndent(self):
     _, n, s, line = DummyVar('_'), Var('n'), Var('s'), Var('line')
     space = char(' ')
@@ -362,7 +362,7 @@ class testIndentUndent:
     eq_(eval(letr(ruleList, parse_text(s(0),  'a\n b\n c\n'))), True)
     eq_(eval(letr(ruleList, parse_text(s(0),  'asd\n bdf\n cdfh\n'))), True)    
 
-class TestExpression:          
+class XTestExpression:          
   def testRecursiveReturnValue1(self):
     E, F, G, e, e1 = Var('E'), Var('F'), Var('G'), Var('e'), Var('e1')
     ruleList = [(E,function(((e,), F(e)))),
@@ -400,7 +400,7 @@ class TestExpression:
     assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(E(e, 1), eoi), '/'), e))
     assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(E(e, 1), eoi), ''), e))
 
-class TestLeftRecursive:          
+class XTestLeftRecursive:          
   def testDirectLeftRecursive(self):
     #assert 0, 'temporary mask'
     E = Var('E')
@@ -447,7 +447,7 @@ class TestLeftRecursive:
     eq_(eval(letr(ruleList, parse_text(A()+eoi,  'ba'))), True)
     eq_(eval(letr(ruleList, parse_text(A()+eoi,  'baa'))), True)
 
-class TestChartParsing:          
+class XTestChartParsing:          
   def testABCD(self):
     A, B, C, D = vars('A, B, C, D')
     ruleList = [(A,function(((), B()|C()))), 

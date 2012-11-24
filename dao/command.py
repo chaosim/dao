@@ -32,12 +32,12 @@ class Var(Element):
     return cont(il.Deref(il.Var(self.name)))
   
   def cps_convert_unify(x, y, compiler, cont):
-    x = x.interlang()
-    y = y.interlang()
     try: 
       y.cps_convert_unify
     except:
-      x1 = compiler.new_var(il.LocalVar('x'))
+      x = x.interlang()
+      y = y.interlang()      
+      x1 = compiler.new_var(il.LocalVar(x.name))
       return il.begin(
         il.Assign(x1, il.Deref(x)), #for LogicVar, could be optimized when generate code.
         il.If(il.IsLogicVar(x1),
@@ -45,9 +45,11 @@ class Var(Element):
                  il.append_failcont(compiler, il.DelBinding(x1)),
                  cont(il.TRUE)),
                 il.If(il.Eq(x1, y), cont(TRUE), il.failcont(TRUE))))
-    x1 = compiler.new_var(il.LocalVar('x'))
-    y1 = compiler.new_var(il.LocalVar('y'))
-    return begin(
+    x = x.interlang()
+    y = y.interlang()      
+    x1 = compiler.new_var(il.LocalVar(x.name))
+    y1 = compiler.new_var(il.LocalVar(y.name))
+    return il.begin(
       il.Assign(x1, il.Deref(x)), #for LogicVar, could be optimized when generate code.
       il.Assign(y1, il.Deref(y)),
       il.If(il.IsLogicVar(x1),
@@ -75,6 +77,19 @@ class Var(Element):
   
   def vars(self):
     return set([self])
+  
+  def free_vars(self):
+    return set([self])
+  
+  def to_code(self, coder):
+    return "DaoVar('%s')"%self.name
+  
+  def __eq__(x, y):
+    #return classeq(x, y) and x.name==y.name
+    return x.name==y.name
+  
+  def hash(self):
+    return hash(self.name)
   
   def __repr__(self):
     return self.name #enough in tests
@@ -186,21 +201,43 @@ class SpecialCall(CommandCall):
   def alpha_convert(self, env, compiler):
     return self.__class__(self.function,
                  tuple(arg.alpha_convert(env, compiler) for arg in self.args))
+  
+  def side_effects(self):
+    return True
+  
+  def to_code(self, coder):
+    return '%s(%s)'%(self.function.__name__, ', '.join([x.to_code(coder) for x in self.args]))
     
+  def free_vars(self):
+    return set()
+  
   def __repr__(self):
     return '%s(%s)'%(self.function.__name__, 
                      ', '.join(tuple(repr(x) for x in self.args)))
 
 class BuiltinFunction(Command):
-  def __init__(self, function):
-    self.function = function
+  is_statement = False
+  def __init__(self, name, function):
+    self.name, self.function = name, function
     
   def __call__(self, *args):
     args = tuple(il.element(arg) for arg in args)
-    return BuiltinFunctionCall(self.function, args)
+    return BuiltinFunctionCall(self, args)
   
   def cps_convert(self, compiler, cont):
-    return il.Lamda((params), self.function(*params))
+    return il.Lamda((params), self.function.function(*params))
+  
+  def optimization_analisys(self, data):  
+    return self
+  
+  def subst(self, bindings):
+    return self
+  
+  def pythonize_exp(self, env, compiler):
+    return (self, ), False
+  
+  def __repr__(self):
+    return self.name
   
 class BuiltinFunctionCall(CommandCall):
   def alpha_convert(self, env, compiler):
@@ -211,7 +248,7 @@ class BuiltinFunctionCall(CommandCall):
     #see The 90 minute Scheme to C compiler by Marc Feeley
     args = self.args
     vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
-    fun = cont(self.function(*vars))
+    fun = cont(self.function.function(*vars))
     for var, arg in reversed(zip(vars, args)):
       fun = arg.cps_convert(compiler, il.Clamda(var, fun))
     return fun
@@ -220,8 +257,17 @@ class BuiltinFunctionCall(CommandCall):
     # unquote to interlang level
     return
   
+  def interlang(self):
+    return self
+  
+  def free_vars(self):
+    return set()
+  
+  def pythonize_exp(self, env, compiler):
+    return (self,), False
+  
   def to_code(self, coder):
-    return 'BuiltinFunctionCall(%s, (%s))'%(repr(self.function), ', '.join([x.to_code(coder) for x in self.args]))
+    return '%s(%s)'%(self.function.name, ', '.join([x.to_code(coder) for x in self.args]))
      
   def __repr__(self):
     return '%s(%s)'%(self.function.name, ', '.join([repr(x) for x in self.args]))
