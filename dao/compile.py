@@ -21,7 +21,7 @@ from dao.builtins import *
 from dao.command import LogicVar as DaoLogicVar
 from dao.command import Var as DaoVar
 from dao.solvebase import Solver, deref, LogicVar
-from dao.solvebase import UnquoteSplice
+from dao.solvebase import UnquoteSplice, MacroFunction
 from dao.solve import eval as eval_exp
 from dao.command import BuiltinFunctionCall
 from dao import interlang as il
@@ -52,8 +52,8 @@ def compile_to_python(exp, env, done=None):
   #exp = exp.trampoline()
   exp = pythonize(exp, env, compiler)
   exp = exp.statements[0]
-  if isinstance(exp.body, il.Begin) and isinstance(exp.body.statements[0], il.GlobalDecl):
-    exp.body.statements = exp.body.statements[1:]
+  #if isinstance(exp.body, il.Begin) and isinstance(exp.body.statements[0], il.GlobalDecl):
+    #exp.body.statements = exp.body.statements[1:]
   exp.body = exp.body.replace_return_with_yield()
   coder = CodeGenerator()
   result = exp.to_code(coder)

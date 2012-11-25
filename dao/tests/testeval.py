@@ -361,21 +361,28 @@ class TestMacro:
                    [[x, y], y])(prin(1), prin(2))), None) 
     
   def test_closure1(self):
+    x, f = Var('x'), Var('f')
     eq_(eval(let([(f, macro([[x], prin(eval_(x))])),
                   (x, 1)],
-             f(x+x))), None) 
+             f(add(x,x)))), None) 
+    
   def test_closure2(self):
+    x, f = Var('x'), Var('f')
     eq_(eval(let([(f, macro([[x], prin(x)])),
                   (x, 1)],
-             f(x+x))), None) 
+             f(add(x,x)))), None)
+    
   def test_closure3(self):
-    eq_(eval(let([(f, function([[x], prin(x)])),
+    x, f = Var('x'), Var('f')
+    eq_(eval(let([(f, macro([[x], prin(x)])),
                   (x, 1)],
-             f(x+x))), None) 
+             f(add(x,x)))), None) 
+    
   def test_closure4(self):
+    x, f = Var('x'), Var('f')
     eq_(eval(let([(f, macro([[x], x])),
                   (x, 1)],
-             f(x+x))), 2)
+             f(add(x,x)))), 2)
     
 class XTestModule:
   def testbindings(self):

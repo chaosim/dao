@@ -16,6 +16,8 @@ todo: more builtin
   done: lisp style's quasiquote/unquote/splice_unquote
   todo: dummy variable
   todo: marco
+    todo: rethink about eval_
+    todo: free_vars of expression
   todo: module
   todo: parser builtin
 

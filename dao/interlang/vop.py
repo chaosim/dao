@@ -354,3 +354,5 @@ def append_failcont(compiler, *exps):
 
 
 Eval_exp = vop('Eval', 1, 'eval_exp(%s)')
+
+IsMacroFunction = vop('IsMacro', 1, 'isinstance(%s, MacroFunction)')

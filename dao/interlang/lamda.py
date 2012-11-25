@@ -138,6 +138,30 @@ class Lamda(Element):
     return 'il.Lamda((%s), %s)'%(', '.join([repr(x) for x in self.params]),
                               repr(self.body))
 
+class MacroLamda(Lamda):
+  def pythonize_exp(self, env, compiler):
+    body_exps, body_has_any_statement = self.body.pythonize_exp(env, compiler)
+    global_vars = self.find_assign_lefts()-set(self.params)
+    global_vars = set([x for x in global_vars if not isinstance(x, LocalVar)])
+    if global_vars:
+      body_exps = (GlobalDecl(global_vars),)+body_exps
+    if not body_has_any_statement:
+      return (MacroFunction(self.new(self.params, begin(*body_exps))),), False
+    else:
+      name = compiler.new_var(LocalVar('function'))
+      body = begin(*body_exps).insert_return_statement()
+      return (Function(name, self.params, body), MacroFunction(name)), True 
+  
+class MacroFunction(Element):
+  def __init__(self, function):
+    self.function = function
+    
+  def to_code(self, coder):
+    return 'MacroFunction(%s)'%self.function
+  
+  def __repr__(self):
+    return 'MacroFunction(%s)'%self.function
+  
 class GlobalDecl(Element):
   def __init__(self, args):
     self.args = args
@@ -168,6 +192,7 @@ class Function(Lamda):
   def pythonize_exp(self, env, compiler):
     body_exps, has_any_statement = self.body.pythonize_exp(env, compiler)
     global_vars = self.find_assign_lefts()-set(self.params)
+    global_vars = set([x for x in global_vars if not isinstance(x, LocalVar)])
     if global_vars:
       body_exps = (GlobalDecl(global_vars),)+body_exps
     if not body_exps[-1].is_statement:

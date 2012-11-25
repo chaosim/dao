@@ -1,6 +1,6 @@
 ''' many lisp style special forms'''
 
-from dao.base import Element
+from dao.base import Element, classeq
 from dao.command import special, Command, CommandCall, SpecialCall, Apply, Var, LogicVar
 from dao.compilebase import CompileTypeError, VariableNotBound
 from dao.interlang import TRUE, FALSE, NONE, element
@@ -40,6 +40,9 @@ class Lamda(Element):
   def __init__(self, params, body):
     self.params, self.body = params, body
     
+  def __eq__(x, y):
+    return classeq(x, y) and x.params==y.params and x.body==y.body
+  
   def __repr__(self):
     return 'Lamda((%s), %s)'%(', '.join([repr(x) for x in self.params]),
                               repr(self.body))
@@ -298,14 +301,14 @@ class MacroRules(Element):
         body = body.alpha_convert(new_env, compiler)
         result.append((new_env.bindings.values(), head, body))
       rules1[arity] = result
-    return Rules(rules1)
+    return MacroRules(rules1)
       
   def cps_convert(self, compiler, cont):
     k = compiler.new_var(il.LocalVar('cont'))
     params = compiler.new_var(il.LocalVar('params'))
     v = compiler.new_var(il.LocalVar('v'))
     arity_body_map = compiler.new_var(il.LocalVar('arity_body_map'))
-    rules_function = compiler.new_var(il.LocalVar('rules_function'))
+    #rules_function = compiler.new_var(il.LocalVar('rules_function'))
     cut_cont = compiler.new_var(il.LocalVar('cut_cont'))
     arity_body_pairs = []
     assigns = []
@@ -315,7 +318,7 @@ class MacroRules(Element):
       for head_vars, head, body in rules:
         assign_head_vars = il.begin(*(tuple(il.Assign(var.interlang(), il.new_logicvar(il.String(var.name)))
                       for var in head_vars)))
-        clauses.append(begin(DirectInterlang(assign_head_vars), unify_head_params(head, params), body))
+        clauses.append(begin(DirectInterlang(assign_head_vars), unify_head_params(head, params), eval_(body)))
       arity_fun = il.lamda((), 
             il.Assign(cut_cont, il.cut_cont),
             il.SetCutCont(il.failcont), 
@@ -330,5 +333,5 @@ class MacroRules(Element):
       il.If(il.in_(il.Len(params), arity_body_map),
             il.Apply(il.GetItem(arity_body_map, il.Len(params)), ()),
             il.failcont(NONE)))
-    return cont(il.RulesFunction(rules_function, (k, params), rules_body))
+    return cont(il.MacroLamda((k, params), rules_body))
     

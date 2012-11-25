@@ -10,7 +10,9 @@ v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
 class Command(Element): pass
 
-class Var(Element):        
+class Var(Element):  
+  is_statement = False
+  
   def __init__(self, name):
     self.name = name
         
@@ -67,10 +69,23 @@ class Var(Element):
     # see The 90 minute Scheme to C compiler by Marc Feeley
     function = compiler.new_var(il.LocalVar('function'))
     vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
-    fun = il.Apply(function, (cont,)+vars)
-    for var, self in reversed(zip((function,)+vars, (self,)+args)):
-      fun = self.cps_convert(compiler, il.Clamda(var, fun))
-    return fun
+    body = il.Apply(function, (cont,)+vars)
+    for var, item in reversed(zip(vars, args)):
+          body = item.cps_convert(compiler, il.clamda(var, body))    
+    return self.cps_convert(compiler, il.clamda(function,
+                  il.If(il.IsMacroFunction(function),
+                        il.Apply(function, (cont, il.make_tuple(args))),
+                        body)))
+  
+  def optimization_analisys(self, data):
+    # unquote to interlang level
+    return
+  
+  def optimize_once(self, data):
+    return self, False
+  
+  def pythonize_exp(self, env, compiler):
+    return (self,), False
   
   def interlang(self):
     return il.Var(self.name)
@@ -85,8 +100,7 @@ class Var(Element):
     return "DaoVar('%s')"%self.name
   
   def __eq__(x, y):
-    #return classeq(x, y) and x.name==y.name
-    return x.name==y.name
+    return classeq(x, y) and x.name==y.name
   
   def hash(self):
     return hash(self.name)
@@ -209,7 +223,10 @@ class SpecialCall(CommandCall):
     return '%s(%s)'%(self.function.__name__, ', '.join([x.to_code(coder) for x in self.args]))
     
   def free_vars(self):
-    return set()
+    result = set()
+    for arg in self.args:
+      result |= arg.free_vars()
+    return result
   
   def __repr__(self):
     return '%s(%s)'%(self.function.__name__, 
@@ -257,11 +274,17 @@ class BuiltinFunctionCall(CommandCall):
     # unquote to interlang level
     return
   
+  def optimize_once(self, data):
+    return self, False
+  
   def interlang(self):
     return self
   
   def free_vars(self):
-    return set()
+    result = set()
+    for arg in self.args:
+      result |= arg.free_vars()
+    return result
   
   def pythonize_exp(self, env, compiler):
     return (self,), False

@@ -81,6 +81,13 @@ class UnquoteSplice:
   def __repr__(self):
     return ',@%s'%self.item
 
+class MacroFunction: 
+  def __init__(self, function):
+    self.function = function
+    
+  def __call__(self, *args):
+    return self.function(*args)
+
 class Solver:
   def __init__(self, end_cont=None):
     if end_cont is None:
