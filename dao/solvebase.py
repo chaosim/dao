@@ -81,6 +81,17 @@ class UnquoteSplice:
   def __repr__(self):
     return ',@%s'%self.item
 
+class ExpressionWithCode:
+  def __init__(self, exp, function):
+    self.exp = exp
+    self.function = function
+    
+  def __eq__(x, y):
+    return (x.__class__==y.__class__ and x.exp==y.exp) or x.exp==y
+  
+  def __repr__(self):
+    return repr(self.exp)
+
 class MacroFunction: 
   def __init__(self, function):
     self.function = function

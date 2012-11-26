@@ -20,7 +20,7 @@ from dao.compilebase import Environment
 from dao.builtins import *
 from dao.command import LogicVar as DaoLogicVar
 from dao.command import Var as DaoVar
-from dao.solvebase import Solver, deref, LogicVar
+from dao.solvebase import Solver, deref, LogicVar, ExpressionWithCode
 from dao.solvebase import UnquoteSplice, MacroFunction
 from dao.solve import eval as eval_exp
 from dao.command import BuiltinFunctionCall

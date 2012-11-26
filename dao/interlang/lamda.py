@@ -381,7 +381,41 @@ class Apply(Element):
   
   def __repr__(self):
     return '%r(%s)'%(self.caller, ', '.join([repr(x) for x in self.args]))
+
+class ExpressionWithCode(Element):
+  def __init__(self, exp, function):
+    self.exp = exp
+    self.function = function
   
+  def optimization_analisys(self, data):  
+    self.function.optimization_analisys(data)
+    
+  def side_effects(self):
+    return False
+  
+  def subst(self, bindings):
+    return ExpressionWithCode(self.exp, self.function.subst(bindings))
+  
+  def optimize_once(self, data):
+    function, changed = self.function.optimize_once(data)
+    return ExpressionWithCode(self.exp, function), False  
+        
+  def pythonize_exp(self, env, compiler):
+    exps, has_statement = self.function.pythonize_exp(env, compiler)
+    if has_statement:
+      return (exps[0], ExpressionWithCode(self.exp, exps[1])), True
+    else:
+      return (ExpressionWithCode(self.exp, exps[0]),), False
+      
+  def __eq__(x, y):
+    return classeq(x, y) and x.exp==y.exp
+    
+  def to_code(self, coder):
+    return "ExpressionWithCode((%s), (%s))"%(self.exp.to_code(coder), self.function.to_code(coder))
+  
+  def __repr__(self):
+    return "ExpressionWithCode(%r, %r)"%(self.exp, self.function)
+
 class Var(Element):
   is_statement = False
   

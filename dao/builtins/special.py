@@ -10,7 +10,8 @@ v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
 @special
 def quote(compiler, cont, exp):
-  return cont(il.Expression(exp))
+  v = compiler.new_var(il.LocalVar('v'))
+  return cont(il.ExpressionWithCode(exp, il.Lamda((), exp.cps_convert(compiler, il.clamda(v, v)))))
 
 from dao.solve import eval_cps
 
@@ -36,7 +37,7 @@ def eval_exp(compiler, exp):
 @special
 def eval_(compiler, cont, exp):
   v = compiler.new_var(v0)
-  return exp.cps_convert(compiler, il.clamda(v, cont(eval_exp(compiler, v))))
+  return exp.cps_convert(compiler, il.clamda(v, cont(il.EvalExpressionWithCode(v))))
 
 def begin(*exps):
   if len(exps)==1: return exps[0]

@@ -34,8 +34,8 @@ class TestSimple:
     #eq_(eval(div(2, 2)), 1)
     
   def test_quote(self):
-    lo_x = LogicVar('$x')
-    eq_(eval(quote(lo_x)), LogicVar('$x'))
+    lo_x = LogicVar('x')
+    eq_(eval(quote(lo_x)), LogicVar('x'))
     
   def test_quote2(self):
     x = Var('x')

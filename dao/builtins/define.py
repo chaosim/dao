@@ -286,10 +286,10 @@ class MacroRules(Element):
       if len(args) not in self.rules:
         return il.failcont
       for head, body in self.rules[len(args)]:
-        head_vars = get_tuple_vars(head)
-        bindings = {var: LogicVar(var.name) for var in head_vars}
-        head = tuple(x.subst(bindings) for x in head)
-        clauses.append(begin(unify_list(args, head), eval_(body.subst(bindings))))
+        #env: if head item is a variable x, then env[head] = arg
+        #bindings: if args item is a variable x, then bindings[arg] = head
+        bindings, env = unify_rule_head(args, head)
+        clauses.append(let(bindings, body.subst(env)))
       return or_(*clauses)  
     
   def alpha_convert(self, env, compiler):
