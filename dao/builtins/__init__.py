@@ -1,8 +1,10 @@
+from dao.command import Var, LogicVar, assign
+
 from special import callcc, callfc, eval_
 from special import quote, begin, if_, block, exit_block, continue_block, Begin
 from special import catch, throw, unwind_protect
 
-from define import assign, let, letrec, lamda, rules, macro
+from define import let, letrec, lamda, rules, macro
 
 from arith import add, sub, mul, div, eq
 

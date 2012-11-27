@@ -180,7 +180,7 @@ def identifier(compiler, cont, arg):
             il.Return(il.failcont(NONE)))
     ))
   else:
-    raise CompileTypeError
+    raise CompileTypeError(arg)
   
 @special
 def integer(compiler, cont, arg):

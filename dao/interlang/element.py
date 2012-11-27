@@ -208,7 +208,7 @@ class Assign(Element):
     self.exp.optimization_analisys(data)
   
   def insert_return_statement(self):
-    return begin(self, Return(NONE))
+    return begin(self, Return(self.var))
   
   def code_size(self):
     return code_size(self.exp)+2

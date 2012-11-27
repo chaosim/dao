@@ -23,7 +23,8 @@ class Var(Element):
     try: 
       return env[self]
     except VariableNotBound: 
-      env[self] = result = compiler.new_var(LogicVar(self.name))
+      env[self] = new_var = compiler.new_var(self)
+      result = Assign(new_var, compiler.new_var(LogicVar(self.name)))
       return result
     
   def subst(self, bindings):  
@@ -106,7 +107,7 @@ class Var(Element):
     return hash(self.name)
   
   def __repr__(self):
-    return self.name #enough in tests
+    return "Var('%s')"%self.name 
 
 class LogicVar(Var):  
   def alpha_convert(self, env, compiler):
@@ -123,6 +124,9 @@ class LogicVar(Var):
   
   def __eq__(x, y):
     return classeq(x, y) and x.name==y.name
+  
+  def __repr__(self):
+    return "DaoLogicVar('%s')"%self.name 
   
 class DummyVar(Var):
   def interlang(self):
@@ -294,3 +298,34 @@ class BuiltinFunctionCall(CommandCall):
      
   def __repr__(self):
     return '%s(%s)'%(self.function.name, ', '.join([repr(x) for x in self.args]))
+
+def assign(var, exp):
+  return Assign(il.element(var), il.element(exp))
+
+class Assign(CommandCall):
+  def __init__(self, var, exp):
+    self.var, self.exp = var, exp
+    
+  def subst(self, bindings):
+    return Assign(self.var, self.exp.subst(bindings))
+    
+  def alpha_convert(self, env, compiler):
+    try: var = env[self.var]
+    except VariableNotBound:
+      env[self.var] = var = compiler.new_var(self.var)
+    return Assign(var, self.exp.alpha_convert(env, compiler))
+  
+  def cps_convert(self, compiler, cont):
+    v = compiler.new_var(v0)
+    return self.exp.cps_convert(compiler, 
+              il.clamda(v, il.Assign(self.var.interlang(), v), cont(v)))
+  
+  def __eq__(x, y):
+    return classeq(x, y) and x.var==y.var and x.exp==y.exp
+  
+  def to_code(self, coder):
+    return repr(self)
+  
+  def __repr__(self):
+    return 'assign(%r, %r)'%(self.var, self.exp)
+

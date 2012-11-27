@@ -1,6 +1,6 @@
 from nose.tools import eq_, assert_raises
 
-from dao.command import Var, DummyVar
+from dao.command import Var, DummyVar, LogicVar
 from dao.solve import eval
 from dao.solvebase import NoSolution
 from dao.builtins import rules, let, letrec, begin, eval_
@@ -38,6 +38,7 @@ class TestLowLevelPrimitive:
   def test_goto(self):
     eq_(eval(begin(set_text('abcde'), goto(1))), 'b')
   def test_unify_parse_text(self):
+    x = LogicVar('x')
     eq_(eval(begin(set_text('abcde'), unify_parse_text(x), x)), 'abcde')
     eq_(eval(begin(set_text('abcde'), unify_parse_text('abcde'))), True)
 
@@ -79,15 +80,17 @@ class Testterminal:
     assert_raises(NoSolution, eval, parse_text(rule, 'a'))
     
   def test_word(self):
+    x, y, z = LogicVar('y'), LogicVar('x'), LogicVar('z')
     eq_(eval(begin(parse_text(word(x), 'ab'), x)), 'ab')
     eq_(eval(begin(parse_text(word('ab'), 'ab'))), 'ab')
      
   def test_identifier(self):
+    x = LogicVar('x')
     eq_(eval(begin(parse_text(identifier(x), '_a1b_23'), x)), '_a1b_23')
     eq_(eval(begin(parse_text(identifier('_a1b_23'), '_a1b_23'))), '_a1b_23')
      
   def test_number(self):
-    x, y, z = Var('y'), Var('x'), Var('z')
+    x, y, z = LogicVar('y'), LogicVar('x'), LogicVar('z')
     eq_(eval(begin(parse_text(integer(x), '2'), x)), '2')
     eq_(eval(begin(parse_text(integer(y), '234'), y)), '234')
     eq_(eval(begin(parse_text(integer(z), '0232'), z)), '0232') 
