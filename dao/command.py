@@ -72,10 +72,14 @@ class Var(Element):
     vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
     body = il.Apply(function, (cont,)+vars)
     for var, item in reversed(zip(vars, args)):
-          body = item.cps_convert(compiler, il.clamda(var, body))    
+      body = item.cps_convert(compiler, il.clamda(var, body)) 
+    v = compiler.new_var(il.LocalVar('v'))
+    macro_args = il.make_tuple([il.ExpressionWithCode(arg, 
+                                      il.Lamda((), arg.cps_convert(compiler, il.clamda(v, v)))) 
+                                for arg in args])
     return self.cps_convert(compiler, il.clamda(function,
                   il.If(il.IsMacroFunction(function),
-                        il.Apply(function, (cont, il.make_tuple(args))),
+                        il.Apply(function, (cont, macro_args)),
                         body)))
   
   def optimization_analisys(self, data):
@@ -328,4 +332,9 @@ class Assign(CommandCall):
   
   def __repr__(self):
     return 'assign(%r, %r)'%(self.var, self.exp)
+
+@special
+def expression_with_code(compiler, cont, exp):
+  v = compiler.new_var(il.LocalVar('v'))
+  return cont(il.ExpressionWithCode(exp, il.Lamda((), exp.cps_convert(compiler, il.clamda(v, v)))))
 

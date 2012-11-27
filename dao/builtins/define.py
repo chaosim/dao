@@ -183,7 +183,6 @@ class Rules(Element):
         head_exps = begin(*tuple(
           unify_head_item2(il.GetItem(params, il.Integer(i)), head_item) 
                               for (i, head_item) in enumerate(head)))
-
         clauses.append(begin(head_exps, body))
       arity_fun = il.lamda((), 
             il.Assign(cut_cont, il.cut_cont),
@@ -260,6 +259,8 @@ def unify_head_item2(compiler, cont, arg, head_item):
                 cont(il.TRUE)),
               il.If(il.Eq(arg1, head1), cont(il.TRUE), il.failcont(il.FALSE))))))
   
+from dao.command import expression_with_code
+
 def macro(*rules):
   result = {}
   for rule in rules:
@@ -282,12 +283,22 @@ class MacroRules(Element):
     for arity, rules in self.rules.items():
       result = []
       for head, body in rules:
-        head, new_env = alpha_macro_head(head, env, compiler)
+        head, new_env = alpha_rule_head(head, env, compiler)
+        for var, new_var in new_env.bindings.items():
+          new_env.bindings[var] = eval_(new_var)
         body = body.alpha_convert(new_env, compiler)
-        result.append((new_env.bindings.values(), head, body))
+        result.append((head, body))
       rules1[arity] = result
     return MacroRules(rules1)
       
+  def cps_convert_call(self, compiler, cont, args):
+    clauses = []
+    if len(args) not in self.rules:
+      return il.failcont
+    for head, body in self.rules[len(args)]:
+      clauses.append(begin(unify_macro_head(args, head), body))
+    return or_(*clauses).cps_convert(compiler, cont)
+  
   def cps_convert(self, compiler, cont):
     k = compiler.new_var(il.LocalVar('cont'))
     params = compiler.new_var(il.LocalVar('params'))
@@ -297,15 +308,20 @@ class MacroRules(Element):
     cut_cont = compiler.new_var(il.LocalVar('cut_cont'))
     arity_body_pairs = []
     assigns = []
-    rules_cont = il.clamda(v, il.SetCutCont(cut_cont), k(v))
+    rules_cont = il.clamda(v, 
+                           il.SetCutCont(cut_cont), 
+                           k(v))
     for arity, rules in self.rules.items():
       clauses = []
-      for head_vars, head, body in rules:
-        assign_head_vars = il.begin(*(tuple(il.Assign(var.interlang(), il.new_logicvar(il.String(var.name)))
-                      for var in head_vars)))
-        clauses.append(begin(DirectInterlang(assign_head_vars), unify_macro_head_params(head, params), body))
+      for head, body in rules:
+        head_exps = begin(*tuple(
+          unify_macro_head_item2(il.GetItem(params, il.Integer(i)), head_item) 
+                              for (i, head_item) in enumerate(head)))
+        clauses.append(begin(head_exps, body))
       arity_fun = il.lamda((), 
             il.Assign(cut_cont, il.cut_cont),
+            #il.Assign(fc, il.failcont),
+            #il.SetFailCont(il.clamda(v, il.SetCutCont(cut_cont), fc(v))),
             il.SetCutCont(il.failcont), 
             or_(*clauses).cps_convert(compiler, rules_cont))
       arity_fun_name = compiler.new_var(il.LocalVar('arity_fun_%s'%arity))
@@ -320,67 +336,48 @@ class MacroRules(Element):
             il.failcont(NONE)))
     return cont(il.MacroLamda((k, params), rules_body))
     
-  def __call__(self, *args):
-    clauses = []
-    if len(args) not in self.rules:
-      return il.failcont
-    for head, body in self.rules[len(args)]:
-      head_vars = get_tuple_vars(head)
-      bindings = {var: LogicVar(var.name) for var in head_vars}
-      head = tuple(x.subst(bindings) for x in head)
-      body_bindings = {var: eval_(LogicVar(var.name)) for var in head_vars}
-      clauses.append(begin(unify_macro_head(args, head), body.subst(body_bindings)))
-    return or_(*clauses)  
-    
-def alpha_macro_head(head, env, compiler):
-  new_env = env.extend()
-  head2 = []
-  for item in head:
-    if isinstance(item, Var):
-      new_env.bindings[item] = new_var = compiler.new_var(item)
-      head2.append(new_var)
-    else:
-      head2.append(item)
-  return tuple(head2), new_env
-          
 def unify_macro_head(args, head):
-  return begin(*tuple(unify_macro_head_item(arg, head_item) for arg, head_item, in zip(args, head)))
+  return begin(*tuple(unify_macro_head_item1(arg, head_item) 
+                      for arg, head_item, in zip(args, head)))
 
-def unify_macro_head_params(head, params):
-  return begin(*tuple(unify_macro_head_item(il.GetItem(params, il.Integer(i)), head) 
-                      for (i, head) in enumerate(head)))
+def unify_macro_head_item1(arg, head_item):
+  # for direct call
+  if isinstance(head_item, Var) and not isinstance(head_item, LogicVar):
+    return Assign(head_item, expression_with_code(arg))
+  else: 
+    return unify(arg, head_item)
 
 @special
-def unify_macro_head_item(compiler, cont, arg, head_item):
-  try: 
-    head_item.cps_convert_unify
-  except:
-    head_item = head_item.interlang()
-    param1 = compiler.new_var(il.LocalVar('arg'))
+def unify_macro_head_item2(compiler, cont, arg, head_item):
+  if isinstance(head_item, Var):
+    if not isinstance(head_item, LogicVar):
+      return il.Begin((
+        il.Assign(head_item.interlang(), arg),
+        cont(il.TRUE)))
+    else: 
+      v = compiler.new_var(il.LocalVar('v'))
+      head_item = head_item.interlang()
+      arg1 = compiler.new_var(il.LocalVar('arg'))
+      head1 = compiler.new_var(il.LocalVar('head'))
+      return il.begin(
+        il.Assign(arg1, il.Deref(arg)), #for LogicVar, could be optimized when generate code.
+        il.Assign(head1, il.Deref(head_item)),
+        il.If(il.IsLogicVar(arg1),
+           il.begin(il.SetBinding(arg1, head1),
+                 il.append_failcont(compiler, il.DelBinding(arg1)),
+                 cont(il.TRUE)),
+           il.begin(
+             il.If(il.IsLogicVar(head1),
+                il.begin(il.SetBinding(head1, arg1),
+                      il.append_failcont(compiler, il.DelBinding(head1)),
+                      cont(il.TRUE)),
+                il.If(il.Eq(arg1, head1), cont(il.TRUE), il.failcont(il.FALSE))))))
+  else:    
+    arg1 = compiler.new_var(il.LocalVar('arg'))
     return il.begin(
-      il.Assign(param1, il.Deref(arg)),
-      il.If(il.IsLogicVar(param1),
-         il.begin(il.SetBinding(param1, head_item),
-               il.append_failcont(compiler, il.DelBinding(param1)),
+      il.Assign(arg1, il.Deref(arg)),
+      il.If(il.IsLogicVar(arg1),
+         il.begin(il.SetBinding(arg1, head_item),
+               il.append_failcont(compiler, il.DelBinding(arg1)),
                cont(il.TRUE)),
-              il.If(il.Eq(param1, head_item), cont(TRUE), il.failcont(TRUE))))
-  
-  v = compiler.new_var(il.LocalVar('v'))
-  arg = il.ExpressionWithCode(arg, il.Lamda((), arg.cps_convert(compiler, il.clamda(v, v))))
-  head_item = head_item.interlang()
-  param1 = compiler.new_var(il.LocalVar('arg'))
-  head1 = compiler.new_var(il.LocalVar('head'))
-  return il.begin(
-    il.Assign(param1, il.Deref(arg)), #for LogicVar, could be optimized when generate code.
-    il.Assign(head1, il.Deref(head_item)),
-    il.If(il.IsLogicVar(param1),
-       il.begin(il.SetBinding(param1, head1),
-             il.append_failcont(compiler, il.DelBinding(param1)),
-             cont(il.TRUE)),
-       il.begin(
-         il.If(il.IsLogicVar(head1),
-            il.begin(il.SetBinding(head1, param1),
-                  il.append_failcont(compiler, il.DelBinding(head1)),
-                  cont(il.TRUE)),
-            il.If(il.Eq(param1, head1), cont(il.TRUE), il.failcont(il.FALSE))))))
-  
+              il.If(il.Eq(arg1, head_item), cont(TRUE), il.failcont(TRUE))))

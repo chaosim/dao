@@ -7,7 +7,7 @@ from dao.solve import eval
 from dao.command import Var, LogicVar
 
 from dao.builtins import quote, assign, begin, if_
-from dao.builtins import unify, not_p, fail, succeed, or_, cut
+from dao.builtins import unify, not_p, fail, succeed, or_, cut, findall
 from dao.builtins import lamda, let, letrec, rules, macro
 from dao.builtins import set_text, char, eoi, any
 from dao.builtins import add, eq, sub, mul
@@ -372,10 +372,24 @@ class TestMacro:
     x = Var('x')
     eq_(eval(macro([[x], x])(prin(1))), None) 
     
+  def test3(self):
+    x = Var('x')
+    eq_(eval(macro([[x], prin(x)])(add(1, 1))), None) 
+    
+  def test4(self):
+    x = Var('x')
+    y = Var('y')
+    eq_(eval(let([(y, 1)], macro([[x], prin(x)])(add(y, 1)))), None) 
+    
   def test_or_p(self):
     x, y = Var('x'), Var('y')
     eq_(eval(macro([[x, y], x],
                    [[x, y], y])(prin(1), prin(2))), None) 
+    
+  def test_findall_or_p(self):
+    x, y = Var('x'), Var('y')
+    eq_(eval(findall(macro([[x, y], x],
+                   [[x, y], y])(prin(1), prin(2)))), None) 
     
   def test_closure1(self):
     x, f = Var('x'), Var('f')
@@ -385,21 +399,15 @@ class TestMacro:
     
   def test_closure2(self):
     x, f = Var('x'), Var('f')
-    eq_(eval(let([(f, macro([[x], prin(x)])),
-                  (x, 1)],
-             f(add(x,x)))), None)
-    
-  def test_closure3(self):
-    x, f = Var('x'), Var('f')
-    eq_(eval(let([(f, macro([[x], prin(x)])),
-                  (x, 1)],
-             f(add(x,x)))), None) 
-    
-  def test_closure4(self):
-    x, f = Var('x'), Var('f')
     eq_(eval(let([(f, macro([[x], x])),
                   (x, 1)],
              f(add(x,x)))), 2)
+    
+  def test_closure3(self):
+    x, y, f = Var('x'), Var('y'), Var('f')
+    eq_(eval(let([(f, macro([[x, y], begin(x, y)])),
+                  (x, 1)],
+             f(prin(x), prin(add(x,x))))), None) 
     
 class XTestModule:
   def testbindings(self):
