@@ -1,9 +1,9 @@
 from dao.base import classeq
 
-from dao.compilebase import optimize, MAX_EXTEND_CODE_SIZE, to_code_list
+from dao.compilebase import MAX_EXTEND_CODE_SIZE, to_code_list
 from dao.compilebase import VariableNotBound, CompileTypeError
 from element import Element, Begin, Assign, begin, Return, Yield#, element
-from lamda import Apply, optimize_once_args, Var, LocalVar, clamda, LogicVar
+from lamda import Apply, optimize_args, Var, LocalVar, clamda, LogicVar
 from element import pythonize_args, FALSE, NONE, Symbol
 
 #from element import Integer
@@ -25,8 +25,8 @@ class BinaryOperation(Element):
   def subst(self, bindings):  
     return self
 
-  def optimize_once(self, data):
-    return self, False
+  def optimize(self, data):
+    return self
   
   def code_size(self): 
     return 1
@@ -102,11 +102,8 @@ class BinaryOperationApply(Apply):
     return self.__class__(self.caller.subst(bindings), 
                  tuple(arg.subst(bindings) for arg in self.args))
       
-  def optimize_once(self, data):    
-    changed = False
-    caller, changed1 = self.caller.optimize_once(data)
-    args, changed2 = optimize_once_args(self.args, data)
-    return self.__class__(caller, args), changed1 or changed2
+  def optimize(self, data):    
+    return self.__class__(self.caller.optimize(data), optimize_args(self.args, data))
 
   def insert_return_statement(self):
     return Return(self)
@@ -165,8 +162,8 @@ class VirtualOperation(Element):
   def code_size(self):
     return 1
   
-  def optimize_once(self, data):
-    return self, False
+  def optimize(self, data):
+    return self
   
   def insert_return_statement(self):
     return Return(self)
@@ -218,23 +215,23 @@ class Deref(Element):
   def subst(self, bindings):  
     return Deref(self.item.subst(bindings))
   
-  def xxxoptimize_once(self, data):
+  def xxxoptimize(self, data):
     if isinstance(self.item, LogicVar):  
       return self, False
     if isinstance(self.item, Var):
       assign = find_last_assigns(self, self.item)
       if isinstance(assign.exp, Var):
-        return Deref(assign.exp).optimize_once(self, data)
+        return Deref(assign.exp).optimize(self, data)
       elif isinstance(assign.exp, LogicVar):
-        return Deref(assign.exp).optimize_once(self, data)
+        return Deref(assign.exp).optimize(self, data)
       else: 
         return assign.exp
   
   def code_size(self):
     return 1  
   
-  def optimize_once(self, data):
-    return self, False
+  def optimize(self, data):
+    return self
   
   def pythonize_exp(self, env, compiler):
     return (self,), False

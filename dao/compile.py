@@ -9,7 +9,6 @@ alpha convert -> cps convert -> assign convert
 
 from dao.compilebase import Environment, Compiler, CodeGenerator, OptimizationData
 from dao.compilebase import CompileTypeError, VariableNotBound
-from dao.compilebase import optimize
 from dao import interlang as il
 
 prelude = '''# -*- coding: utf-8 -*-
@@ -47,7 +46,7 @@ def compile_to_python(exp, env, done=None):
   #exp = assign_convert(exp, {}, compiler)
   data = OptimizationData()
   exp.optimization_analisys(data)
-  exp = optimize(exp, data)
+  exp = exp.optimize(data)
   #exp = exp.tail_recursive_convert()
   #exp = exp.trampoline()
   exp = pythonize(exp, env, compiler)

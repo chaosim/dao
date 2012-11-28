@@ -71,8 +71,8 @@ class Atom(Element):
   def subst(self, bindings):
     return self
   
-  def optimize_once(self, data):
-    return self, False
+  def optimize(self, data):
+    return self
   
   def tail_recursive_convert(self):
     return self
@@ -139,6 +139,7 @@ class Bool(Atom):
 class Symbol(Atom): 
   def to_code(self, coder):
     return self.value
+  
   def __eq__(x, y):
     return classeq(x, y) and x.value==y.value
     
@@ -209,14 +210,8 @@ class MacroArgs(Element):
     for x in self.value:
       x.optimization_analisys(data)
       
-  def optimize_once(self, data):
-    changed = False
-    args = []
-    for x in self.value:
-      arg, changed1 = x.optimize_once(data)
-      args.append(arg)
-      changed = changed or changed1
-    return MacroArgs(tuple(args)), changed
+  def optimize(self, data):
+    return MacroArgs(optimize_args(self.value, data))
   
   def side_effects(self):
     return False
@@ -278,9 +273,8 @@ class Assign(Element):
   def subst(self, bindings):  
     return Assign(self.var, self.exp.subst(bindings))
         
-  def optimize_once(self, data):
-    exp, changed = self.exp.optimize_once(data)
-    return Assign(self.var, exp), changed
+  def optimize(self, data):
+    return Assign(self.var, self.exp.optimize(data))
     
   def pythonize_exp(self, env, compiler):
     exps, has_statement = self.exp.pythonize_exp(env, compiler)
@@ -320,21 +314,14 @@ class Return(Element):
   def subst(self, bindings):  
     return self.__class__(*tuple(arg.subst(bindings) for arg in self.args))
     
-  def optimize_once(self, data):
+  def optimize(self, data):
     if len(self.args)==1 and isinstance(self.args[0], Return):
-      args = self.args[0].args
+      return self.__class__(*self.args[0].args)
     else:
       for arg in self.args: 
         if isinstance(arg, Return): 
           raise CompileError
-      args = self.args
-    changed = False
-    result = []
-    for arg in args:
-      arg, arg_changed = arg.optimize_once(data)
-      result.append(arg)
-      changed = changed or arg_changed
-    return self.__class__(*result), changed
+      return self.__class__(*optimize_args(self.args, data))
   
   def pythonize_exp(self, env, compiler):
     exps, args, has_statement = pythonize_args(self.args, env, compiler)
@@ -401,25 +388,14 @@ class If(Element):
               self.then.subst(bindings), 
               self.else_.subst(bindings))
     
-  def optimize_once(self, data):
-    changed = False
-    result = self
-    if isinstance(result.then, If): # (if a (if a b c) d)
-      if result.then.test==result.test:
-        result = If(result.test, result.then.then, result.else_)
-        changed = True
-    if isinstance(result.else_, If): # (if a b (if a c d))
-      if result.else_.test==result.test:
-        result = If(result.test, result.then, result.else_.else_)
-        changed = True
-    test, test_changed = result.test.optimize_once(data)
-    then, then_changed = result.then.optimize_once(data)
-    else_, else__changed = result.else_.optimize_once(data)
-    result = If(test, then, else_)
-    #if isinstance(result.test, Let):
-      #result = Let(result.bindings, If(Begin(let.body), 
-                                             #result.then, result.else_))
-    return result, changed or test_changed or then_changed or else__changed
+  def optimize(self, data):
+    if isinstance(self.then, If): # (if a (if a b c) d)
+      if self.then.test==self.test:
+        return If(self.test, self.then.then, self.else_).optimize(data)
+    if isinstance(self.else_, If): # (if a b (if a c d))
+      if self.else_.test==self.test:
+        return If(self.test, self.then, self.else_.else_).optimize(data)
+    return If(self.test.optimize(data), self.then.optimize(data), self.else_.optimize(data))
 
   def insert_return_statement(self):
     result = If(self.test, 
@@ -514,9 +490,9 @@ class Try(Element):
     return Try(self.test.subst(bindings),
               self.body.subst(bindings))
     
-  def optimize_once(self, data):
-    return self, False
-
+  def optimize(self, data):
+    return Try(self.test.optimize(data), self.body.optimize(data))
+  
   def insert_return_statement(self):
     result = Try(self.test, 
               self.body.insert_return_statement())
@@ -575,8 +551,8 @@ class While(Element):
     return While(self.test.subst(bindings),
               self.body.subst(bindings))
     
-  def optimize_once(self, data):
-    return self, False
+  def optimize(self, data):
+    return While(self.test.optimize(data), self.body.optimize(data))
 
   def insert_return_statement(self):
     result = While(self.test, 
@@ -639,8 +615,8 @@ class For(Element):
                self.range.subst(bindings),
                self.body.subst(bindings))
     
-  def optimize_once(self, data):
-    return self, False
+  def optimize(self, data):
+    return For(self.var, self.range.optimize(data), self.body.optimize(data))
 
   def insert_return_statement(self):
     return For(self.var, self.range, self.body.insert_return_statement())
@@ -704,14 +680,8 @@ class Begin(Element):
   def subst(self, bindings):  
     return Begin(tuple(x.subst(bindings) for x in self.statements))
   
-  def optimize_once(self, data):
-    changed = False
-    result = []
-    for x in self.statements:
-      x, x_changed = x.optimize_once(data)
-      result.append(x)
-      changed = changed or x_changed
-    return begin(*tuple(result)), changed
+  def optimize(self, data):
+    return begin(*optimize_args(self.statements, data))
         
   def insert_return_statement(self):
     inserted = self.statements[-1].insert_return_statement()
@@ -738,14 +708,12 @@ class Begin(Element):
 type_map = {int:Integer, float: Float, str:String, unicode: String, 
             tuple: make_tuple, list:List, bool:Bool, type(None): Atom}
 
-def optimize_once_args(args, data):
-  changed = False
+def optimize_args(args, data):
   result = []
   for arg in args:
-    arg, changed1 = arg.optimize_once(data)
-    changed = changed or changed1
+    arg = arg.optimize(data)
     result.append(arg)
-  return tuple(result), changed
+  return tuple(result)
     
 def pythonize_exps(exps, env, compiler):
   result = ()

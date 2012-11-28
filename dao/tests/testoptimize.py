@@ -4,7 +4,6 @@
 from nose.tools import eq_, ok_, assert_raises
 
 from dao.compilebase import Compiler, Environment, OptimizationData
-from dao.compile import optimize
 from dao.builtins import begin, quote, assign, if_
 from dao.builtins import add
 from dao.builtins import fail, succeed, or_, unify, LogicVar
@@ -99,7 +98,7 @@ class TestSimple:
 def optimize_it(exp):
   data = OptimizationData()
   exp.optimization_analisys(data)
-  return optimize(exp, data)
+  return exp.optimize(data)
 
 class TestOptimize:
   def test_if(self):

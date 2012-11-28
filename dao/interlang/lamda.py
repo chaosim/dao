@@ -1,9 +1,9 @@
 from dao.base import classeq
 
-from dao.compilebase import optimize, MAX_EXTEND_CODE_SIZE, to_code_list, lambda_side_effects
+from dao.compilebase import MAX_EXTEND_CODE_SIZE, to_code_list, lambda_side_effects
 from dao.compilebase import VariableNotBound, CompileTypeError
 
-from element import pythonize_args, optimize_once_args
+from element import pythonize_args, optimize_args
 from element import Element, element, begin, Return, Assign
 from element import NONE
 
@@ -57,11 +57,10 @@ class Lamda(Element):
   def subst(self, bindings):
     return self.new(self.params, self.body.subst(bindings))
       
-  def optimize_once(self, data):
-    body, changed = self.body.optimize_once(data)
-    return self.new(self.params, body), changed
+  def optimize(self, data):
+    return self.new(self.params, self.body.optimize(data))
   
-  def optimize_once_apply(self, data, args):
+  def optimize_apply(self, data, args):
     #1. ((lambda () body))  =>  body 
     if len(self.params)==0:
       return optimize(self.body, data), True
@@ -92,21 +91,19 @@ class Lamda(Element):
     
     if new_params:
       if bindings:
-        return Apply(self.new(new_params, optimize(self.body.subst(bindings), data)), 
-                        tuple(optimize(arg, data) for arg in new_args)), True
+        return Apply(self.new(new_params, self.body.subst(bindings).optimize(data)), 
+                        tuple(arg.optimize(data) for arg in new_args))
       else:
         if len(new_params)!=len(self.params):
           Apply(self.new(new_params, self.body.subst(bindings).optimize(data)), 
-                tuple(optimize(arg, data) for arg in new_args)), True            
+                tuple(arg.optimize(data) for arg in new_args))   
         else:
-          caller_body, changed1 = self.body.optimize_once(data)
-          args, changed2 = optimize_once_args(new_args, data)
-          return Apply(self.new(new_params, caller_body), args), changed1 or changed2
+          return Apply(self.new(new_params, self.body.optimize(data)), optimize_args(new_args, data))
     else:
       if bindings:
-        return optimize(self.body.subst(bindings), data), True
+        return self.body.subst(bindings).optimize(data)
       else:
-        return optimize(self.body, data), True
+        return self.body.optimize(data)
   
   def insert_return_statement(self):
     return Return(self)
@@ -186,10 +183,9 @@ class Function(Lamda):
   def new(self, params, body):
     return self.__class__(self.name, params, body)
   
-  def optimize_once_apply(self, data, args):
-    body, changed = self.body.optimize_once(data)
-    args, changed1 = optimize_once_args(args, data)
-    return Apply(self.new(self.params, body), tuple(args)), changed or changed1
+  def optimize_apply(self, data, args):
+    return Apply(self.new(self.params, self.body.optimize(data)), 
+                 optimize_args(args, data))
     
   def pythonize_exp(self, env, compiler):
     body_exps, has_any_statement = self.body.pythonize_exp(env, compiler)
@@ -242,10 +238,10 @@ class RulesDict(Element):
   def subst(self, bindings):
     return RulesDict({arity:body.subst(bindings) for arity, body in self.arity_body_map.items()})
   
-  def optimize_once(self, data):
+  def optimize(self, data):
     for arity, body in self.arity_body_map.items():
-      self.arity_body_map[arity], changed = body.optimize_once(data) 
-    return self, False
+      self.arity_body_map[arity] = body.optimize(data) 
+    return self
   
   def pythonize_exp(self, enf, compiler):
     return (self,), False
@@ -267,16 +263,16 @@ class Clamda(Lamda):
   def new(self, params, body):
     return self.__class__(params[0], body)
   
-  def optimize_once_apply(self, data, args):
+  def optimize_apply(self, data, args):
     param, arg = self.params[0], args[0]
     if not arg.side_effects():
-      return optimize(self.body.subst({param: arg}), data), True
+      return self.body.subst({param: arg}).optimize(data)
     else:
       ref_count = data.ref_count.get(param, 0)
       if ref_count==0:
-        return begin(arg, self.body), True
+        return begin(arg, self.body)
       else:
-        return begin(Assign(param, arg), self.body), True
+        return begin(Assign(param, arg), self.body)
 
   def __repr__(self):
     return 'il.Clamda(%r, %s)'%(self.params[0], repr(self.body))
@@ -309,9 +305,9 @@ class CFunction(Function):
   def new(self, params, body):
     return self.__class__(self.name, params[0], body)
   
-  def optimize_once_apply(self, data, args):
+  def optimize_apply(self, data, args):
     return CFunction(self.name, self.params[0], 
-        optimize(self.body.subst({self.params[0]:args[0]}), data))(NONE), False
+        self.body.subst({self.params[0]:args[0]}).optimize(data))(NONE)
         
   def __repr__(self):
     return 'il.CFunction(%r, %r, %s)'%(self.name, self.params[0],repr(self.body))
@@ -350,15 +346,12 @@ class Apply(Element):
     return self.__class__(self.caller.subst(bindings), 
                  tuple(arg.subst(bindings) for arg in self.args))
       
-  def optimize_once(self, data):    
+  def optimize(self, data):    
     if isinstance(self.caller, Lamda):
-      return self.caller.optimize_once_apply(data, self.args)
+      return self.caller.optimize_apply(data, self.args)
     
     else: 
-      changed = False
-      caller, changed1 = self.caller.optimize_once(data)
-      args, changed2 = optimize_once_args(self.args, data)
-      return self.__class__(caller, args), changed1 or changed2
+      return self.__class__(self.caller.optimize(data), optimize_args(self.args, data))
 
   def insert_return_statement(self):
     return Return(self)
@@ -399,10 +392,8 @@ class ExpressionWithCode(Element):
   def subst(self, bindings):
     return ExpressionWithCode(self.exp, self.function.subst(bindings))
   
-  def optimize_once(self, data):
-    #function, changed = self.function.optimize_once(data)
-    function = optimize(self.function, data)
-    return ExpressionWithCode(self.exp, function), False  
+  def optimize(self, data):
+    return ExpressionWithCode(self.exp, self.function.optimize(data))
         
   def pythonize_exp(self, env, compiler):
     exps, has_statement = self.function.pythonize_exp(env, compiler)
@@ -447,8 +438,8 @@ class Var(Element):
     try: return bindings[self]
     except: return self
       
-  def optimize_once(self, data):
-    return self, False
+  def optimize(self, data):
+    return self
       
   def insert_return_statement(self):
     return Return(self)
@@ -497,8 +488,8 @@ class LogicVar(Element):
   def subst(self, bindings):  
     return self
   
-  def optimize_once(self, data):
-    return self, False
+  def optimize(self, data):
+    return self
     
   def pythonize_exp(self, env, compiler):
     return (self,), False

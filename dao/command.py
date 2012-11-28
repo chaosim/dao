@@ -86,7 +86,7 @@ class Var(Element):
     # unquote to interlang level
     return
   
-  def optimize_once(self, data):
+  def optimize(self, data):
     return self, False
   
   def pythonize_exp(self, env, compiler):
@@ -282,7 +282,7 @@ class BuiltinFunctionCall(CommandCall):
     # unquote to interlang level
     return
   
-  def optimize_once(self, data):
+  def optimize(self, data):
     return self, False
   
   def interlang(self):

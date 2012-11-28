@@ -106,11 +106,11 @@ MAX_EXTEND_CODE_SIZE = 10
 def lambda_side_effects(exp):
   return exp.body.side_effects()
 
-def optimize(exp, data):
-  changed = True
-  while changed:
-    exp, changed = exp.optimize_once(data)
-  return exp
+#def optimize(exp, data):
+  #changed = True
+  #while changed:
+    #exp, changed = exp.optimize(data)
+  #return exp
 
 def generate_code(exp):
   exp = exp.pythonize_exp(Environment(), Compiler())
