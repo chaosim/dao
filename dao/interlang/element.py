@@ -192,6 +192,65 @@ class Tuple(Atom):
   def __repr__(self):
     return 'il.%s(%s)'%(self.__class__.__name__, self.value)
 
+def macro_args(value):
+  return MacroArgs(tuple(element(x) for x in value))
+
+class MacroArgs(Element): 
+  def __init__(self, value):
+    self.value = value
+    
+  def assign_convert(self, env, compiler):
+    return MacroArgs(tuple(x.assign_convert(env, compiler) for x in self.value))
+  
+  def find_assign_lefts(self):
+    return set()
+  
+  def optimization_analisys(self, data):  
+    for x in self.value:
+      x.optimization_analisys(data)
+      
+  def optimize_once(self, data):
+    changed = False
+    args = []
+    for x in self.value:
+      arg, changed1 = x.optimize_once(data)
+      args.append(arg)
+      changed = changed or changed1
+    return MacroArgs(tuple(args)), changed
+  
+  def side_effects(self):
+    return False
+  
+  def subst(self, bindings):
+    return MacroArgs(tuple(x.subst(bindings) for x in self.value))
+  
+  def pythonize_exp(self, env, compiler):
+    has_statement = False
+    exps = []
+    args = []
+    for arg in self.value:
+      exps1, has_statement1 = arg.pythonize_exp(env, compiler)
+      has_statement = has_statement or has_statement1
+      exps += exps1[:-1]
+      args.append(exps1[-1])
+    exps.append(MacroArgs(tuple(args)))
+    return tuple(exps), has_statement
+  
+  def code_size(self):
+    return sum([x.code_size() for x in self.value])
+  
+  def to_code(self, coder):
+    if len(self.value)!=1:
+      return '(%s)'% ', '.join([x.to_code(coder) for x in self.value])
+    else: 
+      return '(%s, )'%self.value[0].to_code(coder)
+  
+  def __eq__(x, y):
+    return classeq(x, y) and x.value==y.value
+  
+  def __repr__(self):
+    return 'il.%s(%s)'%(self.__class__.__name__, self.value)
+
 class Assign(Element):
   is_statement = True
   

@@ -397,7 +397,8 @@ class ExpressionWithCode(Element):
     return ExpressionWithCode(self.exp, self.function.subst(bindings))
   
   def optimize_once(self, data):
-    function, changed = self.function.optimize_once(data)
+    #function, changed = self.function.optimize_once(data)
+    function = optimize(self.function, data)
     return ExpressionWithCode(self.exp, function), False  
         
   def pythonize_exp(self, env, compiler):

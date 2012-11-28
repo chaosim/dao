@@ -1,5 +1,14 @@
 details of history:
 
+2012-11-28
+fix bug:
+use tuple as macro arguments' class, which stop optimize and pythonize_exp to te arguments. so
+if any statement is included in the arguments, syntax error happens in the compiled code.
+fix: new class MacroArgs for macro arguments.
+
+2012-11-27
+macro implmented
+
 2012-11-26
 new gread idea about eval_ and macro:
 wrap quoted or quasiquoted expression with ExpressionWithCode, 

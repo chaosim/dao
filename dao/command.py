@@ -74,7 +74,7 @@ class Var(Element):
     for var, item in reversed(zip(vars, args)):
       body = item.cps_convert(compiler, il.clamda(var, body)) 
     v = compiler.new_var(il.LocalVar('v'))
-    macro_args = il.make_tuple([il.ExpressionWithCode(arg, 
+    macro_args = il.macro_args([il.ExpressionWithCode(arg, 
                                       il.Lamda((), arg.cps_convert(compiler, il.clamda(v, v)))) 
                                 for arg in args])
     return self.cps_convert(compiler, il.clamda(function,
