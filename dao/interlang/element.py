@@ -365,6 +365,9 @@ class Yield(Return):
   def __repr__(self):
     return 'il.Yield(%s)'%', '.join([repr(x) for x in self.args])
 
+def if_(test, then, else_):
+  return If(element(test), element(then), element(else_))
+  
 class If(Element):
   def __init__(self, test, then, else_):
     self.test, self.then, self.else_ = test, then, else_

@@ -103,22 +103,22 @@ def optimize_it(exp):
 
 class TestOptimize:
   def test_if(self):
-    result = optimize_it(il.If(1, il.If(1, 2, 3), 4))
-    expect = il.If(1, 2, 4)
+    result = optimize_it(il.if_(1, il.if_(1, 2, 3), 4))
+    expect = il.if_(1, 2, 4)
     eq_(result, expect)
     
-  def test_if2(self):
-    result = optimize_it(il.If(1, 2, il.If(1, 3, 4)))
-    expect = il.If(1, 2, 4)
+  def test_if_2(self):
+    result = optimize_it(il.if_(1, 2, il.if_(1, 3, 4)))
+    expect = il.if_(1, 2, 4)
     eq_(result, expect)
     
-  def test_if3(self):
-    result = optimize_it(il.If(1, il.If(1, 2, 3), il.If(1, 4, 5)))
-    expect = il.If(1, 2, 5)
+  def test_if_3(self):
+    result = optimize_it(il.if_(1, il.if_(1, 2, 3), il.if_(1, 4, 5)))
+    expect = il.if_(1, 2, 5)
     eq_(result, expect)
     
   def test_lambda_apply(self):
-    result = optimize_it(il.Clamda(v, 1)(v))
+    result = optimize_it(il.clamda(v, 1)(v))
     expect = 1
     eq_(result, expect)
   

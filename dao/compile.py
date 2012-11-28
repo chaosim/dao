@@ -87,3 +87,51 @@ def cps_to_pyfile(exp, compiler):
   file = open(r'f:\dao_all\dao\dao\tests\compiled.py', 'w')
   file.write(code)
   file.close()
+
+'''
+il.Function(compiled_dao_function, (), 
+il.Clamda(v3, 
+il.begin(
+  il.Assign(f, v3), 
+  il.Clamda(v, il.Clamda(function, 
+    il.If(il.IsMacro(function), 
+          function(il.Done(v, v), 
+            il.MacroArgs((ExpressionWithCode(il.Integer(1), il.Lamda((), il.Clamda(v2, v2)(il.Integer(1)))),))), 
+          il.Clamda(a0, 
+            function(il.Done(v, v), a0))(il.Integer(1))))(il.Deref(f)))(v3)))
+(il.Function(rules_function, (cont, params), 
+il.begin(
+  il.Assign(arity_fun_1, 
+    il.Lamda((), il.begin(
+      il.Assign(cut_cont, il.Attr(solver, il.Symbol(cut_cont))), 
+      il.Assign(il.Attr(solver, il.Symbol(cut_cont)), 
+                il.Attr(solver, il.Symbol(fail_cont))), 
+      il.Assign(x, il.GetItem(params, il.Integer(0))), 
+      il.Clamda(v5, il.Clamda(a01, il.Clamda(a1, il.Clamda(v4, 
+        il.begin(
+          il.Assign(il.Attr(solver, il.Symbol(cut_cont)), cut_cont), cont(v4)))(a01+a1))
+            (il.Deref(x)))(il.Deref(x)))(il.Bool(True))))), 
+  il.Assign(arity_body_map, RulesDict), 
+  il.If(il.Call(il.Symbol(len), params)inarity_body_map, 
+        il.GetItem(arity_body_map, il.Call(il.Symbol(len), params))(),
+        il.Attr(solver, il.Symbol(fail_cont))(il.Atom(None)))))))
+        '''
+'''
+il.Function(compiled_dao_function, (), il.begin(
+il.Assign(f, 
+  il.Function(rules_function, (cont, params), il.begin(
+    il.Assign(arity_fun_1, il.Lamda((), il.begin(
+      il.Assign(cut_cont, il.Attr(solver, il.Symbol(cut_cont))), 
+      il.Assign(il.Attr(solver, il.Symbol(cut_cont)), il.Attr(solver, il.Symbol(fail_cont))), 
+      il.Assign(x, il.GetItem(params, il.Integer(0))), 
+      il.Assign(a01, il.Deref(x)), il.Assign(a1, il.Deref(x)), 
+      il.Assign(il.Attr(solver, il.Symbol(cut_cont)), cut_cont), cont(a01+a1)))), 
+    il.Assign(arity_body_map, RulesDict), 
+    il.If(il.Call(il.Symbol(len), params) in arity_body_map, 
+          il.GetItem(arity_body_map, il.Call(il.Symbol(len), params))(), 
+          il.Attr(solver, il.Symbol(fail_cont))(il.Atom(None)))))), 
+il.Assign(function, il.Deref(f)), 
+il.If(il.IsMacro(function), 
+      function(il.Done(v, v), il.MacroArgs((ExpressionWithCode(il.Integer(1), il.Lamda((), il.Integer(1))),))), 
+      function(il.Done(v, v), il.Integer(1)))))
+'''

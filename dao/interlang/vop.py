@@ -3,8 +3,8 @@ from dao.base import classeq
 from dao.compilebase import optimize, MAX_EXTEND_CODE_SIZE, to_code_list
 from dao.compilebase import VariableNotBound, CompileTypeError
 from element import Element, Begin, Assign, begin, Return, Yield#, element
-from lamda import Apply, optimize_once_args, Var, LocalVar, clamda
-from element import pythonize_args, FALSE, NONE
+from lamda import Apply, optimize_once_args, Var, LocalVar, clamda, LogicVar
+from element import pythonize_args, FALSE, NONE, Symbol
 
 #from element import Integer
 
@@ -205,6 +205,55 @@ class VirtualOperation(Element):
     return 'il.%s(%s)'%(self.__class__.__name__, 
               ', '.join([repr(x) for x in self.args]))
    
+class Deref(Element):
+  def __init__(self, item):
+    self.item = item
+  
+  def side_effects(self):
+    return False
+    
+  def optimization_analisys(self, data):
+    self.item.optimization_analisys(data)
+    
+  def subst(self, bindings):  
+    return Deref(self.item.subst(bindings))
+  
+  def xxxoptimize_once(self, data):
+    if isinstance(self.item, LogicVar):  
+      return self, False
+    if isinstance(self.item, Var):
+      assign = find_last_assigns(self, self.item)
+      if isinstance(assign.exp, Var):
+        return Deref(assign.exp).optimize_once(self, data)
+      elif isinstance(assign.exp, LogicVar):
+        return Deref(assign.exp).optimize_once(self, data)
+      else: 
+        return assign.exp
+  
+  def code_size(self):
+    return 1  
+  
+  def optimize_once(self, data):
+    return self, False
+  
+  def pythonize_exp(self, env, compiler):
+    return (self,), False
+  
+  def insert_return_statement(self):
+    return Return(self)
+  
+  def replace_return_with_yield(self):
+    return self
+  
+  def to_code(self, coder):
+    return  'deref(%s, solver.bindings)'%self.item.to_code(coder)
+  
+  def __repr__(self):
+    return 'il.Deref(%s)'%self.item
+
+def find_last_assigns(exp, var):
+  return
+
 def vop(name, arity, code_format):
   class Vop(VirtualOperation): pass
   Vop.name = Vop.__name__  = name
@@ -228,79 +277,143 @@ def vop2(name, arity, code_format):
   Vop.is_statement = True
   return Vop
 
-GetItem = vop('GetItem', 2, '(%s)[%s]')  
+solver = Var('solver')
+
+def SolverVar(name):
+  return Attr(solver, Symbol(name))
+
+class LogicOperation(VirtualOperation): pass
+class BinaryLogicOperation(VirtualOperation): pass
+class UnaryLogicOperation(VirtualOperation): pass
+
+def Call_to_code(self, coder):
+  return '%s(%s)'%(self.args[0].to_code(coder), ', '.join([x.to_code(coder) for x in self.args[1:]]))  
+Call = vop('Call', -1, Call_to_code)
+
+Attr = vop('Attr', 2, '%s.%s')
+
+def AttrCall_to_code(self, coder):
+  return '%s(%s)'%(self.args[0].to_code(coder), ', '.join([x.to_code(coder) for x in self.args[1:]]))
+AttrCall = vop('AttrCall', -1, AttrCall_to_code)
+
+GetItem = vop('GetItem', 2, '(%s)[%s]')
+
+#SetItem = vop2('SetItem', 3, '(%s)[%s] = %s')
+def SetItem(item, key, value): return Assign(GetItem(item, key), value)
+  
 Slice2 = vop('Slice2', 2, '%s:%s')
+
 Not = vop('Not', 1, "not %s")
+
 def AssignFromList_to_code(self, coder):
   return "%s = %s" % (', '.join([x.to_code(coder) for x in self.args[:-1]]), 
                       self.args[-1].to_code(coder))
 AssignFromList = vop2('AssignFromList', -1, AssignFromList_to_code)
+
 AddAssign = vop2('AddAssign', 2, '%s += %s')
+
 Isinstance = vop('Isinstance', 2, "isinstance(%s, %s)")
+
 EmptyList = vop('empty_list', 0, '[]')
 empty_list = EmptyList()
+
 ListAppend = vop('ListAppend', 2, '%s.append(%s)')
-Len = vop('Len', 1, 'len(%s)')
+
+#Len = vop('Len', 1, 'len(%s)')
+def Len(item): return Call(Symbol('len'), item)
+
 RaiseTypeError = vop2('RaiseTypeError', 1, 'raise %s')
-SetExitBlockContMap = vop2('SetExitBlockContMap', 2, 'solver.exit_block_cont_map[%s] = %s')
-SetContinueBlockContMap = vop2('SetContinueBlockContMap', 2, 'solver.continue_block_cont_map[%s] = %s')
-GetExitBlockCont = vop('GetExitBlockCont', 1, 'solver.exit_block_cont_map[%s]')
-GetContinueBlockCont = vop('GetContinueBlockCont', 1, 'solver.continue_block_cont_map[%s]')
-def Call_to_code(self, coder):
-  return '%s(%s)'%(self.args[0].to_code(coder), ', '.join([x.to_code(coder) for x in self.args[1:]]))  
-Call = vop('Call', -1, Call_to_code)
+
+#SetExitBlockContMap = vop2('SetExitBlockContMap', 2, 'solver.exit_block_cont_map[%s] = %s')
+def SetExitBlockContMap(key, value): return SetItem(SolverVar('exit_block_cont_map'), key, value)
+
+#SetContinueBlockContMap = vop2('SetContinueBlockContMap', 2, 'solver.continue_block_cont_map[%s] = %s')
+def SetContinueBlockContMap(key, value): return SetItem(SolverVar('continue_block_cont_map'), key, value)
+
+#GetExitBlockCont = vop('GetExitBlockCont', 1, 'solver.exit_block_cont_map[%s]')
+def GetExitBlockCont(key): return GetItem(SolverVar('exit_block_cont_map'), key)
+
+#GetContinueBlockCont = vop('GetContinueBlockCont', 1, 'solver.continue_block_cont_map[%s]')
+def GetContinueBlockCont(key): return GetItem(SolverVar('continue_block_cont_map'), key)
+
 def QuoteItem_to_code(self, coder):
   return '%s'%repr(self.args[0])
 QuoteItem = vop('QuoteItem', 1, QuoteItem_to_code)
+
 UnquoteSplice = vop('UnquoteSplice', 1, "UnquoteSplice(%s)")
-Attr = vop('Attr', 2, '%s.%s')
+
 MakeTuple = vop('MakeTuple', 1, 'tuple(%s)')
 
 Cle = vop('Cle', 3, '(%s) <= (%s) <= (%s)')
+
 Cge = vop('Cge', 3, '(%s) >= (%s) >= (%s)')
 
-PopCatchCont = vop('PopCatchCont', 1, "solver.pop_catch_cont(%s)")
+#PopCatchCont = vop('PopCatchCont', 1, "solver.pop_catch_cont(%s)")
+def PopCatchCont(tag): return Call(SolverVar('pop_catch_cont'), tag)
+
 FindCatchCont = vop('FindCatchCont', 1, "solver.find_catch_cont(%s)")
+
 #PushCatchCont = vop2('PushCatchCont', 2, "solver.push_catch_cont(%s, %s)")
 PushCatchCont = vop2('PushCatchCont', 2, "solver.catch_cont_map.setdefault(%s, []).append(%s)")
+
 #PushUnwindCont = vop2("PushUnwindCont", 1, "solver.push_unwind_cont(%s)")
 PushUnwindCont = vop2("PushUnwindCont", 1, "solver.unwind_cont_stack.append(%s)")
+
 #top_unwind_cont = vop('top_unwind_cont', 0, "solver.top_unwind_cont()")()
 #top_unwind_cont = vop('top_unwind_cont', 0, "solver.unwind_cont_stack[-1]")()
+
 #pop_unwind_cont = vop('pop_unwind_cont', 0, "solver.pop_unwind_cont()")()
 pop_unwind_cont = vop('pop_unwind_cont', 0, "solver.unwind_cont_stack.pop()")()
+
 unwind_cont_stack_length = vop('unwind_cont_stack_length', 0, "len(solver.unwind_cont_stack)")()
+
 #Unwind = vop('Unwind', 1, "solver.unwind(%s)")
 Unwind = vop2('Unwind', 1, "while len(solver.unwind_cont_stack)>%s:\n"
                           "    solver.unwind_cont_stack[-1](None)")
 
 SetContent = vop2('SetContent', 2, '%s[0] = %s')
+
 Content = vop('Content', 1, '%s[0]')
+
 #MakeCell = vop('MakeCell', 1, '[%s]') # assign to upper level variable is possible.
 MakeCell = vop('MakeCell', 0, '[None]') #assign always generate new local variable, like python.
 
-SetFailCont = vop2('SetFailCont', 1, 'solver.fail_cont = %s')
-FailCont = vop('failcont', 0, 'solver.fail_cont')  
-failcont = FailCont()
+#FailCont = vop('failcont', 0, 'solver.fail_cont')  
+#failcont = FailCont()
+failcont = Attr(solver, Symbol('fail_cont'))
 
-SetCutCont = vop2('SetCutCont', 1, 'solver.cut_cont = %s')
-CutCont = vop('CutCont', 0, 'solver.cut_cont')
-cut_cont = CutCont()
+#SetFailCont = vop2('SetFailCont', 1, 'solver.fail_cont = %s')
+def SetFailCont(cont): return Assign(failcont, cont)
 
-SetCutOrCont = vop2('SetCutOrCont', 1, 'solver.cut_or_cont = %s')
-CutOrCont = vop('CutOrCont', 0, 'solver.cut_or_cont')
-cut_or_cont = CutOrCont()
+#CutCont = vop('CutCont', 0, 'solver.cut_cont')
+#cut_cont = CutCont()
+cut_cont = Attr(solver, Symbol('cut_cont'))
+
+#SetCutCont = vop2('SetCutCont', 1, 'solver.cut_cont = %s')
+def SetCutCont(cont): return Assign(cut_cont, cont)
+
+#CutOrCont = vop('CutOrCont', 0, 'solver.cut_or_cont')
+#cut_or_cont = CutOrCont()
+cut_or_cont = Attr(solver, Symbol('cut_or_cont'))
+
+#SetCutOrCont = vop2('SetCutOrCont', 1, 'solver.cut_or_cont = %s')
+def SetCutOrCont(cont): return Assign(cut_or_cont, cont)
 
 
 IsLogicVar = vop('IsLogicVar', 1, 'isinstance(%s, LogicVar)')
-Deref = vop('Deref', 1, 'deref(%s, solver.bindings)')
+
 SetBinding = vop2('SetBinding', 2, 'solver.bindings[%s] = %s')
+
 DelBinding = vop2('DelBinding', 1, 'del solver.bindings[%s]')
+
 GetValue = vop('GetValue', 1, 'getvalue(%s, solver.bindings')
 
-SetParseState = vop2('SetParseState', 1, 'solver.parse_state = %s')
-ParseState = vop('parse_state', 0, 'solver.parse_state')
-parse_state = ParseState()
+#ParseState = vop('parse_state', 0, 'solver.parse_state')
+#parse_state = ParseState()
+parse_state = Attr(solver, Symbol('parse_state'))
+
+#SetParseState = vop2('SetParseState', 1, 'solver.parse_state = %s')
+def SetParseState(state): return Assign(parse_state, state)
 
 new_logicvar = vop('new_logicvar', 1, 'solver.new_logicvar(%s)')
 

@@ -114,7 +114,8 @@ class Lamda(Element):
   def pythonize_exp(self, env, compiler):
     body_exps, body_has_any_statement = self.body.pythonize_exp(env, compiler)
     global_vars = self.find_assign_lefts()-set(self.params)
-    global_vars = set([x for x in global_vars if not isinstance(x, LocalVar)])
+    global_vars = set([x for x in global_vars 
+                       if isinstance(x, Var) and not isinstance(x, LocalVar)])
     if global_vars:
       body_exps = (GlobalDecl(global_vars),)+body_exps
     if not body_has_any_statement:
@@ -142,7 +143,8 @@ class MacroLamda(Lamda):
   def pythonize_exp(self, env, compiler):
     body_exps, body_has_any_statement = self.body.pythonize_exp(env, compiler)
     global_vars = self.find_assign_lefts()-set(self.params)
-    global_vars = set([x for x in global_vars if not isinstance(x, LocalVar)])
+    global_vars = set([x for x in global_vars 
+                       if isinstance(x, Var) and not isinstance(x, LocalVar)])
     if global_vars:
       body_exps = (GlobalDecl(global_vars),)+body_exps
     if not body_has_any_statement:
@@ -192,7 +194,8 @@ class Function(Lamda):
   def pythonize_exp(self, env, compiler):
     body_exps, has_any_statement = self.body.pythonize_exp(env, compiler)
     global_vars = self.find_assign_lefts()-set(self.params)
-    global_vars = set([x for x in global_vars if not isinstance(x, LocalVar)])
+    global_vars = set([x for x in global_vars 
+                       if isinstance(x, Var) and not isinstance(x, LocalVar)])
     if global_vars:
       body_exps = (GlobalDecl(global_vars),)+body_exps
     if not body_exps[-1].is_statement:
@@ -476,7 +479,7 @@ class Var(Element):
 
 class LocalVar(Var): pass
 
-class LogicVar(Var):
+class LogicVar(Element):
   is_statement = False
   
   def __init__(self, name):
@@ -490,6 +493,9 @@ class LogicVar(Var):
   
   def optimization_analisys(self, data): 
     return
+  
+  def subst(self, bindings):  
+    return self
   
   def optimize_once(self, data):
     return self, False

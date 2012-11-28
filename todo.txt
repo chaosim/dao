@@ -1,11 +1,14 @@
 ﻿todo: more optimization
   done: Apply of clamda and cfunction can be subst by their body directly.
     # notice the side effects of argument and reference count.
-  todo: more ananlysis for optimization(assign side effects analysys, 
-    io side effects, state change sideeffects
+  todo: more ananlysis for optimization
+    assign and reference analysys, 
+    io side effects
+    state change side effects
   todo: type inference
   todo: partial evaluation
   todo: block/exit/continue become while/break/coninute + block label
+  todo: inline the cont arguments of lambda and remove it from arguments.
 
 todo: more builtin
   done: eval(done), callcc(done), callfc(coded, but not tested), 
@@ -14,12 +17,12 @@ todo: more builtin
   done: rules(done mostly)
     done: cut
   done: lisp style's quasiquote/unquote/splice_unquote
-  todo: dummy variable
-  todo: marco
-    todo: rethink about eval_
-    todo: free_vars of expression
+  done: dummy variable
+  done: marco
+    done: rethink about eval_
+    done: free_vars of expression
   todo: module
-  todo: parser builtin
+  half done: parser builtin
 
 done: assemble alpha convert, assign convert, optimizal transformation, 
       tail recursive, trampoline, generate code, solve/eval
