@@ -197,7 +197,7 @@ class Rules(Element):
     rules_body = il.begin(
       il.begin(*assigns),
       il.Assign(arity_body_map, il.RulesDict({arity:body for arity, body in arity_body_pairs})),
-      il.If(il.in_(il.Len(params), arity_body_map),
+      il.If(il.In(il.Len(params), arity_body_map),
             il.Apply(il.GetItem(arity_body_map, il.Len(params)), ()),
             il.failcont(NONE)))
     return cont(il.RulesFunction(rules_function, (k, params), rules_body))
@@ -331,7 +331,7 @@ class MacroRules(Element):
     rules_body = il.begin(
       il.begin(*assigns),
       il.Assign(arity_body_map, il.RulesDict({arity:body for arity, body in arity_body_pairs})),
-      il.If(il.in_(il.Len(params), arity_body_map),
+      il.If(il.In(il.Len(params), arity_body_map),
             il.Apply(il.GetItem(arity_body_map, il.Len(params)), ()),
             il.failcont(NONE)))
     return cont(il.MacroLamda((k, params), rules_body))

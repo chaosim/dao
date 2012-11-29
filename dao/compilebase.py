@@ -86,6 +86,7 @@ class OptimizationData:
     self.ref_count = {}
     self.called_count = {}
     self.occur_count = {}
+    self.assign_bindings = {}
     
   def __repr__(self):
     return repr(self.ref_count)

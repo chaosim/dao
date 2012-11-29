@@ -13,8 +13,6 @@ def quote(compiler, cont, exp):
   v = compiler.new_var(il.LocalVar('v'))
   return cont(il.ExpressionWithCode(exp, il.Lamda((), exp.cps_convert(compiler, il.clamda(v, v)))))
 
-from dao.solve import eval_cps
-
 def eval_exp(compiler, exp):
   local_vars = compiler.new_var(il.LocalVar('local_vars'))
   global_vars = compiler.new_var(il.LocalVar('global_vars'))

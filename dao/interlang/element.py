@@ -11,7 +11,17 @@ def element(exp):
       return type_map[type(exp)](exp)
     except: 
       raise CompileTypeError(exp)
-  
+
+def no_side_effects(exp):
+  def fun(self):
+    return False
+  exp.side_effects = fun
+  return exp
+
+#True == 1
+#False==0
+unknown = -1
+
 class Element(base.Element):
   have_side_effects = True
   is_statement = False
@@ -30,6 +40,12 @@ class Element(base.Element):
   
   def replace_return_with_yield(self):
     return self
+  
+  def next_exp(self):
+    try:
+      return self._next_exp
+    except:
+      return self.parent.next_exp().first_exp
   
   def __eq__(x, y):
     return classeq(x, y)
@@ -74,8 +90,11 @@ class Atom(Element):
   def optimize(self, data):
     return self
   
-  def tail_recursive_convert(self):
+  def replace_assign(self, data):
     return self
+  
+  def tail_recursive_convert(self):
+      return self
   
   def trampoline(self):
     return self
@@ -98,6 +117,11 @@ class Atom(Element):
   def free_vars(self):
     return set()
   
+  def bool(self):
+    if self.value: 
+      return True
+    else: 
+      return False
   
   def __eq__(x, y):
     return classeq(x, y) and x.value==y.value
@@ -105,7 +129,7 @@ class Atom(Element):
   def __hash__(self): return hash(self.value)
   
   def __repr__(self):
-    return 'il.%s(%s)'%(self.__class__.__name__, self.value)
+    return '%s'%self.value
 
 class Expression(Atom):  
   def cps_convert(self, compiler, cont):
@@ -274,8 +298,15 @@ class Assign(Element):
     return Assign(self.var, self.exp.subst(bindings))
         
   def optimize(self, data):
-    return Assign(self.var, self.exp.optimize(data))
-    
+    exp = self.exp.optimize(data)
+    if exp.side_effects():
+      if self.var in data.assign_bindings:
+        del data.assign_bindings[self.var]
+      return Assign(self.var, exp)
+    else:
+      data.assign_bindings[self.var] = exp
+      self.parent.remove(self)
+  
   def pythonize_exp(self, env, compiler):
     exps, has_statement = self.exp.pythonize_exp(env, compiler)
     if exps[-1].is_statement:
@@ -389,13 +420,21 @@ class If(Element):
               self.else_.subst(bindings))
     
   def optimize(self, data):
-    if isinstance(self.then, If): # (if a (if a b c) d)
-      if self.then.test==self.test:
-        return If(self.test, self.then.then, self.else_).optimize(data)
-    if isinstance(self.else_, If): # (if a b (if a c d))
-      if self.else_.test==self.test:
-        return If(self.test, self.then, self.else_.else_).optimize(data)
-    return If(self.test.optimize(data), self.then.optimize(data), self.else_.optimize(data))
+    test = self.test.optimize(data)
+    then = self.then.optimize(data)
+    else_ = self.else_.optimize(data)
+    if isinstance(then, If): # (if a (if a b c) d)
+      if then.test==self.test:
+        return If(self.test, then.then, self.else_).optimize(data)
+    if isinstance(else_, If): # (if a b (if a c d))
+      if else_.test==self.test:
+        return If(self.test, self.then, else_.else_).optimize(data)
+    test_bool = test.bool()
+    if test_bool==True:
+      return then.optimize(data)
+    elif test_bool==False:
+      return else_.optimize(data)
+    return If(test, then, else_)
 
   def insert_return_statement(self):
     result = If(self.test, 
@@ -660,6 +699,12 @@ class Begin(Element):
   
   def __init__(self, statements):
     self.statements = statements
+    count = len(statements)
+    for i, exp in enumerate(statements):
+      exp.parent = self
+      if i<count-1: exp._next_exp = statements[i+1]
+    self._first_exp = statements[0]
+    
     
   def assign_convert(self, env, compiler):
     return Begin(tuple(x.assign_convert(env, compiler) for x in self.statements))
@@ -682,7 +727,13 @@ class Begin(Element):
   
   def optimize(self, data):
     return begin(*optimize_args(self.statements, data))
-        
+  
+  def remove(self, exp):
+    for i, stmt in enumerate(self.statements):
+      if stmt is exp: break
+    else: return self
+    return begin(*(self.statements[:i]+self.statements[i+1:]))
+  
   def insert_return_statement(self):
     inserted = self.statements[-1].insert_return_statement()
     return Begin(self.statements[:-1]+(inserted,))
@@ -712,7 +763,8 @@ def optimize_args(args, data):
   result = []
   for arg in args:
     arg = arg.optimize(data)
-    result.append(arg)
+    if arg is not None:
+      result.append(arg)
   return tuple(result)
     
 def pythonize_exps(exps, env, compiler):

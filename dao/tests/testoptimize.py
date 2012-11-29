@@ -95,35 +95,55 @@ class TestSimple:
     expect = il.add((1, 2))
     eq_(result, expect)
 
-def optimize_it(exp):
+def optimize(exp):
   data = OptimizationData()
   exp.optimization_analisys(data)
   return exp.optimize(data)
 
 class TestOptimize:
   def test_if(self):
-    result = optimize_it(il.if_(1, il.if_(1, 2, 3), 4))
-    expect = il.if_(1, 2, 4)
+    x = il.Var('x')
+    result = optimize(il.if_(x, il.if_(x, 2, 3), 4))
+    expect = il.if_(x, 2, 4)
     eq_(result, expect)
     
   def test_if_2(self):
-    result = optimize_it(il.if_(1, 2, il.if_(1, 3, 4)))
-    expect = il.if_(1, 2, 4)
+    x = il.Var('x')
+    result = optimize(il.if_(x, 2, il.if_(x, 3, 4)))
+    expect = il.if_(x, 2, 4)
     eq_(result, expect)
     
   def test_if_3(self):
-    result = optimize_it(il.if_(1, il.if_(1, 2, 3), il.if_(1, 4, 5)))
-    expect = il.if_(1, 2, 5)
+    x = il.Var('x')
+    result = optimize(il.if_(x, il.if_(x, 2, 3), il.if_(x, 4, 5)))
+    expect = il.if_(x, 2, 5)
     eq_(result, expect)
     
+  def test_if_4(self):
+    eq_(optimize(il.if_(1, 2, 3)), il.Integer(2))
+    eq_(optimize(il.if_(0, 2, 3)), il.Integer(3))
+    
   def test_lambda_apply(self):
-    result = optimize_it(il.clamda(v, 1)(v))
+    result = optimize(il.clamda(v, 1)(v))
     expect = 1
     eq_(result, expect)
   
   def test_lambda_apply2(self):
     v1 = il.Var('v1')
-    result = optimize_it(il.Clamda(v1, v1)(v))
+    result = optimize(il.Clamda(v1, v1)(v))
     expect = v
+    eq_(result, expect)
+    
+  def test_function(self):
+    x = il.Var('x')
+    f = il.Var('f')
+    result = optimize(il.Apply(
+      il.Function(f, (x, ), 
+                  il.If(il.Eq(x, il.Integer(1)), 
+                        il.Integer(1),
+                        f(il.sub(x, il.Integer(1))))), (il.Integer(3), )))
+    expect = il.If(il.Eq(il.Integer(3), il.Integer(1)), 
+                        il.Integer(1),
+                        f(il.Integer(2)))
     eq_(result, expect)
     

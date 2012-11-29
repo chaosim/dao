@@ -1,8 +1,16 @@
 details of history:
 
+2012-11-29
+more optimization finished
+more optimization finished, include assign, deref, len, in, getitem, rules_function, if_, IsMacroFunction, etc.
+
+python files: 95, lines: 12947, characters: 429890
+text files: 15, lines: 2137, characters: 86393
+rest files: 38, lines: 2753, characters: 108491
+
 2012-11-28
 fix bug:
-use tuple as macro arguments' class, which stop optimize and pythonize_exp to te arguments. so
+use tuple as macro arguments' class, which stop optimizing and pythonize_exp to te arguments. so
 if any statement is included in the arguments, syntax error happens in the compiled code.
 fix: new class MacroArgs for macro arguments.
 

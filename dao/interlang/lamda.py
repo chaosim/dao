@@ -5,7 +5,7 @@ from dao.compilebase import VariableNotBound, CompileTypeError
 
 from element import pythonize_args, optimize_args
 from element import Element, element, begin, Return, Assign
-from element import NONE
+from element import NONE, unknown, make_tuple
 
 def lamda(params, *body):
   body = tuple(element(x) for x in body)
@@ -63,7 +63,7 @@ class Lamda(Element):
   def optimize_apply(self, data, args):
     #1. ((lambda () body))  =>  body 
     if len(self.params)==0:
-      return optimize(self.body, data), True
+      return self.body.optimize(data)
     
     #2. (lamda x: ...x...)(y) => (lambda : ... y ...)() 
     bindings = {}
@@ -112,7 +112,9 @@ class Lamda(Element):
     body_exps, body_has_any_statement = self.body.pythonize_exp(env, compiler)
     global_vars = self.find_assign_lefts()-set(self.params)
     global_vars = set([x for x in global_vars 
-                       if isinstance(x, Var) and not isinstance(x, LocalVar)])
+                       if isinstance(x, Var) 
+                       and not isinstance(x, LocalVar) 
+                       and not isinstance(x, SolverVar)])
     if global_vars:
       body_exps = (GlobalDecl(global_vars),)+body_exps
     if not body_has_any_statement:
@@ -126,6 +128,9 @@ class Lamda(Element):
     head = "lambda %s: " % ', '.join(to_code_list(coder, self.params))
     result = head + '%s'%self.body.to_code_if_in_lambda_body(coder)
     return result
+  
+  def bool(self):
+    return True
   
   def __eq__(x, y):
     return classeq(x, y) and x.params==y.params and x.body==y.body
@@ -141,7 +146,9 @@ class MacroLamda(Lamda):
     body_exps, body_has_any_statement = self.body.pythonize_exp(env, compiler)
     global_vars = self.find_assign_lefts()-set(self.params)
     global_vars = set([x for x in global_vars 
-                       if isinstance(x, Var) and not isinstance(x, LocalVar)])
+                       if isinstance(x, Var) 
+                       and not isinstance(x, LocalVar)
+                       and not isinstance(x, SolverVar)])
     if global_vars:
       body_exps = (GlobalDecl(global_vars),)+body_exps
     if not body_has_any_statement:
@@ -172,7 +179,7 @@ class GlobalDecl(Element):
     return 'GlobalDecl(%s)'%self.args
   
 class Function(Lamda):
-  '''recuvsive Function'''
+  '''recursive Function'''
   is_statement = True
   is_function = True
   
@@ -183,15 +190,17 @@ class Function(Lamda):
   def new(self, params, body):
     return self.__class__(self.name, params, body)
   
-  def optimize_apply(self, data, args):
-    return Apply(self.new(self.params, self.body.optimize(data)), 
-                 optimize_args(args, data))
+  #def optimize_apply(self, data, args):
+    #return Apply(self.new(self.params, self.body.optimize(data)), 
+                 #optimize_args(args, data))
     
   def pythonize_exp(self, env, compiler):
     body_exps, has_any_statement = self.body.pythonize_exp(env, compiler)
     global_vars = self.find_assign_lefts()-set(self.params)
     global_vars = set([x for x in global_vars 
-                       if isinstance(x, Var) and not isinstance(x, LocalVar)])
+                       if isinstance(x, Var) 
+                       and not isinstance(x, LocalVar)
+                       and not isinstance(x, SolverVar) ])
     if global_vars:
       body_exps = (GlobalDecl(global_vars),)+body_exps
     if not body_exps[-1].is_statement:
@@ -238,6 +247,9 @@ class RulesDict(Element):
   def subst(self, bindings):
     return RulesDict({arity:body.subst(bindings) for arity, body in self.arity_body_map.items()})
   
+  def side_effects(self):
+    return False
+  
   def optimize(self, data):
     for arity, body in self.arity_body_map.items():
       self.arity_body_map[arity] = body.optimize(data) 
@@ -246,9 +258,15 @@ class RulesDict(Element):
   def pythonize_exp(self, enf, compiler):
     return (self,), False
 
+  def bool(self):
+    return True
+    
   def to_code(self, coder):
     return '{%s}'%', '.join('%s: %s'%(arity, funcname.to_code(coder))
                             for arity, funcname in self.arity_body_map.items())
+  
+  def __repr__(self):
+    return 'RulesDict(%s)'%self.arity_body_map
 
 def clamda(v, *body):
   body = tuple(element(x) for x in body)
@@ -266,13 +284,15 @@ class Clamda(Lamda):
   def optimize_apply(self, data, args):
     param, arg = self.params[0], args[0]
     if not arg.side_effects():
-      return self.body.subst({param: arg}).optimize(data)
+      body = self.body.subst({param: arg}).optimize(data)
+      body.subst(data.assign_bindings)
+      return body
     else:
       ref_count = data.ref_count.get(param, 0)
       if ref_count==0:
-        return begin(arg, self.body)
+        return begin(arg, self.body).subst(data.assign_bindings)
       else:
-        return begin(Assign(param, arg), self.body)
+        return begin(Assign(param, arg), self.body).subst(data.assign_bindings)
 
   def __repr__(self):
     return 'il.Clamda(%r, %s)'%(self.params[0], repr(self.body))
@@ -287,6 +307,9 @@ class Done(Clamda):
   
   def __call__(self, *args):
     return self.body.subst({self.params[0]:args[0]})
+  
+  def replace_assign(self, bindings):
+    return self
   
   def __repr__(self):
     return 'il.Done(%r, %s)'%(self.params[0], repr(self.body))
@@ -316,6 +339,10 @@ class Apply(Element):
   is_statement = False
   
   def __init__(self, caller, args):
+    self.caller = caller
+    if isinstance(self.caller, RulesFunction):
+      self.args = args[0], make_tuple(args[1:])
+      return
     self.caller, self.args = caller, args
 
   def assign_convert(self, env, compiler):
@@ -371,7 +398,10 @@ class Apply(Element):
       return "(%s)"%self.caller.to_code(coder) + '(%s)'%', '.join([x.to_code(coder) for x in self.args])
     else:
       return self.caller.to_code(coder, ) + '(%s)'%', '.join([x.to_code(coder) for x in self.args])        
-
+  
+  def bool(self):
+    return unknown
+  
   def __eq__(x, y):
     return classeq(x, y) and x.caller==y.caller and x.args==y.args
   
@@ -439,8 +469,16 @@ class Var(Element):
     except: return self
       
   def optimize(self, data):
+    if self in data.assign_bindings:
+      return data.assign_bindings[self]
     return self
       
+  def replace_assign(self, data):
+    try:
+      return data.assign_bindings[self]
+    except:
+      return self
+  
   def insert_return_statement(self):
     return Return(self)
   
@@ -463,12 +501,22 @@ class Var(Element):
   def free_variables(self):
     return set([self])
   
+  def bool(self):
+    return unknown  
+  
   def __hash__(self): return hash(self.name)
 
   def __repr__(self):
     return self.name #enough in tests
 
 class LocalVar(Var): pass
+
+class SolverVar(Var):
+  def __init__(self, name):
+    self.name = 'solver.'+name
+    
+  def __repr__(self):
+    return 'il.%s'%self.name.split('.')[1]
 
 class LogicVar(Element):
   is_statement = False
@@ -491,6 +539,9 @@ class LogicVar(Element):
   def optimize(self, data):
     return self
     
+  def replace_assign(self, data):
+    return self
+  
   def pythonize_exp(self, env, compiler):
     return (self,), False
       
