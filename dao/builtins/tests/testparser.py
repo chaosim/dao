@@ -22,25 +22,43 @@ class TestLowLevelPrimitive:
   def test_step(self):
     eq_(eval(begin(set_text('ab'), step(), step())), 'b')
     eq_(eval(begin(set_text('ab'), step(), left())), 'b')
+    
   def test_next(self):
     eq_(eval(begin(set_text('ab'), next_char(), next_char())), 'a')
+    
   def test_left(self):
     eq_(eval(begin(set_text('ab'), left())), 'ab')
+    
   def test_position(self):
     eq_(eval(begin(set_text('ab'), position())), 0)
   def test_subtext(self):
     eq_(eval(begin(set_text('abcde'), subtext(0,3))), 'abc')
+    
   def test_skip(self):
     eq_(eval(begin(set_text('abcde'), skip(3), next())), 'd')
     eq_(eval(begin(set_text('abcde'), skip(4), skip(-2), next())), 'c')
+    
   def test_skip(self):
     eq_(eval(begin(set_text('abcde'), goto(2), next_char())), 'c')
+    
   def test_goto(self):
     eq_(eval(begin(set_text('abcde'), goto(1))), 'b')
+    
   def test_unify_parse_text(self):
     x = LogicVar('x')
     eq_(eval(begin(set_text('abcde'), unify_parse_text(x), x)), 'abcde')
     eq_(eval(begin(set_text('abcde'), unify_parse_text('abcde'))), True)
+    
+  def test_parse(self):
+    eq_(eval(begin(set_text('abcde'), char('a'))), 'a')
+    
+  def test_parse2(self):
+    eq_(eval(begin(set_text('a'), char('a'), eoi)), True)
+    assert_raises(NoSolution, eval, begin(set_text('ab'), char('a'), eoi))
+    
+  def test_parse3(self):
+    eq_(eval(begin(set_text('aaa'), any(char('a')), eoi)), True)
+    
 
 class XTestParameterize:
   def test_chars(self):

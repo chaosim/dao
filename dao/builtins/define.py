@@ -91,6 +91,16 @@ def letrec(bindings, *body):
   return Letrec(tuple((element(var), element(value)) for var, value in bindings), 
                 begin(*tuple(element(exp) for exp in body)))
 
+class RecursiveFunctionVar(Var):
+  def cps_convert(self, compiler, cont):
+    return cont(il.RecursiveFunctionVar(self.name))
+  
+  def interlang(self):
+    return il.RecursiveFunctionVar(self.name)
+  
+  def __repr__(self):
+    return 'RecursiveFunctionVar(%s)'%self.name
+
 class Letrec(Element):
   def __init__(self, bindings, body):
     self.bindings = bindings
@@ -99,8 +109,11 @@ class Letrec(Element):
   def alpha_convert(self, env, compiler):
     new_env = env.extend()
     for var, value in self.bindings:
-      new_env.bindings[var] = compiler.new_var(var)
-    return begin(*(tuple(Assign(var, value.alpha_convert(new_env, compiler)) 
+      if isinstance(value, Lamda):
+        new_env.bindings[var] = compiler.new_var(RecursiveFunctionVar(var.name))
+      else:
+        new_env.bindings[var] = compiler.new_var(var)
+    return begin(*(tuple(Assign(new_env[var], value.alpha_convert(new_env, compiler)) 
                          for var, value in self.bindings)
                    +(self.body.alpha_convert(new_env, compiler),)))
   

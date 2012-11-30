@@ -33,7 +33,7 @@ class Var(Element):
     except: return self
       
   def cps_convert(self, compiler, cont):
-    return cont(il.Deref(il.Var(self.name)))
+    return cont(il.Var(self.name))
   
   def cps_convert_unify(x, y, compiler, cont):
     try: 

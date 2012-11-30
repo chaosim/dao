@@ -141,9 +141,20 @@ class TestOptimize:
       il.Function(f, (x, ), 
                   il.If(il.Eq(x, il.Integer(1)), 
                         il.Integer(1),
-                        f(il.sub(x, il.Integer(1))))), (il.Integer(3), )))
+                        f(il.sub(x, il.Integer(1))))), (il.Integer(3),)))
     expect = il.If(il.Eq(il.Integer(3), il.Integer(1)), 
                         il.Integer(1),
                         f(il.Integer(2)))
+    #expect = il.Apply(il.Function(f, (x, ), il.If(il.Eq(x, il.Integer(1)), 
+                                         #il.Integer(1), 
+                                         #f(il.sub(x, il.Integer(1)),))), (il.Integer(3),))
     eq_(result, expect)
     
+  def test_function2(self):
+    x = il.Var('x')
+    f = il.Var('f')
+    result = optimize(il.Begin((
+      il.Assign(f, il.Lamda((x,), f(il.Integer(1)))), 
+      il.Apply(f, (il.Integer(3),)))))
+    expect = f(il.Integer(1))
+    eq_(result, expect)

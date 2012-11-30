@@ -87,6 +87,7 @@ class OptimizationData:
     self.called_count = {}
     self.occur_count = {}
     self.assign_bindings = {}
+    self.recursive_call_path = []
     
   def __repr__(self):
     return repr(self.ref_count)

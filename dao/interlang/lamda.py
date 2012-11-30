@@ -4,7 +4,7 @@ from dao.compilebase import MAX_EXTEND_CODE_SIZE, to_code_list, lambda_side_effe
 from dao.compilebase import VariableNotBound, CompileTypeError
 
 from element import pythonize_args, optimize_args
-from element import Element, element, begin, Return, Assign
+from element import Element, element, begin, Return
 from element import NONE, unknown, make_tuple
 
 def lamda(params, *body):
@@ -285,14 +285,13 @@ class Clamda(Lamda):
     param, arg = self.params[0], args[0]
     if not arg.side_effects():
       body = self.body.subst({param: arg}).optimize(data)
-      body.subst(data.assign_bindings)
       return body
     else:
       ref_count = data.ref_count.get(param, 0)
       if ref_count==0:
-        return begin(arg, self.body).subst(data.assign_bindings)
+        return begin(arg, self.body).optimize(data)
       else:
-        return begin(Assign(param, arg), self.body).subst(data.assign_bindings)
+        return begin(Assign(param, arg), self.body).optimize(data)
 
   def __repr__(self):
     return 'il.Clamda(%r, %s)'%(self.params[0], repr(self.body))
@@ -373,11 +372,22 @@ class Apply(Element):
     return self.__class__(self.caller.subst(bindings), 
                  tuple(arg.subst(bindings) for arg in self.args))
       
-  def optimize(self, data):    
-    if isinstance(self.caller, Lamda):
+  def optimize(self, data):
+    if isinstance(self.caller, Var):
+      if self.caller not in data.recursive_call_path:
+        caller = self.caller.optimize(data)
+        if isinstance(caller, Lamda):
+          data.recursive_call_path.append(self.caller)      
+          result = caller.optimize_apply(data, self.args)
+          data.recursive_call_path.pop()  
+          return result
+        else:
+          return self.__class__(caller, optimize_args(self.args, data))
+      else: 
+        return self.__class__(self.caller, optimize_args(self.args, data))
+    elif isinstance(self.caller, Lamda):
       return self.caller.optimize_apply(data, self.args)
-    
-    else: 
+    else:
       return self.__class__(self.caller.optimize(data), optimize_args(self.args, data))
 
   def insert_return_statement(self):
@@ -421,6 +431,9 @@ class ExpressionWithCode(Element):
   
   def subst(self, bindings):
     return ExpressionWithCode(self.exp, self.function.subst(bindings))
+  
+  def code_size(self):
+    return 1
   
   def optimize(self, data):
     return ExpressionWithCode(self.exp, self.function.optimize(data))
@@ -509,6 +522,8 @@ class Var(Element):
   def __repr__(self):
     return self.name #enough in tests
 
+class RecursiveFunctionVar(Var): pass
+
 class LocalVar(Var): pass
 
 class SolverVar(Var):
@@ -562,3 +577,57 @@ class LogicVar(Element):
   def __repr__(self):
     return "LogicVar(%s)"%self.name 
 
+class Assign(Element):
+  is_statement = True
+  
+  def __init__(self, var, exp):
+    self.var, self.exp =  var, exp
+  
+  def assign_convert(self, env, compiler):
+    return SetContent(env[self.var], self.exp.assign_convert(env, compiler))
+  
+  def find_assign_lefts(self):
+    return set([self.var])
+  
+  def optimization_analisys(self, data):  
+    self.exp.optimization_analisys(data)
+  
+  def insert_return_statement(self):
+    return begin(self, Return(self.var))
+  
+  def code_size(self):
+    return code_size(self.exp)+2
+    
+  def side_effects(self):
+    return True
+    
+  def subst(self, bindings):  
+    return Assign(self.var, self.exp.subst(bindings))
+        
+  def optimize(self, data):
+    exp = self.exp.optimize(data)
+    if exp.side_effects():
+      if self.var in data.assign_bindings:
+        del data.assign_bindings[self.var]
+      return Assign(self.var, exp)
+    else:
+      data.assign_bindings[self.var] = exp
+      if isinstance(self.var, RecursiveFunctionVar):
+        return Assign(self.var, exp)
+  
+  def pythonize_exp(self, env, compiler):
+    exps, has_statement = self.exp.pythonize_exp(env, compiler)
+    if exps[-1].is_statement:
+      return exps+(Assign(self.var, NONE),), True
+    else:
+      return exps[:-1]+(Assign(self.var, exps[-1]),), True
+    
+  def to_code(self, coder):
+    return  '%s = %s' % (self.var.to_code(coder), self.exp.to_code(coder))
+    
+  def __eq__(x, y):
+    return classeq(x, y) and x.var==y.var and x.exp==y.exp
+  
+  def __repr__(self):
+    return 'il.Assign(%r, %r)'%(self.var, self.exp)
+  

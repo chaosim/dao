@@ -90,29 +90,6 @@ class TestControl:
     eq_(eval(or_(succeed, fail)), True)
     eq_(eval(or_(unify(1,1), unify(1,2))), True)
     
-  def test_unify(self):
-    x = Var('x')
-    Lx = LogicVar('x')
-    assert_raises(NoSolution, eval, begin(unify(Lx, 1), unify(Lx,2)))
-    eq_(eval(let([(x,1)], unify(x,1))), True)
-    eq_(eval(unify(Lx,1)), True)
-    eq_(eval(begin(unify(Lx, 1), unify(Lx,1))), True)
-    assert_raises(NoSolution, eval, begin(unify(1, 1), unify(1, 2)))
-    assert_raises(NoSolution, eval, begin(unify(2, 1), unify(1, 1)))
-    assert_raises(NoSolution, eval, unify(1, 2))
-    eq_(eval(unify(1, 1)), True)
-    eq_(eval(begin(unify(1, 1), unify(2, 2))), True)
-    
-  def test_parse(self):
-    eq_(eval(begin(set_text('abcde'), char('a'))), 'a')
-    
-  def test_parse2(self):
-    eq_(eval(begin(set_text('a'), char('a'), eoi)), True)
-    assert_raises(NoSolution, eval, begin(set_text('ab'), char('a'), eoi))
-    
-  def test_parse3(self):
-    eq_(eval(begin(set_text('aaa'), any(char('a')), eoi)), True)
-    
   #def testif_add_sub(self):
     #eq_(eval(if_(0, add, sub)(1, 1)), 0)
     #eq_(eval(if_(1, add, sub)(1, 1)), 2)
@@ -147,9 +124,13 @@ class TestLambdaLet:
   def test_letrec(self):
     x, y = Var('x'), Var('y')
     eq_(eval(letrec([(x, 1), (y, x)], y)), 1)
-    #eq_(eval(letrec([(x, 1), (y, add(x, 1))], y)), 2)
+    eq_(eval(letrec([(x, 1), (y, add(x, 1))], y)), 2)
     
   def test_letrec2(self):
+    x, f = Var('x'), Var('f')
+    eq_(eval(letrec([(f, lamda((x,), f(1)))], f(2))), 1)
+    
+  def test_letrec3(self):
     x, f = Var('x'), Var('f')
     eq_(eval(letrec([(f, lamda((x,), if_(eq(x,1), 1, f(sub(x,1)))))], f(2))), 1)
     

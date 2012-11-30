@@ -2,8 +2,9 @@ from dao.base import classeq
 
 from dao.compilebase import MAX_EXTEND_CODE_SIZE, to_code_list
 from dao.compilebase import VariableNotBound, CompileTypeError
-from element import Element, Begin, Assign, begin, Return, Yield#, element
-from lamda import Apply, optimize_args, Var, LocalVar, clamda, LogicVar, Lamda, MacroLamda, RulesDict, SolverVar
+from element import Element, Begin, begin, Return, Yield#, element
+from lamda import Apply, optimize_args, clamda, Lamda, MacroLamda, RulesDict
+from lamda import Var, LocalVar, SolverVar, LogicVar, Assign
 from element import pythonize_args, FALSE, NONE, Symbol, no_side_effects, unknown
 from element import Atom, element, Integer, Bool
 
@@ -319,8 +320,9 @@ class In(Element):
     return In(item, container)
   
   def pythonize_exp(self, env, compiler):
-    exps, has_statement = self.item.pythonize_exp(env, compiler)
-    return exps[:-1]+(In(exps[-1]),), has_statement
+    exps1, has_statement1 = self.item.pythonize_exp(env, compiler)
+    exps2, has_statement2 = self.container.pythonize_exp(env, compiler)
+    return exps1[:-1]+exps2[:-1]+(In(exps1[-1], exps2[-1]),), has_statement1 or has_statement2
   
   def insert_return_statement(self):
     return Return(self)
@@ -541,11 +543,11 @@ PopCatchCont = vop('PopCatchCont', 1, "solver.pop_catch_cont(%s)")
 
 FindCatchCont = vop('FindCatchCont', 1, "solver.find_catch_cont(%s)")
 
-PushCatchCont = vop2('PushCatchCont', 2, "solver.push_catch_cont(%s, %s)")
-#PushCatchCont = vop2('PushCatchCont', 2, "solver.catch_cont_map.setdefault(%s, []).append(%s)")
+#PushCatchCont = vop2('PushCatchCont', 2, "solver.push_catch_cont(%s, %s)")
+PushCatchCont = vop2('PushCatchCont', 2, "solver.catch_cont_map.setdefault(%s, []).append(%s)")
 
-PushUnwindCont = vop2("PushUnwindCont", 1, "solver.push_unwind_cont(%s)")
-#PushUnwindCont = vop2("PushUnwindCont", 1, "solver.unwind_cont_stack.append(%s)")
+#PushUnwindCont = vop2("PushUnwindCont", 1, "solver.push_unwind_cont(%s)")
+PushUnwindCont = vop2("PushUnwindCont", 1, "solver.unwind_cont_stack.append(%s)")
 
 #top_unwind_cont = vop('top_unwind_cont', 0, "solver.top_unwind_cont()")()
 #top_unwind_cont = vop('top_unwind_cont', 0, "solver.unwind_cont_stack[-1]")()

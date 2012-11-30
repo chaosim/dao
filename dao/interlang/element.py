@@ -270,59 +270,6 @@ class MacroArgs(Element):
   def __repr__(self):
     return 'il.%s(%s)'%(self.__class__.__name__, self.value)
 
-class Assign(Element):
-  is_statement = True
-  
-  def __init__(self, var, exp):
-    self.var, self.exp =  var, exp
-  
-  def assign_convert(self, env, compiler):
-    return SetContent(env[self.var], self.exp.assign_convert(env, compiler))
-  
-  def find_assign_lefts(self):
-    return set([self.var])
-  
-  def optimization_analisys(self, data):  
-    self.exp.optimization_analisys(data)
-  
-  def insert_return_statement(self):
-    return begin(self, Return(self.var))
-  
-  def code_size(self):
-    return code_size(self.exp)+2
-    
-  def side_effects(self):
-    return True
-    
-  def subst(self, bindings):  
-    return Assign(self.var, self.exp.subst(bindings))
-        
-  def optimize(self, data):
-    exp = self.exp.optimize(data)
-    if exp.side_effects():
-      if self.var in data.assign_bindings:
-        del data.assign_bindings[self.var]
-      return Assign(self.var, exp)
-    else:
-      data.assign_bindings[self.var] = exp
-      self.parent.remove(self)
-  
-  def pythonize_exp(self, env, compiler):
-    exps, has_statement = self.exp.pythonize_exp(env, compiler)
-    if exps[-1].is_statement:
-      return exps+(Assign(self.var, NONE),), True
-    else:
-      return exps[:-1]+(Assign(self.var, exps[-1]),), True
-    
-  def to_code(self, coder):
-    return  '%s = %s' % (self.var.to_code(coder), self.exp.to_code(coder))
-    
-  def __eq__(x, y):
-    return classeq(x, y) and x.var==y.var and x.exp==y.exp
-  
-  def __repr__(self):
-    return 'il.Assign(%r, %r)'%(self.var, self.exp)
-  
 class Return(Element):
   is_statement = True
   
@@ -699,11 +646,11 @@ class Begin(Element):
   
   def __init__(self, statements):
     self.statements = statements
-    count = len(statements)
-    for i, exp in enumerate(statements):
-      exp.parent = self
-      if i<count-1: exp._next_exp = statements[i+1]
-    self._first_exp = statements[0]
+    #count = len(statements)
+    #for i, exp in enumerate(statements):
+      #exp.parent = self
+      #if i<count-1: exp._next_exp = statements[i+1]
+    #self._first_exp = statements[0]
     
     
   def assign_convert(self, env, compiler):

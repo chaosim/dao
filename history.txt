@@ -1,5 +1,11 @@
 details of history:
 
+2012-12-30
+optimization on letrec, some tests passed
+A new idea has not been implemented: record the informations of var in let/letrec, and remove the unnecessary IsMacroFunction test.
+
+letrec tag RecursiveFunctionVar, don't remove the assigns from inter language, record the call path in Apply.optimizations on RecursiveFunctionVar.
+
 2012-11-29
 more optimization finished
 more optimization finished, include assign, deref, len, in, getitem, rules_function, if_, IsMacroFunction, etc.

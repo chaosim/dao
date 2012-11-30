@@ -92,7 +92,7 @@ class XTestTypePredicate:
     assert_raises(NoSolution, eval, isvar_p(L(1)))
     assert_raises(NoSolution, eval, nonvar_p(x))
     
-class XTestunify:
+class Testunify:
   def test1(self):
     eq_(eval(unify(x, 1)), True)
     
@@ -101,6 +101,19 @@ class XTestunify:
     
   def test3(self):
     eq_(eval(notunify(2, L(1))), True)
+    
+  def test_unify(self):
+    x = Var('x')
+    Lx = LogicVar('x')
+    assert_raises(NoSolution, eval, begin(unify(Lx, 1), unify(Lx,2)))
+    eq_(eval(let([(x,1)], unify(x,1))), True)
+    eq_(eval(unify(Lx,1)), True)
+    eq_(eval(begin(unify(Lx, 1), unify(Lx,1))), True)
+    assert_raises(NoSolution, eval, begin(unify(1, 1), unify(1, 2)))
+    assert_raises(NoSolution, eval, begin(unify(2, 1), unify(1, 1)))
+    assert_raises(NoSolution, eval, unify(1, 2))
+    eq_(eval(unify(1, 1)), True)
+    eq_(eval(begin(unify(1, 1), unify(2, 2))), True)
     
 class XTestMetacall:
   def testcall(self):
