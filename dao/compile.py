@@ -62,12 +62,44 @@ def compile_to_python(exp, env, done=None):
 
 '''
 il.Function(compiled_dao_function, (), il.begin(
-  il.Assign(cut_or_cont, il.cut_or_cont), 
-  il.Assign(il.cut_or_cont, il.fail_cont), 
-  il.Assign(old_failcont, il.fail_cont), 
-  il.Assign(il.fail_cont, il.Clamda(v1, il.begin(
-    il.Assign(il.fail_cont, old_failcont), 
-    il.Clamda(a0, il.Clamda(v, il.begin(
-      il.Assign(il.cut_or_cont, cut_or_cont), v))(il.Prin(a0)))(2)))), 
-  il.Clamda(a01, il.Clamda(v2, il.fail_cont(True))(il.Prin(a01)))(1)))
+  il.Assign(x1, il.Deref(LogicVar(x))), 
+  il.If(il.IsLogicVar(x1), 
+    il.begin(
+      il.SetBinding(x1, 1), 
+      il.Assign(fc11, il.fail_cont), 
+      il.Assign(il.fail_cont, il.Clamda(v3, il.begin(
+        il.Assign(il.fail_cont, fc11), 
+        il.DelBinding(x1), 
+        fc11(False)))), 
+      il.Clamda(v, il.begin(
+        il.Assign(x, il.Deref(LogicVar(x))), 
+        il.If(il.IsLogicVar(x), 
+          il.begin(
+            il.SetBinding(x, 2), 
+            il.Assign(fc1, il.fail_cont), 
+            il.Assign(il.fail_cont, il.Clamda(v2, il.begin(
+              il.Assign(il.fail_cont, fc1), 
+              il.DelBinding(x), 
+              fc1(False)))), 
+            True), 
+          il.If((x==2), 
+            True, 
+            il.fail_cont(True)))))(True)), 
+    il.If((x1==1), 
+      il.Clamda(v, il.begin(
+        il.Assign(x, il.Deref(LogicVar(x))), 
+        il.If(il.IsLogicVar(x), 
+          il.begin(
+            il.SetBinding(x, 2), 
+            il.Assign(fc1, il.fail_cont), 
+            il.Assign(il.fail_cont, 
+              il.Clamda(v2, il.begin(
+                il.Assign(il.fail_cont, fc1), 
+                il.DelBinding(x), 
+                fc1(False)))), 
+            True), 
+          il.If((x==2), 
+            True, 
+            il.fail_cont(True)))))(True), 
+      il.fail_cont(True)))))
 '''

@@ -212,9 +212,9 @@ class TestRules:
   def testdouble3(self):
     f = Var('f')
     x = Var('x')
-    eq_(eval(let([(f, rules([[x], add(x, x)]))], f(1))), 2) 
-    assert_raises(KeyError, eval, let([(f, rules([[x], add(x, x)]))], f(1, 2)))
     eq_(eval(let([(f, rules([[x], add(x, x)]))], f(f(1)))), 4) 
+    #eq_(eval(let([(f, rules([[x], add(x, x)]))], f(1))), 2) # passed
+    #assert_raises(KeyError, eval, let([(f, rules([[x], add(x, x)]))], f(1, 2))) # passed
     
   def test_embed_var1(self):
     e, f = LogicVar('e'), Var('f')
@@ -223,8 +223,8 @@ class TestRules:
   def test_letrec_rules(self):
     f = Var('f')
     x = Var('x')
-    eq_(eval(letrec([(f, rules([[1], 1],[[x],f(sub(x,1))]))], f(1))), 1)
-    #eq_(eval(letrec([(f, rules([[1], 1],[[x],f(sub(x,1))]))], f(2))), 1)
+    #eq_(eval(letrec([(f, rules([[1], 1],[[x],f(sub(x,1))]))], f(1))), 1) # passed
+    eq_(eval(letrec([(f, rules([[1], 1],[[x],f(sub(x,1))]))], f(2))), 1)
     
     
 class XTestLoop:

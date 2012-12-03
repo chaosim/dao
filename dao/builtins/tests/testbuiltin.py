@@ -4,14 +4,16 @@ from nose.tools import eq_, assert_raises
 from dao.solve import eval
 from dao.solvebase import NoSolution
 
-from dao.builtins.special import *
-from dao.builtins.arith import eq, sub, mul, add, div
-from dao.builtins.control import succeed, fail, or_, and_, not_p, cut_or#, repeat
-from dao.builtins.control import findall#, call, once
-from dao.builtins.parser import set_text
-from dao.builtins.terminal import char
-from dao.builtins.term import unify#, notunify
-from dao.builtins.io import prin #write, 
+from dao.builtins import Var
+from dao.command import LogicVar
+from dao.builtins import begin, let
+from dao.builtins import eq, sub, mul, add, div
+from dao.builtins import succeed, fail, or_, and_, not_p, cut_or#, repeat
+from dao.builtins import findall#, call, once
+from dao.builtins import set_text
+from dao.builtins import char
+from dao.builtins import unify#, notunify
+from dao.builtins import prin #write, 
 #from dao.builtins.term import ground_p
 #from dao.builtins.term import isvar, nonvar, is_, define, nonvar_p, isvar_p
 
@@ -63,13 +65,16 @@ class TestControl:
 class XTestArithpred:
   def test_is(self):
     eq_(eval(is_(x, 1)), True)
+    
   def test_define_recursive(self):
     eq_(eval(begin(define(f, function(((2,), 2), ((x,), f(x-1)))), f(4))), 2)
+    
   def test_eq_le_ne(self):
     from dao.builtins.arith import eq, le, ne
     eq_(eval(le(1, 1)&ne(1, 2)), True)
     eq_(eval(eq(1, 1)), True)
     eq_(eval(le(1, 1)), True)
+    
   def test_between(self):
     from dao.builtins.arith import between
     eq_(eval(between(1, 3, 2)), True)
@@ -79,6 +84,7 @@ class XTestTypePredicate:
   def test_ground(self):
     eq_(eval(ground_p(1)), True)
     assert_raises(NoSolution, eval, ground_p(Var('')))
+    
   def test_var(self):
     eq_(eval(isvar(1)), False)
     eq_(eval(isvar(L(1))), False)
@@ -94,26 +100,33 @@ class XTestTypePredicate:
     
 class Testunify:
   def test1(self):
+    x = LogicVar('x')
     eq_(eval(unify(x, 1)), True)
     
   def test2(self):
-    eq_(eval(unify(L(1), L(1))), True)
-    
-  def test3(self):
-    eq_(eval(notunify(2, L(1))), True)
-    
-  def test_unify(self):
     x = Var('x')
     Lx = LogicVar('x')
-    assert_raises(NoSolution, eval, begin(unify(Lx, 1), unify(Lx,2)))
-    eq_(eval(let([(x,1)], unify(x,1))), True)
-    eq_(eval(unify(Lx,1)), True)
+    eq_(eval(unify(1, 1)), True)
+    eq_(eval(begin(unify(1, 1), unify(2, 2))), True)
     eq_(eval(begin(unify(Lx, 1), unify(Lx,1))), True)
+    eq_(eval(let([(x,1)], unify(x,1))), True)
+    
+  def test3(self):
     assert_raises(NoSolution, eval, begin(unify(1, 1), unify(1, 2)))
     assert_raises(NoSolution, eval, begin(unify(2, 1), unify(1, 1)))
     assert_raises(NoSolution, eval, unify(1, 2))
-    eq_(eval(unify(1, 1)), True)
-    eq_(eval(begin(unify(1, 1), unify(2, 2))), True)
+    
+  def test4(self):
+    x = Var('x')
+    Lx = LogicVar('x')
+    #eq_(eval(begin(unify(Lx, 1), unify(Lx,1))), True)
+    assert_raises(NoSolution, eval, begin(unify(Lx, 1), unify(Lx,2)))
+    
+  def xtest5(self):
+    eq_(eval(unify(L(1), L(1))), True)
+    
+  def xtest6(self):
+    eq_(eval(notunify(2, L(1))), True)
     
 class XTestMetacall:
   def testcall(self):

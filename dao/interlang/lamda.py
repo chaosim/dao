@@ -4,8 +4,8 @@ from dao.compilebase import MAX_EXTEND_CODE_SIZE, to_code_list, lambda_side_effe
 from dao.compilebase import VariableNotBound, CompileTypeError
 
 from element import pythonize_args, optimize_args
-from element import Element, element, begin, Return
-from element import NONE, unknown, make_tuple
+from element import Element, element, begin, Return, Begin
+from element import NONE, unknown, make_tuple, Tuple, Atom
 
 def lamda(params, *body):
   body = tuple(element(x) for x in body)
@@ -59,6 +59,12 @@ class Lamda(Element):
       
   def optimize(self, data):
     return self.new(self.params, self.body.optimize(data))
+  
+  def optimize(self, data):
+    old_assign_bindings = data.assign_bindings.copy()
+    result = self.new(self.params, self.body.optimize(data))
+    data.assign_bindings = old_assign_bindings
+    return result
   
   def optimize_apply(self, data, args):
     #1. ((lambda () body))  =>  body 
@@ -129,6 +135,9 @@ class Lamda(Element):
     result = head + '%s'%self.body.to_code_if_in_lambda_body(coder)
     return result
   
+  def free_vars(self):
+    return self.body.free_vars()-set(self.params)
+  
   def bool(self):
     return True
   
@@ -190,10 +199,24 @@ class Function(Lamda):
   def new(self, params, body):
     return self.__class__(self.name, params, body)
   
+  def optimize(self, data):
+    old_assign_bindings = data.assign_bindings
+    data.assign_bindings = {}
+    result = self.new(self.params, self.body.optimize(data))
+    data.assign_bindings = old_assign_bindings
+    return result
+  
   #def optimize_apply(self, data, args):
     #return Apply(self.new(self.params, self.body.optimize(data)), 
                  #optimize_args(args, data))
     
+  def optimize_apply(self, data, args):
+    old_assign_bindings = data.assign_bindings
+    data.assign_bindings = {}
+    result = Lamda.optimize_apply(self, data, args)
+    data.assign_bindings = old_assign_bindings
+    return result
+  
   def pythonize_exp(self, env, compiler):
     body_exps, has_any_statement = self.body.pythonize_exp(env, compiler)
     global_vars = self.find_assign_lefts()-set(self.params)
@@ -225,6 +248,13 @@ class RulesFunction(Function):
   def __call__(self, *args):
     return Apply(self, tuple(element(x) for x in args))
   
+  def optimize_apply(self, data, args):
+    old_assign_bindings = data.assign_bindings
+    data.assign_bindings = {}
+    result = Lamda.optimize_apply(self, data, (args[0], Tuple(*args[1:])))
+    data.assign_bindings = old_assign_bindings
+    return result
+  
   def to_code(self, coder):
     head = "def %s(%s, *%s):\n" % (self.name, 
                                    self.params[0].to_code(coder), 
@@ -250,13 +280,28 @@ class RulesDict(Element):
   def side_effects(self):
     return False
   
+  def free_vars(self):
+    result = set()
+    for arity, body in self.arity_body_map.items():
+      result |= body.free_vars()
+    return result
+  
   def optimize(self, data):
     for arity, body in self.arity_body_map.items():
       self.arity_body_map[arity] = body.optimize(data) 
     return self
   
-  def pythonize_exp(self, enf, compiler):
-    return (self,), False
+  def pythonize_exp(self, env, compiler):
+    exps = []
+    has_statement = False
+    arity_body_map = {}
+    for arity, function in self.arity_body_map.items():
+      exps1, has_statement1 = function.pythonize_exp(env, compiler)
+      exps += exps1[:-1]
+      arity_body_map[arity] = exps1[-1]
+      has_statement = has_statement or has_statement1
+    exps.append(RulesDict(arity_body_map))
+    return tuple(exps), has_statement
 
   def bool(self):
     return True
@@ -328,9 +373,15 @@ class CFunction(Function):
     return self.__class__(self.name, params[0], body)
   
   def optimize_apply(self, data, args):
-    return CFunction(self.name, self.params[0], 
-        self.body.subst({self.params[0]:args[0]}).optimize(data))(NONE)
-        
+    old_assign_bindings = data.assign_bindings
+    assigns = tuple(Assign(var, value) 
+                for var, value in data.assign_bindings.items())
+    data.assign_bindings = {}
+    result = begin(*(assigns+(CFunction(self.name, self.params[0], 
+        self.body.subst({self.params[0]:args[0]}).optimize(data))(NONE),)))
+    data.assign_bindings = {}
+    return result
+  
   def __repr__(self):
     return 'il.CFunction(%r, %r, %s)'%(self.name, self.params[0],repr(self.body))
   
@@ -372,6 +423,12 @@ class Apply(Element):
     return self.__class__(self.caller.subst(bindings), 
                  tuple(arg.subst(bindings) for arg in self.args))
       
+  def free_vars(self):
+    result = self.caller.free_vars()
+    for exp in self.args:
+      result |= exp.free_vars()
+    return result
+  
   def optimize(self, data):
     if isinstance(self.caller, Var):
       if self.caller not in data.recursive_call_path:
@@ -434,6 +491,9 @@ class ExpressionWithCode(Element):
   
   def code_size(self):
     return 1
+
+  def free_vars(self):
+    return self.exp.free_vars()
   
   def optimize(self, data):
     return ExpressionWithCode(self.exp, self.function.optimize(data))
@@ -511,7 +571,7 @@ class Var(Element):
     args = tuple(element(arg) for arg in args)
     return Apply(self, args)
   
-  def free_variables(self):
+  def free_vars(self):
     return set([self])
   
   def bool(self):
@@ -522,7 +582,7 @@ class Var(Element):
   def __repr__(self):
     return self.name #enough in tests
 
-class RecursiveFunctionVar(Var): pass
+class RecursiveVar(Var): pass
 
 class LocalVar(Var): pass
 
@@ -550,6 +610,9 @@ class LogicVar(Element):
   
   def subst(self, bindings):  
     return self
+  
+  def free_vars(self):
+    return set()
   
   def optimize(self, data):
     return self
@@ -604,16 +667,30 @@ class Assign(Element):
   def subst(self, bindings):  
     return Assign(self.var, self.exp.subst(bindings))
         
+  def free_vars(self):
+    return self.exp.free_vars()
+  
   def optimize(self, data):
     exp = self.exp.optimize(data)
-    if exp.side_effects():
+    if self.var in self.exp.free_vars():
+      #value = data.assign_bindings[self.var]
+      #del data.assign_bindings[self.var]
+      #return Begin((Assign(self.var, value),
+                    #Assign(self.var, self.exp))) 
+      return Assign(self.var, self.exp)
+    if isinstance(exp, Atom) or isinstance(exp, Lamda) \
+       and not isinstance(self.var, RecursiveVar):
+      data.assign_bindings[self.var] = exp
+      return None
+    else:
+      #exp.side_effects():
       if self.var in data.assign_bindings:
         del data.assign_bindings[self.var]
       return Assign(self.var, exp)
-    else:
-      data.assign_bindings[self.var] = exp
-      if isinstance(self.var, RecursiveFunctionVar):
-        return Assign(self.var, exp)
+    #else:
+      #data.assign_bindings[self.var] = exp
+      #if isinstance(self.var, RecursiveVar):
+        #return Assign(self.var, exp)
   
   def pythonize_exp(self, env, compiler):
     exps, has_statement = self.exp.pythonize_exp(env, compiler)
@@ -631,3 +708,75 @@ class Assign(Element):
   def __repr__(self):
     return 'il.Assign(%r, %r)'%(self.var, self.exp)
   
+
+def while_(test, *exps):
+  return While(element(test), begin(*[x for x in exps]))
+  
+class While(Element):
+  def __init__(self, test, body):
+    self.test, self.body = test, body
+    
+  def assign_convert(self, env, compiler):
+    return While(self.test.assign_convert(env, compiler), 
+                 self.body.assign_convert(env, compiler))
+
+  def find_assign_lefts(self):
+    return self.body.find_assign_lefts()
+  
+  def optimization_analisys(self, data):  
+    self.test.optimization_analisys(data)
+    self.body.optimization_analisys(data)
+  
+  def free_vars(self):
+    return self.test.free_vars() | self.body.free_vars()
+  
+  def code_size(self):
+    return 3 + self.test.code_size() + \
+           self.body.code_size()
+  
+  def side_effects(self):
+    return not self.test.side_effects() and\
+           not self.body.side_effects()
+    
+  def subst(self, bindings):  
+    return While(self.test.subst(bindings),
+              self.body.subst(bindings))
+    
+  def optimize(self, data):
+    free_vars = self.free_vars()
+    assigns = []
+    for var, value in data.assign_bindings.items():
+      if var in free_vars:
+        assigns.append(Assign(var, value))
+        del data.assign_bindings[var]
+    result = begin(*(tuple(assigns) + (While(self.test.optimize(data), self.body.optimize(data)),)))
+    return result
+
+  def insert_return_statement(self):
+    result = While(self.test, 
+              self.body.insert_return_statement())
+    result.is_statement = True
+    return result
+  
+  def replace_return_with_yield(self):
+    result = While(self.test, 
+              self.body.replace_return_with_yield())
+    result.is_statement = True
+    return result
+  
+  def pythonize_exp(self, env, compiler):
+    test, has_statement1 = self.test.pythonize_exp(env, compiler)
+    body, has_statement2 = self.body.pythonize_exp(env, compiler)
+    result = While(test[-1], begin(*body))
+    return test[:-1]+(result,), True
+    
+  def to_code(self, coder):
+    return 'while %s:\n%s\n' % (self.test.to_code(coder), 
+                                  coder.indent(self.body.to_code(coder)))
+           
+  def __eq__(x, y):
+    return classeq(x, y) and x.test==y.test and x.body==y.body
+  
+  def __repr__(self):
+    return 'il.While(%r, %r)'%(self.test, self.body)
+

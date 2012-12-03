@@ -114,6 +114,7 @@ class Var(Element):
   def __repr__(self):
     return "Var('%s')"%self.name 
 
+
 class LogicVar(Var):  
   def alpha_convert(self, env, compiler):
     return self

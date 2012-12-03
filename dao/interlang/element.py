@@ -240,6 +240,12 @@ class MacroArgs(Element):
   def side_effects(self):
     return False
   
+  def free_vars(self):
+    result = set()
+    for x in self.value:
+      result |= x.free_vars()
+    return result
+  
   def subst(self, bindings):
     return MacroArgs(tuple(x.subst(bindings) for x in self.value))
   
@@ -366,6 +372,13 @@ class If(Element):
               self.then.subst(bindings), 
               self.else_.subst(bindings))
     
+  def free_vars(self):
+    result = set()
+    result |= self.test.free_vars()
+    result |= self.then.free_vars()
+    result |= self.else_.free_vars()
+    return result
+  
   def optimize(self, data):
     test = self.test.optimize(data)
     then = self.then.optimize(data)
@@ -507,67 +520,6 @@ class Try(Element):
   def __repr__(self):
     return 'il.Try(%r, %r)'%(self.test, self.body)
 
-def while_(test, *exps):
-  return While(element(test), begin(*[x for x in exps]))
-
-class While(Element):
-  def __init__(self, test, body):
-    self.test, self.body = test, body
-    
-  def assign_convert(self, env, compiler):
-    return While(self.test.assign_convert(env, compiler), 
-                 self.body.assign_convert(env, compiler))
-
-  def find_assign_lefts(self):
-    return self.body.find_assign_lefts()
-  
-  def optimization_analisys(self, data):  
-    self.test.optimization_analisys(data)
-    self.body.optimization_analisys(data)
-    
-  def code_size(self):
-    return 3 + self.test.code_size() + \
-           self.body.code_size()
-  
-  def side_effects(self):
-    return not self.test.side_effects() and\
-           not self.body.side_effects()
-    
-  def subst(self, bindings):  
-    return While(self.test.subst(bindings),
-              self.body.subst(bindings))
-    
-  def optimize(self, data):
-    return While(self.test.optimize(data), self.body.optimize(data))
-
-  def insert_return_statement(self):
-    result = While(self.test, 
-              self.body.insert_return_statement())
-    result.is_statement = True
-    return result
-  
-  def replace_return_with_yield(self):
-    result = While(self.test, 
-              self.body.replace_return_with_yield())
-    result.is_statement = True
-    return result
-  
-  def pythonize_exp(self, env, compiler):
-    test, has_statement1 = self.test.pythonize_exp(env, compiler)
-    body, has_statement2 = self.body.pythonize_exp(env, compiler)
-    result = While(test[-1], begin(*body))
-    return test[:-1]+(result,), True
-    
-  def to_code(self, coder):
-    return 'while %s:\n%s\n' % (self.test.to_code(coder), 
-                                  coder.indent(self.body.to_code(coder)))
-           
-  def __eq__(x, y):
-    return classeq(x, y) and x.test==y.test and x.body==y.body
-  
-  def __repr__(self):
-    return 'il.While(%r, %r)'%(self.test, self.body)
-
 def for_(var, range, *exps):
   return For(element(var), element(range), begin(*[x for x in exps]))
 
@@ -637,6 +589,8 @@ def begin(*exps):
     for e in exps:
       if isinstance(e, Begin):
         result += e.statements
+      elif e==():
+        continue
       else:
         result.append(e)
     return Begin(tuple(result))
@@ -671,6 +625,12 @@ class Begin(Element):
   
   def subst(self, bindings):  
     return Begin(tuple(x.subst(bindings) for x in self.statements))
+  
+  def free_vars(self):
+    result = set()
+    for exp in self.statements:
+      result |= exp.free_vars()
+    return result
   
   def optimize(self, data):
     return begin(*optimize_args(self.statements, data))

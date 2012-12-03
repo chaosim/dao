@@ -60,6 +60,46 @@ class Lamda(Element):
   def interlang(self):
     return il.Lamda(tuple(x.interlang() for x in self.params), self.body.interlang())
 
+class MacroVar(Var): 
+  def cps_convert(self, compiler, cont):
+    return cont(il.Var(self.name))
+  
+  def cps_convert_call(self, compiler, cont, args):
+    # see The 90 minute Scheme to C compiler by Marc Feeley
+    function = compiler.new_var(il.LocalVar('function'))
+    v = compiler.new_var(il.LocalVar('v'))
+    macro_args = il.macro_args([il.ExpressionWithCode(arg, 
+                                      il.Lamda((), arg.cps_convert(compiler, il.clamda(v, v)))) 
+                                for arg in args])
+    return self.cps_convert(compiler, 
+                            il.clamda(function, il.Apply(function, (cont, macro_args))))
+  
+  def interlang(self):
+    return il.Var(self.name)
+  
+  def __repr__(self):
+    return 'MacroVar(%s)'%self.name
+  
+class LamdaVar(Var):
+  def cps_convert(self, compiler, cont):
+    return cont(il.Var(self.name))
+  
+  def cps_convert_call(self, compiler, cont, args):
+    # see The 90 minute Scheme to C compiler by Marc Feeley
+    function = compiler.new_var(il.Var('function'))
+    vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
+    body = il.Apply(function, (cont,)+vars)
+    for var, item in reversed(zip(vars, args)):
+      body = item.cps_convert(compiler, il.clamda(var, body)) 
+    v = compiler.new_var(il.LocalVar('v'))
+    return self.cps_convert(compiler, il.clamda(function,body))
+  
+  def interlang(self):
+    return il.Var(self.name)
+  
+  def __repr__(self):
+    return 'LamdaVar(%s)'%self.name
+
 def let(bindings, *body):
   bindings = tuple((var, il.element(value)) for var, value in bindings)
   return Let(bindings, begin(*body))
@@ -72,7 +112,12 @@ class Let(il.Element):
   def alpha_convert(self, env, compiler):
     new_env = env.extend()
     for var, value in self.bindings:
-      new_env.bindings[var] = compiler.new_var(var)
+      if isinstance(value, Lamda):
+        new_env.bindings[var] = compiler.new_var(LamdaVar(var.name))
+      elif isinstance(value, MacroRules):
+        new_env.bindings[var] = compiler.new_var(MacroVar(var.name))
+      else:
+        new_env.bindings[var] = compiler.new_var(var)
     alphaed_body = self.body.alpha_convert(new_env, compiler)
     assign_bindings = tuple(Assign(new_env[var], value.alpha_convert(env, compiler)) 
                             for var, value in self.bindings)
@@ -87,19 +132,49 @@ class Let(il.Element):
   def __repr__(self):
     return 'Let(%r, %r)'%(self.bindings, self.body)
     
+class RecursiveFunctionVar(Var):
+  def cps_convert(self, compiler, cont):
+    return cont(il.RecursiveVar(self.name))
+  
+  def cps_convert_call(self, compiler, cont, args):
+    # see The 90 minute Scheme to C compiler by Marc Feeley
+    function = compiler.new_var(il.RecursiveVar('function'))
+    vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
+    body = il.Apply(function, (cont,)+vars)
+    for var, item in reversed(zip(vars, args)):
+      body = item.cps_convert(compiler, il.clamda(var, body)) 
+    v = compiler.new_var(il.LocalVar('v'))
+    return self.cps_convert(compiler, il.clamda(function,body))
+  
+  def interlang(self):
+    return il.RecursiveVar(self.name)
+  
+  def __repr__(self):
+    return 'RecursiveVar(%s)'%self.name
+
+class RecursiveMacroVar(MacroVar): 
+  def cps_convert(self, compiler, cont):
+    return cont(il.RecursiveVar(self.name))
+  
+  def cps_convert_call(self, compiler, cont, args):
+    function = compiler.new_var(il.RecursiveVar('function'))
+    v = compiler.new_var(il.LocalVar('v'))
+    macro_args = il.macro_args([il.ExpressionWithCode(arg, 
+                                      il.Lamda((), arg.cps_convert(compiler, il.clamda(v, v)))) 
+                                for arg in args])
+    return self.cps_convert(compiler, 
+                            il.clamda(function,
+                                il.Apply(function, (cont, macro_args))))
+  
+  def interlang(self):
+    return il.RecursiveVar(self.name)
+  
+  def __repr__(self):
+    return 'RecursiveVar(%s)'%self.name
+  
 def letrec(bindings, *body):
   return Letrec(tuple((element(var), element(value)) for var, value in bindings), 
                 begin(*tuple(element(exp) for exp in body)))
-
-class RecursiveFunctionVar(Var):
-  def cps_convert(self, compiler, cont):
-    return cont(il.RecursiveFunctionVar(self.name))
-  
-  def interlang(self):
-    return il.RecursiveFunctionVar(self.name)
-  
-  def __repr__(self):
-    return 'RecursiveFunctionVar(%s)'%self.name
 
 class Letrec(Element):
   def __init__(self, bindings, body):
@@ -109,8 +184,10 @@ class Letrec(Element):
   def alpha_convert(self, env, compiler):
     new_env = env.extend()
     for var, value in self.bindings:
-      if isinstance(value, Lamda):
+      if isinstance(value, Lamda) or isinstance(value, Rules):
         new_env.bindings[var] = compiler.new_var(RecursiveFunctionVar(var.name))
+      elif isinstance(value, MacroRules):
+        new_env.bindings[var] = compiler.new_var(RecursiveMacroVar(var.name))
       else:
         new_env.bindings[var] = compiler.new_var(var)
     return begin(*(tuple(Assign(new_env[var], value.alpha_convert(new_env, compiler)) 
@@ -150,7 +227,7 @@ def rules(*rules):
     result.setdefault(len(head), []).append((head, body))
   return Rules(result)
 
-class Rules(Element):
+class Rules(Lamda):
   def __init__(self, rules):
     self.rules = rules
 

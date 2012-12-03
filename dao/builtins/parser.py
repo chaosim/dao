@@ -115,7 +115,7 @@ def left(compiler, cont, length=NONE):
     il.AssignFromList(text, pos, il.parse_state),
     cont(il.GetItem(text, il.If(il.IsNot(length, NONE),
                                 il.Slice2(pos, il.add(pos,length)),
-                                NONE)))))
+                                il.Slice2(pos, NONE))))))
 
 @special
 def next_element(compiler, cont): 

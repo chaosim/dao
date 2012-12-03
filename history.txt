@@ -1,6 +1,26 @@
 details of history:
 
-2012-12-30
+2012-12-3
+optimization almost completed
+bug left: 
+  findall: only do first choice.
+  assert_raises(NoSolution, eval, begin(unify(Lx, 1), unify(Lx,2))) # KeyError: 1
+  eq_(eval(begin(set_text('a'), char('a'), eoi)), True) #Exception: AssertionError: None != True
+  TestCut: all failed except testCut1
+  eq_(eval(let([(f, rules([[x], add(x, x)]))], f(f(1)))), 4)  #Exception: KeyError: 2
+  eq_(eval(letrec([(f, rules([[1], 1],[[x],f(sub(x,1))]))], f(2))), 1) #Exception: KeyError: 2
+  assert_raises(NoSolution, eval, parse_text(rule, 'a b')) #Exception: UnboundLocalError: local variable 'fc11' referenced before assignment
+  eq_(eval(begin(set_text('aaa'), any(char('a')), eoi)), True) #Exception: RuntimeError: maximum recursion depth exceeded in cmp
+
+2012-12-1
+add MacroVar, RecursiveFunctionVar, RecureiveMacroVar in builtins\define.py
+il.RecursiveFunctionVar becomes il.RecursiveVar
+debug loop by block, a bug in optimizing assign was found:
+set initial value before block: i = 1
+decrement in block: i = i-1
+should find vars like above in block beforehand.
+
+2012-11-30
 optimization on letrec, some tests passed
 A new idea has not been implemented: record the informations of var in let/letrec, and remove the unnecessary IsMacroFunction test.
 

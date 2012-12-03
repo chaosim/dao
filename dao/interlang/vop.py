@@ -57,7 +57,7 @@ add = BinaryOperation('add', '+', operator.add, False)
 sub = BinaryOperation('sub', '-', operator.sub, False)
 mul = BinaryOperation('mul', '*', operator.mul, False)
 div = BinaryOperation('div', '/', operator.div, False)
-IsNot = BinaryOperation('is_not', operator.is_not, 'is not', False)
+IsNot = BinaryOperation('is_not', 'is not', operator.is_not, False)
 And = BinaryOperation('and', 'and', operator.and_, False)
 Or = BinaryOperation('or', 'or', operator.or_, False)
 
@@ -122,6 +122,12 @@ class BinaryOperationApply(Apply):
   def pythonize_exp(self, env, compiler):
     exps, args, has_statement = pythonize_args(self.args, env, compiler)
     return exps+(self.__class__(self.caller, args),), has_statement
+  
+  def free_vars(self):
+    result = set()
+    for arg in self.args:
+      result |= arg.free_vars()
+    return result
   
   def to_code(self, coder):
     if not self.caller.operator[0].isalpha():
@@ -206,7 +212,13 @@ class VirtualOperation(Element):
       
   def __hash__(self):
     return hash(self.__class__.__name__)
-
+  
+  def free_vars(self):
+    result = set()
+    for arg in self.args:
+      result |= arg.free_vars()
+    return result
+  
   def __repr__(self):
     try: 
       if self.arity==0: 
@@ -231,9 +243,14 @@ class Deref(Element):
   def code_size(self):
     return 1  
   
+  def free_vars(self):
+    return self.item.free_vars()
+
   def optimize(self, data):
     item = self.item.optimize(data)
     if isinstance(item, Atom) or isinstance(item, Lamda):
+      return item
+    if isinstance(item, Deref):
       return item
     return Deref(item)
   
@@ -269,6 +286,9 @@ class Len(Element):
   def code_size(self):
     return 1  
   
+  def free_vars(self):
+    return self.item.free_vars()
+
   def optimize(self, data):
     item = self.item.optimize(data)
     if isinstance(item, Atom):
@@ -309,6 +329,12 @@ class In(Element):
   def code_size(self):
     return 1  
   
+  def free_vars(self):
+    result = set()
+    result |= self.item.free_vars()
+    result |= self.container.free_vars()
+    return result
+
   def optimize(self, data):
     item = self.item.optimize(data)
     container = self.container.optimize(data)
@@ -362,6 +388,12 @@ class GetItem(Element):
   def code_size(self):
     return 1  
   
+  def free_vars(self):
+    result = set()
+    result |= self.index.free_vars()
+    result |= self.container.free_vars()
+    return result
+  
   def optimize(self, data):
     index = self.index.optimize(data)
     container = self.container.optimize(data)
@@ -377,9 +409,9 @@ class GetItem(Element):
     return GetItem(container, index)
   
   def pythonize_exp(self, env, compiler):
-    container_exps, has_statement = self.container.pythonize_exp(env, compiler)
-    index_exps, has_statement = self.index.pythonize_exp(env, compiler)
-    return container_exps[:-1]+index_exps[:-1]+(GetItem(container_exps[-1], index_exps[-1]),), has_statement
+    container_exps, has_statement1 = self.container.pythonize_exp(env, compiler)
+    index_exps, has_statement2 = self.index.pythonize_exp(env, compiler)
+    return container_exps[:-1]+index_exps[:-1]+(GetItem(container_exps[-1], index_exps[-1]),), has_statement1 or has_statement2
   
   def insert_return_statement(self):
     return Return(self)
