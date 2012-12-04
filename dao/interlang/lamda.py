@@ -672,7 +672,7 @@ class Assign(Element):
     return Assign(self.var, self.exp.subst(bindings))
         
   def free_vars(self):
-    return self.exp.free_vars()
+    return self.exp.free_vars()|set([self.var])
   
   def optimize(self, data):
     exp = self.exp.optimize(data)
@@ -682,10 +682,13 @@ class Assign(Element):
       #return Begin((Assign(self.var, value),
                     #Assign(self.var, self.exp))) 
       return Assign(self.var, self.exp)
-    if isinstance(exp, Atom) or isinstance(exp, Lamda) \
-       and not isinstance(self.var, RecursiveVar):
+    if isinstance(exp, Atom):
       data.assign_bindings[self.var] = exp
-      return None
+      return
+    if isinstance(exp, Lamda) and not isinstance(self.var, RecursiveVar):
+      if self.var not in exp.free_vars():
+        data.assign_bindings[self.var] = exp
+        return None
     else:
       #exp.side_effects():
       if self.var in data.assign_bindings:

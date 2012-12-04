@@ -1,4 +1,5 @@
-﻿todo: more optimization
+
+todo: more optimization
   done: Apply of clamda and cfunction can be subst by their body directly.
     # notice the side effects of argument and reference count.
   todo: more ananlysis for optimization
@@ -6,8 +7,9 @@
     io side effects
     state change side effects
   todo: type inference
-  todo: partial evaluation
+  half done: partial evaluation
   todo: block/exit/continue become while/break/coninute + block label
+    todo: remove bookkeeper works in code.
   todo: inline the cont arguments of lambda and remove it from arguments.
 
 todo: more builtin

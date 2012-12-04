@@ -630,12 +630,12 @@ DelBinding = vop2('DelBinding', 1, 'del solver.bindings[%s]')
 
 GetValue = vop('GetValue', 1, 'getvalue(%s, solver.bindings')
 
-#ParseState = vop('parse_state', 0, 'solver.parse_state')
-#parse_state = ParseState()
-parse_state = SolverVar('parse_state')
+ParseState = vop('parse_state', 0, 'solver.parse_state')
+parse_state = ParseState()
+#parse_state = SolverVar('parse_state')
 
-#SetParseState = vop2('SetParseState', 1, 'solver.parse_state = %s')
-def SetParseState(state): return Assign(parse_state, state)
+SetParseState = vop2('SetParseState', 1, 'solver.parse_state = %s')
+#def SetParseState(state): return Assign(parse_state, state)
 
 new_logicvar = vop('new_logicvar', 1, 'solver.new_logicvar(%s)')
 

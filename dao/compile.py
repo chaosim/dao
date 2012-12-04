@@ -61,33 +61,51 @@ def compile_to_python(exp, env, done=None):
   return prelude + result
 
 '''
-il.Function(compiled_dao_function, (), il.Clamda(v3, il.begin(
-  il.Assign(f, v3), 
-  il.Clamda(v, il.Clamda(function, il.Clamda(a0, 
-    function(il.Done(v, v), il.Tuple((a0,))))
-      (il.Deref(LogicVar(e))))(f))(v3)))
-  (il.Function(rules_function, (cont, params), il.begin(
-    il.Assign(arity_fun_1, il.Lamda((), il.begin(
-      il.Assign(cut_cont, il.cut_cont), 
-      il.Assign(il.cut_cont, il.fail_cont), 
-      il.Assign(arg, il.Deref(il.GetItem(params, 0))), 
-      il.If(il.IsLogicVar(arg), 
-        il.begin(
-          il.SetBinding(arg, 1), 
-          il.Assign(fc1, il.fail_cont), 
-          il.Assign(il.fail_cont, il.Clamda(v7, il.begin(
-            il.Assign(il.fail_cont, fc1), 
-            il.DelBinding(arg), 
-            fc1(False)))), 
-          il.Clamda(v5, il.Clamda(v4, il.begin(
-            il.Assign(il.cut_cont, cut_cont), 
-            cont(v4)))(1))(True)), 
-        il.If((arg==1), il.Clamda(v5, il.Clamda(v4, il.begin(
-          il.Assign(il.cut_cont, cut_cont), 
-          cont(v4)))(1))(True), 
-              il.fail_cont(True)))))), 
-    il.Assign(arity_body_map, RulesDict({1: arity_fun_1})), 
-    il.If(il.In(il.Len(params), arity_body_map), 
-          il.GetItem(arity_body_map, il.Len(params))(), 
-          il.fail_cont(None))))))
+il.Function(compiled_dao_function, (), il.begin(
+  il.Assign(old_parse_state, il.parse_state), 
+  il.Assign(il.parse_state, il.Tuple((aaa, 0))), 
+  il.Assign(fc11, il.fail_cont), 
+  il.Assign(il.fail_cont, il.Clamda(v4, il.begin(
+    il.Assign(il.fail_cont, fc11), 
+    il.Assign(il.parse_state, old_parse_state), 
+    fc11(False)))), 
+  il.Clamda(v, il.CFunction(any_cont, v2, il.begin(
+    il.Assign(old_fail_cont, il.fail_cont), 
+    il.Assign(il.fail_cont, il.Clamda(v2, il.begin(
+      il.Assign(il.fail_cont, old_fail_cont), 
+      v2))), 
+    il.AssignFromList(text, pos, il.parse_state), 
+    il.If((pos>=il.Len(text)), 
+          il.Return(il.fail_cont(None))), 
+    il.If((a==il.GetItem(text, pos)), 
+      il.begin(
+        il.Assign(fc1, il.fail_cont), 
+        il.Assign(il.fail_cont, il.Clamda(v3, il.begin(
+          il.Assign(il.fail_cont, fc1), 
+          il.Assign(il.parse_state, il.Tuple((text, pos))), 
+          fc1(False)))), 
+        il.Assign(il.parse_state, il.Tuple((text, il.add(pos, 1)))), 
+        il.Return(any_cont(il.GetItem(text, pos)))), 
+      il.Return(il.fail_cont(None)))))(True))(True)))
+
+il.Function(compiled_dao_function, (), il.begin(
+  il.Assign(old_parse_state, il.parse_state), 
+  il.Assign(fc11, il.fail_cont), 
+  il.Assign(il.parse_state, il.Tuple((aaa, 0))), 
+  il.Assign(il.fail_cont, il.Clamda(v4, il.begin(
+    il.Assign(il.fail_cont, fc11), 
+    il.Assign(il.parse_state, old_parse_state), 
+    fc11(False)))), 
+  il.CFunction(any_cont, v2, il.begin(
+    il.Assign(old_fail_cont, il.fail_cont), 
+    il.AssignFromList(text, pos, il.parse_state), 
+    il.If((pos>=il.Len(text)), 
+      il.Return(il.begin(
+        il.Assign(il.fail_cont, old_fail_cont), 
+        True))), 
+    il.If((a==il.GetItem(text, pos)), 
+          il.Return(any_cont(il.GetItem(text, pos))), 
+          il.Return(il.begin(
+            il.Assign(il.fail_cont, old_fail_cont), 
+              True)))))(None)))
 '''
