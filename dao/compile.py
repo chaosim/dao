@@ -61,45 +61,33 @@ def compile_to_python(exp, env, done=None):
   return prelude + result
 
 '''
-il.Function(compiled_dao_function, (), il.begin(
-  il.Assign(x1, il.Deref(LogicVar(x))), 
-  il.If(il.IsLogicVar(x1), 
-    il.begin(
-      il.SetBinding(x1, 1), 
-      il.Assign(fc11, il.fail_cont), 
-      il.Assign(il.fail_cont, il.Clamda(v3, il.begin(
-        il.Assign(il.fail_cont, fc11), 
-        il.DelBinding(x1), 
-        fc11(False)))), 
-      il.Clamda(v, il.begin(
-        il.Assign(x, il.Deref(LogicVar(x))), 
-        il.If(il.IsLogicVar(x), 
-          il.begin(
-            il.SetBinding(x, 2), 
-            il.Assign(fc1, il.fail_cont), 
-            il.Assign(il.fail_cont, il.Clamda(v2, il.begin(
-              il.Assign(il.fail_cont, fc1), 
-              il.DelBinding(x), 
-              fc1(False)))), 
-            True), 
-          il.If((x==2), 
-            True, 
-            il.fail_cont(True)))))(True)), 
-    il.If((x1==1), 
-      il.Clamda(v, il.begin(
-        il.Assign(x, il.Deref(LogicVar(x))), 
-        il.If(il.IsLogicVar(x), 
-          il.begin(
-            il.SetBinding(x, 2), 
-            il.Assign(fc1, il.fail_cont), 
-            il.Assign(il.fail_cont, 
-              il.Clamda(v2, il.begin(
-                il.Assign(il.fail_cont, fc1), 
-                il.DelBinding(x), 
-                fc1(False)))), 
-            True), 
-          il.If((x==2), 
-            True, 
-            il.fail_cont(True)))))(True), 
-      il.fail_cont(True)))))
+il.Function(compiled_dao_function, (), il.Clamda(v3, il.begin(
+  il.Assign(f, v3), 
+  il.Clamda(v, il.Clamda(function, il.Clamda(a0, 
+    function(il.Done(v, v), il.Tuple((a0,))))
+      (il.Deref(LogicVar(e))))(f))(v3)))
+  (il.Function(rules_function, (cont, params), il.begin(
+    il.Assign(arity_fun_1, il.Lamda((), il.begin(
+      il.Assign(cut_cont, il.cut_cont), 
+      il.Assign(il.cut_cont, il.fail_cont), 
+      il.Assign(arg, il.Deref(il.GetItem(params, 0))), 
+      il.If(il.IsLogicVar(arg), 
+        il.begin(
+          il.SetBinding(arg, 1), 
+          il.Assign(fc1, il.fail_cont), 
+          il.Assign(il.fail_cont, il.Clamda(v7, il.begin(
+            il.Assign(il.fail_cont, fc1), 
+            il.DelBinding(arg), 
+            fc1(False)))), 
+          il.Clamda(v5, il.Clamda(v4, il.begin(
+            il.Assign(il.cut_cont, cut_cont), 
+            cont(v4)))(1))(True)), 
+        il.If((arg==1), il.Clamda(v5, il.Clamda(v4, il.begin(
+          il.Assign(il.cut_cont, cut_cont), 
+          cont(v4)))(1))(True), 
+              il.fail_cont(True)))))), 
+    il.Assign(arity_body_map, RulesDict({1: arity_fun_1})), 
+    il.If(il.In(il.Len(params), arity_body_map), 
+          il.GetItem(arity_body_map, il.Len(params))(), 
+          il.fail_cont(None))))))
 '''

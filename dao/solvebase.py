@@ -89,6 +89,9 @@ class ExpressionWithCode:
   def __eq__(x, y):
     return (x.__class__==y.__class__ and x.exp==y.exp) or x.exp==y
   
+  def __iter__(self):
+    return iter(self.exp)
+  
   def __repr__(self):
     return repr(self.exp)
 

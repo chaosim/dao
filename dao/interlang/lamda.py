@@ -251,12 +251,12 @@ class RulesFunction(Function):
   def optimize_apply(self, data, args):
     old_assign_bindings = data.assign_bindings
     data.assign_bindings = {}
-    result = Lamda.optimize_apply(self, data, (args[0], Tuple(*args[1:])))
+    result = Lamda.optimize_apply(self, data, args)
     data.assign_bindings = old_assign_bindings
     return result
   
   def to_code(self, coder):
-    head = "def %s(%s, *%s):\n" % (self.name, 
+    head = "def %s(%s, %s):\n" % (self.name, 
                                    self.params[0].to_code(coder), 
                                    self.params[1].to_code(coder))
     result =  head + coder.indent(self.body.to_code(coder))
@@ -389,12 +389,15 @@ class Apply(Element):
   is_statement = False
   
   def __init__(self, caller, args):
-    self.caller = caller
-    if isinstance(self.caller, RulesFunction):
-      self.args = args[0], make_tuple(args[1:])
-      return
+    #self.caller = caller
+    #if isinstance(self.caller, RulesFunction):
+      #self.args = args[0], make_tuple(args[1:])
+      #return
     self.caller, self.args = caller, args
-
+  
+  #def new(self, caller, args):
+    #return Apply(caller, args)
+  
   def assign_convert(self, env, compiler):
     return self.__class__(self.caller.assign_convert(env, compiler), 
                  tuple(arg.assign_convert(env, compiler) for arg in self.args))    
@@ -443,7 +446,8 @@ class Apply(Element):
       else: 
         return self.__class__(self.caller, optimize_args(self.args, data))
     elif isinstance(self.caller, Lamda):
-      return self.caller.optimize_apply(data, self.args)
+      args = optimize_args(self.args, data)
+      return self.caller.optimize_apply(data, args)
     else:
       return self.__class__(self.caller.optimize(data), optimize_args(self.args, data))
 

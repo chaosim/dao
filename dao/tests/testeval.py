@@ -214,16 +214,17 @@ class TestRules:
     x = Var('x')
     eq_(eval(let([(f, rules([[x], add(x, x)]))], f(f(1)))), 4) 
     #eq_(eval(let([(f, rules([[x], add(x, x)]))], f(1))), 2) # passed
-    #assert_raises(KeyError, eval, let([(f, rules([[x], add(x, x)]))], f(1, 2))) # passed
+    #assert_raises(NoSolution, eval, let([(f, rules([[x], add(x, x)]))], f(1, 2))) # passed
     
   def test_embed_var1(self):
     e, f = LogicVar('e'), Var('f')
-    eq_(eval(letrec([(f, rules([[1], 1]))], f(e), e)), 1)
+    eq_(eval(let([(f, rules([[1], 1]))], f(e), e)), 1)
+    eq_(eval(letrec([(f, rules([[1], 1]))], f(e))), 1)
     
   def test_letrec_rules(self):
     f = Var('f')
     x = Var('x')
-    #eq_(eval(letrec([(f, rules([[1], 1],[[x],f(sub(x,1))]))], f(1))), 1) # passed
+    eq_(eval(letrec([(f, rules([[1], 1],[[x],f(sub(x,1))]))], f(1))), 1) # passed
     eq_(eval(letrec([(f, rules([[1], 1],[[x],f(sub(x,1))]))], f(2))), 1)
     
     
@@ -325,7 +326,7 @@ class TestCut:
     eq_(eval(letrec([
       (start, rules([[x], a(x)],
                     [[x], d(x)])),      
-      (a, rules([[x], begin(b(x), c(x))],#, cut
+      (a, rules([[x], begin(b(x), c(x))],
                 [[x], d(x)])),
       (b, rules([[1], 'b1'],
                 [[4], 'b4'])),

@@ -6,7 +6,7 @@ from dao.solvebase import NoSolution
 
 from dao.builtins import Var
 from dao.command import LogicVar
-from dao.builtins import begin, let
+from dao.builtins import begin, let, quote
 from dao.builtins import eq, sub, mul, add, div
 from dao.builtins import succeed, fail, or_, and_, not_p, cut_or#, repeat
 from dao.builtins import findall#, call, once
@@ -119,7 +119,7 @@ class Testunify:
   def test4(self):
     x = Var('x')
     Lx = LogicVar('x')
-    #eq_(eval(begin(unify(Lx, 1), unify(Lx,1))), True)
+    eq_(eval(begin(unify(Lx, 1), unify(Lx,1))), True)
     assert_raises(NoSolution, eval, begin(unify(Lx, 1), unify(Lx,2)))
     
   def xtest5(self):

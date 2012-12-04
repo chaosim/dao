@@ -260,6 +260,9 @@ class BuiltinFunction(Command):
   def subst(self, bindings):
     return self
   
+  def optimize(self, data):
+    return self
+  
   def pythonize_exp(self, env, compiler):
     return (self, ), False
   

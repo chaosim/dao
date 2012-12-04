@@ -308,6 +308,10 @@ class Return(Element):
       return self.__class__(*optimize_args(self.args, data))
   
   def pythonize_exp(self, env, compiler):
+    if len(self.args)==1 and isinstance(self.args[0], Begin):
+      return Begin(self.args[0].statements[:-1]+(Return(self.args[0].statements[-1]),)).pythonize_exp(env, compiler)
+    elif len(self.args)==1 and isinstance(self.args[0], If):
+      return If(self.args[0].test, Return(self.args[0].then), Return(self.args[0].else_)).pythonize_exp(env, compiler)
     exps, args, has_statement = pythonize_args(self.args, env, compiler)
     return exps+(self.__class__(*args),), True
     
@@ -381,19 +385,27 @@ class If(Element):
   
   def optimize(self, data):
     test = self.test.optimize(data)
+    assign_bindings = data.assign_bindings
+    data.assign_bindings = assign_bindings.copy()
     then = self.then.optimize(data)
+    then_assign_bindings = data.assign_bindings
+    data.assign_bindings = assign_bindings.copy()
     else_ = self.else_.optimize(data)
-    if isinstance(then, If): # (if a (if a b c) d)
-      if then.test==self.test:
-        return If(self.test, then.then, self.else_).optimize(data)
-    if isinstance(else_, If): # (if a b (if a c d))
-      if else_.test==self.test:
-        return If(self.test, self.then, else_.else_).optimize(data)
+    else_assign_bindings = data.assign_bindings
+    for var, value in then_assign_bindings.items():
+      if var in else_assign_bindings \
+         and else_assign_bindings[var]==then_assign_bindings[var]:
+        assign_bindings[var] = value
+    data.assign_bindings = assign_bindings
+    if isinstance(then, If) and then.test==test: # (if a (if a b c) d)
+      then = then.then
+    if isinstance(else_, If) and else_.test==test: # (if a b (if a c d))
+      else_ = else_.else_
     test_bool = test.bool()
     if test_bool==True:
-      return then.optimize(data)
+      return then
     elif test_bool==False:
-      return else_.optimize(data)
+      return else_
     return If(test, then, else_)
 
   def insert_return_statement(self):
