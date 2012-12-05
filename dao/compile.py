@@ -43,69 +43,32 @@ def compile_to_python(exp, env, done=None):
   if env is None: env = Environment()
   exp = il.element(exp).alpha_convert(env, compiler)
   exp = exp.cps_convert(compiler, done)
-  function = compiler.new_var(il.LocalVar('compiled_dao_function'))
-  exp = il.Function(function, (), exp)
-  #exp = assign_convert(exp, {}, compiler)
   data = OptimizationData()
   exp.optimization_analisys(data)
   exp = exp.optimize(data)
   #exp = exp.tail_recursive_convert()
-  #exp = exp.trampoline()
+  function = compiler.new_var(il.LocalVar('compiled_dao_function'))
+  exp = il.Function(function, (), exp)
   exp = il.begin(*exp.pythonize_exp(env, compiler)[0])
   exp = exp.statements[0]
-  #if isinstance(exp.body, il.Begin) and isinstance(exp.body.statements[0], il.GlobalDecl):
-    #exp.body.statements = exp.body.statements[1:]
   exp.body = exp.body.replace_return_with_yield()
   coder = CodeGenerator()
   result = exp.to_code(coder)
   return prelude + result
 
 '''
-il.Function(compiled_dao_function, (), il.begin(
-  il.Assign(old_parse_state, il.parse_state), 
-  il.Assign(il.parse_state, il.Tuple((aaa, 0))), 
-  il.Assign(fc11, il.fail_cont), 
-  il.Assign(il.fail_cont, il.Clamda(v4, il.begin(
-    il.Assign(il.fail_cont, fc11), 
-    il.Assign(il.parse_state, old_parse_state), 
-    fc11(False)))), 
-  il.Clamda(v, il.CFunction(any_cont, v2, il.begin(
-    il.Assign(old_fail_cont, il.fail_cont), 
-    il.Assign(il.fail_cont, il.Clamda(v2, il.begin(
-      il.Assign(il.fail_cont, old_fail_cont), 
-      v2))), 
-    il.AssignFromList(text, pos, il.parse_state), 
-    il.If((pos>=il.Len(text)), 
-          il.Return(il.fail_cont(None))), 
-    il.If((a==il.GetItem(text, pos)), 
-      il.begin(
-        il.Assign(fc1, il.fail_cont), 
-        il.Assign(il.fail_cont, il.Clamda(v3, il.begin(
-          il.Assign(il.fail_cont, fc1), 
-          il.Assign(il.parse_state, il.Tuple((text, pos))), 
-          fc1(False)))), 
-        il.Assign(il.parse_state, il.Tuple((text, il.add(pos, 1)))), 
-        il.Return(any_cont(il.GetItem(text, pos)))), 
-      il.Return(il.fail_cont(None)))))(True))(True)))
-
-il.Function(compiled_dao_function, (), il.begin(
-  il.Assign(old_parse_state, il.parse_state), 
-  il.Assign(fc11, il.fail_cont), 
-  il.Assign(il.parse_state, il.Tuple((aaa, 0))), 
-  il.Assign(il.fail_cont, il.Clamda(v4, il.begin(
-    il.Assign(il.fail_cont, fc11), 
-    il.Assign(il.parse_state, old_parse_state), 
-    fc11(False)))), 
-  il.CFunction(any_cont, v2, il.begin(
-    il.Assign(old_fail_cont, il.fail_cont), 
-    il.AssignFromList(text, pos, il.parse_state), 
-    il.If((pos>=il.Len(text)), 
-      il.Return(il.begin(
-        il.Assign(il.fail_cont, old_fail_cont), 
-        True))), 
-    il.If((a==il.GetItem(text, pos)), 
-          il.Return(any_cont(il.GetItem(text, pos))), 
-          il.Return(il.begin(
-            il.Assign(il.fail_cont, old_fail_cont), 
-              True)))))(None)))
+il.Clamda(v5, il.begin(
+  il.Assign(f, v5), 
+  il.Clamda(v, il.Clamda(v4, il.begin(
+    il.Assign(x, v4), 
+    il.Clamda(v1, il.Clamda(function, 
+      function(il.Done(v, v), 
+        il.MacroArgs((ExpressionWithCode(add(Var('x'), Var('x')), il.Lamda((), il.Clamda(a0, il.Clamda(a1, il.Clamda(v3, v3)(il.add(a0, a1)))(x))(x))),))))(f))(v4)))(1))(v5)))(il.Lamda((cont, params), il.begin(il.Assign(arity_fun_1, il.Lamda((), il.begin(il.Assign(cut_cont, il.cut_cont), il.Assign(il.cut_cont, il.fail_cont), il.Assign(x1, il.GetItem(params, 0)), il.Clamda(v7, il.Clamda(v10, il.Clamda(a01, il.Clamda(v8, il.Clamda(v6, il.begin(il.Assign(il.cut_cont, cut_cont), cont(v6)))(None))(il.Prin(a01)))(il.EvalExpressionWithCode(v10)))(x1))(True)))), il.Assign(arity_body_map, RulesDict({1: arity_fun_1})), il.If(il.In(il.Len(params), arity_body_map), il.GetItem(arity_body_map, il.Len(params))(), il.fail_cont(None)))))
+'''
+'''
+il.begin(
+  il.Assign(arity_body_map, RulesDict({1: il.Lamda((), il.begin(il.Prin(2), None))})), 
+  il.If(il.In(il.Len(il.MacroArgs((ExpressionWithCode(add(Var('x'), Var('x')), il.Lamda((), 2)),))), arity_body_map), 
+        il.GetItem(arity_body_map, il.Len(il.MacroArgs((ExpressionWithCode(add(Var('x'), Var('x')), il.Lamda((), 2)),))))(), 
+        il.fail_cont(None)))
 '''

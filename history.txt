@@ -1,5 +1,13 @@
 details of history:
 
+2012-12-4
+more tests on optimization completed
+
+more tests on optimization completed, except the tests below:
+bug left:
+  TestCut: all passed except testCut6
+All tests which passed before optimization still pass now.
+
 2012-12-3
 optimization almost completed
 bug left: 

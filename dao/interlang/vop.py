@@ -4,9 +4,9 @@ from dao.compilebase import MAX_EXTEND_CODE_SIZE, to_code_list
 from dao.compilebase import VariableNotBound, CompileTypeError
 from element import Element, Begin, begin, Return, Yield#, element
 from lamda import Apply, optimize_args, clamda, Lamda, MacroLamda, RulesDict
-from lamda import Var, LocalVar, SolverVar, LogicVar, Assign
+from lamda import Var, LocalVar, SolverVar, LogicVar, Assign, ExpressionWithCode
 from element import pythonize_args, FALSE, NONE, Symbol, no_side_effects, unknown
-from element import Atom, element, Integer, Bool
+from element import Atom, element, Integer, Bool, MacroArgs
 
 import operator
 
@@ -270,6 +270,50 @@ class Deref(Element):
   def __repr__(self):
     return 'il.Deref(%s)'%self.item
 
+class EvalExpressionWithCode(Element):
+  def __init__(self, item):
+    self.item = item
+  
+  def side_effects(self):
+    return False
+    
+  def optimization_analisys(self, data):
+    self.item.optimization_analisys(data)
+    
+  def subst(self, bindings):  
+    return EvalExpressionWithCode(self.item.subst(bindings))
+  
+  def code_size(self):
+    return 1  
+  
+  def free_vars(self):
+    return self.item.free_vars()
+
+  def optimize(self, data):
+    item = self.item.optimize(data)
+    if isinstance(item, Var):
+      return EvalExpressionWithCode(item)
+    elif isinstance(item, ExpressionWithCode):
+      return item.function.body
+    else:
+      raise CompileTypeError(item)
+  
+  def pythonize_exp(self, env, compiler):
+    exps, has_statement = self.item.pythonize_exp(env, compiler)
+    return exps[:-1]+(self.__class__(exps[-1]),), has_statement
+  
+  def insert_return_statement(self):
+    return Return(self)
+  
+  def replace_return_with_yield(self):
+    return self
+  
+  def to_code(self, coder):
+    return  '(%s).function()'%self.item.to_code(coder)
+  
+  def __repr__(self):
+    return 'il.EvalExpressionWithCode(%s)'%self.item
+
 class Len(Element):
   def __init__(self, item):
     self.item = item
@@ -291,7 +335,7 @@ class Len(Element):
 
   def optimize(self, data):
     item = self.item.optimize(data)
-    if isinstance(item, Atom):
+    if isinstance(item, Atom) or isinstance(item, MacroArgs):
       return Integer(len(item.value))
     return Len(item)
   
@@ -406,6 +450,8 @@ class GetItem(Element):
           #return element(container.arity_body_map[index.value])
         #except: 
           #return GetItem(container, index)
+      elif isinstance(container, MacroArgs):
+        return container.value[index.value]
     return GetItem(container, index)
   
   def pythonize_exp(self, env, compiler):
@@ -686,7 +732,3 @@ def append_failcont(compiler, *exps):
                 begin(*exps),
                 fc1(FALSE)))
     ))
-
-
-EvalExpressionWithCode = vop('EvalExpressionWithCode', 1, '(%s).function()')
-

@@ -120,12 +120,16 @@ class Testunify:
     x = Var('x')
     Lx = LogicVar('x')
     eq_(eval(begin(unify(Lx, 1), unify(Lx,1))), True)
+    
+  def test5(self):
+    x = Var('x')
+    Lx = LogicVar('x')
     assert_raises(NoSolution, eval, begin(unify(Lx, 1), unify(Lx,2)))
     
-  def xtest5(self):
+  def xtest6(self):
     eq_(eval(unify(L(1), L(1))), True)
     
-  def xtest6(self):
+  def xtest7(self):
     eq_(eval(notunify(2, L(1))), True)
     
 class XTestMetacall:

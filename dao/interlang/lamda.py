@@ -676,13 +676,9 @@ class Assign(Element):
   
   def optimize(self, data):
     exp = self.exp.optimize(data)
-    if self.var in self.exp.free_vars():
-      #value = data.assign_bindings[self.var]
-      #del data.assign_bindings[self.var]
-      #return Begin((Assign(self.var, value),
-                    #Assign(self.var, self.exp))) 
-      return Assign(self.var, self.exp)
-    if isinstance(exp, Atom):
+    #if self.var in self.exp.free_vars():
+      #return Assign(self.var, self.exp)
+    if isinstance(exp, Atom) or isinstance(exp, Var) or isinstance(exp, ExpressionWithCode) or isinstance(exp, RulesDict):
       data.assign_bindings[self.var] = exp
       return
     if isinstance(exp, Lamda) and not isinstance(self.var, RecursiveVar):
