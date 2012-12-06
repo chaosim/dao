@@ -90,7 +90,7 @@ class Var(Element):
   def optimize(self, data):
     return self, False
   
-  def pythonize_exp(self, env, compiler):
+  def pythonize(self, env, compiler):
     return (self,), False
   
   def interlang(self):
@@ -202,7 +202,7 @@ class CommandCall(il.Element):
     vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(self.args)))
     body = (il.Assign(result, il.empty_list),)+tuple(
       il.If(il.Isinstance(var, il.Klass('UnquoteSplice')),
-                  il.AddAssign(result, il.Attr(var, il.Symbol('item'))),
+                  il.AddAssign(result, il.Call(il.Symbol('list'), il.Attr(var, il.Symbol('item')))),
                   il.ListAppend(result, var),
                   ) for var in vars)+(
       cont(il.Call(il.Klass(self.__class__.__name__), il.QuoteItem(self.function), il.MakeTuple(result))),)
@@ -263,7 +263,7 @@ class BuiltinFunction(Command):
   def optimize(self, data):
     return self
   
-  def pythonize_exp(self, env, compiler):
+  def pythonize(self, env, compiler):
     return (self, ), False
   
   def __repr__(self):
@@ -288,7 +288,7 @@ class BuiltinFunctionCall(CommandCall):
     return
   
   def optimize(self, data):
-    return self, False
+    return self
   
   def interlang(self):
     return self
@@ -299,7 +299,7 @@ class BuiltinFunctionCall(CommandCall):
       result |= arg.free_vars()
     return result
   
-  def pythonize_exp(self, env, compiler):
+  def pythonize(self, env, compiler):
     return (self,), False
   
   def to_code(self, coder):

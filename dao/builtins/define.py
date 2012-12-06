@@ -364,17 +364,17 @@ def unify_head_item2(compiler, cont, arg, head_item):
   if not isinstance(head_item, Var):
     head_item = head_item.interlang()
     arg1 = compiler.new_var(il.LocalVar('arg'))
-    return il.Begin((
+    return il.begin(
       il.Assign(arg1, il.Deref(arg)),
       il.If(il.IsLogicVar(arg1),
          il.begin(il.SetBinding(arg1, head_item),
                il.append_failcont(compiler, il.DelBinding(arg1)),
                cont(il.TRUE)),
-              il.If(il.Eq(arg1, head_item), cont(TRUE), il.failcont(TRUE)))))
+              il.If(il.Eq(arg1, head_item), cont(TRUE), il.failcont(TRUE))))
   elif not isinstance(head_item, LogicVar):
-    return il.Begin((
+    return il.begin(
       il.Assign(head_item.interlang(), arg),
-      cont(il.TRUE)))
+      cont(il.TRUE))
   else:
     head_item = head_item.interlang()
     arg1 = compiler.new_var(il.LocalVar('arg'))
@@ -485,9 +485,9 @@ def unify_macro_head_item1(arg, head_item):
 def unify_macro_head_item2(compiler, cont, arg, head_item):
   if isinstance(head_item, Var):
     if not isinstance(head_item, LogicVar):
-      return il.Begin((
+      return il.begin(
         il.Assign(head_item.interlang(), arg),
-        cont(il.TRUE)))
+        cont(il.TRUE))
     else: 
       v = compiler.new_var(il.LocalVar('v'))
       head_item = head_item.interlang()

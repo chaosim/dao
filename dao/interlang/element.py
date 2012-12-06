@@ -105,7 +105,7 @@ class Atom(Element):
   def replace_return_with_yield(self):
     return self
   
-  def pythonize_exp(self, env, compiler):
+  def pythonize(self, env, compiler):
     return (self,), False
   
   def code_size(self):
@@ -154,6 +154,10 @@ class String(Atom):
 class List(Atom): 
   def __eq__(x, y):
     return Atom.__eq__(x, y) or (isinstance(y, list) and x.value==y)
+  
+class Dict(Atom): 
+  def __eq__(x, y):
+    return Atom.__eq__(x, y) or (isinstance(y, dict) and x.value==y)
   
 class Bool(Atom): 
   def __eq__(x, y):
@@ -205,6 +209,9 @@ class Tuple(Atom):
   def code_size(self):
     return sum([x.code_size() for x in self.value])
   
+  def optimize(self, data):
+    return Tuple(*tuple(x.optimize(data) for x in self.value))
+  
   def to_code(self, coder):
     if len(self.value)!=1:
       return '(%s)'% ', '.join([x.to_code(coder) for x in self.value])
@@ -249,12 +256,12 @@ class MacroArgs(Element):
   def subst(self, bindings):
     return MacroArgs(tuple(x.subst(bindings) for x in self.value))
   
-  def pythonize_exp(self, env, compiler):
+  def pythonize(self, env, compiler):
     has_statement = False
     exps = []
     args = []
     for arg in self.value:
-      exps1, has_statement1 = arg.pythonize_exp(env, compiler)
+      exps1, has_statement1 = arg.pythonize(env, compiler)
       has_statement = has_statement or has_statement1
       exps += exps1[:-1]
       args.append(exps1[-1])
@@ -294,7 +301,13 @@ class Return(Element):
 
   def side_effects(self):
     return False
-        
+  
+  def free_vars(self):
+    result = set()
+    for x in self.args:
+      result |= x.free_vars()
+    return result
+  
   def subst(self, bindings):  
     return self.__class__(*tuple(arg.subst(bindings) for arg in self.args))
     
@@ -307,11 +320,11 @@ class Return(Element):
           raise CompileError
       return self.__class__(*optimize_args(self.args, data))
   
-  def pythonize_exp(self, env, compiler):
+  def pythonize(self, env, compiler):
     if len(self.args)==1 and isinstance(self.args[0], Begin):
-      return Begin(self.args[0].statements[:-1]+(Return(self.args[0].statements[-1]),)).pythonize_exp(env, compiler)
+      return Begin(self.args[0].statements[:-1]+(Return(self.args[0].statements[-1]),)).pythonize(env, compiler)
     elif len(self.args)==1 and isinstance(self.args[0], If):
-      return If(self.args[0].test, Return(self.args[0].then), Return(self.args[0].else_)).pythonize_exp(env, compiler)
+      return If(self.args[0].test, Return(self.args[0].then), Return(self.args[0].else_)).pythonize(env, compiler)
     exps, args, has_statement = pythonize_args(self.args, env, compiler)
     return exps+(self.__class__(*args),), True
     
@@ -385,6 +398,17 @@ class If(Element):
   
   def optimize(self, data):
     test = self.test.optimize(data)
+    test_bool = test.bool()
+    if test_bool==True:
+      then = self.then.optimize(data)
+      if isinstance(then, If) and then.test==test: # (if a (if a b c) d)
+        then = then.then      
+      return then
+    elif test_bool==False:
+      else_ = self.else_.optimize(data)
+      if isinstance(else_, If) and else_.test==test: # (if a b (if a c d))
+        else_ = else_.else_      
+      return else_    
     assign_bindings = data.assign_bindings
     data.assign_bindings = assign_bindings.copy()
     then = self.then.optimize(data)
@@ -395,17 +419,12 @@ class If(Element):
     for var, value in then_assign_bindings.items():
       if var in else_assign_bindings \
          and else_assign_bindings[var]==then_assign_bindings[var]:
-        assign_bindings[var] = value
-    data.assign_bindings = assign_bindings
+        then_assign_bindings[var] = value
+    data.assign_bindings = then_assign_bindings
     if isinstance(then, If) and then.test==test: # (if a (if a b c) d)
-      then = then.then
+      then = then.then      
     if isinstance(else_, If) and else_.test==test: # (if a b (if a c d))
-      else_ = else_.else_
-    test_bool = test.bool()
-    if test_bool==True:
-      return then
-    elif test_bool==False:
-      return else_
+      else_ = else_.else_      
     return If(test, then, else_)
 
   def insert_return_statement(self):
@@ -422,10 +441,10 @@ class If(Element):
     result.is_statement = True
     return result
   
-  def pythonize_exp(self, env, compiler):
-    test, has_statement1 = self.test.pythonize_exp(env, compiler)
-    then, has_statement2 = self.then.pythonize_exp(env, compiler)
-    else_, has_statement3 = self.else_.pythonize_exp(env, compiler)
+  def pythonize(self, env, compiler):
+    test, has_statement1 = self.test.pythonize(env, compiler)
+    then, has_statement2 = self.then.pythonize(env, compiler)
+    else_, has_statement3 = self.else_.pythonize(env, compiler)
     if_ = If(test[-1], begin(*then), begin(*else_))
     if_.is_statement = if_.is_statement or has_statement2 or has_statement3
     return test[:-1]+(if_,), has_statement1 or if_.is_statement
@@ -516,9 +535,9 @@ class Try(Element):
     result.is_statement = True
     return result
   
-  def pythonize_exp(self, env, compiler):
-    test, has_statement1 = self.test.pythonize_exp(env, compiler)
-    body, has_statement2 = self.body.pythonize_exp(env, compiler)
+  def pythonize(self, env, compiler):
+    test, has_statement1 = self.test.pythonize(env, compiler)
+    body, has_statement2 = self.body.pythonize(env, compiler)
     result = Try(test[-1], begin(*body))
     return test[:-1]+(result,), True
     
@@ -531,65 +550,6 @@ class Try(Element):
   
   def __repr__(self):
     return 'il.Try(%r, %r)'%(self.test, self.body)
-
-def for_(var, range, *exps):
-  return For(element(var), element(range), begin(*[x for x in exps]))
-
-class For(Element):
-  def __init__(self, var, range, body):
-    self.var, self.range, self.body = var, range, body
-    
-  def assign_convert(self, env, compiler):
-    return For(self.var.assign_convert(env, compiler), 
-               self.range.assign_convert(env, compiler), 
-               self.body.assign_convert(env, compiler))
-
-  def find_assign_lefts(self):
-    return self.body.find_assign_lefts()
-  
-  def optimization_analisys(self, data):  
-    self.var.optimization_analisys(data)
-    self.range.optimization_analisys(data)
-    self.body.optimization_analisys(data)
-    
-  def code_size(self):
-    return 3 + self.var.code_size() + self.range.code_size() + self.body.code_size()
-  
-  def side_effects(self):
-    return not self.var.side_effects() and\
-           not self.range.side_effects() and\
-           not self.body.side_effects()
-    
-  def subst(self, bindings):  
-    return For(self.var.subst(bindings),
-               self.range.subst(bindings),
-               self.body.subst(bindings))
-    
-  def optimize(self, data):
-    return For(self.var, self.range.optimize(data), self.body.optimize(data))
-
-  def insert_return_statement(self):
-    return For(self.var, self.range, self.body.insert_return_statement())
-  
-  def replace_return_with_yield(self):
-    return For(self.var, self.range, self.body.replace_return_with_yield())
-  
-  def pythonize_exp(self, env, compiler):
-    var, has_statement1 = self.var.pythonize_exp(env, compiler)
-    range, has_statement1 = self.range.pythonize_exp(env, compiler)
-    body, has_statement2 = self.body.pythonize_exp(env, compiler)
-    return (For(var[-1], range[-1], begin(*body)),), True
-    
-  def to_code(self, coder):
-    return 'for %s in %s:\n%s\n' % (self.var.to_code(coder), 
-                                    self.range.to_code(coder), 
-                                  coder.indent(self.body.to_code(coder)))
-           
-  def __eq__(x, y):
-    return classeq(x, y) and x.var==y.var and x.range==y.range and x.body==y.body
-  
-  def __repr__(self):
-    return 'il.For(%r, %r, %r)'%(self.var, self.range, self.body)
 
 def begin(*exps):
   assert isinstance(exps, tuple)
@@ -605,7 +565,9 @@ def begin(*exps):
         continue
       else:
         result.append(e)
-    return Begin(tuple(result))
+    if len(result)>1: 
+      return Begin(tuple(result))
+    else: return result[0]
 
 class Begin(Element):
   is_statement = True
@@ -620,7 +582,7 @@ class Begin(Element):
     
     
   def assign_convert(self, env, compiler):
-    return Begin(tuple(x.assign_convert(env, compiler) for x in self.statements))
+    return begin(*tuple(x.assign_convert(env, compiler) for x in self.statements))
   
   def find_assign_lefts(self):
     result = set()
@@ -655,13 +617,20 @@ class Begin(Element):
   
   def insert_return_statement(self):
     inserted = self.statements[-1].insert_return_statement()
-    return Begin(self.statements[:-1]+(inserted,))
+    return begin(*(self.statements[:-1]+(inserted,)))
   
   def replace_return_with_yield(self):
     return Begin(tuple(exp.replace_return_with_yield() for exp in self.statements))
   
-  def pythonize_exp(self, env, compiler):
-    return pythonize_exps(self.statements, env, compiler)
+  def pythonize(self, env, compiler):    
+    result = ()
+    has_any_statement = False
+    for exp in self.statements:
+      exps2, any_statement = exp.pythonize(env, compiler)
+      has_any_statement = has_any_statement or any_statement
+      result += exps2
+    return result, has_any_statement or len(result)>1
+
   
   def to_code(self, coder):
     return  '\n'.join([x.to_code(coder) for x in self.statements])
@@ -676,7 +645,8 @@ class Begin(Element):
     return 'il.begin(%s)'%', '.join([repr(x) for x in self.statements])
 
 type_map = {int:Integer, float: Float, str:String, unicode: String, 
-            tuple: make_tuple, list:List, bool:Bool, type(None): Atom}
+            tuple: make_tuple, list:List, dict:Dict, 
+            bool:Bool, type(None): Atom}
 
 def optimize_args(args, data):
   result = []
@@ -686,22 +656,13 @@ def optimize_args(args, data):
       result.append(arg)
   return tuple(result)
     
-def pythonize_exps(exps, env, compiler):
-  result = ()
-  has_any_statement = False
-  for exp in exps:
-    exps2, any_statement = exp.pythonize_exp(env, compiler)
-    has_any_statement = has_any_statement or any_statement
-    result += exps2
-  return result, has_any_statement
-
 def pythonize_args(args, env, compiler):
   # used in Apply, Return, Yield, VirtualOpteration
   result = []
   exps = ()
   has_statement = False
   for arg in args:
-    exps2, has_statement1 = arg.pythonize_exp(env, compiler)
+    exps2, has_statement1 = arg.pythonize(env, compiler)
     has_statement = has_statement or has_statement1
     if exps2[-1].is_statement:
       result.append(NONE)

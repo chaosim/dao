@@ -110,15 +110,10 @@ class Block(il.Element):
     v = compiler.new_var(v0)
     v1 = compiler.new_var(v0)
     v2 = compiler.new_var(v0)
-    old_unwind_cont_stack_length = compiler.new_var(il.LocalVar('old_unwind_cont_stack_length'))
     block_fun = compiler.new_var(il.LocalVar('block_'+self.label.name))
-    return il.cfunction(block_fun, v,
-                il.Assign(old_unwind_cont_stack_length, il.unwind_cont_stack_length),
-                il.SetExitBlockContMap(il.String(self.label.name),  il.clamda(v1, 
-                      il.Unwind(old_unwind_cont_stack_length), cont(v1))),
-                il.SetContinueBlockContMap(il.String(self.label.name),  il.clamda(v2, 
-                      il.Unwind(old_unwind_cont_stack_length), block_fun(v2))),
-                self.body.cps_convert(compiler, cont))(NONE)
+    compiler.exit_block_cont_map[self.label.name] = il.clamda(v1, cont(v1))
+    compiler.continue_block_cont_map[self.label.name] = il.clamda(v2, block_fun(v2))
+    return il.cfunction(block_fun, v, self.body.cps_convert(compiler, cont))(NONE)
   
   def __repr__(self):
     return 'Block(%s, %s)'%(self.label, self.body)
@@ -139,7 +134,8 @@ class ExitBlock(il.Element):
     return ExitBlock(label, self.value.alpha_convert(env, compiler))
   
   def cps_convert(self, compiler, cont):
-    return il.GetExitBlockCont(il.String(self.label.name))(self.value)
+    return il.begin(compiler.protect_cont(NONE), 
+                    compiler.exit_block_cont_map[self.label.name](self.value))
 
   def __repr__(self):
     return 'exit_block(%s, %s)'%(self.label, self.value)
@@ -159,7 +155,8 @@ class ContinueBlock(il.Element):
     return ContinueBlock(label)
   
   def cps_convert(self, compiler, cont):
-    return il.GetContinueBlockCont(il.String(self.label.name))(NONE)
+    return il.begin(compiler.protect_cont(NONE), 
+                    compiler.continue_block_cont_map[self.label.name](NONE))
   
   def __repr__(self):
     return 'continue_block(%s)'%(self.label)
@@ -168,11 +165,11 @@ class ContinueBlock(il.Element):
 def catch(compiler, cont, tag, *form):
   v = compiler.new_var(il.LocalVar('v'))
   v2 = compiler.new_var(il.LocalVar('v'))
-  old_unwind_cont_stack_length = compiler.new_var(il.LocalVar('old_unwind_cont_stack_length'))
+  #old_unwind_cont_stack_length = compiler.new_var(il.LocalVar('old_unwind_cont_stack_length'))
   return tag.cps_convert(compiler, il.clamda(v,
-    il.Assign(old_unwind_cont_stack_length, il.unwind_cont_stack_length),
+    #il.Assign(old_unwind_cont_stack_length, il.unwind_cont_stack_length),
     il.PushCatchCont(v, il.clamda(v2,
-      il.Unwind(old_unwind_cont_stack_length),
+      #il.Unwind(old_unwind_cont_stack_length),
       #il.PopCatchCont(v), # do not pop here, when throw to find, the cont is popped.
       cont(v2))),
     begin(*form).cps_convert(compiler, cont)))
@@ -184,18 +181,20 @@ def throw(compiler, cont, tag, form):
   return tag.cps_convert(compiler, 
       il.clamda(v,
           form.cps_convert(compiler, 
-            il.clamda(v2, il.FindCatchCont(v)(v2)))))
+            il.clamda(v2, 
+                      compiler.protect_cont(NONE),
+                      il.FindCatchCont(v)(v2)))))
   
 @special
 def unwind_protect(compiler, cont, form, *cleanup):
   v = compiler.new_var(il.LocalVar('v'))
   v1 = compiler.new_var(il.LocalVar('v'))
   v2 = compiler.new_var(il.LocalVar('v'))
-  protect_cont = compiler.new_var(il.LocalVar('protect_cont'))
-  return il.clamda(v,
-    il.Assign(protect_cont, 
-      il.clamda(v1, 
-          il.pop_unwind_cont,
-          begin(*cleanup).cps_convert(compiler, il.clamda(v2, cont(v1))))),
-    il.PushUnwindCont(protect_cont),
-    form.cps_convert(compiler, protect_cont))(NONE)
+  old_protect_cont = compiler.protect_cont
+  compiler.protect_cont = il.clamda(v, NONE)
+  cleanup_protect = begin(*cleanup).cps_convert(compiler, old_protect_cont)
+  compiler.protect_cont.body = cleanup_protect
+  cleanup_cont = il.clamda(v1, begin(*cleanup).cps_convert(compiler, il.clamda(v2, cont(v1))))
+  result = form.cps_convert(compiler, cleanup_cont)
+  compiler.protect_cont = old_protect_cont
+  return result

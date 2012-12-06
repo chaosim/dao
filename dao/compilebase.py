@@ -115,7 +115,7 @@ def lambda_side_effects(exp):
   #return exp
 
 def generate_code(exp):
-  exp = exp.pythonize_exp(Environment(), Compiler())
+  exp = exp.pythonize(Environment(), Compiler())
   coder = CodeGenerator()
   return exp.to_code(coder)
 

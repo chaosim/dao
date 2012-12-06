@@ -114,8 +114,8 @@ class Lamda(Element):
   def insert_return_statement(self):
     return Return(self)
   
-  def pythonize_exp(self, env, compiler):
-    body_exps, body_has_any_statement = self.body.pythonize_exp(env, compiler)
+  def pythonize(self, env, compiler):
+    body_exps, body_has_any_statement = self.body.pythonize(env, compiler)
     global_vars = self.find_assign_lefts()-set(self.params)
     global_vars = set([x for x in global_vars 
                        if isinstance(x, Var) 
@@ -151,8 +151,8 @@ class Lamda(Element):
                               repr(self.body))
 
 class MacroLamda(Lamda):
-  def pythonize_exp(self, env, compiler):
-    body_exps, body_has_any_statement = self.body.pythonize_exp(env, compiler)
+  def pythonize(self, env, compiler):
+    body_exps, body_has_any_statement = self.body.pythonize(env, compiler)
     global_vars = self.find_assign_lefts()-set(self.params)
     global_vars = set([x for x in global_vars 
                        if isinstance(x, Var) 
@@ -217,8 +217,8 @@ class Function(Lamda):
     data.assign_bindings = old_assign_bindings
     return result
   
-  def pythonize_exp(self, env, compiler):
-    body_exps, has_any_statement = self.body.pythonize_exp(env, compiler)
+  def pythonize(self, env, compiler):
+    body_exps, has_any_statement = self.body.pythonize(env, compiler)
     global_vars = self.find_assign_lefts()-set(self.params)
     global_vars = set([x for x in global_vars 
                        if isinstance(x, Var) 
@@ -291,12 +291,12 @@ class RulesDict(Element):
       self.arity_body_map[arity] = body.optimize(data) 
     return self
   
-  def pythonize_exp(self, env, compiler):
+  def pythonize(self, env, compiler):
     exps = []
     has_statement = False
     arity_body_map = {}
     for arity, function in self.arity_body_map.items():
-      exps1, has_statement1 = function.pythonize_exp(env, compiler)
+      exps1, has_statement1 = function.pythonize(env, compiler)
       exps += exps1[:-1]
       arity_body_map[arity] = exps1[-1]
       has_statement = has_statement or has_statement1
@@ -342,12 +342,12 @@ class Clamda(Lamda):
     return 'il.Clamda(%r, %s)'%(self.params[0], repr(self.body))
 
 class Done(Clamda):
-  def __init__(self):
-    v = Var('v')
-    self.params, self.body = (v,), v
+  def __init__(self, param):
+    self.params = (param,)
+    self.body = param
     
   def new(self, params, body):
-    return self.__class__()
+    return self.__class__(self.params[0])
   
   def __call__(self, *args):
     return self.body.subst({self.params[0]:args[0]})
@@ -457,8 +457,8 @@ class Apply(Element):
   def replace_return_with_yield(self):
     return self
   
-  def pythonize_exp(self, env, compiler):
-    exps, has_statement = self.caller.pythonize_exp(env, compiler)
+  def pythonize(self, env, compiler):
+    exps, has_statement = self.caller.pythonize(env, compiler)
     caller = exps[-1]
     exps = exps[:-1]
     exps2, args, has_statement2 = pythonize_args(self.args, env, compiler)
@@ -502,8 +502,8 @@ class ExpressionWithCode(Element):
   def optimize(self, data):
     return ExpressionWithCode(self.exp, self.function.optimize(data))
         
-  def pythonize_exp(self, env, compiler):
-    exps, has_statement = self.function.pythonize_exp(env, compiler)
+  def pythonize(self, env, compiler):
+    exps, has_statement = self.function.pythonize(env, compiler)
     if has_statement:
       return (exps[0], ExpressionWithCode(self.exp, exps[1])), True
     else:
@@ -562,7 +562,7 @@ class Var(Element):
   def replace_return_with_yield(self):
     return self
   
-  def pythonize_exp(self, env, compiler):
+  def pythonize(self, env, compiler):
     return (self,), False
       
   def to_code(self, coder):
@@ -624,7 +624,7 @@ class LogicVar(Element):
   def replace_assign(self, data):
     return self
   
-  def pythonize_exp(self, env, compiler):
+  def pythonize(self, env, compiler):
     return (self,), False
       
   def deref(self, bindings):
@@ -695,8 +695,8 @@ class Assign(Element):
       #if isinstance(self.var, RecursiveVar):
         #return Assign(self.var, exp)
   
-  def pythonize_exp(self, env, compiler):
-    exps, has_statement = self.exp.pythonize_exp(env, compiler)
+  def pythonize(self, env, compiler):
+    exps, has_statement = self.exp.pythonize(env, compiler)
     if exps[-1].is_statement:
       return exps+(Assign(self.var, NONE),), True
     else:
@@ -767,9 +767,9 @@ class While(Element):
     result.is_statement = True
     return result
   
-  def pythonize_exp(self, env, compiler):
-    test, has_statement1 = self.test.pythonize_exp(env, compiler)
-    body, has_statement2 = self.body.pythonize_exp(env, compiler)
+  def pythonize(self, env, compiler):
+    test, has_statement1 = self.test.pythonize(env, compiler)
+    body, has_statement2 = self.body.pythonize(env, compiler)
     result = While(test[-1], begin(*body))
     return test[:-1]+(result,), True
     
@@ -782,4 +782,72 @@ class While(Element):
   
   def __repr__(self):
     return 'il.While(%r, %r)'%(self.test, self.body)
+
+def for_(var, range, *exps):
+  return For(element(var), element(range), begin(*[x for x in exps]))
+
+class For(Element):
+  def __init__(self, var, range, body):
+    self.var, self.range, self.body = var, range, body
+    
+  def assign_convert(self, env, compiler):
+    return For(self.var.assign_convert(env, compiler), 
+               self.range.assign_convert(env, compiler), 
+               self.body.assign_convert(env, compiler))
+
+  def find_assign_lefts(self):
+    return self.body.find_assign_lefts()
+  
+  def optimization_analisys(self, data):  
+    self.var.optimization_analisys(data)
+    self.range.optimization_analisys(data)
+    self.body.optimization_analisys(data)
+    
+  def code_size(self):
+    return 3 + self.var.code_size() + self.range.code_size() + self.body.code_size()
+  
+  def side_effects(self):
+    return not self.var.side_effects() and\
+           not self.range.side_effects() and\
+           not self.body.side_effects()
+    
+  def subst(self, bindings):  
+    return For(self.var.subst(bindings),
+               self.range.subst(bindings),
+               self.body.subst(bindings))
+    
+  def free_vars(self):
+    return self.var.free_vars() | self.range.free_vars() | self.body.free_vars()
+  
+  def optimize(self, data):
+    free_vars = self.free_vars()
+    assigns = []
+    for var, value in data.assign_bindings.items():
+      if var in free_vars:
+        assigns.append(Assign(var, value))
+        del data.assign_bindings[var]
+    return begin(*(tuple(assigns) + (For(self.var, self.range.optimize(data), self.body.optimize(data)),)))
+
+  def insert_return_statement(self):
+    return For(self.var, self.range, self.body.insert_return_statement())
+  
+  def replace_return_with_yield(self):
+    return For(self.var, self.range, self.body.replace_return_with_yield())
+  
+  def pythonize(self, env, compiler):
+    var, has_statement1 = self.var.pythonize(env, compiler)
+    range, has_statement1 = self.range.pythonize(env, compiler)
+    body, has_statement2 = self.body.pythonize(env, compiler)
+    return (For(var[-1], range[-1], begin(*body)),), True
+    
+  def to_code(self, coder):
+    return 'for %s in %s:\n%s\n' % (self.var.to_code(coder), 
+                                    self.range.to_code(coder), 
+                                  coder.indent(self.body.to_code(coder)))
+           
+  def __eq__(x, y):
+    return classeq(x, y) and x.var==y.var and x.range==y.range and x.body==y.body
+  
+  def __repr__(self):
+    return 'il.For(%r, %r, %r)'%(self.var, self.range, self.body)
 

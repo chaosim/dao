@@ -69,7 +69,7 @@ def first_p(compiler, cont, clause1, clause2):
   v = compiler.new_var(v0)
   fc = compiler.new_var(fc)
   first_cont = il.Clamda(v, il.SetFailCont(fc), cont(v))
-  return il.Begin(
+  return il.begin(
     il.Assign(fc, il.failcont),
     il.AppendFailCont(clause2.cps_convert(compiler, first_cont)),
     cps_convert(clause1.compiler, first_cont))

@@ -6,7 +6,7 @@ from element import Element, Begin, begin, Return, Yield#, element
 from lamda import Apply, optimize_args, clamda, Lamda, MacroLamda, RulesDict
 from lamda import Var, LocalVar, SolverVar, LogicVar, Assign, ExpressionWithCode
 from element import pythonize_args, FALSE, NONE, Symbol, no_side_effects, unknown
-from element import Atom, element, Integer, Bool, MacroArgs
+from element import Atom, element, Integer, Bool, MacroArgs, Tuple, List
 
 import operator
 
@@ -36,7 +36,7 @@ class BinaryOperation(Element):
   def code_size(self): 
     return 1
   
-  def pythonize_exp(self, env, compiler):
+  def pythonize(self, env, compiler):
     return (self,), False
     
   def to_code(self, coder):
@@ -119,7 +119,7 @@ class BinaryOperationApply(Apply):
   def insert_return_statement(self):
     return Return(self)
   
-  def pythonize_exp(self, env, compiler):
+  def pythonize(self, env, compiler):
     exps, args, has_statement = pythonize_args(self.args, env, compiler)
     return exps+(self.__class__(self.caller, args),), has_statement
   
@@ -190,7 +190,7 @@ class VirtualOperation(Element):
   def replace_return_with_yield(self):
     return self
   
-  def pythonize_exp(self, env, compiler):
+  def pythonize(self, env, compiler):
     exps, args, has_statement = pythonize_args(self.args, env, compiler)
     try: self_is_statement = self.is_statement
     except: self_is_statement = False
@@ -254,8 +254,8 @@ class Deref(Element):
       return item
     return Deref(item)
   
-  def pythonize_exp(self, env, compiler):
-    exps, has_statement = self.item.pythonize_exp(env, compiler)
+  def pythonize(self, env, compiler):
+    exps, has_statement = self.item.pythonize(env, compiler)
     return exps[:-1]+(self.__class__(exps[-1]),), has_statement
   
   def insert_return_statement(self):
@@ -298,8 +298,8 @@ class EvalExpressionWithCode(Element):
     else:
       raise CompileTypeError(item)
   
-  def pythonize_exp(self, env, compiler):
-    exps, has_statement = self.item.pythonize_exp(env, compiler)
+  def pythonize(self, env, compiler):
+    exps, has_statement = self.item.pythonize(env, compiler)
     return exps[:-1]+(self.__class__(exps[-1]),), has_statement
   
   def insert_return_statement(self):
@@ -339,8 +339,8 @@ class Len(Element):
       return Integer(len(item.value))
     return Len(item)
   
-  def pythonize_exp(self, env, compiler):
-    exps, has_statement = self.item.pythonize_exp(env, compiler)
+  def pythonize(self, env, compiler):
+    exps, has_statement = self.item.pythonize(env, compiler)
     return exps[:-1]+(Len(exps[-1]),), has_statement
   
   def insert_return_statement(self):
@@ -389,9 +389,9 @@ class In(Element):
         return Bool(item.value in container.arity_body_map)
     return In(item, container)
   
-  def pythonize_exp(self, env, compiler):
-    exps1, has_statement1 = self.item.pythonize_exp(env, compiler)
-    exps2, has_statement2 = self.container.pythonize_exp(env, compiler)
+  def pythonize(self, env, compiler):
+    exps1, has_statement1 = self.item.pythonize(env, compiler)
+    exps2, has_statement2 = self.container.pythonize(env, compiler)
     return exps1[:-1]+exps2[:-1]+(In(exps1[-1], exps2[-1]),), has_statement1 or has_statement2
   
   def insert_return_statement(self):
@@ -454,9 +454,9 @@ class GetItem(Element):
         return container.value[index.value]
     return GetItem(container, index)
   
-  def pythonize_exp(self, env, compiler):
-    container_exps, has_statement1 = self.container.pythonize_exp(env, compiler)
-    index_exps, has_statement2 = self.index.pythonize_exp(env, compiler)
+  def pythonize(self, env, compiler):
+    container_exps, has_statement1 = self.container.pythonize(env, compiler)
+    index_exps, has_statement2 = self.index.pythonize(env, compiler)
     return container_exps[:-1]+index_exps[:-1]+(GetItem(container_exps[-1], index_exps[-1]),), has_statement1 or has_statement2
   
   def insert_return_statement(self):
@@ -479,6 +479,117 @@ class GetItem(Element):
   def __repr__(self):
     return 'il.GetItem(%r, %r)'%(self.container, self.index)
 
+class ListAppend(Element):
+  is_statement = False
+  
+  def __init__(self, container, value):
+    self.container = container
+    self.value = value
+  
+  def side_effects(self):
+    return True
+    
+  def optimization_analisys(self, data):
+    self.value.optimization_analisys(data)
+    self.container.optimization_analisys(data)
+    
+  def subst(self, bindings):  
+    return ListAppend(self.container.subst(bindings), self.value.subst(bindings))
+  
+  def code_size(self):
+    return 1  
+  
+  def free_vars(self):
+    result = set()
+    result |= self.value.free_vars()
+    result |= self.container.free_vars()
+    return result
+  
+  def optimize(self, data):
+    value = self.value.optimize(data)
+    return ListAppend(self.container, value)
+  
+  def pythonize(self, env, compiler):
+    container_exps, has_statement1 = self.container.pythonize(env, compiler)
+    value_exps, has_statement2 = self.value.pythonize(env, compiler)
+    return container_exps[:-1]+value_exps[:-1]+(ListAppend(container_exps[-1], value_exps[-1]),), has_statement1 or has_statement2
+  
+  def insert_return_statement(self):
+    return Return(self)
+  
+  def replace_return_with_yield(self):
+    return self
+  
+  def bool(self):
+    return False
+  
+  def to_code(self, coder):
+    return  '%s.append(%s)'%(self.container.to_code(coder), self.value.to_code(coder))
+  
+  def __repr__(self):
+    return 'il.ListAppend(%r, %r)'%(self.container, self.value)
+
+class AssignFromList(Element):
+  is_statement = True
+  
+  def __init__(self, *args):
+    self.vars = args[:-1]
+    self.value = args[-1]
+  
+  def side_effects(self):
+    return True
+    
+  def optimization_analisys(self, data):
+    for var in self.vars:
+      var.optimization_analisys(data)
+    self.value.optimization_analisys(data)
+    
+  def subst(self, bindings):  
+    return AssignFromList(*(tuple(var.subst(bindings) for var in self.vars)+(self.value.subst(bindings),)))
+  
+  def code_size(self):
+    return 1  
+  
+  def free_vars(self):
+    result = set()
+    result |= self.vars.free_vars()
+    result |= self.value.free_vars()
+    return result
+  
+  def optimize(self, data):
+    value = self.value.optimize(data)
+    if isinstance(value, Tuple) or isinstance(value, List):
+      if len(value.value)!=len(self.vars):
+        raise DaoCompileError
+      for var, v in zip(self.vars, value.value):
+        data.assign_bindings[var] = v
+      return
+    return AssignFromList(*(self.vars+(value,)))
+  
+  def pythonize(self, env, compiler):
+    value_exps, has_statement1 = self.value.pythonize(env, compiler)
+    return value_exps[:-1]+(AssignFromList(*(self.vars+(value_exps[-1],))),), True
+  
+  def insert_return_statement(self):
+    return Return(self)
+  
+  def replace_return_with_yield(self):
+    return self
+  
+  def bool(self):
+    return False
+  
+  def to_code(self, coder):
+    return "%s = %s" % (', '.join([x.to_code(coder) for x in self.vars]), 
+                      self.value.to_code(coder))
+  
+  def __repr__(self):
+    return 'il.AssignFromList(%r, %r)'%(self.vars, self.value)
+
+def AddAssign(var, value):
+  return Assign(var, BinaryOperationApply(add, (var, value)))
+#AddAssign = vop2('AddAssign', 2, '%s += %s')
+
 class IsMacroFunction(Element):
   def __init__(self, item):
     self.item = item
@@ -498,8 +609,8 @@ class IsMacroFunction(Element):
   def optimize(self, data):
     return IsMacroFunction(self.item.optimize(data))
   
-  def pythonize_exp(self, env, compiler):
-    exps, has_statement = self.item.pythonize_exp(env, compiler)
+  def pythonize(self, env, compiler):
+    exps, has_statement = self.item.pythonize(env, compiler)
     return exps[:-1]+(self.__class__(exps[-1]),), has_statement
   
   def insert_return_statement(self):
@@ -573,36 +684,22 @@ Slice2 = vop('Slice2', 2, '%s:%s')
 
 Not = vop('Not', 1, "not %s")
 
-def AssignFromList_to_code(self, coder):
-  return "%s = %s" % (', '.join([x.to_code(coder) for x in self.args[:-1]]), 
-                      self.args[-1].to_code(coder))
-AssignFromList = vop2('AssignFromList', -1, AssignFromList_to_code)
-
-AddAssign = vop2('AddAssign', 2, '%s += %s')
-
 Isinstance = vop('Isinstance', 2, "isinstance(%s, %s)")
 
-EmptyList = vop('empty_list', 0, '[]')
-empty_list = EmptyList()
+#EmptyList = vop('empty_list', 0, '[]')
+#empty_list = EmptyList()
+empty_list = element([])
 
-ListAppend = vop('ListAppend', 2, '%s.append(%s)')
+#EmptyDict = vop('empty_dict', 0, '{}')
+#empty_dict = EmptyDict()
+empty_dict = element({})
 
 #Len = vop('Len', 1, 'len(%s)')
 #def Len(item): return Call(Symbol('len'), item)
 
 RaiseTypeError = vop2('RaiseTypeError', 1, 'raise %s')
 
-SetExitBlockContMap = vop2('SetExitBlockContMap', 2, 'solver.exit_block_cont_map[%s] = %s')
-#def SetExitBlockContMap(key, value): return SetItem(SolverVar('exit_block_cont_map'), key, value)
-
-SetContinueBlockContMap = vop2('SetContinueBlockContMap', 2, 'solver.continue_block_cont_map[%s] = %s')
-#def SetContinueBlockContMap(key, value): return SetItem(SolverVar('continue_block_cont_map'), key, value)
-
-GetExitBlockCont = vop('GetExitBlockCont', 1, 'solver.exit_block_cont_map[%s]')
-#def GetExitBlockCont(key): return GetItem(SolverVar('exit_block_cont_map'), key)
-
-GetContinueBlockCont = vop('GetContinueBlockCont', 1, 'solver.continue_block_cont_map[%s]')
-#def GetContinueBlockCont(key): return GetItem(SolverVar('continue_block_cont_map'), key)
+RaiseException = vop2('RaiseException', 1, 'raise %s')
 
 def QuoteItem_to_code(self, coder):
   return '%s'%repr(self.args[0])
@@ -615,6 +712,26 @@ MakeTuple = vop('MakeTuple', 1, 'tuple(%s)')
 Cle = vop('Cle', 3, '(%s) <= (%s) <= (%s)')
 
 Cge = vop('Cge', 3, '(%s) >= (%s) >= (%s)')
+
+catch_cont_map = SolverVar('catch_cont_map')
+
+unwind_cont_stack = SolverVar('unwind_cont_stack')
+
+exit_block_cont_map = SolverVar('exit_block_cont_map')
+
+continue_block_cont_map = SolverVar('continue_block_cont_map')
+
+SetExitBlockContMap = vop2('SetExitBlockContMap', 2, 'solver.exit_block_cont_map[%s] = %s')
+#def SetExitBlockContMap(key, value): return SetItem(exit_block_cont_map, key, value)
+
+SetContinueBlockContMap = vop2('SetContinueBlockContMap', 2, 'solver.continue_block_cont_map[%s] = %s')
+#def SetContinueBlockContMap(key, value): return SetItem(continue_block_cont_map, key, value)
+
+GetExitBlockCont = vop('GetExitBlockCont', 1, 'solver.exit_block_cont_map[%s]')
+#def GetExitBlockCont(key): return GetItem(exit_block_cont_map, key)
+
+GetContinueBlockCont = vop('GetContinueBlockCont', 1, 'solver.continue_block_cont_map[%s]')
+#def GetContinueBlockCont(key): return GetItem(continue_block_cont_map, key)
 
 PopCatchCont = vop('PopCatchCont', 1, "solver.pop_catch_cont(%s)")
 #def PopCatchCont(tag): return Call(SolverVar('pop_catch_cont'), tag)
@@ -634,6 +751,8 @@ PushUnwindCont = vop2("PushUnwindCont", 1, "solver.unwind_cont_stack.append(%s)"
 pop_unwind_cont = vop('pop_unwind_cont', 0, "solver.unwind_cont_stack.pop()")()
 
 unwind_cont_stack_length = vop('unwind_cont_stack_length', 0, "len(solver.unwind_cont_stack)")()
+
+unwind_cont_stack_length = Len(unwind_cont_stack)
 
 #Unwind = vop('Unwind', 1, "solver.unwind(%s)")
 Unwind = vop2('Unwind', 1, "while len(solver.unwind_cont_stack)>%s:\n"
@@ -676,14 +795,14 @@ DelBinding = vop2('DelBinding', 1, 'del solver.bindings[%s]')
 
 GetValue = vop('GetValue', 1, 'getvalue(%s, solver.bindings')
 
-ParseState = vop('parse_state', 0, 'solver.parse_state')
-parse_state = ParseState()
-#parse_state = SolverVar('parse_state')
+#ParseState = vop('parse_state', 0, 'solver.parse_state')
+#parse_state = ParseState()
+parse_state = SolverVar('parse_state')
 
-SetParseState = vop2('SetParseState', 1, 'solver.parse_state = %s')
-#def SetParseState(state): return Assign(parse_state, state)
+#SetParseState = vop2('SetParseState', 1, 'solver.parse_state = %s')
+def SetParseState(state): return Assign(parse_state, state)
 
-new_logicvar = vop('new_logicvar', 1, 'solver.new_logicvar(%s)')
+#new_logicvar = vop('new_logicvar', 1, 'solver.new_logicvar(%s)')
 
 Optargs = vop('Optargs', 1, '*%s')
 
