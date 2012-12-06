@@ -48,13 +48,13 @@ def compile_to_python(exp, env, done=None):
   exp = exp.cps_convert(compiler, done)
   v = compiler.new_var(il.LocalVar('v'))
   solver_prelude = il.begin(
-    il.Assign(il.failcont, il.clamda(v, il.RaiseException(il.Call(il.Symbol("NoSolution"), v)))),
+    il.Assign(il.parse_state, il.NONE),
+    il.Assign(il.failcont, 
+        il.clamda(v, 
+              il.RaiseException(il.Call(il.Symbol("NoSolution"), v)))),
     il.Assign(il.cut_cont,il.failcont),
     il.Assign(il.cut_or_cont,il.failcont),
     il.Assign(il.catch_cont_map, il.empty_dict),
-    #il.Assign(il.unwind_cont_stack, il.empty_list),
-    #il.Assign(il.exit_block_cont_map, il.empty_dict),
-    #il.Assign(il.continue_block_cont_map, il.empty_dict)
     )
   exp = il.begin(solver_prelude, exp)
   data = OptimizationData()
@@ -69,11 +69,3 @@ def compile_to_python(exp, env, done=None):
   coder = CodeGenerator()
   result = exp.to_code(coder)
   return prelude + result
-'''
-il.CFunction(block_foo, v1, il.Clamda(v10, il.begin(
-  il.Assign(f, v10), 
-  il.Clamda(v4, il.Clamda(a0, il.CFunction(block_foo1, v6, il.Clamda(function, 
-     function(il.Clamda(a1, il.mul(a0, a1))))(f))(None))(2))(v10)))(
-       il.Lamda((cont), il.begin(None, il.Clamda(v2, v2)(1)))
-       ))(None)
-'''

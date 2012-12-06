@@ -1,3 +1,5 @@
+import operator
+
 from dao.base import classeq
 
 from dao.compilebase import MAX_EXTEND_CODE_SIZE, to_code_list
@@ -7,10 +9,6 @@ from lamda import Apply, optimize_args, clamda, Lamda, MacroLamda, RulesDict
 from lamda import Var, LocalVar, SolverVar, LogicVar, Assign, ExpressionWithCode
 from element import pythonize_args, FALSE, NONE, Symbol, no_side_effects, unknown
 from element import Atom, element, Integer, Bool, MacroArgs, Tuple, List
-
-import operator
-
-#from element import Integer
 
 class BinaryOperation(Element):
   def __init__(self, name, operator, operator_function, have_side_effects=True):
@@ -586,9 +584,131 @@ class AssignFromList(Element):
   def __repr__(self):
     return 'il.AssignFromList(%r, %r)'%(self.vars, self.value)
 
+catch_cont_map = SolverVar('catch_cont_map')
+    
+class PushCatchCont(Element):
+  is_statement = False
+  
+  def __init__(self, tag, cont):
+    self.tag = tag
+    self.cont = cont
+  
+  def side_effects(self):
+    return True
+    
+  def optimization_analisys(self, data):
+    self.tag.optimization_analisys(data)
+    self.cont.optimization_analisys(data)
+    
+  def subst(self, bindings):  
+    return PushCatchCont(self.tag.subst(bindings), self.cont.subst(bindings))
+  
+  def code_size(self):
+    return 1  
+  
+  def free_vars(self):
+    result = set([catch_cont_map])
+    result |= self.tag.free_vars()
+    result |= self.cont.free_vars()
+    return result
+  
+  def optimize(self, data):
+    tag = self.tag.optimize(data)
+    cont = self.cont.optimize(data)
+    if isinstance(tag, Atom) and data.assign_bindings[catch_cont_map] is not None:
+      data.assign_bindings[catch_cont_map].value.setdefault(tag, []).append(cont)
+      return 
+    if data.assign_bindings[catch_cont_map] is not None:
+      result = Begin((Assign(catch_cont_map, data.assign_bindings[catch_cont_map]), 
+                    PushCatchCont(tag, cont)))
+      data.assign_bindings[catch_cont_map] = None
+      return result
+    return PushCatchCont(tag, cont)
+  
+  def pythonize(self, env, compiler):
+    value_exps, has_statement1 = self.value.pythonize(env, compiler)
+    return value_exps[:-1]+(AssignFromList(*(self.vars+(value_exps[-1],))),), True
+  
+  def insert_return_statement(self):
+    return Return(self)
+  
+  def replace_return_with_yield(self):
+    return self
+  
+  def bool(self):
+    return False
+  
+  def to_code(self, coder):
+    return "solver.catch_cont_map.setdefault(%s, []).append(%s)" % (self.tag, self.cont)
+  
+  def __repr__(self):
+    return 'il.PushCatchCont(%r, %r)'%(self.tag, self.cont)
+
+class FindCatchCont(Element):
+  is_statement = False
+  
+  def __init__(self, tag):
+    self.tag = tag
+  
+  def side_effects(self):
+    return True
+  
+  def __call__(self, value):
+    return Apply(self, (value,))
+    
+  def optimization_analisys(self, data):
+    self.tag.optimization_analisys(data)
+    
+  def subst(self, bindings):  
+    return FindCatchCont(self.tag.subst(bindings))
+  
+  def code_size(self):
+    return 1  
+  
+  def free_vars(self):
+    result = set([catch_cont_map])
+    result |= self.tag.free_vars()
+    return result
+  
+  def optimize(self, data):
+    tag = self.tag.optimize(data)
+    if isinstance(tag, Atom) and data.assign_bindings[catch_cont_map] is not None:
+      try:
+        cont_stack = data.assign_bindings[catch_cont_map].value[tag]
+        cont = cont_stack.pop()
+        if not cont_stack:
+          del data.assign_bindings[catch_cont_map].value[tag]
+        return cont
+      except:
+        return RaiseExcept(Symbol('DaoUncaughtError'))
+    if data.assign_bindings[catch_cont_map] is not None:
+      result = Begin((Assign(catch_cont_map, data.assign_bindings[catch_cont_map]), 
+                    FindCatchCont(tag)))
+      data.assign_bindings[catch_cont_map] = None
+      return result
+    return FindCatchCont(tag)
+  
+  def pythonize(self, env, compiler):
+    value_exps, has_statement1 = self.value.pythonize(env, compiler)
+    return value_exps[:-1]+(AssignFromList(*(self.vars+(value_exps[-1],))),), True
+  
+  def insert_return_statement(self):
+    return Return(self)
+  
+  def replace_return_with_yield(self):
+    return self
+  
+  def bool(self):
+    return False
+  
+  def to_code(self, coder):
+    return "solver.find_catch_cont(%s)" % self.tag
+  
+  def __repr__(self):
+    return 'il.FindCatchCont(%r, %r)'%(self.tag, self.cont)
+
 def AddAssign(var, value):
   return Assign(var, BinaryOperationApply(add, (var, value)))
-#AddAssign = vop2('AddAssign', 2, '%s += %s')
 
 class IsMacroFunction(Element):
   def __init__(self, item):
@@ -659,8 +779,6 @@ def vop2(name, arity, code_format):
   Vop.is_statement = True
   return Vop
 
-#solver = Var('solver')
-
 class LogicOperation(VirtualOperation): pass
 class BinaryLogicOperation(VirtualOperation): pass
 class UnaryLogicOperation(VirtualOperation): pass
@@ -675,8 +793,6 @@ def AttrCall_to_code(self, coder):
   return '%s(%s)'%(self.args[0].to_code(coder), ', '.join([x.to_code(coder) for x in self.args[1:]]))
 AttrCall = vop('AttrCall', -1, AttrCall_to_code)
 
-#GetItem = vop('GetItem', 2, '(%s)[%s]')
-
 SetItem = vop2('SetItem', 3, '(%s)[%s] = %s')
 #def SetItem(item, key, value): return Assign(GetItem(item, key), value)
   
@@ -686,16 +802,9 @@ Not = vop('Not', 1, "not %s")
 
 Isinstance = vop('Isinstance', 2, "isinstance(%s, %s)")
 
-#EmptyList = vop('empty_list', 0, '[]')
-#empty_list = EmptyList()
 empty_list = element([])
 
-#EmptyDict = vop('empty_dict', 0, '{}')
-#empty_dict = EmptyDict()
 empty_dict = element({})
-
-#Len = vop('Len', 1, 'len(%s)')
-#def Len(item): return Call(Symbol('len'), item)
 
 RaiseTypeError = vop2('RaiseTypeError', 1, 'raise %s')
 
@@ -713,79 +822,17 @@ Cle = vop('Cle', 3, '(%s) <= (%s) <= (%s)')
 
 Cge = vop('Cge', 3, '(%s) >= (%s) >= (%s)')
 
-catch_cont_map = SolverVar('catch_cont_map')
-
-unwind_cont_stack = SolverVar('unwind_cont_stack')
-
-exit_block_cont_map = SolverVar('exit_block_cont_map')
-
-continue_block_cont_map = SolverVar('continue_block_cont_map')
-
-SetExitBlockContMap = vop2('SetExitBlockContMap', 2, 'solver.exit_block_cont_map[%s] = %s')
-#def SetExitBlockContMap(key, value): return SetItem(exit_block_cont_map, key, value)
-
-SetContinueBlockContMap = vop2('SetContinueBlockContMap', 2, 'solver.continue_block_cont_map[%s] = %s')
-#def SetContinueBlockContMap(key, value): return SetItem(continue_block_cont_map, key, value)
-
-GetExitBlockCont = vop('GetExitBlockCont', 1, 'solver.exit_block_cont_map[%s]')
-#def GetExitBlockCont(key): return GetItem(exit_block_cont_map, key)
-
-GetContinueBlockCont = vop('GetContinueBlockCont', 1, 'solver.continue_block_cont_map[%s]')
-#def GetContinueBlockCont(key): return GetItem(continue_block_cont_map, key)
-
-PopCatchCont = vop('PopCatchCont', 1, "solver.pop_catch_cont(%s)")
-#def PopCatchCont(tag): return Call(SolverVar('pop_catch_cont'), tag)
-
-FindCatchCont = vop('FindCatchCont', 1, "solver.find_catch_cont(%s)")
-
-#PushCatchCont = vop2('PushCatchCont', 2, "solver.push_catch_cont(%s, %s)")
-PushCatchCont = vop2('PushCatchCont', 2, "solver.catch_cont_map.setdefault(%s, []).append(%s)")
-
-#PushUnwindCont = vop2("PushUnwindCont", 1, "solver.push_unwind_cont(%s)")
-PushUnwindCont = vop2("PushUnwindCont", 1, "solver.unwind_cont_stack.append(%s)")
-
-#top_unwind_cont = vop('top_unwind_cont', 0, "solver.top_unwind_cont()")()
-#top_unwind_cont = vop('top_unwind_cont', 0, "solver.unwind_cont_stack[-1]")()
-
-#pop_unwind_cont = vop('pop_unwind_cont', 0, "solver.pop_unwind_cont()")()
-pop_unwind_cont = vop('pop_unwind_cont', 0, "solver.unwind_cont_stack.pop()")()
-
-unwind_cont_stack_length = vop('unwind_cont_stack_length', 0, "len(solver.unwind_cont_stack)")()
-
-unwind_cont_stack_length = Len(unwind_cont_stack)
-
-#Unwind = vop('Unwind', 1, "solver.unwind(%s)")
-Unwind = vop2('Unwind', 1, "while len(solver.unwind_cont_stack)>%s:\n"
-                          "    solver.unwind_cont_stack[-1](None)")
-
-SetContent = vop2('SetContent', 2, '%s[0] = %s')
-
-Content = vop('Content', 1, '%s[0]')
-
-#MakeCell = vop('MakeCell', 1, '[%s]') # assign to upper level variable is possible.
-MakeCell = vop('MakeCell', 0, '[None]') #assign always generate new local variable, like python.
-
-#FailCont = vop('failcont', 0, 'solver.fail_cont')  
-#failcont = FailCont()
 failcont = SolverVar('fail_cont')
 
-#SetFailCont = vop2('SetFailCont', 1, 'solver.fail_cont = %s')
 def SetFailCont(cont): return Assign(failcont, cont)
 
-#CutCont = vop('CutCont', 0, 'solver.cut_cont')
-#cut_cont = CutCont()
 cut_cont = SolverVar('cut_cont')
 
-#SetCutCont = vop2('SetCutCont', 1, 'solver.cut_cont = %s')
 def SetCutCont(cont): return Assign(cut_cont, cont)
 
-#CutOrCont = vop('CutOrCont', 0, 'solver.cut_or_cont')
-#cut_or_cont = CutOrCont()
 cut_or_cont = SolverVar('cut_or_cont')
 
-#SetCutOrCont = vop2('SetCutOrCont', 1, 'solver.cut_or_cont = %s')
 def SetCutOrCont(cont): return Assign(cut_or_cont, cont)
-
 
 IsLogicVar = vop('IsLogicVar', 1, 'isinstance(%s, LogicVar)')
 
@@ -795,14 +842,8 @@ DelBinding = vop2('DelBinding', 1, 'del solver.bindings[%s]')
 
 GetValue = vop('GetValue', 1, 'getvalue(%s, solver.bindings')
 
-#ParseState = vop('parse_state', 0, 'solver.parse_state')
-#parse_state = ParseState()
 parse_state = SolverVar('parse_state')
-
-#SetParseState = vop2('SetParseState', 1, 'solver.parse_state = %s')
 def SetParseState(state): return Assign(parse_state, state)
-
-#new_logicvar = vop('new_logicvar', 1, 'solver.new_logicvar(%s)')
 
 Optargs = vop('Optargs', 1, '*%s')
 

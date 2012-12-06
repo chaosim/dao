@@ -88,6 +88,8 @@ class TestControl:
     
   def test_or_(self):
     eq_(eval(or_(succeed, fail)), True)
+    
+  def test_or_2(self):
     eq_(eval(or_(unify(1,1), unify(1,2))), True)
     
   #def testif_add_sub(self):

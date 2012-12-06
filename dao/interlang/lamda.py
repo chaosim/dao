@@ -150,43 +150,51 @@ class Lamda(Element):
     return 'il.Lamda((%s), %s)'%(', '.join([repr(x) for x in self.params]),
                               repr(self.body))
 
-class MacroLamda(Lamda):
-  def pythonize(self, env, compiler):
-    body_exps, body_has_any_statement = self.body.pythonize(env, compiler)
-    global_vars = self.find_assign_lefts()-set(self.params)
-    global_vars = set([x for x in global_vars 
-                       if isinstance(x, Var) 
-                       and not isinstance(x, LocalVar)
-                       and not isinstance(x, SolverVar)])
-    if global_vars:
-      body_exps = (GlobalDecl(global_vars),)+body_exps
-    if not body_has_any_statement:
-      return (MacroFunction(self.new(self.params, begin(*body_exps))),), False
+def clamda(v, *body):
+  body = tuple(element(x) for x in body)
+  return Clamda(v, begin(*body))
+
+class Clamda(Lamda):
+  def __init__(self, v, body):
+    self.params = (v, )
+    self.body = body
+    self.name = None
+    
+  def new(self, params, body):
+    return self.__class__(params[0], body)
+  
+  def optimize_apply(self, data, args):
+    param, arg = self.params[0], args[0]
+    if not arg.side_effects():
+      body = self.body.subst({param: arg}).optimize(data)
+      return body
     else:
-      name = compiler.new_var(LocalVar('function'))
-      body = begin(*body_exps).insert_return_statement()
-      return (Function(name, self.params, body), MacroFunction(name)), True 
-  
-class MacroFunction(Element):
-  def __init__(self, function):
-    self.function = function
+      ref_count = data.ref_count.get(param, 0)
+      if ref_count==0:
+        return begin(arg, self.body).optimize(data)
+      else:
+        return begin(Assign(param, arg), self.body).optimize(data)
+
+  def __repr__(self):
+    return 'il.Clamda(%r, %s)'%(self.params[0], repr(self.body))
+
+class Done(Clamda):
+  def __init__(self, param):
+    self.params = (param,)
+    self.body = param
     
-  def to_code(self, coder):
-    return 'MacroFunction(%s)'%self.function
+  def new(self, params, body):
+    return self.__class__(self.params[0])
+  
+  def __call__(self, *args):
+    return self.body.subst({self.params[0]:args[0]})
+  
+  def replace_assign(self, bindings):
+    return self
   
   def __repr__(self):
-    return 'MacroFunction(%s)'%self.function
-  
-class GlobalDecl(Element):
-  def __init__(self, args):
-    self.args = args
-    
-  def to_code(self, coder):
-    return "global %s" % (', '.join([x.to_code(coder) for x in self.args]))
-  
-  def __repr__(self):
-    return 'GlobalDecl(%s)'%self.args
-  
+    return 'il.Done(%r, %s)'%(self.params[0], repr(self.body))
+
 class Function(Lamda):
   '''recursive Function'''
   is_statement = True
@@ -206,10 +214,6 @@ class Function(Lamda):
     data.assign_bindings = old_assign_bindings
     return result
   
-  #def optimize_apply(self, data, args):
-    #return Apply(self.new(self.params, self.body.optimize(data)), 
-                 #optimize_args(args, data))
-    
   def optimize_apply(self, data, args):
     old_assign_bindings = data.assign_bindings
     data.assign_bindings = {}
@@ -241,6 +245,37 @@ class Function(Lamda):
     return 'il.Function(%s, (%s), %s)'%(self.name, ', '.join([repr(x) for x in self.params]),
                                  repr(self.body))    
 
+def cfunction(name, v, *body):
+  body = tuple(element(x) for x in body)
+  return CFunction(name, v, begin(*body))
+
+class CFunction(Function):
+  is_statement = True
+  is_function = True
+  
+  def __init__(self, name, v, body):
+    Function.__init__(self,  name, (v,), body)
+    
+  def new(self, params, body):
+    return self.__class__(self.name, params[0], body)
+  
+  def optimize_apply(self, data, args):
+    old_assign_bindings = data.assign_bindings
+    assigns = []
+    free_vars = self.free_vars()
+    for var, value in data.assign_bindings.items():
+      if var in free_vars:
+        assigns.append(Assign(var, value))
+        old_assign_bindings[var]
+    data.assign_bindings = {}
+    result = begin(*(tuple(assigns)+(CFunction(self.name, self.params[0], 
+        self.body.subst({self.params[0]:args[0]}).optimize(data))(NONE),)))
+    data.assign_bindings = old_assign_bindings
+    return result
+  
+  def __repr__(self):
+    return 'il.CFunction(%r, %r, %s)'%(self.name, self.params[0],repr(self.body))
+  
 class RulesFunction(Function):
   def __init__(self, name, params, body):
     self.name, self.params, self.body = name, params, body
@@ -313,90 +348,48 @@ class RulesDict(Element):
   def __repr__(self):
     return 'RulesDict(%s)'%self.arity_body_map
 
-def clamda(v, *body):
-  body = tuple(element(x) for x in body)
-  return Clamda(v, begin(*body))
-
-class Clamda(Lamda):
-  def __init__(self, v, body):
-    self.params = (v, )
-    self.body = body
-    self.name = None
-    
-  def new(self, params, body):
-    return self.__class__(params[0], body)
-  
-  def optimize_apply(self, data, args):
-    param, arg = self.params[0], args[0]
-    if not arg.side_effects():
-      body = self.body.subst({param: arg}).optimize(data)
-      return body
+class MacroLamda(Lamda):
+  def pythonize(self, env, compiler):
+    body_exps, body_has_any_statement = self.body.pythonize(env, compiler)
+    global_vars = self.find_assign_lefts()-set(self.params)
+    global_vars = set([x for x in global_vars 
+                       if isinstance(x, Var) 
+                       and not isinstance(x, LocalVar)
+                       and not isinstance(x, SolverVar)])
+    if global_vars:
+      body_exps = (GlobalDecl(global_vars),)+body_exps
+    if not body_has_any_statement:
+      return (MacroFunction(self.new(self.params, begin(*body_exps))),), False
     else:
-      ref_count = data.ref_count.get(param, 0)
-      if ref_count==0:
-        return begin(arg, self.body).optimize(data)
-      else:
-        return begin(Assign(param, arg), self.body).optimize(data)
-
-  def __repr__(self):
-    return 'il.Clamda(%r, %s)'%(self.params[0], repr(self.body))
-
-class Done(Clamda):
-  def __init__(self, param):
-    self.params = (param,)
-    self.body = param
+      name = compiler.new_var(LocalVar('function'))
+      body = begin(*body_exps).insert_return_statement()
+      return (Function(name, self.params, body), MacroFunction(name)), True 
+  
+class MacroFunction(Element):
+  def __init__(self, function):
+    self.function = function
     
-  def new(self, params, body):
-    return self.__class__(self.params[0])
-  
-  def __call__(self, *args):
-    return self.body.subst({self.params[0]:args[0]})
-  
-  def replace_assign(self, bindings):
-    return self
+  def to_code(self, coder):
+    return 'MacroFunction(%s)'%self.function
   
   def __repr__(self):
-    return 'il.Done(%r, %s)'%(self.params[0], repr(self.body))
-
-def cfunction(name, v, *body):
-  body = tuple(element(x) for x in body)
-  return CFunction(name, v, begin(*body))
-
-class CFunction(Function):
-  is_statement = True
-  is_function = True
+    return 'MacroFunction(%s)'%self.function
   
-  def __init__(self, name, v, body):
-    Function.__init__(self,  name, (v,), body)
+class GlobalDecl(Element):
+  def __init__(self, args):
+    self.args = args
     
-  def new(self, params, body):
-    return self.__class__(self.name, params[0], body)
-  
-  def optimize_apply(self, data, args):
-    old_assign_bindings = data.assign_bindings
-    assigns = tuple(Assign(var, value) 
-                for var, value in data.assign_bindings.items())
-    data.assign_bindings = {}
-    result = begin(*(assigns+(CFunction(self.name, self.params[0], 
-        self.body.subst({self.params[0]:args[0]}).optimize(data))(NONE),)))
-    data.assign_bindings = {}
-    return result
+  def to_code(self, coder):
+    return "global %s" % (', '.join([x.to_code(coder) for x in self.args]))
   
   def __repr__(self):
-    return 'il.CFunction(%r, %r, %s)'%(self.name, self.params[0],repr(self.body))
+    return 'GlobalDecl(%s)'%self.args
   
 class Apply(Element):
   is_statement = False
   
   def __init__(self, caller, args):
-    #self.caller = caller
-    #if isinstance(self.caller, RulesFunction):
-      #self.args = args[0], make_tuple(args[1:])
-      #return
     self.caller, self.args = caller, args
-  
-  #def new(self, caller, args):
-    #return Apply(caller, args)
   
   def assign_convert(self, env, compiler):
     return self.__class__(self.caller.assign_convert(env, compiler), 

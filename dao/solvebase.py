@@ -105,27 +105,10 @@ def default_end_cont(v):
 class Solver:
   def __init__(self):
     self.bindings = Bindings() # for logic variable, unify
-    self.parse_state = None # for parser
-    #self.new_logicvar_map = {} #{'name':index} for generating new logic variable
     
-  def pop_catch_cont(self, tag):
-    result = self.catch_cont_map[tag].pop()
-    if not self.catch_cont_map[tag]:
-      del self.catch_cont_map[tag]
-    return result
-      
   def find_catch_cont(self, tag):
     try:
       cont_stack = self.catch_cont_map[tag]
     except:
       raise DaoUncaughtThrow(tag)
-    return cont_stack.pop()  
-  
-  def xxxnew_logicvar(self, name):
-    try: 
-      suffix = str(self.new_logicvar_map[name])
-      self.new_logicvar_map[name] += 1
-      return LogicVar(name+suffix)
-    except:
-      self.new_logicvar_map[name] = 1
-      return LogicVar(name)
+    return cont_stack.pop()

@@ -165,12 +165,8 @@ class ContinueBlock(il.Element):
 def catch(compiler, cont, tag, *form):
   v = compiler.new_var(il.LocalVar('v'))
   v2 = compiler.new_var(il.LocalVar('v'))
-  #old_unwind_cont_stack_length = compiler.new_var(il.LocalVar('old_unwind_cont_stack_length'))
   return tag.cps_convert(compiler, il.clamda(v,
-    #il.Assign(old_unwind_cont_stack_length, il.unwind_cont_stack_length),
     il.PushCatchCont(v, il.clamda(v2,
-      #il.Unwind(old_unwind_cont_stack_length),
-      #il.PopCatchCont(v), # do not pop here, when throw to find, the cont is popped.
       cont(v2))),
     begin(*form).cps_convert(compiler, cont)))
   
