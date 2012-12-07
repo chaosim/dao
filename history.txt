@@ -1,5 +1,15 @@
 details of history:
 
+2012-12-7
+python files: 95, lines: 13198, characters: 432830
+text files: 15, lines: 2186, characters: 88464
+rest files: 38, lines: 2753, characters: 108491
+
+code cleanup
+
+OptimizationData, CodeGenerator is merged into Compiler, Both the parameter "data" of optimize_analysis and optimize, "coder" of to_code become "compiler".
+remove assign_convert.
+
 2012-12-6
 optimize catch/throw, block/break/continue, cut
 

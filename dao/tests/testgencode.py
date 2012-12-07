@@ -26,7 +26,8 @@ def generate_code(exp):
 def compile(exp):
   compiler = Compiler()
   exp = il.element(exp).cps_convert(compiler, done())
-  exp = exp.optimize(compiler)
+  env = Environment()
+  exp = exp.optimize(env, compiler)
   exps, has_statement = exp.pythonize(Environment(), compiler)
   compiler = Compiler()
   return begin(*exps).to_code(compiler)

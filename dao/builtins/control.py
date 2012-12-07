@@ -114,7 +114,7 @@ def findall(compiler, cont, goal, template=NONE, bag=None):
   #findall goal: goal, fail
     
 # infinite recursive, maxizism recursive level
-# solutions: trampoline
+# solutions: cfunction become while loop.
 @special
 def repeat(compiler, cont):
   v = compiler.new_var(v0)

@@ -25,8 +25,9 @@ def compile_optimize(exp):
   compiler = Compiler()
   exp = il.element(exp).alpha_convert(Environment(), compiler)
   exp = exp.cps_convert(compiler, done())
+  env = Environment()
   exp.analyse(compiler)
-  return exp.optimize(compiler)
+  return exp.optimize(env, compiler)
 
 class TestSimple:
   def test_integer(self):
@@ -92,8 +93,9 @@ class TestSimple:
 
 def optimize(exp):
   compiler = Compiler()
+  env = Environment()
   exp.analyse(compiler)
-  return exp.optimize(compiler)
+  return exp.optimize(env, compiler)
 
 class TestOptimize:
   def test_if(self):

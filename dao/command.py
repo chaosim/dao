@@ -87,7 +87,7 @@ class Var(Element):
     # unquote to interlang level
     return
   
-  def optimize(self, compiler):
+  def optimize(self, env, compiler):
     return self, False
   
   def pythonize(self, env, compiler):
@@ -260,7 +260,7 @@ class BuiltinFunction(Command):
   def subst(self, bindings):
     return self
   
-  def optimize(self, compiler):
+  def optimize(self, env, compiler):
     return self
   
   def pythonize(self, env, compiler):
@@ -287,7 +287,7 @@ class BuiltinFunctionCall(CommandCall):
     # unquote to interlang level
     return
   
-  def optimize(self, compiler):
+  def optimize(self, env, compiler):
     return self
   
   def interlang(self):

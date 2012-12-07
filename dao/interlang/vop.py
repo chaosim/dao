@@ -25,7 +25,7 @@ class BinaryOperation(Element):
   def subst(self, bindings):  
     return self
 
-  def optimize(self, compiler):
+  def optimize(self, env, compiler):
     return self
   
   def code_size(self): 
@@ -104,9 +104,9 @@ class BinaryOperationApply(Apply):
     return self.__class__(self.caller.subst(bindings), 
                  tuple(arg.subst(bindings) for arg in self.args))
       
-  def optimize(self, compiler): 
+  def optimize(self, env, compiler): 
     caller = self.caller
-    args = optimize_args(self.args, compiler)
+    args = optimize_args(self.args, env, compiler)
     for arg in args:
       if not isinstance(arg, Atom):
         break
@@ -170,8 +170,8 @@ class VirtualOperation(Element):
   def code_size(self):
     return 1
   
-  def optimize(self, compiler):
-    return self.__class__(*optimize_args(self.args, compiler))
+  def optimize(self, env, compiler):
+    return self.__class__(*optimize_args(self.args, env,compiler))
   
   def bool(self):
     return unknown
@@ -238,8 +238,8 @@ class Deref(Element):
   def free_vars(self):
     return self.item.free_vars()
 
-  def optimize(self, compiler):
-    item = self.item.optimize(compiler)
+  def optimize(self, env, compiler):
+    item = self.item.optimize(env, compiler)
     if isinstance(item, Atom) or isinstance(item, Lamda):
       return item
     if isinstance(item, Deref):
@@ -281,8 +281,8 @@ class EvalExpressionWithCode(Element):
   def free_vars(self):
     return self.item.free_vars()
 
-  def optimize(self, compiler):
-    item = self.item.optimize(compiler)
+  def optimize(self, env, compiler):
+    item = self.item.optimize(env, compiler)
     if isinstance(item, Var):
       return EvalExpressionWithCode(item)
     elif isinstance(item, ExpressionWithCode):
@@ -325,8 +325,8 @@ class Len(Element):
   def free_vars(self):
     return self.item.free_vars()
 
-  def optimize(self, compiler):
-    item = self.item.optimize(compiler)
+  def optimize(self, env, compiler):
+    item = self.item.optimize(env, compiler)
     if isinstance(item, Atom) or isinstance(item, MacroArgs):
       return Integer(len(item.value))
     return Len(item)
@@ -371,9 +371,9 @@ class In(Element):
     result |= self.container.free_vars()
     return result
 
-  def optimize(self, compiler):
-    item = self.item.optimize(compiler)
-    container = self.container.optimize(compiler)
+  def optimize(self, env, compiler):
+    item = self.item.optimize(env, compiler)
+    container = self.container.optimize(env, compiler)
     if isinstance(item, Atom):
       if isinstance(container, Atom):
         return Bool(item.value in container.value)
@@ -430,9 +430,9 @@ class GetItem(Element):
     result |= self.container.free_vars()
     return result
   
-  def optimize(self, compiler):
-    index = self.index.optimize(compiler)
-    container = self.container.optimize(compiler)
+  def optimize(self, env, compiler):
+    index = self.index.optimize(env, compiler)
+    container = self.container.optimize(env, compiler)
     if isinstance(index, Atom):
       if isinstance(container, Atom):
         return element(container.value[index.value])
@@ -497,8 +497,8 @@ class ListAppend(Element):
     result |= self.container.free_vars()
     return result
   
-  def optimize(self, compiler):
-    value = self.value.optimize(compiler)
+  def optimize(self, env, compiler):
+    value = self.value.optimize(env, compiler)
     return ListAppend(self.container, value)
   
   def pythonize(self, env, compiler):
@@ -547,13 +547,13 @@ class AssignFromList(Element):
     result |= self.value.free_vars()
     return result
   
-  def optimize(self, compiler):
-    value = self.value.optimize(compiler)
+  def optimize(self, env, compiler):
+    value = self.value.optimize(env, compiler)
     if isinstance(value, Tuple) or isinstance(value, List):
       if len(value.value)!=len(self.vars):
         raise DaoCompileError
       for var, v in zip(self.vars, value.value):
-        compiler.assign_bindings[var] = v
+        env[var] = v
       return
     return AssignFromList(*(self.vars+(value,)))
   
@@ -605,16 +605,16 @@ class PushCatchCont(Element):
     result |= self.cont.free_vars()
     return result
   
-  def optimize(self, compiler):
-    tag = self.tag.optimize(compiler)
-    cont = self.cont.optimize(compiler)
-    if isinstance(tag, Atom) and compiler.assign_bindings[catch_cont_map] is not None:
-      compiler.assign_bindings[catch_cont_map].value.setdefault(tag, []).append(cont)
+  def optimize(self, env, compiler):
+    tag = self.tag.optimize(env, compiler)
+    cont = self.cont.optimize(env, compiler)
+    if isinstance(tag, Atom) and env[catch_cont_map] is not None:
+      env[catch_cont_map].value.setdefault(tag, []).append(cont)
       return 
-    if compiler.assign_bindings[catch_cont_map] is not None:
-      result = Begin((Assign(catch_cont_map, compiler.assign_bindings[catch_cont_map]), 
+    if env[catch_cont_map] is not None:
+      result = Begin((Assign(catch_cont_map, env[catch_cont_map]), 
                     PushCatchCont(tag, cont)))
-      compiler.assign_bindings[catch_cont_map] = None
+      env[catch_cont_map] = None
       return result
     return PushCatchCont(tag, cont)
   
@@ -663,21 +663,21 @@ class FindCatchCont(Element):
     result |= self.tag.free_vars()
     return result
   
-  def optimize(self, compiler):
-    tag = self.tag.optimize(compiler)
-    if isinstance(tag, Atom) and compiler.assign_bindings[catch_cont_map] is not None:
+  def optimize(self, env, compiler):
+    tag = self.tag.optimize(env, compiler)
+    if isinstance(tag, Atom) and env[catch_cont_map] is not None:
       try:
-        cont_stack = compiler.assign_bindings[catch_cont_map].value[tag]
+        cont_stack = env[catch_cont_map].value[tag]
         cont = cont_stack.pop()
         if not cont_stack:
-          del compiler.assign_bindings[catch_cont_map].value[tag]
+          del env[catch_cont_map].value[tag]
         return cont
       except:
         return RaiseExcept(Symbol('DaoUncaughtError'))
-    if compiler.assign_bindings[catch_cont_map] is not None:
-      result = Begin((Assign(catch_cont_map, compiler.assign_bindings[catch_cont_map]), 
+    if env[catch_cont_map] is not None:
+      result = Begin((Assign(catch_cont_map, env[catch_cont_map]), 
                     FindCatchCont(tag)))
-      compiler.assign_bindings[catch_cont_map] = None
+      env[catch_cont_map] = None
       return result
     return FindCatchCont(tag)
   
@@ -719,8 +719,8 @@ class IsMacroFunction(Element):
   def code_size(self):
     return 1  
   
-  def optimize(self, compiler):
-    return IsMacroFunction(self.item.optimize(compiler))
+  def optimize(self, env, compiler):
+    return IsMacroFunction(self.item.optimize(env, compiler))
   
   def pythonize(self, env, compiler):
     exps, has_statement = self.item.pythonize(env, compiler)

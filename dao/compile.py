@@ -2,7 +2,7 @@
 
 '''code for compilation:
 alpha convert -> cps convert
--> optimization 
+-> optimize
 -> tail recursive convert
 -> pythonize -> generate code
 '''
@@ -58,7 +58,8 @@ def compile_to_python(exp, env, done=None):
     )
   exp = il.begin(solver_prelude, exp)
   exp.analyse(compiler)
-  exp = exp.optimize(compiler)
+  env = Environment()
+  exp = exp.optimize(env, compiler)
   #exp = exp.tail_recursive_convert()
   function = compiler.new_var(il.LocalVar('compiled_dao_function'))
   exp = il.Function(function, (), exp)
@@ -68,6 +69,33 @@ def compile_to_python(exp, env, done=None):
   compiler = Compiler()
   result = exp.to_code(compiler)
   return prelude + result
+'''
+il.begin(
+  il.Assign(cut_or_cont, il.cut_or_cont), 
+  il.Assign(il.cut_or_cont, il.fail_cont), 
+  il.Assign(old_failcont, il.fail_cont), 
+  il.Assign(il.fail_cont, il.Clamda(v2, il.begin(
+    il.Assign(il.fail_cont, old_failcont), 
+    il.Clamda(v1, il.begin(il.Assign(il.cut_or_cont, cut_or_cont), v1))(True)))), il.fail_cont(True))
+'''
+'''
+il.begin(
+  il.Assign(old_failcont, il.fail_cont), 
+  il.Assign(il.fail_cont, il.Clamda(v2, il.begin(il.Assign(il.fail_cont, old_failcont), v2))), 
+  il.Assign(cut_or_cont, il.cut_or_cont), 
+  il.Assign(il.cut_or_cont, il.fail_cont), 
+  il.Assign(old_failcont1, il.fail_cont), 
+  il.Assign(il.fail_cont, il.Clamda(v4, il.begin(
+    il.Assign(il.fail_cont, old_failcont1), 
+    il.Clamda(a0, il.Clamda(v5, il.Clamda(v3, il.begin(
+      il.Assign(il.cut_or_cont, cut_or_cont), 
+      il.Clamda(v1, il.fail_cont(v1))(v3)))(None))
+      (il.Prin(a0)))
+      (2)))), 
+  il.Clamda(a01, il.Clamda(v7, il.Clamda(v3, il.begin(
+    il.Assign(il.cut_or_cont, cut_or_cont), 
+    il.Clamda(v1, il.fail_cont(v1))(v3)))(None))(il.Prin(a01)))(1))
+'''
 
 '''
 il.begin(

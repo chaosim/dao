@@ -32,20 +32,8 @@ class Element(base.Element):
   def find_assign_lefts(self):
     return set()
   
-  def trampoline(self):
-    return self
-    
-  def to_code_if_in_lambda_body(self, compiler):
-    return self.to_code(compiler)
-  
   def replace_return_with_yield(self):
     return self
-  
-  def next_exp(self):
-    try:
-      return self._next_exp
-    except:
-      return self.parent.next_exp().first_exp
   
   def __eq__(x, y):
     return classeq(x, y)
@@ -84,7 +72,7 @@ class Atom(Element):
   def subst(self, bindings):
     return self
   
-  def optimize(self, compiler):
+  def optimize(self, env, compiler):
     return self
   
   def replace_assign(self, compiler):
@@ -92,9 +80,6 @@ class Atom(Element):
   
   def tail_recursive_convert(self):
       return self
-  
-  def trampoline(self):
-    return self
   
   def insert_return_statement(self):
     return Return(self)
@@ -203,8 +188,8 @@ class Tuple(Atom):
   def code_size(self):
     return sum([x.code_size() for x in self.value])
   
-  def optimize(self, compiler):
-    return Tuple(*tuple(x.optimize(compiler) for x in self.value))
+  def optimize(self, env, compiler):
+    return Tuple(*tuple(x.optimize(env, compiler) for x in self.value))
   
   def to_code(self, compiler):
     if len(self.value)!=1:
@@ -232,7 +217,7 @@ class MacroArgs(Element):
     for x in self.value:
       x.analyse(compiler)
       
-  def optimize(self, compiler):
+  def optimize(self, env, compiler):
     return MacroArgs(optimize_args(self.value, compiler))
   
   def side_effects(self):
@@ -299,14 +284,14 @@ class Return(Element):
   def subst(self, bindings):  
     return self.__class__(*tuple(arg.subst(bindings) for arg in self.args))
     
-  def optimize(self, compiler):
+  def optimize(self, env, compiler):
     if len(self.args)==1 and isinstance(self.args[0], Return):
       return self.__class__(*self.args[0].args)
     else:
       for arg in self.args: 
         if isinstance(arg, Return): 
           raise CompileError
-      return self.__class__(*optimize_args(self.args, compiler))
+      return self.__class__(*optimize_args(self.args, env, compiler))
   
   def pythonize(self, env, compiler):
     if len(self.args)==1 and isinstance(self.args[0], Begin):
@@ -379,31 +364,31 @@ class If(Element):
     result |= self.else_.free_vars()
     return result
   
-  def optimize(self, compiler):
-    test = self.test.optimize(compiler)
+  def optimize(self, env, compiler):
+    test = self.test.optimize(env, compiler)
     test_bool = test.bool()
     if test_bool==True:
-      then = self.then.optimize(compiler)
+      then = self.then.optimize(env, compiler)
       if isinstance(then, If) and then.test==test: # (if a (if a b c) d)
         then = then.then      
       return then
     elif test_bool==False:
-      else_ = self.else_.optimize(compiler)
+      else_ = self.else_.optimize(env, compiler)
       if isinstance(else_, If) and else_.test==test: # (if a b (if a c d))
         else_ = else_.else_      
       return else_    
-    assign_bindings = compiler.assign_bindings
-    compiler.assign_bindings = assign_bindings.copy()
-    then = self.then.optimize(compiler)
-    then_assign_bindings = compiler.assign_bindings
-    compiler.assign_bindings = assign_bindings.copy()
-    else_ = self.else_.optimize(compiler)
-    else_assign_bindings = compiler.assign_bindings
-    for var, value in then_assign_bindings.items():
-      if var in else_assign_bindings \
-         and else_assign_bindings[var]==then_assign_bindings[var]:
-        then_assign_bindings[var] = value
-    compiler.assign_bindings = then_assign_bindings
+    env_bindings = env.bindings
+    env.bindings = env_bindings.copy()
+    then = self.then.optimize(env, compiler)
+    then_env_bindings = env.bindings
+    env.bindings = env_bindings.copy()
+    else_ = self.else_.optimize(env, compiler)
+    else_env_bindings = env.bindings
+    for var, value in then_env_bindings.items():
+      if var in else_env_bindings \
+         and else_env_bindings[var]==then_env_bindings[var]:
+        then_env_bindings[var] = value
+    env.bindings = then_env_bindings
     if isinstance(then, If) and then.test==test: # (if a (if a b c) d)
       then = then.then      
     if isinstance(else_, If) and else_.test==test: # (if a b (if a c d))
@@ -502,8 +487,8 @@ class Try(Element):
     return Try(self.test.subst(bindings),
               self.body.subst(bindings))
     
-  def optimize(self, compiler):
-    return Try(self.test.optimize(compiler), self.body.optimize(compiler))
+  def optimize(self, env, compiler):
+    return Try(self.test.optimize(env, compiler), self.body.optimize(env, compiler))
   
   def insert_return_statement(self):
     result = Try(self.test, 
@@ -579,12 +564,12 @@ class Begin(Element):
       result |= exp.free_vars()
     return result
   
-  def optimize(self, compiler):
+  def optimize(self, env, compiler):
     result = []
     for arg in self.statements:
-      arg = arg.optimize(compiler)
-      if arg is not None:
-        result.append(arg)
+      arg1 = arg.optimize(env, compiler)
+      if arg1 is not None:
+        result.append(arg1)
     if result:
       return begin(*([x for x in result[:-1] if not isinstance(arg, Atom)]+[result[-1]]))
     else: return pass_statement
@@ -615,9 +600,6 @@ class Begin(Element):
   def to_code(self, compiler):
     return  '\n'.join([x.to_code(compiler) for x in self.statements])
       
-  def to_code_if_in_lambda_body(self, compiler):
-    return  '(%s)'%', '.join([x.to_code(compiler) for x in self.statements])
-
   def __eq__(x, y):
       return classeq(x, y) and x.statements==y.statements
   
@@ -628,10 +610,10 @@ type_map = {int:Integer, float: Float, str:String, unicode: String,
             tuple: make_tuple, list:List, dict:Dict, 
             bool:Bool, type(None): Atom}
 
-def optimize_args(args, compiler):
+def optimize_args(args, env, compiler):
   result = []
   for arg in args:
-    arg = arg.optimize(compiler)
+    arg = arg.optimize(env, compiler)
     if arg is not None:
       result.append(arg)
   return tuple(result)
