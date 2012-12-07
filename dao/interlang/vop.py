@@ -2,7 +2,7 @@ import operator
 
 from dao.base import classeq
 
-from dao.compilebase import MAX_EXTEND_CODE_SIZE, to_code_list
+from dao.compilebase import MAX_EXTEND_CODE_SIZE
 from dao.compilebase import VariableNotBound, CompileTypeError
 from element import Element, Begin, begin, Return, Yield#, element
 from lamda import Apply, optimize_args, clamda, Lamda, MacroLamda, RulesDict
@@ -19,16 +19,13 @@ class BinaryOperation(Element):
   def alpha_convert(self, env, compiler):
     return self
   
-  def assign_convert(self, env, compiler):
-    return self
-  
-  def optimization_analisys(self, data):  
+  def analyse(self, compiler):  
     return self
   
   def subst(self, bindings):  
     return self
 
-  def optimize(self, data):
+  def optimize(self, compiler):
     return self
   
   def code_size(self): 
@@ -37,7 +34,7 @@ class BinaryOperation(Element):
   def pythonize(self, env, compiler):
     return (self,), False
     
-  def to_code(self, coder):
+  def to_code(self, compiler):
     return self.operator
       
   def __call__(self, *args):
@@ -58,6 +55,13 @@ div = BinaryOperation('div', '/', operator.div, False)
 IsNot = BinaryOperation('is_not', 'is not', operator.is_not, False)
 And = BinaryOperation('and', 'and', operator.and_, False)
 Or = BinaryOperation('or', 'or', operator.or_, False)
+
+Lt = BinaryOperation('Lt', '<', operator.lt, False)
+Le = BinaryOperation('Le', '<=', operator.le, False)
+Eq = BinaryOperation('Eq', '==', operator.eq, False)
+Ne = BinaryOperation('Ne', '!=', operator.ne, False)
+Ge = BinaryOperation('Ge', '>=', operator.ge, False)
+Gt = BinaryOperation('Gt', '>', operator.gt, False)
 
 def and_(*exps):
   if len(exps)==2:
@@ -81,15 +85,11 @@ class BinaryOperationApply(Apply):
     return self.__class__(self.caller.alpha_convert(env, compiler), 
                  tuple(arg.alpha_convert(env, compiler) for arg in self.args))
   
-  def assign_convert(self, env, compiler):
-    return self.__class__(self.caller.assign_convert(env, compiler), 
-                 tuple(arg.assign_convert(env, compiler) for arg in self.args))    
-    
-  def optimization_analisys(self, data):  
-    data.called_count[self.caller] = data.called_count.setdefault(self.caller, 0)+1
-    self.caller.optimization_analisys(data)
+  def analyse(self, compiler):  
+    compiler.called_count[self.caller] = compiler.called_count.setdefault(self.caller, 0)+1
+    self.caller.analyse(compiler)
     for arg in self.args:
-      arg.optimization_analisys(data)
+      arg.analyse(compiler)
         
   def code_size(self):
     return self.caller.code_size()+sum([x.code_size() for x in self.args])
@@ -104,9 +104,9 @@ class BinaryOperationApply(Apply):
     return self.__class__(self.caller.subst(bindings), 
                  tuple(arg.subst(bindings) for arg in self.args))
       
-  def optimize(self, data): 
+  def optimize(self, compiler): 
     caller = self.caller
-    args = optimize_args(self.args, data)
+    args = optimize_args(self.args, compiler)
     for arg in args:
       if not isinstance(arg, Atom):
         break
@@ -127,22 +127,19 @@ class BinaryOperationApply(Apply):
       result |= arg.free_vars()
     return result
   
-  def to_code(self, coder):
+  def to_code(self, compiler):
     if not self.caller.operator[0].isalpha():
-      return '(%s)%s(%s)'%(self.args[0].to_code(coder), 
-                        self.caller.to_code(coder), 
-                        self.args[1].to_code(coder))
+      return '(%s)%s(%s)'%(self.args[0].to_code(compiler), 
+                        self.caller.to_code(compiler), 
+                        self.args[1].to_code(compiler))
     else:
-      return '(%s) %s (%s)'%(self.args[0].to_code(coder), 
-                              self.caller.to_code(coder), 
-                              self.args[1].to_code(coder))      
+      return '(%s) %s (%s)'%(self.args[0].to_code(compiler), 
+                              self.caller.to_code(compiler), 
+                              self.args[1].to_code(compiler))      
     
   def __repr__(self):
     return '%r(%s)'%(self.caller, ', '.join([repr(arg) for arg in self.args]))
-  
-  #def __repr__(self):
-    #return '%r%s%r'%(self.args[0], self.caller.operator, self.args[1])
-  
+    
 class VirtualOperation(Element):
   def __init__(self, *args):
     if self.arity>=0:
@@ -157,18 +154,15 @@ class VirtualOperation(Element):
   def alpha_convert(self, env, compiler):
     return self.__class__(*tuple(arg.alpha_convert(env, compiler) for arg in self.args))
   
-  def assign_convert(self, env, compiler):
-    return self.__class__(*tuple(arg.assign_convert(env, compiler) for arg in self.args))
-  
   def find_assign_lefts(self):
     return set()
   
   def side_effects(self):
     return True
 
-  def optimization_analisys(self, data):
+  def analyse(self, compiler):
     for arg in self.args:
-      arg.optimization_analisys(data)
+      arg.analyse(compiler)
   
   def subst(self, bindings):  
     return self.__class__(*tuple(x.subst(bindings) for x in self.args))
@@ -176,8 +170,8 @@ class VirtualOperation(Element):
   def code_size(self):
     return 1
   
-  def optimize(self, data):
-    return self.__class__(*optimize_args(self.args, data))
+  def optimize(self, compiler):
+    return self.__class__(*optimize_args(self.args, compiler))
   
   def bool(self):
     return unknown
@@ -194,16 +188,16 @@ class VirtualOperation(Element):
     except: self_is_statement = False
     return exps+(self.__class__(*args),), self_is_statement or has_statement
   
-  def to_code(self, coder):
+  def to_code(self, compiler):
     if isinstance(self.__class__.code_format, str):
       if self.__class__.arity==0:
         return self.__class__.code_format
       elif self.__class__.arity!=-1:
-        return self.__class__.code_format % tuple(x.to_code(coder) for x in self.args)
+        return self.__class__.code_format % tuple(x.to_code(compiler) for x in self.args)
       else:
-        return self.__class__.code_format % (', '.join([x.to_code(coder) for x in self.args]))
+        return self.__class__.code_format % (', '.join([x.to_code(compiler) for x in self.args]))
     else: 
-      return self.__class__.code_format(self, coder)
+      return self.__class__.code_format(self, compiler)
     
   def __eq__(x, y):
     return classeq(x, y) and x.args==y.args
@@ -232,8 +226,8 @@ class Deref(Element):
   def side_effects(self):
     return False
     
-  def optimization_analisys(self, data):
-    self.item.optimization_analisys(data)
+  def analyse(self, compiler):
+    self.item.analyse(compiler)
     
   def subst(self, bindings):  
     return Deref(self.item.subst(bindings))
@@ -244,8 +238,8 @@ class Deref(Element):
   def free_vars(self):
     return self.item.free_vars()
 
-  def optimize(self, data):
-    item = self.item.optimize(data)
+  def optimize(self, compiler):
+    item = self.item.optimize(compiler)
     if isinstance(item, Atom) or isinstance(item, Lamda):
       return item
     if isinstance(item, Deref):
@@ -262,8 +256,8 @@ class Deref(Element):
   def replace_return_with_yield(self):
     return self
   
-  def to_code(self, coder):
-    return  'deref(%s, solver.bindings)'%self.item.to_code(coder)
+  def to_code(self, compiler):
+    return  'deref(%s, solver.bindings)'%self.item.to_code(compiler)
   
   def __repr__(self):
     return 'il.Deref(%s)'%self.item
@@ -275,8 +269,8 @@ class EvalExpressionWithCode(Element):
   def side_effects(self):
     return False
     
-  def optimization_analisys(self, data):
-    self.item.optimization_analisys(data)
+  def analyse(self, compiler):
+    self.item.analyse(compiler)
     
   def subst(self, bindings):  
     return EvalExpressionWithCode(self.item.subst(bindings))
@@ -287,8 +281,8 @@ class EvalExpressionWithCode(Element):
   def free_vars(self):
     return self.item.free_vars()
 
-  def optimize(self, data):
-    item = self.item.optimize(data)
+  def optimize(self, compiler):
+    item = self.item.optimize(compiler)
     if isinstance(item, Var):
       return EvalExpressionWithCode(item)
     elif isinstance(item, ExpressionWithCode):
@@ -306,8 +300,8 @@ class EvalExpressionWithCode(Element):
   def replace_return_with_yield(self):
     return self
   
-  def to_code(self, coder):
-    return  '(%s).function()'%self.item.to_code(coder)
+  def to_code(self, compiler):
+    return  '(%s).function()'%self.item.to_code(compiler)
   
   def __repr__(self):
     return 'il.EvalExpressionWithCode(%s)'%self.item
@@ -319,8 +313,8 @@ class Len(Element):
   def side_effects(self):
     return False
     
-  def optimization_analisys(self, data):
-    self.item.optimization_analisys(data)
+  def analyse(self, compiler):
+    self.item.analyse(compiler)
     
   def subst(self, bindings):  
     return Len(self.item.subst(bindings))
@@ -331,8 +325,8 @@ class Len(Element):
   def free_vars(self):
     return self.item.free_vars()
 
-  def optimize(self, data):
-    item = self.item.optimize(data)
+  def optimize(self, compiler):
+    item = self.item.optimize(compiler)
     if isinstance(item, Atom) or isinstance(item, MacroArgs):
       return Integer(len(item.value))
     return Len(item)
@@ -347,8 +341,8 @@ class Len(Element):
   def replace_return_with_yield(self):
     return self
   
-  def to_code(self, coder):
-    return  'len(%s)'%self.item.to_code(coder)
+  def to_code(self, compiler):
+    return  'len(%s)'%self.item.to_code(compiler)
   
   def __repr__(self):
     return 'il.Len(%s)'%self.item
@@ -361,9 +355,9 @@ class In(Element):
   def side_effects(self):
     return False
     
-  def optimization_analisys(self, data):
-    self.item.optimization_analisys(data)
-    self.container.optimization_analisys(data)
+  def analyse(self, compiler):
+    self.item.analyse(compiler)
+    self.container.analyse(compiler)
     
   def subst(self, bindings):  
     return In(self.item.subst(bindings), self.container.subst(bindings))
@@ -377,9 +371,9 @@ class In(Element):
     result |= self.container.free_vars()
     return result
 
-  def optimize(self, data):
-    item = self.item.optimize(data)
-    container = self.container.optimize(data)
+  def optimize(self, compiler):
+    item = self.item.optimize(compiler)
+    container = self.container.optimize(compiler)
     if isinstance(item, Atom):
       if isinstance(container, Atom):
         return Bool(item.value in container.value)
@@ -406,8 +400,8 @@ class In(Element):
         return self.item.value, self.container.arity_body_map
     return unknown
   
-  def to_code(self, coder):
-    return  '(%s) in (%s)'%(self.item.to_code(coder), self.container.to_code(coder))
+  def to_code(self, compiler):
+    return  '(%s) in (%s)'%(self.item.to_code(compiler), self.container.to_code(compiler))
   
   def __repr__(self):
     return 'il.In(%r, %r)'%(self.item, self.container)
@@ -420,9 +414,9 @@ class GetItem(Element):
   def side_effects(self):
     return False
     
-  def optimization_analisys(self, data):
-    self.index.optimization_analisys(data)
-    self.container.optimization_analisys(data)
+  def analyse(self, compiler):
+    self.index.analyse(compiler)
+    self.container.analyse(compiler)
     
   def subst(self, bindings):  
     return GetItem(self.container.subst(bindings), self.index.subst(bindings))
@@ -436,9 +430,9 @@ class GetItem(Element):
     result |= self.container.free_vars()
     return result
   
-  def optimize(self, data):
-    index = self.index.optimize(data)
-    container = self.container.optimize(data)
+  def optimize(self, compiler):
+    index = self.index.optimize(compiler)
+    container = self.container.optimize(compiler)
     if isinstance(index, Atom):
       if isinstance(container, Atom):
         return element(container.value[index.value])
@@ -471,8 +465,8 @@ class GetItem(Element):
         return Bool(bool(self.container.arity_body_map[self.index.value]))
     return unknown
   
-  def to_code(self, coder):
-    return  '(%s)[%s]'%(self.container.to_code(coder), self.index.to_code(coder))
+  def to_code(self, compiler):
+    return  '(%s)[%s]'%(self.container.to_code(compiler), self.index.to_code(compiler))
   
   def __repr__(self):
     return 'il.GetItem(%r, %r)'%(self.container, self.index)
@@ -487,9 +481,9 @@ class ListAppend(Element):
   def side_effects(self):
     return True
     
-  def optimization_analisys(self, data):
-    self.value.optimization_analisys(data)
-    self.container.optimization_analisys(data)
+  def analyse(self, compiler):
+    self.value.analyse(compiler)
+    self.container.analyse(compiler)
     
   def subst(self, bindings):  
     return ListAppend(self.container.subst(bindings), self.value.subst(bindings))
@@ -503,8 +497,8 @@ class ListAppend(Element):
     result |= self.container.free_vars()
     return result
   
-  def optimize(self, data):
-    value = self.value.optimize(data)
+  def optimize(self, compiler):
+    value = self.value.optimize(compiler)
     return ListAppend(self.container, value)
   
   def pythonize(self, env, compiler):
@@ -521,8 +515,8 @@ class ListAppend(Element):
   def bool(self):
     return False
   
-  def to_code(self, coder):
-    return  '%s.append(%s)'%(self.container.to_code(coder), self.value.to_code(coder))
+  def to_code(self, compiler):
+    return  '%s.append(%s)'%(self.container.to_code(compiler), self.value.to_code(compiler))
   
   def __repr__(self):
     return 'il.ListAppend(%r, %r)'%(self.container, self.value)
@@ -537,10 +531,10 @@ class AssignFromList(Element):
   def side_effects(self):
     return True
     
-  def optimization_analisys(self, data):
+  def analyse(self, compiler):
     for var in self.vars:
-      var.optimization_analisys(data)
-    self.value.optimization_analisys(data)
+      var.analyse(compiler)
+    self.value.analyse(compiler)
     
   def subst(self, bindings):  
     return AssignFromList(*(tuple(var.subst(bindings) for var in self.vars)+(self.value.subst(bindings),)))
@@ -549,18 +543,17 @@ class AssignFromList(Element):
     return 1  
   
   def free_vars(self):
-    result = set()
-    result |= self.vars.free_vars()
+    result = set(self.vars)
     result |= self.value.free_vars()
     return result
   
-  def optimize(self, data):
-    value = self.value.optimize(data)
+  def optimize(self, compiler):
+    value = self.value.optimize(compiler)
     if isinstance(value, Tuple) or isinstance(value, List):
       if len(value.value)!=len(self.vars):
         raise DaoCompileError
       for var, v in zip(self.vars, value.value):
-        data.assign_bindings[var] = v
+        compiler.assign_bindings[var] = v
       return
     return AssignFromList(*(self.vars+(value,)))
   
@@ -577,9 +570,9 @@ class AssignFromList(Element):
   def bool(self):
     return False
   
-  def to_code(self, coder):
-    return "%s = %s" % (', '.join([x.to_code(coder) for x in self.vars]), 
-                      self.value.to_code(coder))
+  def to_code(self, compiler):
+    return "%s = %s" % (', '.join([x.to_code(compiler) for x in self.vars]), 
+                      self.value.to_code(compiler))
   
   def __repr__(self):
     return 'il.AssignFromList(%r, %r)'%(self.vars, self.value)
@@ -596,9 +589,9 @@ class PushCatchCont(Element):
   def side_effects(self):
     return True
     
-  def optimization_analisys(self, data):
-    self.tag.optimization_analisys(data)
-    self.cont.optimization_analisys(data)
+  def analyse(self, compiler):
+    self.tag.analyse(compiler)
+    self.cont.analyse(compiler)
     
   def subst(self, bindings):  
     return PushCatchCont(self.tag.subst(bindings), self.cont.subst(bindings))
@@ -612,16 +605,16 @@ class PushCatchCont(Element):
     result |= self.cont.free_vars()
     return result
   
-  def optimize(self, data):
-    tag = self.tag.optimize(data)
-    cont = self.cont.optimize(data)
-    if isinstance(tag, Atom) and data.assign_bindings[catch_cont_map] is not None:
-      data.assign_bindings[catch_cont_map].value.setdefault(tag, []).append(cont)
+  def optimize(self, compiler):
+    tag = self.tag.optimize(compiler)
+    cont = self.cont.optimize(compiler)
+    if isinstance(tag, Atom) and compiler.assign_bindings[catch_cont_map] is not None:
+      compiler.assign_bindings[catch_cont_map].value.setdefault(tag, []).append(cont)
       return 
-    if data.assign_bindings[catch_cont_map] is not None:
-      result = Begin((Assign(catch_cont_map, data.assign_bindings[catch_cont_map]), 
+    if compiler.assign_bindings[catch_cont_map] is not None:
+      result = Begin((Assign(catch_cont_map, compiler.assign_bindings[catch_cont_map]), 
                     PushCatchCont(tag, cont)))
-      data.assign_bindings[catch_cont_map] = None
+      compiler.assign_bindings[catch_cont_map] = None
       return result
     return PushCatchCont(tag, cont)
   
@@ -638,7 +631,7 @@ class PushCatchCont(Element):
   def bool(self):
     return False
   
-  def to_code(self, coder):
+  def to_code(self, compiler):
     return "solver.catch_cont_map.setdefault(%s, []).append(%s)" % (self.tag, self.cont)
   
   def __repr__(self):
@@ -656,8 +649,8 @@ class FindCatchCont(Element):
   def __call__(self, value):
     return Apply(self, (value,))
     
-  def optimization_analisys(self, data):
-    self.tag.optimization_analisys(data)
+  def analyse(self, compiler):
+    self.tag.analyse(compiler)
     
   def subst(self, bindings):  
     return FindCatchCont(self.tag.subst(bindings))
@@ -670,21 +663,21 @@ class FindCatchCont(Element):
     result |= self.tag.free_vars()
     return result
   
-  def optimize(self, data):
-    tag = self.tag.optimize(data)
-    if isinstance(tag, Atom) and data.assign_bindings[catch_cont_map] is not None:
+  def optimize(self, compiler):
+    tag = self.tag.optimize(compiler)
+    if isinstance(tag, Atom) and compiler.assign_bindings[catch_cont_map] is not None:
       try:
-        cont_stack = data.assign_bindings[catch_cont_map].value[tag]
+        cont_stack = compiler.assign_bindings[catch_cont_map].value[tag]
         cont = cont_stack.pop()
         if not cont_stack:
-          del data.assign_bindings[catch_cont_map].value[tag]
+          del compiler.assign_bindings[catch_cont_map].value[tag]
         return cont
       except:
         return RaiseExcept(Symbol('DaoUncaughtError'))
-    if data.assign_bindings[catch_cont_map] is not None:
-      result = Begin((Assign(catch_cont_map, data.assign_bindings[catch_cont_map]), 
+    if compiler.assign_bindings[catch_cont_map] is not None:
+      result = Begin((Assign(catch_cont_map, compiler.assign_bindings[catch_cont_map]), 
                     FindCatchCont(tag)))
-      data.assign_bindings[catch_cont_map] = None
+      compiler.assign_bindings[catch_cont_map] = None
       return result
     return FindCatchCont(tag)
   
@@ -701,7 +694,7 @@ class FindCatchCont(Element):
   def bool(self):
     return False
   
-  def to_code(self, coder):
+  def to_code(self, compiler):
     return "solver.find_catch_cont(%s)" % self.tag
   
   def __repr__(self):
@@ -717,8 +710,8 @@ class IsMacroFunction(Element):
   def side_effects(self):
     return False
     
-  def optimization_analisys(self, data):
-    self.item.optimization_analisys(data)
+  def analyse(self, compiler):
+    self.item.analyse(compiler)
     
   def subst(self, bindings):  
     return IsMacroFunction(self.item.subst(bindings))
@@ -726,8 +719,8 @@ class IsMacroFunction(Element):
   def code_size(self):
     return 1  
   
-  def optimize(self, data):
-    return IsMacroFunction(self.item.optimize(data))
+  def optimize(self, compiler):
+    return IsMacroFunction(self.item.optimize(compiler))
   
   def pythonize(self, env, compiler):
     exps, has_statement = self.item.pythonize(env, compiler)
@@ -739,8 +732,8 @@ class IsMacroFunction(Element):
   def replace_return_with_yield(self):
     return self
   
-  def to_code(self, coder):
-    return  'isinstance(%s, MacroFunction)'%self.item.to_code(coder)
+  def to_code(self, compiler):
+    return  'isinstance(%s, MacroFunction)'%self.item.to_code(compiler)
   
   def bool(self):
     if isinstance(self.item, Lamda): 
@@ -752,9 +745,6 @@ class IsMacroFunction(Element):
   
   def __repr__(self):
     return 'il.IsMacroFunction(%s)'%self.item
-
-def find_last_assigns(exp, var):
-  return
 
 def vop(name, arity, code_format):
   class Vop(VirtualOperation): pass
@@ -783,14 +773,14 @@ class LogicOperation(VirtualOperation): pass
 class BinaryLogicOperation(VirtualOperation): pass
 class UnaryLogicOperation(VirtualOperation): pass
 
-def Call_to_code(self, coder):
-  return '%s(%s)'%(self.args[0].to_code(coder), ', '.join([x.to_code(coder) for x in self.args[1:]]))  
+def Call_to_code(self, compiler):
+  return '%s(%s)'%(self.args[0].to_code(compiler), ', '.join([x.to_code(compiler) for x in self.args[1:]]))  
 Call = vop('Call', -1, Call_to_code)
 
 Attr = no_side_effects(vop('Attr', 2, '%s.%s'))
 
-def AttrCall_to_code(self, coder):
-  return '%s(%s)'%(self.args[0].to_code(coder), ', '.join([x.to_code(coder) for x in self.args[1:]]))
+def AttrCall_to_code(self, compiler):
+  return '%s(%s)'%(self.args[0].to_code(compiler), ', '.join([x.to_code(compiler) for x in self.args[1:]]))
 AttrCall = vop('AttrCall', -1, AttrCall_to_code)
 
 SetItem = vop2('SetItem', 3, '(%s)[%s] = %s')
@@ -810,7 +800,7 @@ RaiseTypeError = vop2('RaiseTypeError', 1, 'raise %s')
 
 RaiseException = vop2('RaiseException', 1, 'raise %s')
 
-def QuoteItem_to_code(self, coder):
+def QuoteItem_to_code(self, compiler):
   return '%s'%repr(self.args[0])
 QuoteItem = vop('QuoteItem', 1, QuoteItem_to_code)
 
@@ -825,6 +815,19 @@ Cge = vop('Cge', 3, '(%s) >= (%s) >= (%s)')
 failcont = SolverVar('fail_cont')
 
 def SetFailCont(cont): return Assign(failcont, cont)
+
+def append_failcont(compiler, *exps):
+  v, fc = LocalVar('v'), LocalVar('fc1')
+  v1 =  compiler.new_var(v)
+  fc1 = compiler.new_var(fc)
+  return Begin((
+    Assign(fc1, failcont),
+    SetFailCont(
+      clamda(v1, 
+                SetFailCont(fc1),
+                begin(*exps),
+                fc1(FALSE)))
+    ))
 
 cut_cont = SolverVar('cut_cont')
 
@@ -850,45 +853,11 @@ Optargs = vop('Optargs', 1, '*%s')
 Continue = vop('Continue', 0, "continue\n")
 continue_ = Continue()
 
-def Prin_to_code(self, coder):
-  return 'print %s,'%', '.join([x.to_code(coder) for x in self.args])
+def Prin_to_code(self, compiler):
+  return 'print %s,'%', '.join([x.to_code(compiler) for x in self.args])
 Prin = vop2('Prin', -1, Prin_to_code)
 
-def Print_to_code(self, coder):
-  return 'print %s'%', '.join([x.to_code(coder) for x in self.args])
+def Print_to_code(self, compiler):
+  return 'print %s'%', '.join([x.to_code(compiler) for x in self.args])
 PrintLn = vop2('PrintLn', -1, Print_to_code)
 
-def binary_to_code(self, coder):
-  return '(%s) %s (%s)'%(self.args[0].to_code(coder), 
-                         self.symbol, 
-                         self.args[1].to_code(coder))
-
-def binary(name, symbol):
-  class Binary(VirtualOperation): 
-    def __repr__(self):
-      return '(%s%s%s)'%(repr(self.args[0]), self.__class__.symbol, repr(self.args[1]))
-  Binary.__name__ = Binary.name = name
-  Binary.arity = 2
-  Binary.symbol = symbol
-  Binary.code_format = binary_to_code
-  return Binary    
-    
-Lt = binary('Lt', '<')
-Le = binary('Le', '<=')
-Eq = binary('Eq', '==')
-Ne = binary('Ne', '!=')
-Ge = binary('Ge', '>=')
-Gt = binary('Gt', '>')
-
-def append_failcont(compiler, *exps):
-  v, fc = LocalVar('v'), LocalVar('fc1')
-  v1 =  compiler.new_var(v)
-  fc1 = compiler.new_var(fc)
-  return Begin((
-    Assign(fc1, failcont),
-    SetFailCont(
-      clamda(v1, 
-                SetFailCont(fc1),
-                begin(*exps),
-                fc1(FALSE)))
-    ))

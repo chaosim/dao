@@ -1,6 +1,6 @@
 from dao.base import classeq
 
-from dao.compilebase import MAX_EXTEND_CODE_SIZE, to_code_list, lambda_side_effects
+from dao.compilebase import MAX_EXTEND_CODE_SIZE
 from dao.compilebase import VariableNotBound, CompileTypeError
 
 from element import pythonize_args, optimize_args
@@ -24,29 +24,12 @@ class Lamda(Element):
   def find_assign_lefts(self):
     return self.body.find_assign_lefts()
   
-  def assign_convert(self, env, compiler):
-    try:
-      self.before_assign_convert
-      return self
-    except: self.before_assign_convert = self.params, self.body
-    
-    lefts = self.find_assign_lefts()
-    for p in lefts: 
-      env[p] = compiler.new_var(p)
-    if lefts:
-      #make_cells = tuple((env[p], MakeCell(p)) for p in lefts)
-      make_cells = tuple((env[p], MakeCell()) for p in lefts)
-      self.body = let(make_cells, self.body.assign_convert(env, compiler))
-    else:
-      self.body = self.body.assign_convert(env, compiler)
-    return self
-    
-  def optimization_analisys(self, data):
+  def analyse(self, compiler):
     try: self.seen
     except:
       self.seen = True
-      data.occur_count[self] = data.occur_count.setdefault(self, 0)+1
-      self.body.optimization_analisys(data)
+      compiler.occur_count[self] = compiler.occur_count.setdefault(self, 0)+1
+      self.body.analyse(compiler)
         
   def code_size(self):
       return self.body.code_size()+len(self.params)+2
@@ -57,19 +40,19 @@ class Lamda(Element):
   def subst(self, bindings):
     return self.new(self.params, self.body.subst(bindings))
       
-  def optimize(self, data):
-    return self.new(self.params, self.body.optimize(data))
+  def optimize(self, compiler):
+    return self.new(self.params, self.body.optimize(compiler))
   
-  def optimize(self, data):
-    old_assign_bindings = data.assign_bindings.copy()
-    result = self.new(self.params, self.body.optimize(data))
-    data.assign_bindings = old_assign_bindings
+  def optimize(self, compiler):
+    old_assign_bindings = compiler.assign_bindings.copy()
+    result = self.new(self.params, self.body.optimize(compiler))
+    compiler.assign_bindings = old_assign_bindings
     return result
   
-  def optimize_apply(self, data, args):
+  def optimize_apply(self, compiler, args):
     #1. ((lambda () body))  =>  body 
     if len(self.params)==0:
-      return self.body.optimize(data)
+      return self.body.optimize(compiler)
     
     #2. (lamda x: ...x...)(y) => (lambda : ... y ...)() 
     bindings = {}
@@ -81,7 +64,7 @@ class Lamda(Element):
         new_args += (arg,)
         continue
       else:
-        ref_count = data.ref_count.get(p, 0)
+        ref_count = compiler.ref_count.get(p, 0)
         if ref_count==0:
           continue
         elif ref_count==1:
@@ -97,19 +80,19 @@ class Lamda(Element):
     
     if new_params:
       if bindings:
-        return Apply(self.new(new_params, self.body.subst(bindings).optimize(data)), 
-                        tuple(arg.optimize(data) for arg in new_args))
+        return Apply(self.new(new_params, self.body.subst(bindings).optimize(compiler)), 
+                        tuple(arg.optimize(compiler) for arg in new_args))
       else:
         if len(new_params)!=len(self.params):
-          Apply(self.new(new_params, self.body.subst(bindings).optimize(data)), 
-                tuple(arg.optimize(data) for arg in new_args))   
+          Apply(self.new(new_params, self.body.subst(bindings).optimize(compiler)), 
+                tuple(arg.optimize(compiler) for arg in new_args))   
         else:
-          return Apply(self.new(new_params, self.body.optimize(data)), optimize_args(new_args, data))
+          return Apply(self.new(new_params, self.body.optimize(compiler)), optimize_args(new_args, compiler))
     else:
       if bindings:
-        return self.body.subst(bindings).optimize(data)
+        return self.body.subst(bindings).optimize(compiler)
       else:
-        return self.body.optimize(data)
+        return self.body.optimize(compiler)
   
   def insert_return_statement(self):
     return Return(self)
@@ -130,9 +113,9 @@ class Lamda(Element):
       body = begin(*body_exps).insert_return_statement()
       return (Function(name, self.params, body), name), True 
     
-  def to_code(self, coder):
-    head = "lambda %s: " % ', '.join(to_code_list(coder, self.params))
-    result = head + '%s'%self.body.to_code_if_in_lambda_body(coder)
+  def to_code(self, compiler):
+    head = "lambda %s: " % ', '.join(tuple(x.to_code(compiler) for x in self.params))
+    result = head + '%s'%self.body.to_code_if_in_lambda_body(compiler)
     return result
   
   def free_vars(self):
@@ -163,17 +146,17 @@ class Clamda(Lamda):
   def new(self, params, body):
     return self.__class__(params[0], body)
   
-  def optimize_apply(self, data, args):
+  def optimize_apply(self, compiler, args):
     param, arg = self.params[0], args[0]
     if not arg.side_effects():
-      body = self.body.subst({param: arg}).optimize(data)
+      body = self.body.subst({param: arg}).optimize(compiler)
       return body
     else:
-      ref_count = data.ref_count.get(param, 0)
+      ref_count = compiler.ref_count.get(param, 0)
       if ref_count==0:
-        return begin(arg, self.body).optimize(data)
+        return begin(arg, self.body).optimize(compiler)
       else:
-        return begin(Assign(param, arg), self.body).optimize(data)
+        return begin(Assign(param, arg), self.body).optimize(compiler)
 
   def __repr__(self):
     return 'il.Clamda(%r, %s)'%(self.params[0], repr(self.body))
@@ -207,18 +190,18 @@ class Function(Lamda):
   def new(self, params, body):
     return self.__class__(self.name, params, body)
   
-  def optimize(self, data):
-    old_assign_bindings = data.assign_bindings
-    data.assign_bindings = {}
-    result = self.new(self.params, self.body.optimize(data))
-    data.assign_bindings = old_assign_bindings
+  def optimize(self, compiler):
+    old_assign_bindings = compiler.assign_bindings
+    compiler.assign_bindings = {}
+    result = self.new(self.params, self.body.optimize(compiler))
+    compiler.assign_bindings = old_assign_bindings
     return result
   
-  def optimize_apply(self, data, args):
-    old_assign_bindings = data.assign_bindings
-    data.assign_bindings = {}
-    result = Lamda.optimize_apply(self, data, args)
-    data.assign_bindings = old_assign_bindings
+  def optimize_apply(self, compiler, args):
+    old_assign_bindings = compiler.assign_bindings
+    compiler.assign_bindings = {}
+    result = Lamda.optimize_apply(self, compiler, args)
+    compiler.assign_bindings = old_assign_bindings
     return result
   
   def pythonize(self, env, compiler):
@@ -236,9 +219,9 @@ class Function(Lamda):
       body_exps = body_exps[:-1] + (body_exps[-1].insert_return_statement(),)
     return (self.new(self.params, begin(*body_exps)), self.name), True
     
-  def to_code(self, coder):
-    head = "def %s(%s):\n" % (self.name, ', '.join(to_code_list(coder, self.params)))
-    result =  head + coder.indent(self.body.to_code(coder))
+  def to_code(self, compiler):
+    head = "def %s(%s):\n" % (self.name, ', '.join(tuple(x.to_code(compiler) for x in self.params)))
+    result =  head + compiler.indent(self.body.to_code(compiler))
     return result
   
   def __repr__(self):
@@ -259,18 +242,18 @@ class CFunction(Function):
   def new(self, params, body):
     return self.__class__(self.name, params[0], body)
   
-  def optimize_apply(self, data, args):
-    old_assign_bindings = data.assign_bindings
+  def optimize_apply(self, compiler, args):
+    old_assign_bindings = compiler.assign_bindings
     assigns = []
     free_vars = self.free_vars()
-    for var, value in data.assign_bindings.items():
+    for var, value in compiler.assign_bindings.items():
       if var in free_vars:
         assigns.append(Assign(var, value))
         old_assign_bindings[var]
-    data.assign_bindings = {}
+    compiler.assign_bindings = {}
     result = begin(*(tuple(assigns)+(CFunction(self.name, self.params[0], 
-        self.body.subst({self.params[0]:args[0]}).optimize(data))(NONE),)))
-    data.assign_bindings = old_assign_bindings
+        self.body.subst({self.params[0]:args[0]}).optimize(compiler))(NONE),)))
+    compiler.assign_bindings = old_assign_bindings
     return result
   
   def __repr__(self):
@@ -283,31 +266,31 @@ class RulesFunction(Function):
   def __call__(self, *args):
     return Apply(self, tuple(element(x) for x in args))
   
-  def optimize_apply(self, data, args):
-    old_assign_bindings = data.assign_bindings
-    data.assign_bindings = {}
-    result = Lamda.optimize_apply(self, data, args)
-    data.assign_bindings = old_assign_bindings
+  def optimize_apply(self, compiler, args):
+    old_assign_bindings = compiler.assign_bindings
+    compiler.assign_bindings = {}
+    result = Lamda.optimize_apply(self, compiler, args)
+    compiler.assign_bindings = old_assign_bindings
     return result
   
-  def to_code(self, coder):
+  def to_code(self, compiler):
     head = "def %s(%s, %s):\n" % (self.name, 
-                                   self.params[0].to_code(coder), 
-                                   self.params[1].to_code(coder))
-    result =  head + coder.indent(self.body.to_code(coder))
+                                   self.params[0].to_code(compiler), 
+                                   self.params[1].to_code(compiler))
+    result =  head + compiler.indent(self.body.to_code(compiler))
     return result
   
 class RulesDict(Element):
   def __init__(self, arity_body_map):
     self.arity_body_map = arity_body_map
     
-  def optimization_analisys(self, data):
+  def analyse(self, compiler):
     try: self.seen
     except:
       self.seen = True
-      data.occur_count[self] = data.occur_count.setdefault(self, 0)+1
+      compiler.occur_count[self] = compiler.occur_count.setdefault(self, 0)+1
       for arity, body in self.arity_body_map.items():
-        body.optimization_analisys(data)
+        body.analyse(compiler)
   
   def subst(self, bindings):
     return RulesDict({arity:body.subst(bindings) for arity, body in self.arity_body_map.items()})
@@ -321,9 +304,9 @@ class RulesDict(Element):
       result |= body.free_vars()
     return result
   
-  def optimize(self, data):
+  def optimize(self, compiler):
     for arity, body in self.arity_body_map.items():
-      self.arity_body_map[arity] = body.optimize(data) 
+      self.arity_body_map[arity] = body.optimize(compiler) 
     return self
   
   def pythonize(self, env, compiler):
@@ -341,8 +324,8 @@ class RulesDict(Element):
   def bool(self):
     return True
     
-  def to_code(self, coder):
-    return '{%s}'%', '.join('%s: %s'%(arity, funcname.to_code(coder))
+  def to_code(self, compiler):
+    return '{%s}'%', '.join('%s: %s'%(arity, funcname.to_code(compiler))
                             for arity, funcname in self.arity_body_map.items())
   
   def __repr__(self):
@@ -369,7 +352,7 @@ class MacroFunction(Element):
   def __init__(self, function):
     self.function = function
     
-  def to_code(self, coder):
+  def to_code(self, compiler):
     return 'MacroFunction(%s)'%self.function
   
   def __repr__(self):
@@ -379,8 +362,8 @@ class GlobalDecl(Element):
   def __init__(self, args):
     self.args = args
     
-  def to_code(self, coder):
-    return "global %s" % (', '.join([x.to_code(coder) for x in self.args]))
+  def to_code(self, compiler):
+    return "global %s" % (', '.join([x.to_code(compiler) for x in self.args]))
   
   def __repr__(self):
     return 'GlobalDecl(%s)'%self.args
@@ -391,25 +374,21 @@ class Apply(Element):
   def __init__(self, caller, args):
     self.caller, self.args = caller, args
   
-  def assign_convert(self, env, compiler):
-    return self.__class__(self.caller.assign_convert(env, compiler), 
-                 tuple(arg.assign_convert(env, compiler) for arg in self.args))    
-    
   def find_assign_lefts(exp):
     return set()
   
-  def optimization_analisys(self, data):  
-    data.called_count[self.caller] = data.called_count.setdefault(self.caller, 0)+1
-    self.caller.optimization_analisys(data)
+  def analyse(self, compiler):  
+    compiler.called_count[self.caller] = compiler.called_count.setdefault(self.caller, 0)+1
+    self.caller.analyse(compiler)
     for arg in self.args:
-      arg.optimization_analisys(data)
+      arg.analyse(compiler)
         
   def code_size(self):
     return self.caller.code_size()+sum([x.code_size() for x in self.args])
               
   def side_effects(self):
     if isinstance(self.caller, Lamda):
-      if lambda_side_effects(self.caller): return True
+      if self.caller.body.side_effects(): return True
     elif isinstance(self.caller, Var): return True
     elif self.caller.have_side_effects: return True
     else: return False # after cps, all of value have been solved before called, 
@@ -425,24 +404,24 @@ class Apply(Element):
       result |= exp.free_vars()
     return result
   
-  def optimize(self, data):
+  def optimize(self, compiler):
     if isinstance(self.caller, Var):
-      if self.caller not in data.recursive_call_path:
-        caller = self.caller.optimize(data)
+      if self.caller not in compiler.recursive_call_path:
+        caller = self.caller.optimize(compiler)
         if isinstance(caller, Lamda):
-          data.recursive_call_path.append(self.caller)      
-          result = caller.optimize_apply(data, self.args)
-          data.recursive_call_path.pop()  
+          compiler.recursive_call_path.append(self.caller)      
+          result = caller.optimize_apply(compiler, self.args)
+          compiler.recursive_call_path.pop()  
           return result
         else:
-          return self.__class__(caller, optimize_args(self.args, data))
+          return self.__class__(caller, optimize_args(self.args, compiler))
       else: 
-        return self.__class__(self.caller, optimize_args(self.args, data))
+        return self.__class__(self.caller, optimize_args(self.args, compiler))
     elif isinstance(self.caller, Lamda):
-      args = optimize_args(self.args, data)
-      return self.caller.optimize_apply(data, args)
+      args = optimize_args(self.args, compiler)
+      return self.caller.optimize_apply(compiler, args)
     else:
-      return self.__class__(self.caller.optimize(data), optimize_args(self.args, data))
+      return self.__class__(self.caller.optimize(compiler), optimize_args(self.args, compiler))
 
   def insert_return_statement(self):
     return Return(self)
@@ -457,11 +436,11 @@ class Apply(Element):
     exps2, args, has_statement2 = pythonize_args(self.args, env, compiler)
     return exps+exps2+(self.__class__(caller,args),), has_statement or has_statement2
     
-  def to_code(self, coder):
+  def to_code(self, compiler):
     if isinstance(self.caller, Lamda):
-      return "(%s)"%self.caller.to_code(coder) + '(%s)'%', '.join([x.to_code(coder) for x in self.args])
+      return "(%s)"%self.caller.to_code(compiler) + '(%s)'%', '.join([x.to_code(compiler) for x in self.args])
     else:
-      return self.caller.to_code(coder, ) + '(%s)'%', '.join([x.to_code(coder) for x in self.args])        
+      return self.caller.to_code(compiler, ) + '(%s)'%', '.join([x.to_code(compiler) for x in self.args])        
   
   def bool(self):
     return unknown
@@ -477,8 +456,8 @@ class ExpressionWithCode(Element):
     self.exp = exp
     self.function = function
   
-  def optimization_analisys(self, data):  
-    self.function.optimization_analisys(data)
+  def analyse(self, compiler):  
+    self.function.analyse(compiler)
     
   def side_effects(self):
     return False
@@ -492,8 +471,8 @@ class ExpressionWithCode(Element):
   def free_vars(self):
     return self.exp.free_vars()
   
-  def optimize(self, data):
-    return ExpressionWithCode(self.exp, self.function.optimize(data))
+  def optimize(self, compiler):
+    return ExpressionWithCode(self.exp, self.function.optimize(compiler))
         
   def pythonize(self, env, compiler):
     exps, has_statement = self.function.pythonize(env, compiler)
@@ -505,8 +484,8 @@ class ExpressionWithCode(Element):
   def __eq__(x, y):
     return classeq(x, y) and x.exp==y.exp
     
-  def to_code(self, coder):
-    return "ExpressionWithCode((%s), (%s))"%(self.exp.to_code(coder), self.function.to_code(coder))
+  def to_code(self, compiler):
+    return "ExpressionWithCode((%s), (%s))"%(self.exp.to_code(compiler), self.function.to_code(compiler))
   
   def __repr__(self):
     return "ExpressionWithCode(%r, %r)"%(self.exp, self.function)
@@ -517,16 +496,11 @@ class Var(Element):
   def __init__(self, name):
     self.name = name
         
-  def assign_convert(self, env, compiler):
-    if self in env:
-      return Content(env[self])
-    else: return self
-    
   def find_assign_lefts(self):
     return set()
   
-  def optimization_analisys(self, data):
-    data.ref_count[self] = data.ref_count.setdefault(self, 0)+1    
+  def analyse(self, compiler):
+    compiler.ref_count[self] = compiler.ref_count.setdefault(self, 0)+1    
     
   def code_size(self):
     return 1
@@ -538,14 +512,14 @@ class Var(Element):
     try: return bindings[self]
     except: return self
       
-  def optimize(self, data):
-    if self in data.assign_bindings:
-      return data.assign_bindings[self]
+  def optimize(self, compiler):
+    if self in compiler.assign_bindings:
+      return compiler.assign_bindings[self]
     return self
       
-  def replace_assign(self, data):
+  def replace_assign(self, compiler):
     try:
-      return data.assign_bindings[self]
+      return compiler.assign_bindings[self]
     except:
       return self
   
@@ -558,7 +532,7 @@ class Var(Element):
   def pythonize(self, env, compiler):
     return (self,), False
       
-  def to_code(self, coder):
+  def to_code(self, compiler):
     return self.name
     
   def __eq__(x, y):
@@ -596,13 +570,10 @@ class LogicVar(Element):
   def __init__(self, name):
     self.name = name
   
-  def assign_convert(self, env, compiler):
-    return self
-  
   def find_assign_lefts(exp):
     return set()
   
-  def optimization_analisys(self, data): 
+  def analyse(self, compiler): 
     return
   
   def subst(self, bindings):  
@@ -611,10 +582,10 @@ class LogicVar(Element):
   def free_vars(self):
     return set()
   
-  def optimize(self, data):
+  def optimize(self, compiler):
     return self
     
-  def replace_assign(self, data):
+  def replace_assign(self, compiler):
     return self
   
   def pythonize(self, env, compiler):
@@ -631,7 +602,7 @@ class LogicVar(Element):
       else: 
         self = next
   
-  def to_code(self, coder):
+  def to_code(self, compiler):
     return  "LogicVar('%s')"%self.name
   
   def __repr__(self):
@@ -643,14 +614,11 @@ class Assign(Element):
   def __init__(self, var, exp):
     self.var, self.exp =  var, exp
   
-  def assign_convert(self, env, compiler):
-    return SetContent(env[self.var], self.exp.assign_convert(env, compiler))
-  
   def find_assign_lefts(self):
     return set([self.var])
   
-  def optimization_analisys(self, data):  
-    self.exp.optimization_analisys(data)
+  def analyse(self, compiler):  
+    self.exp.analyse(compiler)
   
   def insert_return_statement(self):
     return begin(self, Return(self.var))
@@ -667,24 +635,24 @@ class Assign(Element):
   def free_vars(self):
     return self.exp.free_vars()|set([self.var])
   
-  def optimize(self, data):
-    exp = self.exp.optimize(data)
+  def optimize(self, compiler):
+    exp = self.exp.optimize(compiler)
     #if self.var in self.exp.free_vars():
       #return Assign(self.var, self.exp)
     if isinstance(exp, Atom) or isinstance(exp, Var) or isinstance(exp, ExpressionWithCode) or isinstance(exp, RulesDict):
-      data.assign_bindings[self.var] = exp
+      compiler.assign_bindings[self.var] = exp
       return
     if isinstance(exp, Lamda) and not isinstance(self.var, RecursiveVar):
       if self.var not in exp.free_vars():
-        data.assign_bindings[self.var] = exp
+        compiler.assign_bindings[self.var] = exp
         return None
     else:
       #exp.side_effects():
-      if self.var in data.assign_bindings:
-        del data.assign_bindings[self.var]
+      if self.var in compiler.assign_bindings:
+        del compiler.assign_bindings[self.var]
       return Assign(self.var, exp)
     #else:
-      #data.assign_bindings[self.var] = exp
+      #compiler.assign_bindings[self.var] = exp
       #if isinstance(self.var, RecursiveVar):
         #return Assign(self.var, exp)
   
@@ -695,8 +663,8 @@ class Assign(Element):
     else:
       return exps[:-1]+(Assign(self.var, exps[-1]),), True
     
-  def to_code(self, coder):
-    return  '%s = %s' % (self.var.to_code(coder), self.exp.to_code(coder))
+  def to_code(self, compiler):
+    return  '%s = %s' % (self.var.to_code(compiler), self.exp.to_code(compiler))
     
   def __eq__(x, y):
     return classeq(x, y) and x.var==y.var and x.exp==y.exp
@@ -712,16 +680,12 @@ class While(Element):
   def __init__(self, test, body):
     self.test, self.body = test, body
     
-  def assign_convert(self, env, compiler):
-    return While(self.test.assign_convert(env, compiler), 
-                 self.body.assign_convert(env, compiler))
-
   def find_assign_lefts(self):
     return self.body.find_assign_lefts()
   
-  def optimization_analisys(self, data):  
-    self.test.optimization_analisys(data)
-    self.body.optimization_analisys(data)
+  def analyse(self, compiler):  
+    self.test.analyse(compiler)
+    self.body.analyse(compiler)
   
   def free_vars(self):
     return self.test.free_vars() | self.body.free_vars()
@@ -738,14 +702,14 @@ class While(Element):
     return While(self.test.subst(bindings),
               self.body.subst(bindings))
     
-  def optimize(self, data):
+  def optimize(self, compiler):
     free_vars = self.free_vars()
     assigns = []
-    for var, value in data.assign_bindings.items():
+    for var, value in compiler.assign_bindings.items():
       if var in free_vars:
         assigns.append(Assign(var, value))
-        del data.assign_bindings[var]
-    result = begin(*(tuple(assigns) + (While(self.test.optimize(data), self.body.optimize(data)),)))
+        del compiler.assign_bindings[var]
+    result = begin(*(tuple(assigns) + (While(self.test.optimize(compiler), self.body.optimize(compiler)),)))
     return result
 
   def insert_return_statement(self):
@@ -766,9 +730,9 @@ class While(Element):
     result = While(test[-1], begin(*body))
     return test[:-1]+(result,), True
     
-  def to_code(self, coder):
-    return 'while %s:\n%s\n' % (self.test.to_code(coder), 
-                                  coder.indent(self.body.to_code(coder)))
+  def to_code(self, compiler):
+    return 'while %s:\n%s\n' % (self.test.to_code(compiler), 
+                                  compiler.indent(self.body.to_code(compiler)))
            
   def __eq__(x, y):
     return classeq(x, y) and x.test==y.test and x.body==y.body
@@ -783,18 +747,13 @@ class For(Element):
   def __init__(self, var, range, body):
     self.var, self.range, self.body = var, range, body
     
-  def assign_convert(self, env, compiler):
-    return For(self.var.assign_convert(env, compiler), 
-               self.range.assign_convert(env, compiler), 
-               self.body.assign_convert(env, compiler))
-
   def find_assign_lefts(self):
     return self.body.find_assign_lefts()
   
-  def optimization_analisys(self, data):  
-    self.var.optimization_analisys(data)
-    self.range.optimization_analisys(data)
-    self.body.optimization_analisys(data)
+  def analyse(self, compiler):  
+    self.var.analyse(compiler)
+    self.range.analyse(compiler)
+    self.body.analyse(compiler)
     
   def code_size(self):
     return 3 + self.var.code_size() + self.range.code_size() + self.body.code_size()
@@ -812,14 +771,14 @@ class For(Element):
   def free_vars(self):
     return self.var.free_vars() | self.range.free_vars() | self.body.free_vars()
   
-  def optimize(self, data):
+  def optimize(self, compiler):
     free_vars = self.free_vars()
     assigns = []
-    for var, value in data.assign_bindings.items():
+    for var, value in compiler.assign_bindings.items():
       if var in free_vars:
         assigns.append(Assign(var, value))
-        del data.assign_bindings[var]
-    return begin(*(tuple(assigns) + (For(self.var, self.range.optimize(data), self.body.optimize(data)),)))
+        del compiler.assign_bindings[var]
+    return begin(*(tuple(assigns) + (For(self.var, self.range.optimize(compiler), self.body.optimize(compiler)),)))
 
   def insert_return_statement(self):
     return For(self.var, self.range, self.body.insert_return_statement())
@@ -833,10 +792,10 @@ class For(Element):
     body, has_statement2 = self.body.pythonize(env, compiler)
     return (For(var[-1], range[-1], begin(*body)),), True
     
-  def to_code(self, coder):
-    return 'for %s in %s:\n%s\n' % (self.var.to_code(coder), 
-                                    self.range.to_code(coder), 
-                                  coder.indent(self.body.to_code(coder)))
+  def to_code(self, compiler):
+    return 'for %s in %s:\n%s\n' % (self.var.to_code(compiler), 
+                                    self.range.to_code(compiler), 
+                                  compiler.indent(self.body.to_code(compiler)))
            
   def __eq__(x, y):
     return classeq(x, y) and x.var==y.var and x.range==y.range and x.body==y.body

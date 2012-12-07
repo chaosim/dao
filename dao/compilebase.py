@@ -24,11 +24,23 @@ class DaoNotImplemented(Exception):
     return self.message
 
 class Compiler:
-  def __init__(self):
+  def __init__(self, indent_space='  ', language='python'):
     self.newvar_map = {} #{'name':index}
+    
+    # for block/exit/continue
     self.block_label_stack = []
     self.exit_block_cont_map = {}
     self.next_block_cont_map = {}
+    
+    # for optimization
+    self.ref_count = {} # variable's reference count
+    self.called_count = {} # lambda's reference count
+    self.occur_count = {}
+    self.assign_bindings = {}
+    self.recursive_call_path = []
+
+    self.language = language
+    self.indent_space = indent_space
 
   def new_var(self, var):
     try: 
@@ -51,6 +63,10 @@ class Compiler:
         return self.block_label_stack[-(i+1)][1]
     raise BlockError("Block %s is not found."%old_label)
     
+  def indent(self, code, level=1):
+    lines = code.split('\n')
+    lines = tuple(self.indent_space*level + line for line in lines)
+    return '\n'.join(lines)    
   
 class Environment:
   '''environment for compile, especilly for alpha convert, block/exit/continue'''
@@ -80,44 +96,5 @@ class Environment:
       result += repr(self.bindings)
       self = self.outer
     return result
-       
-class OptimizationData:
-  def __init__(self):
-    self.ref_count = {}
-    self.called_count = {}
-    self.occur_count = {}
-    self.assign_bindings = {}
-    self.recursive_call_path = []
-    
-  def __repr__(self):
-    return repr(self.ref_count)
 
-class CodeGenerator: 
-  def __init__(self, indent_space='  ', language='python'):
-    self.language = language
-    self.indent_space = indent_space
-    
-  def indent(self, code, level=1):
-    lines = code.split('\n')
-    lines = tuple(self.indent_space*level + line for line in lines)
-    return '\n'.join(lines)
-    
-  
 MAX_EXTEND_CODE_SIZE = 10
-
-def lambda_side_effects(exp):
-  return exp.body.side_effects()
-
-#def optimize(exp, data):
-  #changed = True
-  #while changed:
-    #exp, changed = exp.optimize(data)
-  #return exp
-
-def generate_code(exp):
-  exp = exp.pythonize(Environment(), Compiler())
-  coder = CodeGenerator()
-  return exp.to_code(coder)
-
-def to_code_list(coder, items, in_lambda=True):
-  return tuple(x.to_code(coder) for x in items)

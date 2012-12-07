@@ -35,8 +35,8 @@ class Element(base.Element):
   def trampoline(self):
     return self
     
-  def to_code_if_in_lambda_body(self, coder):
-    return self.to_code(coder)
+  def to_code_if_in_lambda_body(self, compiler):
+    return self.to_code(compiler)
   
   def replace_return_with_yield(self):
     return self
@@ -72,13 +72,10 @@ class Atom(Element):
   def interlang(self):
     return self
   
-  def assign_convert(self, env, compiler):
-    return self
-  
   def find_assign_lefts(self):
     return set()
   
-  def optimization_analisys(self, data):  
+  def analyse(self, compiler):  
     return
   
   def side_effects(self):
@@ -87,10 +84,10 @@ class Atom(Element):
   def subst(self, bindings):
     return self
   
-  def optimize(self, data):
+  def optimize(self, compiler):
     return self
   
-  def replace_assign(self, data):
+  def replace_assign(self, compiler):
     return self
   
   def tail_recursive_convert(self):
@@ -111,7 +108,7 @@ class Atom(Element):
   def code_size(self):
     return 1
   
-  def to_code(self, coder):
+  def to_code(self, compiler):
     return repr(self.value) 
   
   def free_vars(self):
@@ -135,9 +132,9 @@ class Expression(Atom):
   def cps_convert(self, compiler, cont):
     return self.value.cps_convert(compiler, cont)
   
-  def to_code(self, coder):
-    #return 'Expression(%s)'%self.value.to_code(coder)
-    return '%s'%self.value.to_code(coder)
+  def to_code(self, compiler):
+    #return 'Expression(%s)'%self.value.to_code(compiler)
+    return '%s'%self.value.to_code(compiler)
   
 class Integer(Atom): 
   def __eq__(x, y):
@@ -165,7 +162,7 @@ class Bool(Atom):
   
 
 class Symbol(Atom): 
-  def to_code(self, coder):
+  def to_code(self, compiler):
     return self.value
   
   def __eq__(x, y):
@@ -173,7 +170,7 @@ class Symbol(Atom):
     
 
 class Klass(Atom):
-  def to_code(self, coder):
+  def to_code(self, compiler):
     return self.value
   
   def __repr__(self):
@@ -190,15 +187,12 @@ class Tuple(Atom):
   def __init__(self, *value):
     self.value = value
     
-  def assign_convert(self, env, compiler):
-    return Tuple(*tuple(x.assign_convert(env, compiler) for x in self.value))
-  
   def find_assign_lefts(self):
     return set()
   
-  def optimization_analisys(self, data):  
+  def analyse(self, compiler):  
     for x in self.value:
-      x.optimization_analisys(data)
+      x.analyse(compiler)
   
   def side_effects(self):
     return False
@@ -209,14 +203,14 @@ class Tuple(Atom):
   def code_size(self):
     return sum([x.code_size() for x in self.value])
   
-  def optimize(self, data):
-    return Tuple(*tuple(x.optimize(data) for x in self.value))
+  def optimize(self, compiler):
+    return Tuple(*tuple(x.optimize(compiler) for x in self.value))
   
-  def to_code(self, coder):
+  def to_code(self, compiler):
     if len(self.value)!=1:
-      return '(%s)'% ', '.join([x.to_code(coder) for x in self.value])
+      return '(%s)'% ', '.join([x.to_code(compiler) for x in self.value])
     else: 
-      return '(%s, )'%self.value[0].to_code(coder)
+      return '(%s, )'%self.value[0].to_code(compiler)
   
   def __eq__(x, y):
     return classeq(x, y) and x.value==y.value
@@ -231,18 +225,15 @@ class MacroArgs(Element):
   def __init__(self, value):
     self.value = value
     
-  def assign_convert(self, env, compiler):
-    return MacroArgs(tuple(x.assign_convert(env, compiler) for x in self.value))
-  
   def find_assign_lefts(self):
     return set()
   
-  def optimization_analisys(self, data):  
+  def analyse(self, compiler):  
     for x in self.value:
-      x.optimization_analisys(data)
+      x.analyse(compiler)
       
-  def optimize(self, data):
-    return MacroArgs(optimize_args(self.value, data))
+  def optimize(self, compiler):
+    return MacroArgs(optimize_args(self.value, compiler))
   
   def side_effects(self):
     return False
@@ -271,11 +262,11 @@ class MacroArgs(Element):
   def code_size(self):
     return sum([x.code_size() for x in self.value])
   
-  def to_code(self, coder):
+  def to_code(self, compiler):
     if len(self.value)!=1:
-      return '(%s)'% ', '.join([x.to_code(coder) for x in self.value])
+      return '(%s)'% ', '.join([x.to_code(compiler) for x in self.value])
     else: 
-      return '(%s, )'%self.value[0].to_code(coder)
+      return '(%s, )'%self.value[0].to_code(compiler)
   
   def __eq__(x, y):
     return classeq(x, y) and x.value==y.value
@@ -289,12 +280,9 @@ class Return(Element):
   def __init__(self, *args):
     self.args = args
   
-  def assign_convert(self, env, compiler):
-    return self.__class__(*tuple(arg.assign_convert(env, compiler) for arg in self.args))
-    
-  def optimization_analisys(self, data):  
+  def analyse(self, compiler):  
     for arg in self.args:
-      arg.optimization_analisys(data)
+      arg.analyse(compiler)
         
   def code_size(self):
     return sum([code_size(x) for x in self.args])
@@ -311,14 +299,14 @@ class Return(Element):
   def subst(self, bindings):  
     return self.__class__(*tuple(arg.subst(bindings) for arg in self.args))
     
-  def optimize(self, data):
+  def optimize(self, compiler):
     if len(self.args)==1 and isinstance(self.args[0], Return):
       return self.__class__(*self.args[0].args)
     else:
       for arg in self.args: 
         if isinstance(arg, Return): 
           raise CompileError
-      return self.__class__(*optimize_args(self.args, data))
+      return self.__class__(*optimize_args(self.args, compiler))
   
   def pythonize(self, env, compiler):
     if len(self.args)==1 and isinstance(self.args[0], Begin):
@@ -328,8 +316,8 @@ class Return(Element):
     exps, args, has_statement = pythonize_args(self.args, env, compiler)
     return exps+(self.__class__(*args),), True
     
-  def to_code(self, coder):
-    return  'return %s' % ', '.join([x.to_code(coder) for x in self.args])
+  def to_code(self, compiler):
+    return  'return %s' % ', '.join([x.to_code(compiler) for x in self.args])
   
   def insert_return_statement(self):
     return Return(*self.args)
@@ -344,8 +332,8 @@ class Return(Element):
     return 'il.Return(%s)'%', '.join([repr(x) for x in self.args])
 
 class Yield(Return): 
-  def to_code(self, coder):
-    return  'yield %s' % ', '.join([x.to_code(coder) for x in self.args])
+  def to_code(self, compiler):
+    return  'yield %s' % ', '.join([x.to_code(compiler) for x in self.args])
 
   def insert_return_statement(self):
     return self
@@ -361,18 +349,13 @@ class If(Element):
     self.test, self.then, self.else_ = test, then, else_
     if else_==pseudo_else: self.is_statement = True
     
-  def assign_convert(self, env, compiler):
-    return If(self.test.assign_convert(env, compiler), 
-                 self.then.assign_convert(env, compiler), 
-                 self.else_.assign_convert(env, compiler))
-
   def find_assign_lefts(self):
     return self.then.find_assign_lefts() | self.else_.find_assign_lefts()
   
-  def optimization_analisys(self, data):  
-    self.test.optimization_analisys(data)
-    self.then.optimization_analisys(data)
-    self.else_.optimization_analisys(data)
+  def analyse(self, compiler):  
+    self.test.analyse(compiler)
+    self.then.analyse(compiler)
+    self.else_.analyse(compiler)
     
   def code_size(self):
     return 3 + self.test.code_size() + \
@@ -396,31 +379,31 @@ class If(Element):
     result |= self.else_.free_vars()
     return result
   
-  def optimize(self, data):
-    test = self.test.optimize(data)
+  def optimize(self, compiler):
+    test = self.test.optimize(compiler)
     test_bool = test.bool()
     if test_bool==True:
-      then = self.then.optimize(data)
+      then = self.then.optimize(compiler)
       if isinstance(then, If) and then.test==test: # (if a (if a b c) d)
         then = then.then      
       return then
     elif test_bool==False:
-      else_ = self.else_.optimize(data)
+      else_ = self.else_.optimize(compiler)
       if isinstance(else_, If) and else_.test==test: # (if a b (if a c d))
         else_ = else_.else_      
       return else_    
-    assign_bindings = data.assign_bindings
-    data.assign_bindings = assign_bindings.copy()
-    then = self.then.optimize(data)
-    then_assign_bindings = data.assign_bindings
-    data.assign_bindings = assign_bindings.copy()
-    else_ = self.else_.optimize(data)
-    else_assign_bindings = data.assign_bindings
+    assign_bindings = compiler.assign_bindings
+    compiler.assign_bindings = assign_bindings.copy()
+    then = self.then.optimize(compiler)
+    then_assign_bindings = compiler.assign_bindings
+    compiler.assign_bindings = assign_bindings.copy()
+    else_ = self.else_.optimize(compiler)
+    else_assign_bindings = compiler.assign_bindings
     for var, value in then_assign_bindings.items():
       if var in else_assign_bindings \
          and else_assign_bindings[var]==then_assign_bindings[var]:
         then_assign_bindings[var] = value
-    data.assign_bindings = then_assign_bindings
+    compiler.assign_bindings = then_assign_bindings
     if isinstance(then, If) and then.test==test: # (if a (if a b c) d)
       then = then.then      
     if isinstance(else_, If) and else_.test==test: # (if a b (if a c d))
@@ -449,17 +432,17 @@ class If(Element):
     if_.is_statement = if_.is_statement or has_statement2 or has_statement3
     return test[:-1]+(if_,), has_statement1 or if_.is_statement
     
-  def to_code(self, coder):
+  def to_code(self, compiler):
     if self.is_statement:
-      result = 'if %s: \n%s\n' % (self.test.to_code(coder), 
-                                  coder.indent(self.then.to_code(coder)))
+      result = 'if %s: \n%s\n' % (self.test.to_code(compiler), 
+                                  compiler.indent(self.then.to_code(compiler)))
       if self.else_!=pseudo_else:
-        result += 'else:\n%s\n'% coder.indent(self.else_.to_code(coder)) 
+        result += 'else:\n%s\n'% compiler.indent(self.else_.to_code(compiler)) 
       return result
     else:
-      return '%s if %s else %s' % (self.then.to_code(coder), 
-                                   self.test.to_code(coder), 
-                                   self.else_.to_code(coder))        
+      return '%s if %s else %s' % (self.then.to_code(compiler), 
+                                   self.test.to_code(compiler), 
+                                   self.else_.to_code(compiler))        
   def __eq__(x, y):
     return classeq(x, y) and x.test==y.test and x.then==y.then and x.else_==y.else_
   
@@ -485,6 +468,9 @@ class PseudoElse(Atom):
   def replace_return_with_yield(self):
     return self
   
+  def to_code(self, compiler):
+    return ''
+  
   def __eq__(x, y):
     return classeq(x, y)
   
@@ -497,16 +483,12 @@ class Try(Element):
   def __init__(self, test, body):
     self.test, self.body = test, body
     
-  def assign_convert(self, env, compiler):
-    return Try(self.test.assign_convert(env, compiler), 
-                 self.body.assign_convert(env, compiler))
-
   def find_assign_lefts(self):
     return self.body.find_assign_lefts()
   
-  def optimization_analisys(self, data):  
-    self.test.optimization_analisys(data)
-    self.body.optimization_analisys(data)
+  def analyse(self, compiler):  
+    self.test.analyse(compiler)
+    self.body.analyse(compiler)
     
   def code_size(self):
     return 3 + self.test.code_size() + \
@@ -520,8 +502,8 @@ class Try(Element):
     return Try(self.test.subst(bindings),
               self.body.subst(bindings))
     
-  def optimize(self, data):
-    return Try(self.test.optimize(data), self.body.optimize(data))
+  def optimize(self, compiler):
+    return Try(self.test.optimize(compiler), self.body.optimize(compiler))
   
   def insert_return_statement(self):
     result = Try(self.test, 
@@ -541,9 +523,9 @@ class Try(Element):
     result = Try(test[-1], begin(*body))
     return test[:-1]+(result,), True
     
-  def to_code(self, coder):
-    return 'try:\n%s\nexcept:\n%s\n' % (coder.indent(self.test.to_code(coder)), 
-                                  coder.indent(self.body.to_code(coder)))
+  def to_code(self, compiler):
+    return 'try:\n%s\nexcept:\n%s\n' % (compiler.indent(self.test.to_code(compiler)), 
+                                  compiler.indent(self.body.to_code(compiler)))
            
   def __eq__(x, y):
     return classeq(x, y) and x.test==y.test and x.body==y.body
@@ -553,7 +535,7 @@ class Try(Element):
 
 def begin(*exps):
   assert isinstance(exps, tuple)
-  if len(exps)==0: return exps
+  if len(exps)==0: return pass_statement
   elif len(exps)==1: 
     return exps[0]
   else:
@@ -573,17 +555,8 @@ class Begin(Element):
   is_statement = True
   
   def __init__(self, statements):
-    self.statements = statements
-    #count = len(statements)
-    #for i, exp in enumerate(statements):
-      #exp.parent = self
-      #if i<count-1: exp._next_exp = statements[i+1]
-    #self._first_exp = statements[0]
+    self.statements = statements    
     
-    
-  def assign_convert(self, env, compiler):
-    return begin(*tuple(x.assign_convert(env, compiler) for x in self.statements))
-  
   def find_assign_lefts(self):
     result = set()
     for exp in self.statements:
@@ -593,9 +566,9 @@ class Begin(Element):
   def side_effects(self):
     return True
   
-  def optimization_analisys(self, data):  
+  def analyse(self, compiler):  
     for x in self.statements:
-      x.optimization_analisys(data)  
+      x.analyse(compiler)  
   
   def subst(self, bindings):  
     return Begin(tuple(x.subst(bindings) for x in self.statements))
@@ -606,8 +579,15 @@ class Begin(Element):
       result |= exp.free_vars()
     return result
   
-  def optimize(self, data):
-    return begin(*optimize_args(self.statements, data))
+  def optimize(self, compiler):
+    result = []
+    for arg in self.statements:
+      arg = arg.optimize(compiler)
+      if arg is not None:
+        result.append(arg)
+    if result:
+      return begin(*([x for x in result[:-1] if not isinstance(arg, Atom)]+[result[-1]]))
+    else: return pass_statement
   
   def remove(self, exp):
     for i, stmt in enumerate(self.statements):
@@ -632,11 +612,11 @@ class Begin(Element):
     return result, has_any_statement or len(result)>1
 
   
-  def to_code(self, coder):
-    return  '\n'.join([x.to_code(coder) for x in self.statements])
+  def to_code(self, compiler):
+    return  '\n'.join([x.to_code(compiler) for x in self.statements])
       
-  def to_code_if_in_lambda_body(self, coder):
-    return  '(%s)'%', '.join([x.to_code(coder) for x in self.statements])
+  def to_code_if_in_lambda_body(self, compiler):
+    return  '(%s)'%', '.join([x.to_code(compiler) for x in self.statements])
 
   def __eq__(x, y):
       return classeq(x, y) and x.statements==y.statements
@@ -648,10 +628,10 @@ type_map = {int:Integer, float: Float, str:String, unicode: String,
             tuple: make_tuple, list:List, dict:Dict, 
             bool:Bool, type(None): Atom}
 
-def optimize_args(args, data):
+def optimize_args(args, compiler):
   result = []
   for arg in args:
-    arg = arg.optimize(data)
+    arg = arg.optimize(compiler)
     if arg is not None:
       result.append(arg)
   return tuple(result)
@@ -672,3 +652,31 @@ def pythonize_args(args, env, compiler):
       exps += exps2[:-1]      
   return exps, result, has_statement
     
+class PassStatement(Element):
+  is_statement = True
+  
+  def __init__(self):
+    return
+  
+  def code_size(self):
+    return 0
+  
+  def pythonize(self, env, compiler):
+    return (self,), True
+  
+  def insert_return_statement(self):
+    return self
+  
+  def replace_return_with_yield(self):
+    return Yield()
+  
+  def __eq__(x, y):
+    return classeq(x, y)
+  
+  def to_code(self, compiler):
+    return 'pass'
+  
+  def __repr__(self):
+    return 'il.pass_statement'
+
+pass_statement = PassStatement()

@@ -106,10 +106,10 @@ class Testunify:
   def test2(self):
     x = Var('x')
     Lx = LogicVar('x')
-    eq_(eval(unify(1, 1)), True)
-    eq_(eval(begin(unify(1, 1), unify(2, 2))), True)
+    #eq_(eval(unify(1, 1)), True)
+    #eq_(eval(begin(unify(1, 1), unify(2, 2))), True)
     eq_(eval(begin(unify(Lx, 1), unify(Lx,1))), True)
-    eq_(eval(let([(x,1)], unify(x,1))), True)
+    #eq_(eval(let([(x,1)], unify(x,1))), True)
     
   def test3(self):
     assert_raises(NoSolution, eval, begin(unify(1, 1), unify(1, 2)))

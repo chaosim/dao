@@ -42,10 +42,10 @@ class Unquote(CommandCall):
   def quasiquote(self, compiler, cont):
     return self.item.cps_convert(compiler, cont)
   
-  def optimization_analisys(self, data):  
+  def analyse(self, compiler):  
     return  
   
-  def to_code(self, coder):
+  def to_code(self, compiler):
     return ''
   
   def __repr__(self):

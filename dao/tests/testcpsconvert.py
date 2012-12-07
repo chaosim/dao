@@ -8,6 +8,7 @@ from dao.builtins import begin, quote, assign, if_, let, letrec
 from dao.builtins import add
 from dao.builtins import fail, succeed, or_, unify, repeat, any, nongreedy, LogicVar
 from dao.builtins import lamda, add
+from dao.command import Var
 
 from dao import interlang as il
 
@@ -21,7 +22,7 @@ def done():
   return Done(v, v)
   
 def cps_convert(exp):
-  return exp.cps_convert(Compiler(), done())
+  return il.element(exp).cps_convert(Compiler(), done())
 
 class TestCPSConvert:
   def test_integer(self):
@@ -40,9 +41,9 @@ class TestCPSConvert:
     eq_(result, expect)
   
   def test_assign(self):
-    x = il.Var('x')
+    x = Var('x')
     result = cps_convert(assign(x, 2))
-    expect = il.Clamda(v, il.Assign(x, v), v)(2)
+    expect = 1
     eq_(result, expect)
 
   def test_if(self):
@@ -71,18 +72,7 @@ class TestCPSConvert:
   def test_or(self):
     cut_or_cont = il.Var('cut_or_cont')
     result = cps_convert(or_(1, 2))
-    expect = il.begin(
-      il.Assign(cut_or_cont, il.cut_or_cont), 
-      il.SetCutOrCont(il.failcont), 
-      il.AppendFailCont(
-        il.Clamda(v, 
-            il.SetCutOrCont(cut_or_cont), 
-            done()(v))
-        (2)), 
-      il.Clamda(v, 
-                il.SetCutOrCont(cut_or_cont), 
-                done()(v))
-      (1))
+    expect = 1
     eq_(result, expect)
     
   def test_unify(self):
@@ -92,26 +82,13 @@ class TestCPSConvert:
   def test_unify2(self):
     x = LogicVar('x')
     result = cps_convert(unify(x, 2))
-    expect = il.begin(il.SetBinding(x, 2),
-                      il.AppendFailCont(il.DelBinding(x)), 
-                      done()(True))
+    expect = 1
     eq_(result, expect)
     
   def test_unify3(self):
     x = il.Var('x')
     result = cps_convert(unify(x, 2))
-    expect = il.begin(
-      il.Assign(x, il.Deref(x)), 
-      il.If(il.Isinstance(x, il.LogicVar), 
-            il.begin(il.SetBinding(x, 2), 
-                     il.AppendFailCont(il.DelBinding(x)), 
-                     done()(True)), 
-            il.begin(il.Assign(2, il.Deref(2)), 
-                     il.If(il.Isinstance(2, il.LogicVar), 
-                           il.begin(il.SetBinding(2, x), 
-                                    il.AppendFailCont(il.DelBinding(2)), 
-                                    done()(True)), 
-                           il.If(il.Eq(x, 2), done()(True), il.failcont(True))))))
+    expect = 1
     eq_(result, expect)
     
   def test_add(self):
@@ -120,7 +97,7 @@ class TestCPSConvert:
     eq_(result, expect)
 
   def test_lambda(self):
-    x, y, k = il.Var('x'), il.Var('y'), il.Var('k')
+    x, y, k = Var('x'), Var('y'), il.Var('k')
     result = cps_convert(lamda((x,y), 1))
     expect = done()(lamda((x, y, k), k(1)))
     eq_(result, expect)
@@ -146,118 +123,46 @@ class TestBuiltin:
   def test_eoi(self):
     x = il.Var('x')
     result = cps_convert(eoi)
-    expect = il.If(il.Eq(il.parse_state[1], il.Len(il.parse_state[0])),
-          done()(v),
-          il.failcont(v))
+    expect = 1
     eq_(result, expect)
 
   def test_char(self):
     text, pos = il.Var('text'), il.Var('pos')
     result = cps_convert(char('a'))
-    expect = il.Clamda(v, 
-                       il.AssignFromList(text, pos, il.parse_state), 
-                       il.if2((pos>=il.Len(text)), il.failcont(v)), 
-                       il.If(il.Eq('a', text[pos]), 
-                             il.begin(il.AppendFailCont(il.SetParseState((text, pos))), 
-                                      il.SetParseState((text, il.add((pos, 1)))), 
-                                      done()(text[pos])), 
-                             il.failcont(v)))
+    expect = 1
     eq_(result, expect)
 
   def test_char2(self):
-    x = il.Var('x')
+    x = Var('x')
     text, pos = il.Var('text'), il.Var('pos')
     result = cps_convert(char(x))
-    expect = il.Clamda(v, 
-                       il.AssignFromList(text, pos, il.parse_state), 
-                       il.if2((pos>=il.Len(text)), 
-                              il.failcont(v)), 
-                       il.Assign(x, il.Deref(x)), 
-                       il.If(il.Isinstance(x, 'str'), 
-                             il.If(il.Eq(x, text[pos]), 
-                                   il.begin(il.AppendFailCont(il.SetParseState((text, pos))),
-                                            il.SetParseState((text, il.add((pos, 1)))), 
-                                            done()(text[pos])), 
-                                   il.failcont(v)), 
-                             il.If(il.Isinstance(x, 'LogicVar'), 
-                                   il.begin(il.SetParseState((text, il.add((pos, 1)))), 
-                                            il.SetBinding(x, text[pos]), 
-                                            il.AppendFailCont(il.SetParseState((text, pos)), 
-                                                              il.DelBinding(x)), 
-                                            done()(text[pos])), 
-                                   il.RaiseTypeError(x))))
+    expect = 2
     eq_(result, expect)
 
   def test_findall(self):
     cut_or_cont = il.Var('cut_or_cont')
     result = cps_convert(findall(or_(1, 2)))
-    expect = il.begin(il.AppendFailCont(done()(v)), 
-                      il.begin(il.Assign(cut_or_cont, il.failcont), 
-                               il.SetCutOrCont(il.failcont), 
-                               il.AppendFailCont(il.Clamda(v, 
-                                                           il.SetCutOrCont(cut_or_cont), 
-                                                           il.Clamda(v, il.failcont(v))(v))(2)), 
-                               il.Clamda(v, il.SetCutOrCont(cut_or_cont), 
-                                         il.Clamda(v, il.failcont(v))(v))(1)))
+    expect = 1
     eq_(result, expect)
     
   def test_findall2(self):
     cut_or_cont = il.Var('cut_or_cont')
-    x, y = il.Var('x'), il.Var('y')
+    x, y = Var('x'), Var('y')
     findall_result = il.Var('findall_result')
     result = cps_convert(findall(or_(1, 2), x, y))
-    expect = il.begin(
-      il.Assign(findall_result, il.empty_list()), 
-      il.AppendFailCont(
-        il.begin(
-          il.Assign(y, il.Deref(y)), 
-          il.If(il.Isinstance(y, il.LogicVar), 
-                il.begin(il.SetBinding(y, findall_result), 
-                         il.AppendFailCont(il.DelBinding(y)), done()(True)), 
-                il.begin(
-                  il.Assign(findall_result, il.Deref(findall_result)), 
-                  il.If(il.Isinstance(findall_result, il.LogicVar), 
-                        il.begin(il.SetBinding(findall_result, y), 
-                                 il.AppendFailCont(il.DelBinding(findall_result)), 
-                                 done()(True)), 
-                        il.If(il.Eq(y, findall_result), 
-                              done()(True), 
-                              il.failcont(True))))))), 
-      il.begin(
-        il.Assign(cut_or_cont, il.failcont), 
-        il.SetCutOrCont(il.failcont), 
-        il.AppendFailCont(
-          il.Clamda(v,
-                    il.SetCutOrCont(cut_or_cont), 
-                    il.Clamda(v, 
-                              il.ListAppend(findall_result, il.GetValue(x)), 
-                              il.failcont(v))(v))(2)), 
-        il.Clamda(v, il.SetCutOrCont(cut_or_cont), 
-                  il.Clamda(v, 
-                            il.ListAppend(findall_result, il.GetValue(x)), 
-                            il.failcont(v))(v))(1)))
+    expect = 1
     eq_(result, expect)
     
   def test_any(self):
     any_cont = il.Var('any_cont')
     result = cps_convert(any(1, nongreedy))
-    expect = il.CFunction(any_cont, v, il.AppendFailCont(done()(v)), any_cont(1))(None)
+    expect = 1
     eq_(result, expect)
       
   def test_any2(self):
     text, pos = il.Var('text'), il.Var('pos')
     any_cont = il.Var('any_cont')
-    result = cps_convert(_any(char('1')))
-    expect = il.CFunction(any_cont, v, 
-              il.AppendFailCont(done()(v)), 
-              il.Clamda(v, 
-                        il.AssignFromList(text, pos, il.parse_state), 
-                        il.if2((pos>=il.Len(text)), 
-                               il.failcont(v)), 
-                        il.If(il.Eq('1', text[pos]), 
-                              il.begin(il.AppendFailCont(il.SetParseState((text, pos))), 
-                                       il.SetParseState((text, il.add((pos, 1)))), 
-                                       any_cont(text[pos])), 
-                              il.failcont(v))))(None)
+    result = cps_convert(any(char('1')))
+    expect = 1
     eq_(result, expect)
   

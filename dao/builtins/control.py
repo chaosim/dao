@@ -82,6 +82,7 @@ def if_p(compiler, cont, condition, action):
 
 # finding all solutions to a goal
 
+import term
 @special
 def findall(compiler, cont, goal, template=NONE, bag=None):
   v = compiler.new_var(v0)
@@ -98,11 +99,11 @@ def findall(compiler, cont, goal, template=NONE, bag=None):
   else:
     result = compiler.new_var(il.LocalVar('findall_result')) # variable capture
     return il.begin(
-       il.Assign(result, il.empty_list()),
+       il.Assign(result, il.empty_list),
        il.Assign(fc, il.failcont), 
        il.SetFailCont(il.clamda(v2,
           il.SetFailCont(fc),
-          unify(bag, result).cps_convert(compiler, cont))),
+          term.unify(bag, result).cps_convert(compiler, cont))),
         goal.cps_convert(compiler, 
           il.clamda(v, 
             il.ListAppend(result, il.GetValue(template)),

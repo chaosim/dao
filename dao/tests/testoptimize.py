@@ -3,10 +3,11 @@
 
 from nose.tools import eq_, ok_, assert_raises
 
-from dao.compilebase import Compiler, Environment, OptimizationData
+from dao.compilebase import Compiler, Environment
 from dao.builtins import begin, quote, assign, if_
 from dao.builtins import add
-from dao.builtins import fail, succeed, or_, unify, LogicVar
+from dao.builtins import fail, succeed, or_, unify
+from dao.command import Var, LogicVar
 
 from dao import interlang as il
 
@@ -21,11 +22,11 @@ def done():
   return Done(v, v)
 
 def compile_optimize(exp):
-  exp = exp.cps_convert(Compiler(), done())
-  exp = exp.alpha_convert(Environment(), Compiler())
-  optimize_data = OptimizationData()
-  exp.optimization_analisys(optimize_data)
-  return optimize(exp, optimize_data)
+  compiler = Compiler()
+  exp = il.element(exp).alpha_convert(Environment(), compiler)
+  exp = exp.cps_convert(compiler, done())
+  exp.analyse(compiler)
+  return exp.optimize(compiler)
 
 class TestSimple:
   def test_integer(self):
@@ -35,7 +36,7 @@ class TestSimple:
     
   def test_quote(self):
     result = compile_optimize(quote(1))
-    expect = 1
+    expect = il.ExpressionWithCode(il.Integer(1), il.Lamda((), il.Integer(1)))
     eq_(result, expect)
     
   def test_begin(self):
@@ -44,14 +45,14 @@ class TestSimple:
     eq_(result, expect)
   
   def test_assign(self):
-    x = il.Var('x')
+    x = Var('x')
     result = compile_optimize(assign(x, 2))
-    expect = (il.Assign(x, 2), 2)
+    expect = il.Integer(2)
     eq_(result, expect)
 
   def test_if(self):
     result = compile_optimize(if_(0, 1, 2))
-    expect = il.If(0, 1, 2)
+    expect = il.Integer(2)
     eq_(result, expect)
   
   def test_fail(self):
@@ -68,14 +69,7 @@ class TestSimple:
     cut_or_cont = il.Var('cut_or_cont')
     v1 = il.Var('v1')
     result = compile_optimize(or_(1, 2))
-    expect = (il.Assign(cut_or_cont, il.failcont), 
-              il.SetCutOrCont(il.failcont), 
-              il.AppendFailCont(
-                il.Clamda(v, 
-                          il.SetCutOrCont(cut_or_cont), 
-                          Done(v1, v1)(v))
-                (2)), 
-              (il.SetCutOrCont(cut_or_cont), 1))
+    expect = 1
     eq_(result, expect)
     
   def test_unify(self):
@@ -85,20 +79,21 @@ class TestSimple:
   def test_unify2(self):
     x = LogicVar('x')
     result = compile_optimize(unify(x, 2))
-    expect = (il.SetBinding(x, 2),
-              il.AppendFailCont(il.DelBinding(x)), 
-              True)
+    x1 = il.LogicVar('x')
+    x2 = il.LocalVar('x')
+    expect = il.begin(il.Assign(x2, il.Deref(LogicVar(x1))), 
+                      il.If(il.IsLogicVar(x2), il.TRUE, il.If(il.Eq(x2, il.Integer(2)), il.TRUE, il.failcont(il.TRUE))))
     eq_(result, expect)
     
   def test_add(self):
     result = compile_optimize(add(1, 2))
-    expect = il.add((1, 2))
+    expect = il.Integer(3)
     eq_(result, expect)
 
 def optimize(exp):
-  data = OptimizationData()
-  exp.optimization_analisys(data)
-  return exp.optimize(data)
+  compiler = Compiler()
+  exp.analyse(compiler)
+  return exp.optimize(compiler)
 
 class TestOptimize:
   def test_if(self):
@@ -142,12 +137,7 @@ class TestOptimize:
                   il.If(il.Eq(x, il.Integer(1)), 
                         il.Integer(1),
                         f(il.sub(x, il.Integer(1))))), (il.Integer(3),)))
-    expect = il.If(il.Eq(il.Integer(3), il.Integer(1)), 
-                        il.Integer(1),
-                        f(il.Integer(2)))
-    #expect = il.Apply(il.Function(f, (x, ), il.If(il.Eq(x, il.Integer(1)), 
-                                         #il.Integer(1), 
-                                         #f(il.sub(x, il.Integer(1)),))), (il.Integer(3),))
+    expect =f(il.Integer(2))
     eq_(result, expect)
     
   def test_function2(self):
@@ -156,5 +146,5 @@ class TestOptimize:
     result = optimize(il.Begin((
       il.Assign(f, il.Lamda((x,), f(il.Integer(1)))), 
       il.Apply(f, (il.Integer(3),)))))
-    expect = f(il.Integer(1))
+    expect = f(il.Integer(3))
     eq_(result, expect)

@@ -83,11 +83,11 @@ class Var(Element):
                         il.Apply(function, (cont, macro_args)),
                         body)))
   
-  def optimization_analisys(self, data):
+  def analyse(self, compiler):
     # unquote to interlang level
     return
   
-  def optimize(self, data):
+  def optimize(self, compiler):
     return self, False
   
   def pythonize(self, env, compiler):
@@ -102,7 +102,7 @@ class Var(Element):
   def free_vars(self):
     return set([self])
   
-  def to_code(self, coder):
+  def to_code(self, compiler):
     return "DaoVar('%s')"%self.name
   
   def __eq__(x, y):
@@ -125,7 +125,7 @@ class LogicVar(Var):
   def cps_convert(self, compiler, cont):
     return cont(il.Deref(il.LogicVar(self.name)))
   
-  def to_code(self, coder):
+  def to_code(self, compiler):
     return "DaoLogicVar('%s')"%self.name
   
   def __eq__(x, y):
@@ -141,7 +141,7 @@ class DummyVar(Var):
   def cps_convert(self, compiler, cont):
     return cont(il.Deref(il.DummyVar(self.name)))
 
-  def to_code(self, coder):
+  def to_code(self, compiler):
     return "DaoDummyVar('%s')"%self.name
   
 class Apply(Element):
@@ -229,8 +229,8 @@ class SpecialCall(CommandCall):
   def side_effects(self):
     return True
   
-  def to_code(self, coder):
-    return '%s(%s)'%(self.function.__name__, ', '.join([x.to_code(coder) for x in self.args]))
+  def to_code(self, compiler):
+    return '%s(%s)'%(self.function.__name__, ', '.join([x.to_code(compiler) for x in self.args]))
     
   def free_vars(self):
     result = set()
@@ -254,13 +254,13 @@ class BuiltinFunction(Command):
   def cps_convert(self, compiler, cont):
     return il.Lamda((params), self.function.function(*params))
   
-  def optimization_analisys(self, data):  
+  def analyse(self, compiler):  
     return self
   
   def subst(self, bindings):
     return self
   
-  def optimize(self, data):
+  def optimize(self, compiler):
     return self
   
   def pythonize(self, env, compiler):
@@ -283,11 +283,11 @@ class BuiltinFunctionCall(CommandCall):
       fun = arg.cps_convert(compiler, il.Clamda(var, fun))
     return fun
 
-  def optimization_analisys(self, data):
+  def analyse(self, compiler):
     # unquote to interlang level
     return
   
-  def optimize(self, data):
+  def optimize(self, compiler):
     return self
   
   def interlang(self):
@@ -302,8 +302,8 @@ class BuiltinFunctionCall(CommandCall):
   def pythonize(self, env, compiler):
     return (self,), False
   
-  def to_code(self, coder):
-    return '%s(%s)'%(self.function.name, ', '.join([x.to_code(coder) for x in self.args]))
+  def to_code(self, compiler):
+    return '%s(%s)'%(self.function.name, ', '.join([x.to_code(compiler) for x in self.args]))
      
   def __repr__(self):
     return '%s(%s)'%(self.function.name, ', '.join([repr(x) for x in self.args]))
@@ -332,7 +332,7 @@ class Assign(CommandCall):
   def __eq__(x, y):
     return classeq(x, y) and x.var==y.var and x.exp==y.exp
   
-  def to_code(self, coder):
+  def to_code(self, compiler):
     return repr(self)
   
   def __repr__(self):
