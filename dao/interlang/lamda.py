@@ -25,11 +25,10 @@ class Lamda(Element):
     return self.body.find_assign_lefts()
   
   def analyse(self, compiler):
-    try: self.seen
-    except:
-      self.seen = True
-      compiler.occur_count[self] = compiler.occur_count.setdefault(self, 0)+1
-      self.body.analyse(compiler)
+    compiler.lamda_stack.append(self)
+    self.local_vars = set(self.params)
+    self.body.analyse(compiler)
+    compiler.lamda_stack.pop()
         
   def code_size(self):
       return self.body.code_size()+len(self.params)+2
@@ -38,13 +37,25 @@ class Lamda(Element):
       return False
     
   def subst(self, bindings):
-    return self.new(self.params, self.body.subst(bindings))
+    result = self.new(self.params, self.body.subst(bindings))
+    result.local_vars = self.local_vars
+    return result
       
   def optimize(self, env, compiler):
-    body = self.body.optimize(env.extend(), compiler)
-    assigns = tuple(Assign(var, value)
-                    for var, value in env.bindings.items())
-    return self.new(self.params, begin(*(assigns+(body,))))
+    env = env.extend()
+    body = self.body.optimize(env, compiler)
+    if env.bindings:
+      exps = []
+      for var, value in env.bindings.items():
+        if var not in self.local_vars:
+          exps.append(Assign(var, value))
+      if exps:
+        body = body.remove_return()
+        result = compiler.new_var(LocalVar('result'))
+        exps.insert(0, Assign(result, body))
+        exps.append(result)
+        body = begin(*exps)
+    return self.new(self.params, body)
   
   def optimize_apply(self, env, compiler, args):
     #1. ((lambda () body))  =>  body 
@@ -499,7 +510,10 @@ class Var(Element):
   def subst(self, bindings):  
     try: return bindings[self]
     except: return self
-      
+  
+  def ssa_convert(self, env, compiler):
+    return env[self]
+  
   def optimize(self, env, compiler):
     try: return env[self]
     except: return self
@@ -604,7 +618,10 @@ class Assign(Element):
   def find_assign_lefts(self):
     return set([self.var])
   
-  def analyse(self, compiler):  
+  def analyse(self, compiler): 
+    if self.var not in compiler.seen_vars():
+      compiler.lamda_stack[-1].local_vars.add(self.var)
+    self.free_vars = self.exp.free_vars()
     self.exp.analyse(compiler)
   
   def insert_return_statement(self):
@@ -626,7 +643,8 @@ class Assign(Element):
     exp = self.exp.optimize(env, compiler)
     #if self.var in self.exp.free_vars():
       #return Assign(self.var, self.exp)
-    if isinstance(exp, Atom) or isinstance(exp, Var) or isinstance(exp, ExpressionWithCode) or isinstance(exp, RulesDict):
+    if isinstance(exp, Atom) or isinstance(exp, Var) \
+       or isinstance(exp, ExpressionWithCode) or isinstance(exp, RulesDict):
       env[self.var] = exp
       return
     if isinstance(exp, Lamda) and not isinstance(self.var, RecursiveVar):
@@ -634,9 +652,7 @@ class Assign(Element):
         env[self.var] = exp
         return None
     else:
-      #exp.side_effects():
-      if self.var in env:
-        del env[self.var]
+      env[self.var] = self.var
       return Assign(self.var, exp)
     #else:
       #env[self.var] = exp
@@ -690,14 +706,14 @@ class While(Element):
               self.body.subst(bindings))
     
   def optimize(self, env, compiler):
-    free_vars = self.free_vars()
     assigns = []
-    for var in free_vars:
+    for var in self.recursive_vars:
       value = env[var]
-      if value is None: continue
+      if value==var: continue
       assigns.append(Assign(var, value))
       del env[var]
-    result = begin(*(tuple(assigns) + (While(self.test.optimize(env, compiler), self.body.optimize(env, compiler)),)))
+    result = begin(*(tuple(assigns) + (
+      While(self.test.optimize(env, compiler), self.body.optimize(env, compiler)),)))
     return result
 
   def insert_return_statement(self):

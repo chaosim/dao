@@ -47,7 +47,10 @@ class Atom(Element):
     
   def alpha_convert(self, env, compiler):
     return self
-    
+  
+  def ssa_convert(self, env, compiler):
+    return self
+  
   def cps_convert(self, compiler, cont):
     return cont(self)
     
@@ -551,10 +554,6 @@ class Begin(Element):
   def side_effects(self):
     return True
   
-  def analyse(self, compiler):  
-    for x in self.statements:
-      x.analyse(compiler)  
-  
   def subst(self, bindings):  
     return Begin(tuple(x.subst(bindings) for x in self.statements))
   
@@ -563,6 +562,13 @@ class Begin(Element):
     for exp in self.statements:
       result |= exp.free_vars()
     return result
+  
+  def code_size(self):
+    return 1
+  
+  def analyse(self, compiler):  
+    for x in self.statements:
+      x.analyse(compiler)  
   
   def optimize(self, env, compiler):
     result = []
@@ -580,6 +586,16 @@ class Begin(Element):
     else: return self
     return begin(*(self.statements[:i]+self.statements[i+1:]))
   
+  def remove_return(self):
+    result = []
+    for exp in self.statements:
+      if isinstance(exp, Return):
+        result.append(exp.args)
+        break
+      else:
+        result.append(exp.remove_return())
+    return begin(*result)
+      
   def insert_return_statement(self):
     inserted = self.statements[-1].insert_return_statement()
     return begin(*(self.statements[:-1]+(inserted,)))
@@ -650,7 +666,7 @@ class PassStatement(Element):
     return self
   
   def replace_return_with_yield(self):
-    return Yield()
+    return self
   
   def __eq__(x, y):
     return classeq(x, y)

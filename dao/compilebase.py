@@ -65,6 +65,8 @@ class Compiler:
     self.occur_count = {}
     self.recursive_call_path = []
     
+    self.lamda_stack = []
+    
     # for code generation
     self.language = language # object language
     self.indent_space = indent_space # indent width for python code
@@ -89,6 +91,12 @@ class Compiler:
       if old_label==self.block_label_stack[-(i+1)][0]:
         return self.block_label_stack[-(i+1)][1]
     raise BlockError("Block %s is not found."%old_label)
+  
+  def seen_vars(self):
+    result = []
+    for lamda in self.lamda_stack:
+      result += list(lamda.local_vars)
+    return set(result)
     
   def indent(self, code, level=1):
     '''python's famous indent'''

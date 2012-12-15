@@ -46,6 +46,7 @@ def compile_to_python(exp, env, done=None):
   exp = il.element(exp)
   exp = exp.alpha_convert(env, compiler)
   exp = exp.cps_convert(compiler, done)
+  #exp = exp.ssa_convert(env, compiler)
   v = compiler.new_var(il.LocalVar('v'))
   solver_prelude = il.begin(
     il.Assign(il.parse_state, il.NONE),
@@ -57,6 +58,8 @@ def compile_to_python(exp, env, done=None):
     il.Assign(il.catch_cont_map, il.empty_dict),
     )
   exp = il.begin(solver_prelude, exp)
+  exp.local_vars = set()
+  compiler.lamda_stack = [exp]
   exp.analyse(compiler)
   env = Environment()
   exp = exp.optimize(env, compiler)
@@ -69,6 +72,31 @@ def compile_to_python(exp, env, done=None):
   compiler = Compiler()
   result = exp.to_code(compiler)
   return prelude + result
+
+'''
+begin(set_text('abcde'), goto(1))
+---------------------------
+il.begin(
+  il.Assign(old_parse_state, il.parse_state), 
+  il.Assign(il.parse_state, il.Tuple((abcde, 0))), 
+  il.Assign(fc11, il.fail_cont), 
+  il.Assign(il.fail_cont, 
+    il.Clamda(v4, il.begin(
+      il.Assign(il.fail_cont, fc11), 
+      il.Assign(il.parse_state, old_parse_state), 
+      fc11(False)))), 
+  il.Clamda(v1, il.begin(
+    il.AssignFromList((text, pos), il.parse_state), 
+    il.begin(
+      il.Assign(fc1, il.fail_cont), 
+      il.Assign(il.fail_cont, il.Clamda(v3, il.begin(
+        il.Assign(il.fail_cont, fc1), 
+        il.Assign(il.parse_state, il.Tuple((text, pos))), 
+        fc1(False))))), 
+    il.Assign(il.parse_state, il.Tuple((text, 1))), 
+    il.GetItem(text, 1)))(True))
+
+'''
 '''
 il.begin(
   il.Assign(cut_or_cont, il.cut_or_cont), 

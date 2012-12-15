@@ -83,7 +83,9 @@ class TestSimple:
     x1 = il.LogicVar('x')
     x2 = il.LocalVar('x')
     expect = il.begin(il.Assign(x2, il.Deref(LogicVar(x1))), 
-                      il.If(il.IsLogicVar(x2), il.TRUE, il.If(il.Eq(x2, il.Integer(2)), il.TRUE, il.failcont(il.TRUE))))
+                      il.If(il.IsLogicVar(x2), 
+                            il.begin(il.SetBinding(x2, il.Integer(2)), il.TRUE), 
+                            il.If(il.Eq(x2, il.Integer(2)), il.TRUE, il.failcont(il.TRUE))))
     eq_(result, expect)
     
   def test_add(self):
