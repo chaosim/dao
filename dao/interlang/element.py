@@ -221,7 +221,7 @@ class MacroArgs(Element):
       x.analyse(compiler)
       
   def optimize(self, env, compiler):
-    return MacroArgs(optimize_args(self.value, compiler))
+    return MacroArgs(optimize_args(self.value, env, compiler))
   
   def side_effects(self):
     return False
@@ -467,7 +467,7 @@ class PseudoElse(Atom):
 
 pseudo_else = PseudoElse()
 
-class Try(Element):
+class XTry(Element):
   def __init__(self, test, body):
     self.test, self.body = test, body
     
@@ -586,7 +586,7 @@ class Begin(Element):
     else: return self
     return begin(*(self.statements[:i]+self.statements[i+1:]))
   
-  def remove_return(self):
+  def xxxremove_return(self):
     result = []
     for exp in self.statements:
       if isinstance(exp, Return):

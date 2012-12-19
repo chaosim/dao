@@ -49,13 +49,9 @@ class Lamda(Element):
       for var, value in env.bindings.items():
         if var not in self.local_vars:
           exps.append(Assign(var, value))
-      if exps:
-        body = body.remove_return()
-        result = compiler.new_var(LocalVar('result'))
-        exps.insert(0, Assign(result, body))
-        exps.append(result)
-        body = begin(*exps)
-    return self.new(self.params, body)
+    result = self.new(self.params, body)
+    result.local_vars = self.local_vars
+    return result
   
   def optimize_apply(self, env, compiler, args):
     #1. ((lambda () body))  =>  body 
@@ -621,7 +617,7 @@ class Assign(Element):
   def analyse(self, compiler): 
     if self.var not in compiler.seen_vars():
       compiler.lamda_stack[-1].local_vars.add(self.var)
-    self.free_vars = self.exp.free_vars()
+    #self.free_vars = self.exp.free_vars()
     self.exp.analyse(compiler)
   
   def insert_return_statement(self):
@@ -676,10 +672,10 @@ class Assign(Element):
     return 'il.Assign(%r, %r)'%(self.var, self.exp)
   
 
-def while_(test, *exps):
+def xwhile_(test, *exps):
   return While(element(test), begin(*[x for x in exps]))
   
-class While(Element):
+class XWhile(Element):
   def __init__(self, test, body):
     self.test, self.body = test, body
     
@@ -744,10 +740,10 @@ class While(Element):
   def __repr__(self):
     return 'il.While(%r, %r)'%(self.test, self.body)
 
-def for_(var, range, *exps):
+def xfor_(var, range, *exps):
   return For(element(var), element(range), begin(*[x for x in exps]))
 
-class For(Element):
+class XFor(Element):
   def __init__(self, var, range, body):
     self.var, self.range, self.body = var, range, body
     

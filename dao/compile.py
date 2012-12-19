@@ -74,87 +74,12 @@ def compile_to_python(exp, env, done=None):
   return prelude + result
 
 '''
-begin(set_text('abcde'), goto(1))
----------------------------
-il.begin(
-  il.Assign(old_parse_state, il.parse_state), 
-  il.Assign(il.parse_state, il.Tuple((abcde, 0))), 
-  il.Assign(fc11, il.fail_cont), 
-  il.Assign(il.fail_cont, 
-    il.Clamda(v4, il.begin(
-      il.Assign(il.fail_cont, fc11), 
-      il.Assign(il.parse_state, old_parse_state), 
-      fc11(False)))), 
-  il.Clamda(v1, il.begin(
-    il.AssignFromList((text, pos), il.parse_state), 
-    il.begin(
-      il.Assign(fc1, il.fail_cont), 
-      il.Assign(il.fail_cont, il.Clamda(v3, il.begin(
-        il.Assign(il.fail_cont, fc1), 
-        il.Assign(il.parse_state, il.Tuple((text, pos))), 
-        fc1(False))))), 
-    il.Assign(il.parse_state, il.Tuple((text, 1))), 
-    il.GetItem(text, 1)))(True))
-
-'''
-'''
-il.begin(
-  il.Assign(cut_or_cont, il.cut_or_cont), 
-  il.Assign(il.cut_or_cont, il.fail_cont), 
-  il.Assign(old_failcont, il.fail_cont), 
-  il.Assign(il.fail_cont, il.Clamda(v2, il.begin(
-    il.Assign(il.fail_cont, old_failcont), 
-    il.Clamda(v1, il.begin(il.Assign(il.cut_or_cont, cut_or_cont), v1))(True)))), il.fail_cont(True))
-'''
-'''
-il.begin(
-  il.Assign(old_failcont, il.fail_cont), 
-  il.Assign(il.fail_cont, il.Clamda(v2, il.begin(il.Assign(il.fail_cont, old_failcont), v2))), 
-  il.Assign(cut_or_cont, il.cut_or_cont), 
-  il.Assign(il.cut_or_cont, il.fail_cont), 
-  il.Assign(old_failcont1, il.fail_cont), 
-  il.Assign(il.fail_cont, il.Clamda(v4, il.begin(
-    il.Assign(il.fail_cont, old_failcont1), 
-    il.Clamda(a0, il.Clamda(v5, il.Clamda(v3, il.begin(
-      il.Assign(il.cut_or_cont, cut_or_cont), 
-      il.Clamda(v1, il.fail_cont(v1))(v3)))(None))
-      (il.Prin(a0)))
-      (2)))), 
-  il.Clamda(a01, il.Clamda(v7, il.Clamda(v3, il.begin(
-    il.Assign(il.cut_or_cont, cut_or_cont), 
-    il.Clamda(v1, il.fail_cont(v1))(v3)))(None))(il.Prin(a01)))(1))
-'''
-
-'''
-il.begin(
-il.Assign(old_parse_state, il.parse_state), 
-il.Assign(il.parse_state, il.Tuple((aaa, 0))), 
-il.Assign(fc11, il.fail_cont), 
-il.Assign(il.fail_cont, il.Clamda(v6, il.begin(
-  il.Assign(il.fail_cont, fc11), 
-  il.Assign(il.parse_state, old_parse_state), 
-  fc11(False)))), 
-il.Clamda(v1,
-  il.CFunction(any_cont, v4, il.begin(
-    il.Assign(old_fail_cont, il.fail_cont), 
-    il.Assign(il.fail_cont, il.Clamda(v4, il.begin(
-      il.Assign(il.fail_cont, old_fail_cont), 
-      il.Clamda(v2, 
-        il.If((il.GetItem(il.parse_state, 1)>=il.Len(il.GetItem(il.parse_state, 0))), 
-              True, 
-              il.fail_cont(False)))(v4)))), 
-    il.AssignFromList((text, pos), il.parse_state), 
-    il.If((pos>=il.Len(text)), 
-          il.Return(il.fail_cont(None))), 
-    il.If((a==il.GetItem(text, pos)), 
-      il.begin(
-        il.Assign(fc1, il.fail_cont), 
-        il.Assign(il.fail_cont, il.Clamda(v5, il.begin(
-          il.Assign(il.fail_cont, fc1), 
-          il.Assign(il.parse_state, il.Tuple((text, pos))), 
-          fc1(False)))), 
-        il.Assign(il.parse_state, il.Tuple((text, il.add(pos, 1)))), 
-        il.Return(any_cont(il.GetItem(text, pos)))), 
-      il.Return(il.fail_cont(None)))))(True))
-(True))
+il.Clamda(v4, il.begin(
+  il.Assign(f, v4), 
+  il.Clamda(v1, il.Clamda(function, il.Clamda(a0, 
+    function(il.Done(v, v), a0))(2))(f))(v4)))
+(il.Lamda((cont, x), il.Clamda(a03, il.Clamda(a11, il.Clamda(v5, 
+  il.If(v5, cont(1), 
+    il.Clamda(function1, il.Clamda(a02, il.Clamda(a1, il.Clamda(a01, 
+      function1(cont, a01))(il.sub(a02, a1)))(1))(x))(f)))(il.Eq(a03, a11)))(1))(x)))
 '''

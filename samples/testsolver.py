@@ -3,15 +3,15 @@ from nose.tools import eq_, ok_, assert_raises
 from solve import *
 from solve import solve as _solve
 
-def end(v):
+def end(v, fc):
   print 'end'
 
-def done(v):
+def done(v, fc):
   print 'done'
   return v
 
 def solve(goal):
-  _solve(goal, done, end)
+  return _solve(goal, done, end)
   
 class TestParse:
   def test_parse1(self):
@@ -25,6 +25,12 @@ class TestParse:
   
   def test_parse4(self):
     solve(parse('ab', and_(char('a'), char('b'))))
+    
+  def test_parse5(self):
+    solve(parse('ab', begin(char('a'), prin(1), char('b'))))
+  
+  def test_parse6(self):
+    solve(parse('ab', begin(char('a'), integer(1), char('b'))))
   
 class TestLogic:
   def test_succeed(self):
@@ -56,6 +62,9 @@ class TestLogic:
   
   def test_or4(self):
     solve(or_(prin(1), prin(2)))
+  
+  def test_begin(self):
+    solve(begin(prin(1), prin(2), prin(3)))
   
   def test_findall(self):
     solve(findall(or_(prin(1), prin(2))))
