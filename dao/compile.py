@@ -73,13 +73,3 @@ def compile_to_python(exp, env, done=None):
   result = exp.to_code(compiler)
   return prelude + result
 
-'''
-il.Clamda(v4, il.begin(
-  il.Assign(f, v4), 
-  il.Clamda(v1, il.Clamda(function, il.Clamda(a0, 
-    function(il.Done(v, v), a0))(2))(f))(v4)))
-(il.Lamda((cont, x), il.Clamda(a03, il.Clamda(a11, il.Clamda(v5, 
-  il.If(v5, cont(1), 
-    il.Clamda(function1, il.Clamda(a02, il.Clamda(a1, il.Clamda(a01, 
-      function1(cont, a01))(il.sub(a02, a1)))(1))(x))(f)))(il.Eq(a03, a11)))(1))(x)))
-'''

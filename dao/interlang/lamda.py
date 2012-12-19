@@ -165,6 +165,12 @@ class Clamda(Lamda):
   def __repr__(self):
     return 'il.Clamda(%r, %s)'%(self.params[0], repr(self.body))
 
+class EqualCont:
+  def __call__(self, body):
+    return body
+  
+equal_cont = EqualCont()
+
 class Done(Clamda):
   def __init__(self, param):
     self.params = (param,)

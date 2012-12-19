@@ -11,26 +11,7 @@ v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 @special
 def quote(compiler, cont, exp):
   v = compiler.new_var(il.LocalVar('v'))
-  return cont(il.ExpressionWithCode(exp, il.Lamda((), exp.cps_convert(compiler, il.clamda(v, v)))))
-
-def eval_exp(compiler, exp):
-  local_vars = compiler.new_var(il.LocalVar('local_vars'))
-  global_vars = compiler.new_var(il.LocalVar('global_vars'))
-  bindings = compiler.new_var(il.LocalVar('exps'))
-  var = compiler.new_var(il.LocalVar('var'))
-  value = compiler.new_var(il.LocalVar('value'))
-  exp1 = compiler.new_var(il.LocalVar('exp'))
-  return il.Begin((
-      il.Assign(local_vars, il.Call(il.Symbol('locals'))), 
-      il.Assign(global_vars, il.Call(il.Symbol('globals'))), 
-      il.Assign(bindings, il.empty_list), 
-      il.Assign(exp1, il.Call(il.Symbol('il.element'), exp)),       
-      il.for_(var, il.Call(il.Attr(exp1, il.Symbol('free_vars'))), 
-        il.Try(il.Assign(value, il.GetItem(local_vars, il.Attr(var, il.Symbol('name')))), 
-          il.Try(il.Assign(value, il.GetItem(global_vars, il.Attr(var, il.Symbol('name')))), 
-                 il.continue_)),            
-        il.ListAppend(bindings, il.Tuple(var, value))),
-    il.Eval_exp(il.Call(il.Symbol('let'), bindings, exp1))))
+  return cont(il.ExpressionWithCode(exp, il.Lamda((), exp.cps_convert(compiler, il.equal_cont))))
 
 @special
 def eval_(compiler, cont, exp):
@@ -56,21 +37,20 @@ def Begin(compiler, cont, *exps):
 def if_(compiler, cont, test, then, else_=None):
   v = compiler.new_var(v0)
   if else_ is None:
-    return test.cps_convert(compiler, 
-            il.Clamda(v, il.If(v, then.cps_convert(compiler, cont), cont(NONE))))
+    return cont(il.if2(test.cps_convert(compiler, il.equal_cont), 
+                       then.cps_convert(compiler, il.equal_cont)))
   else:
-    return test.cps_convert(compiler, 
-           il.Clamda(v, il.If(v, then.cps_convert(compiler, cont), 
-                                 else_.cps_convert(compiler, cont))))
+    return cont(il.If(test.cps_convert(compiler, il.equal_cont), 
+                       then.cps_convert(compiler, il.equal_cont), 
+                       else_.cps_convert(compiler, il.equal_cont)))
 
 def cps_convert_exps(compiler, exps, cont):
-  v = compiler.new_var(il.LocalVar('v'))
-  if not exps: return il.Clamda(v, cont(il.Tuple()))
+  if not exps: return il.PassStatement()
   if len(exps)==1:
     return exps[0].cps_convert(compiler, cont)
   else:
-    return exps[0].cps_convert(compiler, 
-                  il.Clamda(v, cps_convert_exps(compiler, exps[1:], cont)))
+    exps = tuple(exp.cps_convert(compiler, il.equal_cont) for exp in exps)
+    return cont(il.Begin(exps))
 
 @special
 def callcc(compiler, cont, function):
