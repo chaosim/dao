@@ -65,9 +65,14 @@ class MacroVar(Var):
     return cont(il.Var(self.name))
   
   def cps_convert_call(self, compiler, cont, args):
-    return cont(il.Apply(compiler.new_var(il.Var(self.name)), 
-                         (il.macro_args([il.ExpressionWithCode(arg, il.Lamda((), arg.cps_convert(compiler, il.clamda(v, v)))) 
-                                for arg in args]),)))
+    # see The 90 minute Scheme to C compiler by Marc Feeley
+    function = compiler.new_var(il.LocalVar('function'))
+    v = compiler.new_var(il.LocalVar('v'))
+    macro_args = il.macro_args([il.ExpressionWithCode(arg, 
+                                      il.Lamda((), arg.cps_convert(compiler, il.clamda(v, v)))) 
+                                for arg in args])
+    return self.cps_convert(compiler, 
+                            il.clamda(function, il.Apply(function, (cont, macro_args))))
   
   def interlang(self):
     return il.Var(self.name)
@@ -80,9 +85,14 @@ class LamdaVar(Var):
     return cont(il.Var(self.name))
   
   def cps_convert_call(self, compiler, cont, args):
-    return cont(il.Apply(il.Var(self.name), 
-                         tuple(arg.cps_convert(compiler, il.equal_cont) 
-                                            for arg in args)))
+    # see The 90 minute Scheme to C compiler by Marc Feeley
+    function = compiler.new_var(il.Var('function'))
+    vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
+    body = cont(il.Apply(function, vars))
+    for var, item in reversed(zip(vars, args)):
+      body = item.cps_convert(compiler, il.clamda(var, body)) 
+    v = compiler.new_var(il.LocalVar('v'))
+    return self.cps_convert(compiler, il.clamda(function,body))
   
   def interlang(self):
     return il.Var(self.name)
@@ -95,9 +105,14 @@ class RulesVar(Var):
     return cont(il.Var(self.name))
   
   def cps_convert_call(self, compiler, cont, args):
-    return cont(il.Apply(il.Var(self.name), 
-                         il.Tuple(*tuple(arg.cps_convert(compiler, il.equal_cont) 
-                                            for arg in self.args))))
+    # see The 90 minute Scheme to C compiler by Marc Feeley
+    function = compiler.new_var(il.Var('function'))
+    vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
+    body = cont(il.Apply(function, (il.Tuple(*vars),)))
+    for var, item in reversed(zip(vars, args)):
+      body = item.cps_convert(compiler, il.clamda(var, body)) 
+    v = compiler.new_var(il.LocalVar('v'))
+    return self.cps_convert(compiler, il.clamda(function,body))
   
   def interlang(self):
     return il.Var(self.name)
@@ -144,9 +159,14 @@ class RecursiveFunctionVar(Var):
     return cont(il.RecursiveVar(self.name))
   
   def cps_convert_call(self, compiler, cont, args):
-    return cont(il.Apply(il.RecursiveVar(self.name), 
-                         tuple(arg.cps_convert(compiler, il.equal_cont) 
-                                            for arg in args)))
+    # see The 90 minute Scheme to C compiler by Marc Feeley
+    function = compiler.new_var(il.RecursiveVar('function'))
+    vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
+    body = cont(il.Apply(function, vars))
+    for var, item in reversed(zip(vars, args)):
+      body = item.cps_convert(compiler, il.clamda(var, body)) 
+    v = compiler.new_var(il.LocalVar('v'))
+    return self.cps_convert(compiler, il.clamda(function,body))
   
   def interlang(self):
     return il.RecursiveVar(self.name)
@@ -159,9 +179,14 @@ class RecursiveRulesVar(Var):
     return cont(il.RecursiveVar(self.name))
   
   def cps_convert_call(self, compiler, cont, args):
-    return cont(il.Apply(il.RecursiveVar(self.name), 
-                         il.Tuple(*tuple(arg.cps_convert(compiler, il.equal_cont) 
-                                            for arg in self.args))))
+    # see The 90 minute Scheme to C compiler by Marc Feeley
+    function = compiler.new_var(il.RecursiveVar('function'))
+    vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
+    body = cont(il.Apply(function, (il.Tuple(*vars),)))
+    for var, item in reversed(zip(vars, args)):
+      body = item.cps_convert(compiler, il.clamda(var, body)) 
+    v = compiler.new_var(il.LocalVar('v'))
+    return self.cps_convert(compiler, il.clamda(function,body))
   
   def interlang(self):
     return il.RecursiveVar(self.name)
@@ -174,9 +199,14 @@ class RecursiveMacroVar(MacroVar):
     return cont(il.RecursiveVar(self.name))
   
   def cps_convert_call(self, compiler, cont, args):
-    return cont(il.Apply(il.RecursiveVar(self.name), 
-                         (il.macro_args([il.ExpressionWithCode(arg, il.Lamda((), arg.cps_convert(compiler, il.clamda(v, v)))) 
-                                for arg in args]),)))
+    function = compiler.new_var(il.RecursiveVar('function'))
+    v = compiler.new_var(il.LocalVar('v'))
+    macro_args = il.macro_args([il.ExpressionWithCode(arg, 
+                                      il.Lamda((), arg.cps_convert(compiler, il.clamda(v, v)))) 
+                                for arg in args])
+    return self.cps_convert(compiler, 
+                            il.clamda(function,
+                                cont(il.Apply(function, (macro_args,)))))
   
   def interlang(self):
     return il.RecursiveVar(self.name)

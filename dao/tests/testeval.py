@@ -108,6 +108,9 @@ class TestLambdaLet:
     eq_(eval(lamda((x,), 1)(1)), 1)
     eq_(eval(lamda((x,), 1)(2)), 1)
     eq_(eval(lamda((x,), x)(2)), 2)
+    
+  def test_lamda2(self):
+    x, y = Var('x'), Var('y')
     eq_(eval(lamda((x, y), add(x, y))(1, 3)), 4)
     
   def test_let(self):

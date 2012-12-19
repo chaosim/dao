@@ -14,6 +14,7 @@ def lamda(params, *body):
 class Lamda(Element):
   def __init__(self, params, body):
     self.params, self.body = params, body
+    self.local_vars = set()
     
   def new(self, params, body):
     return self.__class__(params, body)
@@ -91,7 +92,8 @@ class Lamda(Element):
           Apply(self.new(new_params, self.body.subst(bindings).optimize(env, compiler)), 
                 tuple(arg.optimize(env, compiler) for arg in new_args))   
         else:
-          return Apply(self.new(new_params, self.body.optimize(env, compiler)), optimize_args(new_args, compiler))
+          return Apply(self.new(new_params, self.body.optimize(env, compiler)), 
+                       optimize_args(new_args, env, compiler))
     else:
       if bindings:
         return self.body.subst(bindings).optimize(env, compiler)
@@ -146,6 +148,7 @@ class Clamda(Lamda):
     self.params = (v, )
     self.body = body
     self.name = None
+    self.local_vars = set()
     
   def new(self, params, body):
     return self.__class__(params[0], body)
@@ -162,12 +165,46 @@ class Clamda(Lamda):
       else:
         return begin(Assign(param, arg), self.body).optimize(env, compiler)
 
+  def __call__(self, arg):
+    if arg.side_effects():
+      return begin(Assign(self.params[0], arg), self.body)
+    else:
+      result = self.body.subst({self.params[0]:arg})
+      #result.local_vars = self.local_vars
+      return result
+  
   def __repr__(self):
     return 'il.Clamda(%r, %s)'%(self.params[0], repr(self.body))
 
 class EqualCont:
+  is_statement = False
+  
   def __call__(self, body):
     return body
+  
+  def subst(self, bindings):
+    return self
+  
+  def analyse(self, compiler):
+    return
+        
+  def code_size(self):
+      return 1
+    
+  def side_effects(self):
+      return False
+    
+  def optimize(self, env, compiler):
+      return self
+    
+  def pythonize(self, env, compiler):
+    return (self,), False
+  
+  def to_code(self, compiler):
+    return 'lambda v:v'
+  
+  def __repr__(self):
+    return 'EqualCont'
   
 equal_cont = EqualCont()
 
@@ -175,6 +212,7 @@ class Done(Clamda):
   def __init__(self, param):
     self.params = (param,)
     self.body = param
+    self.local_vars = set()
     
   def new(self, params, body):
     return self.__class__(self.params[0])
@@ -244,6 +282,7 @@ class CFunction(Function):
   
   def __init__(self, name, v, body):
     Function.__init__(self,  name, (v,), body)
+    self.local_vars = set()
     
   def new(self, params, body):
     return self.__class__(self.name, params[0], body)
@@ -416,7 +455,7 @@ class Apply(Element):
         else:
           return self.__class__(caller, optimize_args(self.args, env, compiler))
       else: 
-        return self.__class__(self.caller, optimize_args(self.args, compiler))
+        return self.__class__(self.caller, optimize_args(self.args, env, compiler))
     elif isinstance(self.caller, Lamda):
       args = optimize_args(self.args, env, compiler)
       return self.caller.optimize_apply(env, compiler, args)

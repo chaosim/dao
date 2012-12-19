@@ -69,14 +69,19 @@ class Var(Element):
   
   def cps_convert_call(self, compiler, cont, args):
     # see The 90 minute Scheme to C compiler by Marc Feeley
-    function = il.Var(self.name)
-    return il.If(il.IsMacroFunction(function),
-                        cont(il.Apply(function, (il.macro_args([il.ExpressionWithCode(arg, 
-                                      il.Lamda((), arg.cps_convert(compiler, il.equal_cont))) 
-                                for arg in args]),))),
-                        cont(il.Apply(function, 
-                                      tuple(arg.cps_convert(compiler, il.equal_cont) 
-                                            for arg in self.args))))
+    function = compiler.new_var(il.LocalVar('function'))
+    vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
+    body = il.Apply(function, (cont,)+vars)
+    for var, item in reversed(zip(vars, args)):
+      body = item.cps_convert(compiler, il.clamda(var, body)) 
+    v = compiler.new_var(il.LocalVar('v'))
+    macro_args = il.macro_args([il.ExpressionWithCode(arg, 
+                                      il.Lamda((), arg.cps_convert(compiler, il.clamda(v, v)))) 
+                                for arg in args])
+    return self.cps_convert(compiler, il.clamda(function,
+                  il.If(il.IsMacroFunction(function),
+                        il.Apply(function, (cont, macro_args)),
+                        body)))
   
   def analyse(self, compiler):
     # unquote to interlang level
@@ -148,6 +153,7 @@ class Apply(Element):
                  tuple(arg.alpha_convert(env, compiler) for arg in self.args))
   
   def cps_convert(self, compiler, cont):
+    # see The 90 minute Scheme to C compiler by Marc Feeley
     return self.caller.cps_convert_call(compiler, cont, self.args)
 
   def subst(self, bindings):  
@@ -269,9 +275,13 @@ class BuiltinFunctionCall(CommandCall):
                  tuple(arg.alpha_convert(env, compiler) for arg in self.args))
   
   def cps_convert(self, compiler, cont):
-    return cont(self.function.function(
-      *tuple(arg.cps_convert(compiler, il.equal_cont) 
-             for arg in self.args)))    
+    #see The 90 minute Scheme to C compiler by Marc Feeley
+    args = self.args
+    vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
+    fun = cont(self.function.function(*vars))
+    for var, arg in reversed(zip(vars, args)):
+      fun = arg.cps_convert(compiler, il.Clamda(var, fun))
+    return fun
 
   def analyse(self, compiler):
     # unquote to interlang level
@@ -315,10 +325,9 @@ class Assign(CommandCall):
     return Assign(var, self.exp.alpha_convert(env, compiler))
   
   def cps_convert(self, compiler, cont):
-    v = self.var.interlang()
-    return il.Begin((
-      il.Assign(v, self.exp.cps_convert(compiler, il.equal_cont)),
-      cont(v)))
+    v = compiler.new_var(v0)
+    return self.exp.cps_convert(compiler, 
+              il.clamda(v, il.Assign(self.var.interlang(), v), cont(v)))
   
   def __eq__(x, y):
     return classeq(x, y) and x.var==y.var and x.exp==y.exp

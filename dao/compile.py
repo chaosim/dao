@@ -73,3 +73,11 @@ def compile_to_python(exp, env, done=None):
   result = exp.to_code(compiler)
   return prelude + result
 
+'''
+il.CFunction(block_foo, v1, il.begin(
+  il.Assign(f, il.Lamda((), 
+    il.begin(None, 1))), 
+  il.CFunction(block_foo1, v6, il.begin(
+    il.Assign(a1, f()), 
+    il.mul(2, a1)))(None)))(None)
+'''

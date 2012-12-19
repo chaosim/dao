@@ -10,7 +10,6 @@ v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
 @special
 def quote(compiler, cont, exp):
-  v = compiler.new_var(il.LocalVar('v'))
   return cont(il.ExpressionWithCode(exp, il.Lamda((), exp.cps_convert(compiler, il.equal_cont))))
 
 @special
@@ -37,29 +36,29 @@ def Begin(compiler, cont, *exps):
 def if_(compiler, cont, test, then, else_=None):
   v = compiler.new_var(v0)
   if else_ is None:
-    return cont(il.if2(test.cps_convert(compiler, il.equal_cont), 
-                       then.cps_convert(compiler, il.equal_cont)))
+    return test.cps_convert(compiler, 
+            il.Clamda(v, il.If(v, then.cps_convert(compiler, cont), cont(NONE))))
   else:
-    return cont(il.If(test.cps_convert(compiler, il.equal_cont), 
-                       then.cps_convert(compiler, il.equal_cont), 
-                       else_.cps_convert(compiler, il.equal_cont)))
+    return test.cps_convert(compiler, 
+           il.Clamda(v, il.If(v, then.cps_convert(compiler, cont), 
+                                 else_.cps_convert(compiler, cont))))
 
 def cps_convert_exps(compiler, exps, cont):
+  v = compiler.new_var(v0)
   if not exps: return il.PassStatement()
   if len(exps)==1:
     return exps[0].cps_convert(compiler, cont)
   else:
-    exps = tuple(exp.cps_convert(compiler, il.equal_cont) for exp in exps)
-    return cont(il.Begin(exps))
+    return exps[0].cps_convert(compiler, 
+                  il.Clamda(v, cps_convert_exps(compiler, exps[1:], cont)))
 
+from define import LamdaVar
 @special
 def callcc(compiler, cont, function):
-  k = compiler.new_var(il.LocalVar('cont'))
-  params = tuple(x.interlang() for x in function.params)
-  function1 = il.Lamda((k,)+params, function.body.cps_convert(compiler, k))
-  k1 = compiler.new_var(il.LocalVar('cont'))
-  v = compiler.new_var(v0)
-  return function1(cont, il.Lamda((k1, v), cont(v)))
+  body = function.body.subst({function.params[0]: LamdaVar(function.params[0].name)})
+  function1 = il.Lamda(tuple(x.interlang() for x in function.params), 
+                       body.cps_convert(compiler, il.equal_cont))
+  return function1(cont)
 
 @special
 def callfc(compiler, cont, function):
@@ -115,7 +114,7 @@ class ExitBlock(il.Element):
   
   def cps_convert(self, compiler, cont):
     return il.begin(compiler.protect_cont(NONE), 
-                    compiler.exit_block_cont_map[self.label.name](self.value))
+                    il.Apply(compiler.exit_block_cont_map[self.label.name], (self.value, )))
 
   def __repr__(self):
     return 'exit_block(%s, %s)'%(self.label, self.value)
