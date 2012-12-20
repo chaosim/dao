@@ -1,7 +1,7 @@
 import os
-from dao import interlang as il
 from dao.command import BuiltinFunction
 from dao.builtins.special import Begin
+from dao import interlang as il
 
 # intput and output
 

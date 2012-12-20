@@ -1,7 +1,6 @@
+from dao.compilebase import CompileTypeError
 from dao.command import special, Command, SpecialCall
 import dao.interlang as il
-from dao.compilebase import CompileTypeError
-
 from dao.interlang import TRUE, FALSE, NONE
 
 v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')

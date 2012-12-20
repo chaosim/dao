@@ -176,9 +176,6 @@ class VirtualOperation(Element):
   def bool(self):
     return unknown
   
-  def remove_return(self):
-    return self
-  
   def insert_return_statement(self):
     return Return(self)
   

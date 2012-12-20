@@ -1,7 +1,6 @@
 from dao.command import CommandCall
-
-from dao.interlang import element
 from dao import interlang as il
+from dao.interlang import element
 
 # quasiquote and backquote
 

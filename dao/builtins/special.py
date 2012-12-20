@@ -1,10 +1,10 @@
 ''' many lisp style special forms'''
 
 from dao.base import Element
-from dao.command import special, Command, CommandCall, SpecialCall, Apply, Var, LogicVar
 from dao.compilebase import CompileTypeError, VariableNotBound
-from dao.interlang import TRUE, FALSE, NONE, element
+from dao.command import special, Command, CommandCall, SpecialCall, Apply, Var, LogicVar
 import dao.interlang as il
+from dao.interlang import TRUE, FALSE, NONE, element
 
 v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
@@ -53,12 +53,16 @@ def cps_convert_exps(compiler, exps, cont):
                   il.Clamda(v, cps_convert_exps(compiler, exps[1:], cont)))
 
 from define import LamdaVar
+
 @special
 def callcc(compiler, cont, function):
   body = function.body.subst({function.params[0]: LamdaVar(function.params[0].name)})
-  function1 = il.Lamda(tuple(x.interlang() for x in function.params), 
-                       body.cps_convert(compiler, il.equal_cont))
-  return function1(cont)
+  k = compiler.new_var(il.LocalVar('cont'))
+  params = tuple(x.interlang() for x in function.params)
+  function1 = il.Lamda((k,)+params, body.cps_convert(compiler, k))
+  k1 = compiler.new_var(il.LocalVar('cont'))
+  v = compiler.new_var(v0)
+  return function1(cont, il.Lamda((k1, v), cont(v)))
 
 @special
 def callfc(compiler, cont, function):
@@ -114,7 +118,7 @@ class ExitBlock(il.Element):
   
   def cps_convert(self, compiler, cont):
     return il.begin(compiler.protect_cont(NONE), 
-                    il.Apply(compiler.exit_block_cont_map[self.label.name], (self.value, )))
+                    compiler.exit_block_cont_map[self.label.name](self.value, ))
 
   def __repr__(self):
     return 'exit_block(%s, %s)'%(self.label, self.value)

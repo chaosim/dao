@@ -1,11 +1,11 @@
 ''' many lisp style special forms'''
 
 from dao.base import Element, classeq
-from dao.command import special, Command, CommandCall, SpecialCall, Apply, Var, LogicVar, Assign
 from dao.compilebase import CompileTypeError, VariableNotBound
-from dao.interlang import TRUE, FALSE, NONE, element
-import dao.interlang as il
+from dao.command import special, Command, CommandCall, SpecialCall, Apply, Var, LogicVar, Assign
 from special import begin
+import dao.interlang as il
+from dao.interlang import TRUE, FALSE, NONE, element
 
 v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
@@ -47,7 +47,7 @@ class Lamda(Element):
   def cps_convert(self, compiler, cont):
     k = compiler.new_var(il.LocalVar('cont'))
     params = tuple(x.interlang() for x in self.params)
-    return cont(il.Lamda(params, self.body.cps_convert(compiler, il.equal_cont)))
+    return cont(il.Lamda((k,)+params, self.body.cps_convert(compiler, k)))
   
   def cps_convert_call(self, compiler, cont, args):
     # see The 90 minute Scheme to C compiler by Marc Feeley
@@ -88,7 +88,7 @@ class LamdaVar(Var):
     # see The 90 minute Scheme to C compiler by Marc Feeley
     function = compiler.new_var(il.Var('function'))
     vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
-    body = cont(il.Apply(function, vars))
+    body = il.Apply(function, (cont,)+vars)
     for var, item in reversed(zip(vars, args)):
       body = item.cps_convert(compiler, il.clamda(var, body)) 
     v = compiler.new_var(il.LocalVar('v'))
@@ -108,7 +108,7 @@ class RulesVar(Var):
     # see The 90 minute Scheme to C compiler by Marc Feeley
     function = compiler.new_var(il.Var('function'))
     vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
-    body = cont(il.Apply(function, (il.Tuple(*vars),)))
+    body = il.Apply(function, (cont, il.Tuple(*vars)))
     for var, item in reversed(zip(vars, args)):
       body = item.cps_convert(compiler, il.clamda(var, body)) 
     v = compiler.new_var(il.LocalVar('v'))
@@ -162,7 +162,7 @@ class RecursiveFunctionVar(Var):
     # see The 90 minute Scheme to C compiler by Marc Feeley
     function = compiler.new_var(il.RecursiveVar('function'))
     vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
-    body = cont(il.Apply(function, vars))
+    body = il.Apply(function, (cont,)+vars)
     for var, item in reversed(zip(vars, args)):
       body = item.cps_convert(compiler, il.clamda(var, body)) 
     v = compiler.new_var(il.LocalVar('v'))
@@ -182,7 +182,7 @@ class RecursiveRulesVar(Var):
     # see The 90 minute Scheme to C compiler by Marc Feeley
     function = compiler.new_var(il.RecursiveVar('function'))
     vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
-    body = cont(il.Apply(function, (il.Tuple(*vars),)))
+    body = il.Apply(function, (cont, il.Tuple(*vars)))
     for var, item in reversed(zip(vars, args)):
       body = item.cps_convert(compiler, il.clamda(var, body)) 
     v = compiler.new_var(il.LocalVar('v'))
@@ -206,7 +206,7 @@ class RecursiveMacroVar(MacroVar):
                                 for arg in args])
     return self.cps_convert(compiler, 
                             il.clamda(function,
-                                cont(il.Apply(function, (macro_args,)))))
+                                il.Apply(function, (cont, macro_args))))
   
   def interlang(self):
     return il.RecursiveVar(self.name)
@@ -309,7 +309,6 @@ class Rules(Lamda):
     assigns = []
     rules_cont = il.clamda(v, 
                            il.SetCutCont(cut_cont), 
-                           #il.SetFailCont(fc), 
                            k(v))
     for arity, rules in self.rules.items():
       clauses = []
@@ -320,8 +319,6 @@ class Rules(Lamda):
         clauses.append(begin(head_exps, body))
       arity_fun = il.lamda((), 
             il.Assign(cut_cont, il.cut_cont),
-            #il.Assign(fc, il.failcont),
-            #il.SetFailCont(il.clamda(v, il.SetCutCont(cut_cont), fc(v))),
             il.SetCutCont(il.failcont), 
             or_(*clauses).cps_convert(compiler, rules_cont))
       arity_fun_name = compiler.new_var(il.LocalVar('arity_fun_%s'%arity))
@@ -438,7 +435,6 @@ class MacroRules(Element):
     params = compiler.new_var(il.LocalVar('params'))
     v = compiler.new_var(il.LocalVar('v'))
     arity_body_map = compiler.new_var(il.LocalVar('arity_body_map'))
-    #rules_function = compiler.new_var(il.LocalVar('rules_function'))
     cut_cont = compiler.new_var(il.LocalVar('cut_cont'))
     arity_body_pairs = []
     assigns = []
@@ -454,8 +450,6 @@ class MacroRules(Element):
         clauses.append(begin(head_exps, body))
       arity_fun = il.lamda((), 
             il.Assign(cut_cont, il.cut_cont),
-            #il.Assign(fc, il.failcont),
-            #il.SetFailCont(il.clamda(v, il.SetCutCont(cut_cont), fc(v))),
             il.SetCutCont(il.failcont), 
             or_(*clauses).cps_convert(compiler, rules_cont))
       arity_fun_name = compiler.new_var(il.LocalVar('arity_fun_%s'%arity))

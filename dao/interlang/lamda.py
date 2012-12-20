@@ -290,12 +290,16 @@ class CFunction(Function):
   def optimize_apply(self, env, compiler, args):
     assigns = []
     free_vars = self.free_vars()
+    new_env = env.extend()
     for var in free_vars:
-      try: value = env[var]
-      except: continue
+      try: 
+        value = env[var]
+        new_env[var] = var
+      except: 
+        continue
       assigns.append(Assign(var, value))
-    result = begin(*(tuple(assigns)+(CFunction(self.name, self.params[0], 
-        self.body.subst({self.params[0]:args[0]}).optimize(env, compiler))(NONE),)))
+    body = self.body.subst({self.params[0]:args[0]}) .optimize(new_env, compiler)
+    result = begin(*(tuple(assigns)+(CFunction(self.name, self.params[0], body)(NONE),)))
     return result
   
   def __repr__(self):
@@ -304,6 +308,7 @@ class CFunction(Function):
 class RulesFunction(Function):
   def __init__(self, name, params, body):
     self.name, self.params, self.body = name, params, body
+    self.local_vars = set()
     
   def __call__(self, *args):
     return Apply(self, tuple(element(x) for x in args))
@@ -400,7 +405,10 @@ class MacroFunction(Element):
 class GlobalDecl(Element):
   def __init__(self, args):
     self.args = args
-    
+  
+  def side_effects(self):
+    return False
+  
   def to_code(self, compiler):
     return "global %s" % (', '.join([x.to_code(compiler) for x in self.args]))
   
@@ -444,24 +452,23 @@ class Apply(Element):
     return result
   
   def optimize(self, env, compiler):
+    args = optimize_args(self.args, env, compiler)
     if isinstance(self.caller, Var):
       if self.caller not in compiler.recursive_call_path:
         caller = self.caller.optimize(env, compiler)
         if isinstance(caller, Lamda):
           compiler.recursive_call_path.append(self.caller)      
-          result = caller.optimize_apply(env, compiler, self.args)
+          result = caller.optimize_apply(env, compiler, args)
           compiler.recursive_call_path.pop()  
           return result
         else:
-          return self.__class__(caller, optimize_args(self.args, env, compiler))
+          return self.__class__(caller, args)
       else: 
-        return self.__class__(self.caller, optimize_args(self.args, env, compiler))
+        return self.__class__(self.caller, args)
     elif isinstance(self.caller, Lamda):
-      args = optimize_args(self.args, env, compiler)
       return self.caller.optimize_apply(env, compiler, args)
     else:
-      return self.__class__(self.caller.optimize(env, compiler), 
-                            optimize_args(self.args, env, compiler))
+      return self.__class__(self.caller.optimize(env, compiler), args)
 
   def insert_return_statement(self):
     return Return(self)

@@ -20,12 +20,6 @@ class Var(Element):
     return Apply(self, tuple(il.element(arg) for arg in args))
   
   def alpha_convert(self, env, compiler):
-    #try: 
-      #return env[self]
-    #except VariableNotBound: 
-      #env[self] = new_var = compiler.new_var(self)
-      #result = Assign(new_var, compiler.new_var(LogicVar(self.name)))
-      #return result
     return env[self]
     
   def subst(self, bindings):  

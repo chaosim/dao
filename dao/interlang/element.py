@@ -467,7 +467,7 @@ class PseudoElse(Atom):
 
 pseudo_else = PseudoElse()
 
-class XTry(Element):
+class Try(Element):
   def __init__(self, test, body):
     self.test, self.body = test, body
     
@@ -522,22 +522,24 @@ class XTry(Element):
     return 'il.Try(%r, %r)'%(self.test, self.body)
 
 def begin(*exps):
-  assert isinstance(exps, tuple)
-  if len(exps)==0: return pass_statement
-  elif len(exps)==1: 
-    return exps[0]
-  else:
-    result = []
-    for e in exps:
-      if isinstance(e, Begin):
-        result += e.statements
-      elif e==():
+  result = []
+  length = len(exps)
+  for i, e in enumerate(exps):
+    if isinstance(e, Begin):
+      result += e.statements
+    elif e==():
+      continue
+    else:
+      if e==NONE and i!=length-1:
         continue
       else:
         result.append(e)
-    if len(result)>1: 
-      return Begin(tuple(result))
-    else: return result[0]
+  if len(result)==0: 
+    return pass_statement
+  elif len(result)==1:
+    return result[0]
+  else:
+    return Begin(tuple(result))
 
 class Begin(Element):
   is_statement = True
@@ -585,17 +587,7 @@ class Begin(Element):
       if stmt is exp: break
     else: return self
     return begin(*(self.statements[:i]+self.statements[i+1:]))
-  
-  def xxxremove_return(self):
-    result = []
-    for exp in self.statements:
-      if isinstance(exp, Return):
-        result.append(exp.args)
-        break
-      else:
-        result.append(exp.remove_return())
-    return begin(*result)
-      
+        
   def insert_return_statement(self):
     inserted = self.statements[-1].insert_return_statement()
     return begin(*(self.statements[:-1]+(inserted,)))
@@ -659,6 +651,9 @@ class PassStatement(Element):
   def code_size(self):
     return 0
   
+  def side_effects(self):
+    return False
+  
   def pythonize(self, env, compiler):
     return (self,), True
   
@@ -666,6 +661,9 @@ class PassStatement(Element):
     return self
   
   def replace_return_with_yield(self):
+    return self
+  
+  def subst(self, bindings):
     return self
   
   def __eq__(x, y):

@@ -6,12 +6,11 @@
 # optional, any, some, times, seplist, ...
 
 from dao.base import classeq
-import dao.interlang as il
 from dao.compilebase import CompileTypeError, VariableNotBound
-
+from dao.command import special
+import dao.interlang as il
 from dao.interlang import TRUE, FALSE, NONE
 
-from dao.command import special
 
 v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 

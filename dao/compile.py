@@ -67,17 +67,64 @@ def compile_to_python(exp, env, done=None):
   function = compiler.new_var(il.LocalVar('compiled_dao_function'))
   exp = il.Function(function, (), exp)
   exp = il.begin(*exp.pythonize(env, compiler)[0])
-  exp = exp.statements[0]
+  if isinstance(exp, il.Begin):
+    exp = exp.statements[0]
   exp.body = exp.body.replace_return_with_yield()
   compiler = Compiler()
   result = exp.to_code(compiler)
   return prelude + result
 
 '''
+il.begin(
+  il.Assign(old_parse_state, il.parse_state), 
+  il.Assign(il.parse_state, il.Tuple((aaa, 0))), 
+  il.Assign(fc11, il.fail_cont), 
+  il.Assign(il.fail_cont, il.Clamda(v6, il.begin(
+    il.Assign(il.fail_cont, fc11), 
+    il.Assign(il.parse_state, old_parse_state), 
+    fc11(False)))), 
+  il.CFunction(any_cont, v4, il.begin(
+    il.Assign(old_fail_cont, il.fail_cont), 
+    il.Assign(il.fail_cont, il.Clamda(v4, il.begin(
+      il.Assign(il.fail_cont, old_fail_cont), 
+      il.If(il.Ge(il.GetItem(il.parse_state, 1), il.Len(il.GetItem(il.parse_state, 0))), 
+            True, 
+            il.fail_cont(False))))), 
+    il.AssignFromList((text, pos), il.parse_state), 
+    il.If(il.Ge(pos, il.Len(text)), 
+          il.Return(il.fail_cont(None))), 
+    il.If(il.Eq(a, il.GetItem(text, pos)), 
+      il.begin(
+        il.Assign(fc1, il.fail_cont), 
+        il.Assign(il.fail_cont, il.Clamda(v5, il.begin(
+          il.Assign(il.fail_cont, fc1), 
+          il.Assign(il.parse_state, il.Tuple((text, pos))), 
+          fc1(False)))), 
+        il.Assign(il.parse_state, il.Tuple((text, il.add(pos, 1)))), 
+        il.Return(any_cont(il.GetItem(text, pos)))), 
+      il.Return(il.fail_cont(None)))))(True))
+'''
+
+'''
+let([(i,3)], 
+  block(a, assign(i, sub(i, 1)), 
+             if_(eq(i, 0), exit_block(a, 1)),
+             continue_block(a)), i)
+             --------------->
+il.begin(
+  il.Assign(i, 3), 
+  il.CFunction(block_a, v4, il.begin(
+    il.Assign(i, il.sub(i, 1)), 
+    il.If(il.Eq(i, 0), 
+      i, 
+      block_a(None))))(None))
+=========================================
+let([(f, lamda((), exit_block(foo,1)))], 
+    mul(2, block(foo, f())))
+---->
+                            
 il.CFunction(block_foo, v1, il.begin(
-  il.Assign(f, il.Lamda((), 
-    il.begin(None, 1))), 
-  il.CFunction(block_foo1, v6, il.begin(
-    il.Assign(a1, f()), 
-    il.mul(2, a1)))(None)))(None)
+  il.Assign(f, il.Lamda((cont), 1)), 
+  il.CFunction(block_foo1, v6, 
+               f(il.Clamda(a1, il.mul(2, a1))))(None)))(None)
 '''
