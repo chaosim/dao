@@ -44,12 +44,12 @@ class Lamda(Element):
       
   def optimize(self, env, compiler):
     env = env.extend()
+    for var in self.free_vars():
+      try:
+        env[var]._removed = False
+      except: pass
+      env[var] = VarAssignBox(var)
     body = self.body.optimize(env, compiler)
-    if env.bindings:
-      exps = []
-      for var, value in env.bindings.items():
-        if var not in self.local_vars:
-          exps.append(Assign(var, value))
     result = self.new(self.params, body)
     result.local_vars = self.local_vars
     return result
@@ -239,10 +239,16 @@ class Function(Lamda):
     return self.__class__(self.name, params, body)
   
   def optimize(self, env, compiler):
-    body = self.body.optimize(env.extend(), compiler)
-    assigns = tuple(Assign(var, value)
-                    for var, value in env.bindings.items())
-    return self.new(self.params, begin(*(assigns+(body,))))
+    env = env.extend()
+    for var in self.free_vars():
+      try:
+        env[var]._removed = False
+      except: pass
+      env[var] = VarAssignBox(var)
+    body = self.body.optimize(env, compiler)
+    result = self.new(self.params, body)
+    result.local_vars = self.local_vars
+    return result
     
   def optimize_apply(self, env, compiler, args):
     result = Lamda.optimize_apply(self, env, compiler, args)
@@ -288,18 +294,20 @@ class CFunction(Function):
     return self.__class__(self.name, params[0], body)
   
   def optimize_apply(self, env, compiler, args):
-    assigns = []
-    free_vars = self.free_vars()
+    #compiler.recusive_vars_stack.append(set())
     new_env = env.extend()
-    for var in free_vars:
-      try: 
-        value = env[var]
-        new_env[var] = var
-      except: 
-        continue
-      assigns.append(Assign(var, value))
+    for var in self.free_vars():
+      try:
+        env[var]._removed = False
+        new_env[var] = VarAssignBox(var)
+        #self.recursive_vars.add(var)
+      except:
+        pass
     body = self.body.subst({self.params[0]:args[0]}) .optimize(new_env, compiler)
-    result = begin(*(tuple(assigns)+(CFunction(self.name, self.params[0], body)(NONE),)))
+    result = CFunction(self.name, self.params[0], body)(NONE)
+    #for var in new_env.bindings:
+      #env[var]._removed = False
+    #compiler.recusive_vars_stack.pop()
     return result
   
   def __repr__(self):
@@ -437,7 +445,7 @@ class Apply(Element):
     if isinstance(self.caller, Lamda):
       if self.caller.body.side_effects(): return True
     elif isinstance(self.caller, Var): return True
-    elif self.caller.have_side_effects: return True
+    elif self.caller.has_side_effects: return True
     else: return False # after cps, all of value have been solved before called, 
                        # so have no side effects.
           
@@ -559,12 +567,15 @@ class Var(Element):
     try: return bindings[self]
     except: return self
   
-  def ssa_convert(self, env, compiler):
+  def xxxssa_convert(self, env, compiler):
     return env[self]
   
   def optimize(self, env, compiler):
-    try: return env[self]
-    except: return self
+    try: 
+      assign = env[self]
+    except: 
+      return self
+    return assign.right_value
       
   def replace_assign(self, compiler):
     try:
@@ -662,14 +673,21 @@ class Assign(Element):
   
   def __init__(self, var, exp):
     self.var, self.exp =  var, exp
+    self.right_value = self.exp
+    self._removed = unknown
+    self.items = set([self])
+    self.dependency = set()
+    self.local_vars = set()
   
   def find_assign_lefts(self):
-    return set([self.var])
+    if self.removed():
+      return set()    
+    else:
+      return set([self.var])
   
   def analyse(self, compiler): 
     if self.var not in compiler.seen_vars():
       compiler.lamda_stack[-1].local_vars.add(self.var)
-    #self.free_vars = self.exp.free_vars()
     self.exp.analyse(compiler)
   
   def insert_return_statement(self):
@@ -687,25 +705,50 @@ class Assign(Element):
   def free_vars(self):
     return self.exp.free_vars()|set([self.var])
   
+  def remove(self):
+    self._removed = True
+    
+  def dont_remove(self):
+    self._removed = False
+      
+  def removed(self):
+    if self._removed==True:
+      return True
+    if self._removed==False:
+      return False
+    if self.dependency:
+      for item in self.dependency:
+        if item.removed()==False: 
+          return False
+    return True
+    
   def optimize(self, env, compiler):
     exp = self.exp.optimize(env, compiler)
-    #if self.var in self.exp.free_vars():
-      #return Assign(self.var, self.exp)
+    result = Assign(self.var, exp)
+    try:
+      env.bindings[self.var].remove()
+      del env.bindings[self.var]
+    except: pass    
     if isinstance(exp, Atom) or isinstance(exp, Var) \
-       or isinstance(exp, ExpressionWithCode) or isinstance(exp, RulesDict):
-      env[self.var] = exp
-      return
-    if isinstance(exp, Lamda) and not isinstance(self.var, RecursiveVar):
-      if self.var not in exp.free_vars():
-        env[self.var] = exp
-        return None
+      or isinstance(exp, ExpressionWithCode) or isinstance(exp, RulesDict):
+      env[self.var] = result
+    elif isinstance(exp, Lamda):
+      if not isinstance(self.var, RecursiveVar) and self.var not in exp.free_vars():
+        env[self.var] = result
+      else: result._removed = False
     else:
-      env[self.var] = self.var
-      return Assign(self.var, exp)
-    #else:
-      #env[self.var] = exp
-      #if isinstance(self.var, RecursiveVar):
-        #return Assign(self.var, exp)
+      result._removed = False
+      assign_box = VarAssignBox(self.var)
+      env[self.var] = assign_box
+      for var in exp.free_vars():
+        try:
+          assign = env[var]
+        except:
+          assign = None
+        if assign is not None:
+          for item in assign.items:
+            item.dependency.add(assign_box)
+    return result
   
   def pythonize(self, env, compiler):
     exps, has_statement = self.exp.pythonize(env, compiler)
@@ -722,7 +765,261 @@ class Assign(Element):
   
   def __repr__(self):
     return 'il.Assign(%r, %r)'%(self.var, self.exp)
+
+def if_(test, then, else_):
+  return If(element(test), element(then), element(else_))
+
+class ValueAssignBox:
+  def __init__(self, value):
+    self.right_value = value
+    self._removed = True
+    self.items = set()
+    self.dependency = set()
+    
+class VarAssignBox:
+  def __init__(self, var):
+    self.right_value = var
+    self._removed = unknown
+    self.items = set([self])
+    self.dependency = set()
+    
+  def remove(self):
+    self._removed = True
   
+  def dont_remove(self):
+    self._removed = False
+    
+  def removed(self): 
+    return self._removed
+    
+  def __repr__(self):
+    return 'VAB(%r)'%self.right_value
+  
+class ThenAssignBox:
+  def __init__(self, item, if_exp):
+    self.item = item
+    self.right_value = item.right_value
+    self.then_removed = False
+    self.items = set([self])
+    self.dependency = set()
+    self.if_exp = if_exp
+    
+  def remove(self):
+    self.then_removed = True
+    
+  def else_remove(self):
+    if self.then_removed:
+      self.item.remove()
+ 
+  def dont_remove(self):
+    self.item.dont_remove()
+    
+  def __repr__(self):
+    return 'TB(%s)'%self.item
+  
+class ElseAssignBox:
+  def __init__(self, item):
+    self.item = item
+    self.right_value = item.right_value
+    self.if_exp = self.item.if_exp
+    self.items = set([self])
+    self.dependency = set()
+  
+  def remove(self):
+    self.item.else_remove()  
+  
+  def dont_remove(self):
+    self.item.dont_remove()
+    
+  def __repr__(self):
+    return 'EB(%s)'%self.item
+
+class GroupAssignBox:
+  def __init__(self, var, *items):
+    self.var = var
+    items1 = []
+    for item in items:
+      if isinstance(item, GroupAssignBox):
+        items1 += item.items
+      else: 
+        items1.append(item)
+    self.items = items1
+    value = items1[0].right_value
+    for item in items[1:]:
+      if item.right_value!=value:
+        self.right_value = self.var
+        break
+    else:
+      self.right_value = value
+  
+  def remove(self):
+    for item in self.items:
+      item.remove() 
+      
+  def dont_remove(self):
+    for item in self.items:
+      item.dont_remove()
+      
+  def __repr__(self):
+    return 'GB(%s)'%self.items
+      
+class If(Element):
+  def __init__(self, test, then, else_):
+    self.test, self.then, self.else_ = test, then, else_
+    if else_==pseudo_else: self.is_statement = True
+    
+  def find_assign_lefts(self):
+    return self.then.find_assign_lefts() | self.else_.find_assign_lefts()
+  
+  def analyse(self, compiler):  
+    self.test.analyse(compiler)
+    self.then.analyse(compiler)
+    self.else_.analyse(compiler)
+    
+  def code_size(self):
+    return 3 + self.test.code_size() + \
+           self.then.code_size() + \
+           self.else_.code_size()
+  
+  def side_effects(self):
+    return not self.test.side_effects() and\
+           not self.then.side_effects() and\
+           not self.else_.side_effects()
+    
+  def subst(self, bindings):  
+    return If(self.test.subst(bindings),
+              self.then.subst(bindings), 
+              self.else_.subst(bindings))
+    
+  def free_vars(self):
+    result = set()
+    result |= self.test.free_vars()
+    result |= self.then.free_vars()
+    result |= self.else_.free_vars()
+    return result
+  
+  def optimize(self, env, compiler):
+    test = self.test.optimize(env, compiler)
+    test_bool = test.bool()
+    if test_bool==True:
+      then = self.then.optimize(env, compiler)
+      if isinstance(then, If) and then.test==test: # (if a (if a b c) d)
+        then = then.then      
+      return then
+    elif test_bool==False:
+      else_ = self.else_.optimize(env, compiler)
+      if isinstance(else_, If) and else_.test==test: # (if a b (if a c d))
+        else_ = else_.else_      
+      return else_    
+    then_bindings = {}
+    else_bindings = {}
+    for var, item in env.bindings.items():
+      then_box = ThenAssignBox(item, self)
+      then_bindings[var] = then_box
+      else_bindings[var] = ElseAssignBox(then_box)
+    env.bindings = then_bindings
+    then = self.then.optimize(env, compiler)
+    env.bindings = else_bindings
+    else_ = self.else_.optimize(env, compiler)
+    env.bindings = {}
+    for var, value in then_bindings.items():
+      if var in else_bindings:
+        else_value = else_bindings[var]
+        if isinstance(value, ThenAssignBox):
+          if value.if_exp is self:
+            if isinstance(else_value, ElseAssignBox) and else_value.if_exp is self:
+              env.bindings[var] = value.item
+            else:
+              env.bindings[var] = GroupAssignBox(var, value.item, else_value)
+          else:
+            if isinstance(else_value, ElseAssignBox) and else_value.if_exp is self:
+              env.bindings[var] = GroupAssignBox(var, value, else_value.item)
+            else:
+              env.bindings[var] = GroupAssignBox(var, value, else_value)
+        else:
+          if isinstance(else_value, ElseAssignBox) and else_value.if_exp is self:
+            env.bindings[var] = GroupAssignBox(var, value, else_value.item)
+          else:
+            env.bindings[var] = GroupAssignBox(var, value, else_value)
+        del else_bindings[var]
+      else:
+        env.bindings[var] = value
+    for var, value in else_bindings.items():
+      env.bindings[var] = value
+    if isinstance(then, If) and then.test==test: # (if a (if a b c) d)
+      then = then.then      
+    if isinstance(else_, If) and else_.test==test: # (if a b (if a c d))
+      else_ = else_.else_
+    return If(test, then, else_)
+
+  def insert_return_statement(self):
+    result = If(self.test, 
+              self.then.insert_return_statement(), 
+              self.else_.insert_return_statement())
+    result.is_statement = True
+    return result
+  
+  def replace_return_with_yield(self):
+    result = If(self.test, 
+              self.then.replace_return_with_yield(), 
+              self.else_.replace_return_with_yield())
+    result.is_statement = True
+    return result
+  
+  def pythonize(self, env, compiler):
+    test, has_statement1 = self.test.pythonize(env, compiler)
+    then, has_statement2 = self.then.pythonize(env, compiler)
+    else_, has_statement3 = self.else_.pythonize(env, compiler)
+    if_ = If(test[-1], begin(*then), begin(*else_))
+    if_.is_statement = if_.is_statement or has_statement2 or has_statement3
+    return test[:-1]+(if_,), has_statement1 or if_.is_statement
+    
+  def to_code(self, compiler):
+    if self.is_statement:
+      result = 'if %s: \n%s\n' % (self.test.to_code(compiler), 
+                                  compiler.indent(self.then.to_code(compiler)))
+      if self.else_!=pseudo_else:
+        result += 'else:\n%s\n'% compiler.indent(self.else_.to_code(compiler)) 
+      return result
+    else:
+      return '%s if %s else %s' % (self.then.to_code(compiler), 
+                                   self.test.to_code(compiler), 
+                                   self.else_.to_code(compiler))        
+  def __eq__(x, y):
+    return classeq(x, y) and x.test==y.test and x.then==y.then and x.else_==y.else_
+  
+  def __repr__(self):
+    if self.else_!=pseudo_else:
+      return 'il.If(%r, %r, %r)'%(self.test, self.then, self.else_)
+    else:
+      return 'il.If(%r, %r)'%(self.test, self.then)
+
+def if2(test, then):
+  return If(test, then, pseudo_else)
+
+class PseudoElse(Atom):
+  def __init__(self):
+    return
+  
+  def code_size(self):
+    return 0
+  
+  def insert_return_statement(self):
+    return self
+  
+  def replace_return_with_yield(self):
+    return self
+  
+  def to_code(self, compiler):
+    return ''
+  
+  def __eq__(x, y):
+    return classeq(x, y)
+  
+  def __repr__(self):
+    return 'il.pseudo_else'
+
+pseudo_else = PseudoElse()
 
 def xwhile_(test, *exps):
   return While(element(test), begin(*[x for x in exps]))

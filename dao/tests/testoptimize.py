@@ -26,6 +26,7 @@ def compile_optimize(exp):
   exp = il.element(exp).alpha_convert(Environment(), compiler)
   exp = exp.cps_convert(compiler, done())
   env = Environment()
+  compiler.lamda_stack = [exp]
   exp.analyse(compiler)
   return exp.optimize(env, compiler)
 
@@ -96,10 +97,134 @@ class TestSimple:
 def optimize(exp):
   compiler = Compiler()
   env = Environment()
+  compiler.lamda_stack = [exp]
   exp.analyse(compiler)
   return exp.optimize(env, compiler)
 
 class TestOptimize:
+  def test_assign1(self):
+    x = il.Var('x')
+    result = optimize(il.Assign(x, il.Integer(1)))
+    expect = il.Assign(x, il.Integer(1))
+    eq_(result, expect)
+    
+  def test_assign2(self):
+    x = il.Var('x')
+    exp = il.begin(il.Assign(x, il.Integer(1)), 
+                   il.Assign(x, il.Integer(2)))
+    result = optimize(exp)
+    expect = exp
+    eq_(result, expect)
+    eq_(result.statements[0]._removed, True)
+    eq_(result.statements[0].removed(), True)
+    
+  def test_if_assign1(self):
+    x = il.Var('x')
+    y = il.Var('y')
+    exp = il.begin(il.Assign(x, il.Integer(1)), 
+                   il.if_(y, il.Assign(x, il.Integer(2)), x))
+    result = optimize(exp)
+    expect = il.begin(il.Assign(x, il.Integer(1)), 
+                   il.if_(y, il.Assign(x, il.Integer(2)), 1))
+    eq_(result, expect)
+    eq_(result.statements[0]._removed, il.unknown)
+    eq_(result.statements[0].removed(), True)
+    
+  def test_if_assign2(self):
+    x = il.Var('x')
+    y = il.Var('y')
+    exp = il.begin(il.Assign(x, il.Integer(1)), 
+                   il.if_(y, il.Assign(x, il.Integer(2)), 
+                          il.Assign(x, il.Integer(3))))
+    result = optimize(exp)
+    expect = exp
+    eq_(result, expect)
+    eq_(result.statements[0]._removed, True)
+    eq_(result.statements[0].removed(), True)
+    
+  def test_if_assign3(self):
+    x = il.Var('x')
+    y = il.Var('y')
+    exp = il.begin(il.Assign(x, il.Integer(1)), 
+                   il.if_(y, il.Assign(x, il.Integer(2)), 
+                          il.Assign(x, il.Integer(3))),
+                   il.Assign(x, il.Integer(4)))
+    result = optimize(exp)
+    expect = exp
+    eq_(result, expect)
+    eq_(result.statements[0].removed(), True)
+    eq_(result.statements[1].then.removed(), True)
+    eq_(result.statements[1].else_._removed, True)
+    eq_(result.statements[1].else_.removed(), True)
+    
+  def test_if_assign4(self):
+    x = il.Var('x')
+    y = il.Var('y')
+    exp = il.begin(il.Assign(x, il.Integer(1)), 
+                   il.if_(y, il.Assign(x, il.Integer(2)), 
+                          il.Assign(x, il.Integer(3))),
+                   il.Assign(y, x))
+    result = optimize(exp)
+    expect = exp
+    eq_(result, expect)
+    eq_(result.statements[0]._removed, True)
+    eq_(result.statements[0].removed(), True)
+    eq_(result.statements[1].then._removed, il.unknown)
+    eq_(result.statements[1].then.removed(), True)
+    
+  def test_if_assign5(self):
+    x = il.Var('x')
+    y = il.Var('y')
+    exp = il.begin(il.Assign(x, il.Integer(1)), 
+                   il.if_(y, il.Assign(x, il.Integer(2)), 
+                          il.Assign(x, il.Integer(3))),
+                   il.Prin(x))
+    result = optimize(exp)
+    expect = exp
+    eq_(result, expect)
+    eq_(result.statements[0].removed(), True)
+    eq_(result.statements[1].then.removed(), False)
+    
+  def test_if_assign6(self):
+    x = il.Var('x')
+    y = il.Var('y')
+    exp = il.begin(il.Assign(x, il.Integer(1)), 
+                   il.if_(y, il.Assign(x, il.Integer(2)), 
+                          il.Assign(x, il.Integer(3))),
+                   il.Assign(y, x),
+                   il.Prin(y), 
+                   )
+    result = optimize(exp)
+    expect = il.begin(il.Assign(x, il.Integer(1)), 
+                   il.if_(y, il.Assign(x, il.Integer(2)), 
+                          il.Assign(x, il.Integer(3))),
+                   il.Assign(y, x),
+                   il.Prin(x), 
+                   )
+    eq_(result, expect)
+    eq_(result.statements[0].removed(), True)
+    eq_(result.statements[1].then.removed(), False)
+    
+  def test_if_assign7(self):
+    x = il.Var('x')
+    y = il.Var('y')
+    exp = il.begin(il.Assign(x, il.Integer(1)), 
+                   il.if_(y, il.Assign(x, il.Integer(2)), 
+                          il.Assign(x, il.Integer(3))),
+                   il.Assign(y, il.add(x, il.Integer(3))),
+                   il.Prin(y), 
+                   )
+    result = optimize(exp)
+    expect = il.begin(il.Assign(x, il.Integer(1)), 
+                   il.if_(y, il.Assign(x, il.Integer(2)), 
+                          il.Assign(x, il.Integer(3))),
+                   il.Assign(y, il.add(x, il.Integer(3))),
+                   il.Prin(y), 
+                   )
+    eq_(result, expect)
+    eq_(result.statements[0].removed(), True)
+    eq_(result.statements[1].then.removed(), False)
+    
   def test_if(self):
     x = il.Var('x')
     result = optimize(il.if_(x, il.if_(x, 2, 3), 4))
@@ -150,5 +275,7 @@ class TestOptimize:
     result = optimize(il.Begin((
       il.Assign(f, il.Lamda((x,), f(il.Integer(1)))), 
       il.Apply(f, (il.Integer(3),)))))
-    expect = f(il.Integer(3))
+    expect = il.Begin((
+      il.Assign(f, il.Lamda((x,), f(il.Integer(1)))), 
+      il.Apply(f, (il.Integer(3),))))
     eq_(result, expect)

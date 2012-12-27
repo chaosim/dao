@@ -33,13 +33,9 @@ def Begin(compiler, cont, *exps):
     return cps_convert_exps(compiler, exps, cont)
 
 @special
-def if_(compiler, cont, test, then, else_=None):
+def if_(compiler, cont, test, then, else_):
   v = compiler.new_var(v0)
-  if else_ is None:
-    return test.cps_convert(compiler, 
-            il.Clamda(v, il.If(v, then.cps_convert(compiler, cont), cont(NONE))))
-  else:
-    return test.cps_convert(compiler, 
+  return test.cps_convert(compiler, 
            il.Clamda(v, il.If(v, then.cps_convert(compiler, cont), 
                                  else_.cps_convert(compiler, cont))))
 

@@ -6,15 +6,15 @@ from dao.compilebase import MAX_EXTEND_CODE_SIZE
 from dao.compilebase import VariableNotBound, CompileTypeError
 from element import Element, Begin, begin, Return, Yield#, element
 from lamda import Apply, optimize_args, clamda, Lamda, MacroLamda, RulesDict
-from lamda import Var, LocalVar, SolverVar, LogicVar, Assign, ExpressionWithCode
+from lamda import Var, LocalVar, SolverVar, LogicVar, Assign, ExpressionWithCode, ValueAssignBox
 from element import pythonize_args, FALSE, NONE, Symbol, no_side_effects, unknown
 from element import Atom, element, Integer, Bool, MacroArgs, Tuple, List
 
 class BinaryOperation(Element):
-  def __init__(self, name, operator, operator_function, have_side_effects=True):
+  def __init__(self, name, operator, operator_function, has_side_effects=True):
     self.name, self.operator = name, operator
     self.operator_function = operator_function
-    self.have_side_effects = have_side_effects
+    self.has_side_effects = has_side_effects
   
   def alpha_convert(self, env, compiler):
     return self
@@ -96,7 +96,7 @@ class BinaryOperationApply(Apply):
               
   def side_effects(self):
     if isinstance(self.caller, Var): return True
-    elif self.caller.have_side_effects: return True
+    elif self.caller.has_side_effects: return True
     else: return False # after cps, all of value have been solved before called, 
                        # so have no side effects.
           
@@ -171,7 +171,24 @@ class VirtualOperation(Element):
     return 1
   
   def optimize(self, env, compiler):
-    return self.__class__(*optimize_args(self.args, env,compiler))
+    if self.has_side_effects:
+      return self.__class__(*optimize_args(self.args, env,compiler))
+  
+    args = optimize_args(self.args, env,compiler)
+    free_vars = set()
+    for arg in args:
+      free_vars |= arg.free_vars()
+    for var in free_vars:
+      assign = None
+      try:
+        assign = env[var]
+      except:
+        pass
+      if assign is not None:
+        assign.dont_remove()
+    result = self.__class__(*args)
+    return result
+  
   
   def bool(self):
     return unknown
@@ -553,7 +570,7 @@ class AssignFromList(Element):
       if len(value.value)!=len(self.vars):
         raise DaoCompileError
       for var, v in zip(self.vars, value.value):
-        env[var] = v
+        env[var] = ValueAssignBox(v)
       return
     return AssignFromList(*(self.vars+(value,)))
   
@@ -609,7 +626,7 @@ class PushCatchCont(Element):
     tag = self.tag.optimize(env, compiler)
     cont = self.cont.optimize(env, compiler)
     if isinstance(tag, Atom) and env[catch_cont_map] is not None:
-      env[catch_cont_map].value.setdefault(tag, []).append(cont)
+      env[catch_cont_map].right_value.value.setdefault(tag, []).append(cont)
       return 
     if env[catch_cont_map] is not None:
       result = Begin((Assign(catch_cont_map, env[catch_cont_map]), 
@@ -667,10 +684,10 @@ class FindCatchCont(Element):
     tag = self.tag.optimize(env, compiler)
     if isinstance(tag, Atom) and env[catch_cont_map] is not None:
       try:
-        cont_stack = env[catch_cont_map].value[tag]
+        cont_stack = env[catch_cont_map].right_value.value[tag]
         cont = cont_stack.pop()
         if not cont_stack:
-          del env[catch_cont_map].value[tag]
+          del env[catch_cont_map].right_value.value[tag]
         return cont
       except:
         return RaiseExcept(Symbol('DaoUncaughtError'))
@@ -746,12 +763,13 @@ class IsMacroFunction(Element):
   def __repr__(self):
     return 'il.IsMacroFunction(%s)'%self.item
 
-def vop(name, arity, code_format):
+def vop(name, arity, code_format, has_side_effects):
   class Vop(VirtualOperation): pass
   Vop.name = Vop.__name__  = name
   Vop.arity = arity
   Vop.code_format = code_format
   Vop.is_statement = False
+  vop.has_side_effects = has_side_effects
   return Vop
 
 class VirtualOperation2(VirtualOperation):
@@ -761,12 +779,13 @@ class VirtualOperation2(VirtualOperation):
   def replace_return_with_yield(self):
     return self
     
-def vop2(name, arity, code_format):
+def vop2(name, arity, code_format, has_side_effects):
   class Vop(VirtualOperation2): pass
   Vop.__name__ = Vop.name  = name
   Vop.arity = arity
   Vop.code_format = code_format
   Vop.is_statement = True
+  vop.has_side_effects = has_side_effects
   return Vop
 
 class LogicOperation(VirtualOperation): pass
@@ -775,42 +794,42 @@ class UnaryLogicOperation(VirtualOperation): pass
 
 def Call_to_code(self, compiler):
   return '%s(%s)'%(self.args[0].to_code(compiler), ', '.join([x.to_code(compiler) for x in self.args[1:]]))  
-Call = vop('Call', -1, Call_to_code)
+Call = vop('Call', -1, Call_to_code, True)
 
-Attr = no_side_effects(vop('Attr', 2, '%s.%s'))
+Attr = vop('Attr', 2, '%s.%s', False)
 
 def AttrCall_to_code(self, compiler):
   return '%s(%s)'%(self.args[0].to_code(compiler), ', '.join([x.to_code(compiler) for x in self.args[1:]]))
-AttrCall = vop('AttrCall', -1, AttrCall_to_code)
+AttrCall = vop('AttrCall', -1, AttrCall_to_code, True)
 
-SetItem = vop2('SetItem', 3, '(%s)[%s] = %s')
+SetItem = vop2('SetItem', 3, '(%s)[%s] = %s', True)
 #def SetItem(item, key, value): return Assign(GetItem(item, key), value)
   
-Slice2 = vop('Slice2', 2, '%s:%s')
+Slice2 = vop('Slice2', 2, '%s:%s', False)
 
-Not = vop('Not', 1, "not %s")
+Not = vop('Not', 1, "not %s", False)
 
-Isinstance = vop('Isinstance', 2, "isinstance(%s, %s)")
+Isinstance = vop('Isinstance', 2, "isinstance(%s, %s)", False)
 
 empty_list = element([])
 
 empty_dict = element({})
 
-RaiseTypeError = vop2('RaiseTypeError', 1, 'raise %s')
+RaiseTypeError = vop2('RaiseTypeError', 1, 'raise %s', True)
 
-RaiseException = vop2('RaiseException', 1, 'raise %s')
+RaiseException = vop2('RaiseException', 1, 'raise %s', True)
 
 def QuoteItem_to_code(self, compiler):
   return '%s'%repr(self.args[0])
-QuoteItem = vop('QuoteItem', 1, QuoteItem_to_code)
+QuoteItem = vop('QuoteItem', 1, QuoteItem_to_code, False)
 
-UnquoteSplice = vop('UnquoteSplice', 1, "UnquoteSplice(%s)")
+UnquoteSplice = vop('UnquoteSplice', 1, "UnquoteSplice(%s)", False)
 
-MakeTuple = vop('MakeTuple', 1, 'tuple(%s)')
+MakeTuple = vop('MakeTuple', 1, 'tuple(%s)', False)
 
-Cle = vop('Cle', 3, '(%s) <= (%s) <= (%s)')
+Cle = vop('Cle', 3, '(%s) <= (%s) <= (%s)', False)
 
-Cge = vop('Cge', 3, '(%s) >= (%s) >= (%s)')
+Cge = vop('Cge', 3, '(%s) >= (%s) >= (%s)', False)
 
 failcont = SolverVar('fail_cont')
 
@@ -837,27 +856,27 @@ cut_or_cont = SolverVar('cut_or_cont')
 
 def SetCutOrCont(cont): return Assign(cut_or_cont, cont)
 
-IsLogicVar = vop('IsLogicVar', 1, 'isinstance(%s, LogicVar)')
+IsLogicVar = vop('IsLogicVar', 1, 'isinstance(%s, LogicVar)', False)
 
-SetBinding = vop2('SetBinding', 2, 'solver.bindings[%s] = %s')
+SetBinding = vop2('SetBinding', 2, 'solver.bindings[%s] = %s', True)
 
-DelBinding = vop2('DelBinding', 1, 'del solver.bindings[%s]')
+DelBinding = vop2('DelBinding', 1, 'del solver.bindings[%s]', True)
 
-GetValue = vop('GetValue', 1, 'getvalue(%s, solver.bindings')
+GetValue = vop('GetValue', 1, 'getvalue(%s, solver.bindings', False)
 
 parse_state = SolverVar('parse_state')
 def SetParseState(state): return Assign(parse_state, state)
 
-Optargs = vop('Optargs', 1, '*%s')
+Optargs = vop('Optargs', 1, '*%s', False)
 
-Continue = vop('Continue', 0, "continue\n")
+Continue = vop('Continue', 0, "continue\n", False)
 continue_ = Continue()
 
 def Prin_to_code(self, compiler):
   return 'print %s,'%', '.join([x.to_code(compiler) for x in self.args])
-Prin = vop2('Prin', -1, Prin_to_code)
+Prin = vop2('Prin', -1, Prin_to_code, True)
 
 def Print_to_code(self, compiler):
   return 'print %s'%', '.join([x.to_code(compiler) for x in self.args])
-PrintLn = vop2('PrintLn', -1, Print_to_code)
+PrintLn = vop2('PrintLn', -1, Print_to_code, True)
 

@@ -23,7 +23,7 @@ def no_side_effects(exp):
 unknown = -1
 
 class Element(base.Element):
-  have_side_effects = True
+  has_side_effects = True
   is_statement = False
   
   def tail_recursive_convert(self):
@@ -329,144 +329,6 @@ class Yield(Return):
   def __repr__(self):
     return 'il.Yield(%s)'%', '.join([repr(x) for x in self.args])
 
-def if_(test, then, else_):
-  return If(element(test), element(then), element(else_))
-  
-class If(Element):
-  def __init__(self, test, then, else_):
-    self.test, self.then, self.else_ = test, then, else_
-    if else_==pseudo_else: self.is_statement = True
-    
-  def find_assign_lefts(self):
-    return self.then.find_assign_lefts() | self.else_.find_assign_lefts()
-  
-  def analyse(self, compiler):  
-    self.test.analyse(compiler)
-    self.then.analyse(compiler)
-    self.else_.analyse(compiler)
-    
-  def code_size(self):
-    return 3 + self.test.code_size() + \
-           self.then.code_size() + \
-           self.else_.code_size()
-  
-  def side_effects(self):
-    return not self.test.side_effects() and\
-           not self.then.side_effects() and\
-           not self.else_.side_effects()
-    
-  def subst(self, bindings):  
-    return If(self.test.subst(bindings),
-              self.then.subst(bindings), 
-              self.else_.subst(bindings))
-    
-  def free_vars(self):
-    result = set()
-    result |= self.test.free_vars()
-    result |= self.then.free_vars()
-    result |= self.else_.free_vars()
-    return result
-  
-  def optimize(self, env, compiler):
-    test = self.test.optimize(env, compiler)
-    test_bool = test.bool()
-    if test_bool==True:
-      then = self.then.optimize(env, compiler)
-      if isinstance(then, If) and then.test==test: # (if a (if a b c) d)
-        then = then.then      
-      return then
-    elif test_bool==False:
-      else_ = self.else_.optimize(env, compiler)
-      if isinstance(else_, If) and else_.test==test: # (if a b (if a c d))
-        else_ = else_.else_      
-      return else_    
-    env_bindings = env.bindings
-    env.bindings = env_bindings.copy()
-    then = self.then.optimize(env, compiler)
-    then_env_bindings = env.bindings
-    env.bindings = env_bindings.copy()
-    else_ = self.else_.optimize(env, compiler)
-    else_env_bindings = env.bindings
-    for var, value in then_env_bindings.items():
-      if var in else_env_bindings \
-         and else_env_bindings[var]==then_env_bindings[var]:
-        then_env_bindings[var] = value
-    env.bindings = then_env_bindings
-    if isinstance(then, If) and then.test==test: # (if a (if a b c) d)
-      then = then.then      
-    if isinstance(else_, If) and else_.test==test: # (if a b (if a c d))
-      else_ = else_.else_      
-    return If(test, then, else_)
-
-  def insert_return_statement(self):
-    result = If(self.test, 
-              self.then.insert_return_statement(), 
-              self.else_.insert_return_statement())
-    result.is_statement = True
-    return result
-  
-  def replace_return_with_yield(self):
-    result = If(self.test, 
-              self.then.replace_return_with_yield(), 
-              self.else_.replace_return_with_yield())
-    result.is_statement = True
-    return result
-  
-  def pythonize(self, env, compiler):
-    test, has_statement1 = self.test.pythonize(env, compiler)
-    then, has_statement2 = self.then.pythonize(env, compiler)
-    else_, has_statement3 = self.else_.pythonize(env, compiler)
-    if_ = If(test[-1], begin(*then), begin(*else_))
-    if_.is_statement = if_.is_statement or has_statement2 or has_statement3
-    return test[:-1]+(if_,), has_statement1 or if_.is_statement
-    
-  def to_code(self, compiler):
-    if self.is_statement:
-      result = 'if %s: \n%s\n' % (self.test.to_code(compiler), 
-                                  compiler.indent(self.then.to_code(compiler)))
-      if self.else_!=pseudo_else:
-        result += 'else:\n%s\n'% compiler.indent(self.else_.to_code(compiler)) 
-      return result
-    else:
-      return '%s if %s else %s' % (self.then.to_code(compiler), 
-                                   self.test.to_code(compiler), 
-                                   self.else_.to_code(compiler))        
-  def __eq__(x, y):
-    return classeq(x, y) and x.test==y.test and x.then==y.then and x.else_==y.else_
-  
-  def __repr__(self):
-    if self.else_!=pseudo_else:
-      return 'il.If(%r, %r, %r)'%(self.test, self.then, self.else_)
-    else:
-      return 'il.If(%r, %r)'%(self.test, self.then)
-
-def if2(test, then):
-  return If(test, then, pseudo_else)
-
-class PseudoElse(Atom):
-  def __init__(self):
-    return
-  
-  def code_size(self):
-    return 0
-  
-  def insert_return_statement(self):
-    return self
-  
-  def replace_return_with_yield(self):
-    return self
-  
-  def to_code(self, compiler):
-    return ''
-  
-  def __eq__(x, y):
-    return classeq(x, y)
-  
-  def __repr__(self):
-    return 'il.pseudo_else'
-
-pseudo_else = PseudoElse()
-
 class Try(Element):
   def __init__(self, test, body):
     self.test, self.body = test, body
@@ -545,7 +407,8 @@ class Begin(Element):
   is_statement = True
   
   def __init__(self, statements):
-    self.statements = statements    
+    self.statements = statements  
+    self.local_vars = set()
     
   def find_assign_lefts(self):
     result = set()
@@ -579,7 +442,7 @@ class Begin(Element):
       if arg1 is not None:
         result.append(arg1)
     if result:
-      return begin(*([x for x in result[:-1] if not isinstance(arg, Atom)]+[result[-1]]))
+      return begin(*([x for x in result[:-1] if not isinstance(x, Atom)]+[result[-1]]))
     else: return pass_statement
   
   def remove(self, exp):
@@ -599,6 +462,10 @@ class Begin(Element):
     result = ()
     has_any_statement = False
     for exp in self.statements:
+      try:
+        if exp.removed()==True: 
+          continue
+      except: pass
       exps2, any_statement = exp.pythonize(env, compiler)
       has_any_statement = has_any_statement or any_statement
       result += exps2

@@ -48,7 +48,7 @@ def or_(*clauses):
     return or2(clauses[0], or_(*clauses[1:]))
   
 @special
-def or2(compiler, cont, clause1, clause2):
+def xxxor2(compiler, cont, clause1, clause2):
   v = compiler.new_var(v0)
   v1 = compiler.new_var(v0)
   fc = compiler.new_var(il.LocalVar('old_failcont'))
@@ -62,6 +62,18 @@ def or2(compiler, cont, clause1, clause2):
       il.SetFailCont(fc),
       clause2.cps_convert(compiler, or_cont))),
     clause1.cps_convert(compiler, or_cont))
+
+@special
+def or2(compiler, cont, clause1, clause2):
+  v = compiler.new_var(v0)
+  fc = compiler.new_var(il.LocalVar('old_failcont'))
+  return il.begin(
+    il.Assign(fc, il.failcont),
+    il.SetFailCont(il.clamda(v, 
+      il.SetFailCont(fc),
+      clause2.cps_convert(compiler, cont))),
+    clause1.cps_convert(compiler, cont))
+
 
 @special
 def first_p(compiler, cont, clause1, clause2):

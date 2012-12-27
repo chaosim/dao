@@ -44,6 +44,7 @@ class TestLowLevelPrimitive:
   def test_goto(self):
     eq_(eval(begin(set_text('abcde'), goto(1))), 'b')
     
+class TestParse:
   def test_unify_parse_text(self):
     x = LogicVar('x')
     eq_(eval(begin(set_text('abcde'), unify_parse_text(x), x)), 'abcde')
@@ -58,7 +59,7 @@ class TestLowLevelPrimitive:
     
   def test_parse3(self):
     eq_(eval(begin(set_text('aaa'), any(char('a')), eoi)), True)
-    #eq_(eval(begin(set_text('aaa'), any(char('a')))), True)
+    eq_(eval(begin(set_text('aaa'), any(char('a')))), True)
     
 
 class XTestParameterize:

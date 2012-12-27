@@ -49,13 +49,13 @@ def compile_to_python(exp, env, done=None):
   #exp = exp.ssa_convert(env, compiler)
   v = compiler.new_var(il.LocalVar('v'))
   solver_prelude = il.begin(
-    il.Assign(il.parse_state, il.NONE),
+    #il.Assign(il.parse_state, il.NONE),
     il.Assign(il.failcont, 
         il.clamda(v, 
               il.RaiseException(il.Call(il.Symbol("NoSolution"), v)))),
-    il.Assign(il.cut_cont,il.failcont),
-    il.Assign(il.cut_or_cont,il.failcont),
-    il.Assign(il.catch_cont_map, il.empty_dict),
+    #il.Assign(il.cut_cont,il.failcont),
+    #il.Assign(il.cut_or_cont,il.failcont),
+    #il.Assign(il.catch_cont_map, il.empty_dict),
     )
   exp = il.begin(solver_prelude, exp)
   exp.local_vars = set()
@@ -76,55 +76,15 @@ def compile_to_python(exp, env, done=None):
 
 '''
 il.begin(
-  il.Assign(old_parse_state, il.parse_state), 
-  il.Assign(il.parse_state, il.Tuple((aaa, 0))), 
-  il.Assign(fc11, il.fail_cont), 
-  il.Assign(il.fail_cont, il.Clamda(v6, il.begin(
-    il.Assign(il.fail_cont, fc11), 
-    il.Assign(il.parse_state, old_parse_state), 
-    fc11(False)))), 
-  il.CFunction(any_cont, v4, il.begin(
-    il.Assign(old_fail_cont, il.fail_cont), 
-    il.Assign(il.fail_cont, il.Clamda(v4, il.begin(
-      il.Assign(il.fail_cont, old_fail_cont), 
-      il.If(il.Ge(il.GetItem(il.parse_state, 1), il.Len(il.GetItem(il.parse_state, 0))), 
-            True, 
-            il.fail_cont(False))))), 
-    il.AssignFromList((text, pos), il.parse_state), 
-    il.If(il.Ge(pos, il.Len(text)), 
-          il.Return(il.fail_cont(None))), 
-    il.If(il.Eq(a, il.GetItem(text, pos)), 
-      il.begin(
-        il.Assign(fc1, il.fail_cont), 
-        il.Assign(il.fail_cont, il.Clamda(v5, il.begin(
-          il.Assign(il.fail_cont, fc1), 
-          il.Assign(il.parse_state, il.Tuple((text, pos))), 
-          fc1(False)))), 
-        il.Assign(il.parse_state, il.Tuple((text, il.add(pos, 1)))), 
-        il.Return(any_cont(il.GetItem(text, pos)))), 
-      il.Return(il.fail_cont(None)))))(True))
-'''
-
-'''
-let([(i,3)], 
-  block(a, assign(i, sub(i, 1)), 
-             if_(eq(i, 0), exit_block(a, 1)),
-             continue_block(a)), i)
-             --------------->
-il.begin(
-  il.Assign(i, 3), 
-  il.CFunction(block_a, v4, il.begin(
-    il.Assign(i, il.sub(i, 1)), 
-    il.If(il.Eq(i, 0), 
-      i, 
-      block_a(None))))(None))
-=========================================
-let([(f, lamda((), exit_block(foo,1)))], 
-    mul(2, block(foo, f())))
----->
-                            
-il.CFunction(block_foo, v1, il.begin(
-  il.Assign(f, il.Lamda((cont), 1)), 
-  il.CFunction(block_foo1, v6, 
-               f(il.Clamda(a1, il.mul(2, a1))))(None)))(None)
+  il.Assign(il.fail_cont, il.Clamda(v8, il.RaiseException(il.Call(NoSolution, v8)))), 
+  il.Assign(old_failcont, il.fail_cont), 
+  il.Assign(il.fail_cont, 
+            il.Clamda(v2, il.begin(il.Assign(il.fail_cont, old_failcont), v2))), 
+  il.Assign(old_failcont1, il.fail_cont), 
+  il.Assign(il.fail_cont, il.Clamda(v3, il.begin(
+    il.Assign(il.fail_cont, old_failcont1), 
+    il.Assign(v4, il.Prin(2)), 
+    il.fail_cont(None)))), 
+  il.Assign(v6, il.Prin(1)), 
+  il.fail_cont(None))
 '''

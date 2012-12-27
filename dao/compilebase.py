@@ -66,6 +66,7 @@ class Compiler:
     self.recursive_call_path = []
     
     self.lamda_stack = []
+    self.recusive_vars_stack = [set()]
     
     # for code generation
     self.language = language # object language
