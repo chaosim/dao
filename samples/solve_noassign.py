@@ -255,3 +255,31 @@ def any(goal):
     return any_fun2
   return any_fun
 
+def lazy_any(goal):
+  def lazy_any_fun(cont):
+    def lazy_any_fun2(v, fc, bindings, parse_state):
+      print 'lazy_any'
+      def lazy_any_fcont(v, fc1, bindings1, parse_state1):
+        print 'lazy_any_fcont'
+        return goal(lazy_any_cont)(v, fc, bindings1, parse_state1)    
+      def lazy_any_cont(v, fc1, bindings1, parse_state1):
+        print 'lazy_any_cont'
+        return cont(v, lazy_any_fcont, bindings1, parse_state1)    
+      return lazy_any_cont(None, fc, bindings, parse_state)
+    return lazy_any_fun2
+  return lazy_any_fun
+
+def greedy_any(goal):
+  def greedy_any_fun(cont):
+    def greedy_any_fun2(v, fc, bindings, parse_state):
+      print 'greedy_any'
+      def greedy_any_fcont(v, fc1, bindings1, parse_state1):
+        print 'greedy_any_fcont'
+        return cont(v, fc, bindings1, parse_state1)    
+      def greedy_any_cont(v, fc1, bindings1, parse_state1):
+        print 'greedy_any_cont'
+        return goal(greedy_any_cont)(v, greedy_any_fcont, bindings1, parse_state1)    
+      return greedy_any_cont(None, fc, bindings, parse_state)
+    return greedy_any_fun2
+  return greedy_any_fun
+

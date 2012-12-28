@@ -107,5 +107,54 @@ class TestAny:
     solve(begin(set_text('abc'), findall(begin(any(char(_)), char(_), char(_)))))
     
   def test7(self):
-    solve(begin(set_text('abcdefg'), findall(begin(any(char(_)), char(_), char(_), eoi))))
+    solve(begin(set_text('abcd'), findall(begin(any(char(_)), char(_), char(_), eoi))))
   
+class TestLazyAny:
+  def test0(self):
+    solve(begin(set_text('ab'), lazy_any(char(_))))
+    
+  def test1(self):
+    solve(begin(set_text('ab'), lazy_any(char(_)), eoi))
+    
+  def test2(self):
+    solve(begin(set_text('abc'), findall(lazy_any(char(_)))))
+    
+  def test3(self):
+    solve(begin(set_text('ab'), lazy_any(char(_)), char(_)))
+    
+  def test4(self):
+    solve(begin(set_text('abc'), lazy_any(char(_)), char(_), char(_)))
+    
+  def test5(self):
+    solve(begin(set_text('abc'), lazy_any(char( _)), char(_), char(_), eoi))
+  
+  def test6(self):
+    solve(begin(set_text('abc'), findall(begin(lazy_any(char(_)), char(_), char(_)))))
+    
+  def test7(self):
+    solve(begin(set_text('abcd'), findall(begin(lazy_any(char(_)), char(_), char(_), eoi))))
+
+class TestGreedyAny:
+  def test0(self):
+    solve(begin(set_text('ab'), greedy_any(char(_))))
+    
+  def test1(self):
+    solve(begin(set_text('ab'), greedy_any(char(_)), eoi))
+    
+  def test2(self):
+    solve(begin(set_text('abc'), findall(greedy_any(char(_)))))
+    
+  def test3(self):
+    solve(begin(set_text('ab'), greedy_any(char(_)), char(_)))
+    
+  def test4(self):
+    solve(begin(set_text('abc'), greedy_any(char(_)), char(_), char(_)))
+    
+  def test5(self):
+    solve(begin(set_text('abc'), greedy_any(char( _)), char(_), char(_), eoi))
+  
+  def test6(self):
+    solve(begin(set_text('abc'), findall(begin(greedy_any(char(_)), char(_), char(_)))))
+    
+  def test7(self):
+    solve(begin(set_text('abcd'), findall(begin(greedy_any(char(_)), char(_), char(_), eoi))))
