@@ -46,16 +46,15 @@ def compile_to_python(exp, env, done=None):
   exp = il.element(exp)
   exp = exp.alpha_convert(env, compiler)
   exp = exp.cps_convert(compiler, done)
-  #exp = exp.ssa_convert(env, compiler)
   v = compiler.new_var(il.LocalVar('v'))
   solver_prelude = il.begin(
-    #il.Assign(il.parse_state, il.NONE),
+    il.Assign(il.parse_state, il.NONE),
     il.Assign(il.failcont, 
         il.clamda(v, 
               il.RaiseException(il.Call(il.Symbol("NoSolution"), v)))),
-    #il.Assign(il.cut_cont,il.failcont),
-    #il.Assign(il.cut_or_cont,il.failcont),
-    #il.Assign(il.catch_cont_map, il.empty_dict),
+    il.Assign(il.cut_cont,il.failcont),
+    il.Assign(il.cut_or_cont,il.failcont),
+    il.Assign(il.catch_cont_map, il.empty_dict),
     )
   exp = il.begin(solver_prelude, exp)
   exp.local_vars = set()
@@ -76,15 +75,29 @@ def compile_to_python(exp, env, done=None):
 
 '''
 il.begin(
-  il.Assign(il.fail_cont, il.Clamda(v8, il.RaiseException(il.Call(NoSolution, v8)))), 
-  il.Assign(old_failcont, il.fail_cont), 
-  il.Assign(il.fail_cont, 
-            il.Clamda(v2, il.begin(il.Assign(il.fail_cont, old_failcont), v2))), 
-  il.Assign(old_failcont1, il.fail_cont), 
-  il.Assign(il.fail_cont, il.Clamda(v3, il.begin(
-    il.Assign(il.fail_cont, old_failcont1), 
-    il.Assign(v4, il.Prin(2)), 
-    il.fail_cont(None)))), 
-  il.Assign(v6, il.Prin(1)), 
-  il.fail_cont(None))
+  il.Assign(old_parse_state, il.parse_state), 
+  il.Assign(il.parse_state, il.Tuple((aaa, 0))), 
+  il.Assign(fc11, il.fail_cont), 
+  il.Assign(il.fail_cont, il.Clamda(v5, il.begin(
+    il.Assign(il.fail_cont, fc11), 
+    il.Assign(il.parse_state, old_parse_state), 
+    fc11(False)))), 
+  il.CFunction(any_cont, v3, il.begin(
+    il.Assign(old_fail_cont, il.fail_cont), 
+    il.Assign(il.fail_cont, il.Clamda(v3, il.begin(
+      il.Assign(il.fail_cont, old_fail_cont), 
+      v3))), 
+    il.AssignFromList((text, pos), il.parse_state), 
+    il.If(il.Ge(pos, il.Len(text)), 
+          il.fail_cont(None), 
+          il.If(il.Eq(a, il.GetItem(text, pos)), 
+                il.begin(
+                  il.Assign(fc1, il.fail_cont), 
+                  il.Assign(il.fail_cont, il.Clamda(v4, il.begin(
+                    il.Assign(il.fail_cont, fc1), 
+                    il.Assign(il.parse_state, il.Tuple((text, pos))), 
+                    fc1(False)))), 
+                  il.Assign(il.parse_state, il.Tuple((text, il.add(pos, 1)))), 
+                  any_cont(il.GetItem(text, pos))), 
+                il.fail_cont(None)))))(True))
 '''

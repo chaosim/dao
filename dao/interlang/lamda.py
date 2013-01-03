@@ -50,6 +50,10 @@ class Lamda(Element):
       except: pass
       env[var] = VarAssignBox(var)
     body = self.body.optimize(env, compiler)
+    for var in self.free_vars():
+      try:
+        env[var]._removed = False
+      except: pass
     result = self.new(self.params, body)
     result.local_vars = self.local_vars
     return result
@@ -246,6 +250,10 @@ class Function(Lamda):
       except: pass
       env[var] = VarAssignBox(var)
     body = self.body.optimize(env, compiler)
+    for var in self.free_vars():
+      try:
+        env[var]._removed = False
+      except: pass
     result = self.new(self.params, body)
     result.local_vars = self.local_vars
     return result
@@ -303,7 +311,16 @@ class CFunction(Function):
         #self.recursive_vars.add(var)
       except:
         pass
-    body = self.body.subst({self.params[0]:args[0]}) .optimize(new_env, compiler)
+    body = self.body.subst({self.params[0]:args[0]}) 
+    body = body.optimize(new_env, compiler)
+    for var in self.free_vars():
+      try:
+        assign = new_env[var]
+        #new_env[var] = VarAssignBox(var)
+        #self.recursive_vars.add(var)
+      except:
+        continue
+      assign.dont_remove()
     result = CFunction(self.name, self.params[0], body)(NONE)
     #for var in new_env.bindings:
       #env[var]._removed = False
@@ -766,9 +783,6 @@ class Assign(Element):
   def __repr__(self):
     return 'il.Assign(%r, %r)'%(self.var, self.exp)
 
-def if_(test, then, else_):
-  return If(element(test), element(then), element(else_))
-
 class ValueAssignBox:
   def __init__(self, value):
     self.right_value = value
@@ -863,6 +877,9 @@ class GroupAssignBox:
   def __repr__(self):
     return 'GB(%s)'%self.items
       
+def if_(test, then, else_):
+  return If(element(test), element(then), element(else_))
+
 class If(Element):
   def __init__(self, test, then, else_):
     self.test, self.then, self.else_ = test, then, else_
@@ -919,8 +936,10 @@ class If(Element):
       else_bindings[var] = ElseAssignBox(then_box)
     env.bindings = then_bindings
     then = self.then.optimize(env, compiler)
+    then_bindings = env.bindings
     env.bindings = else_bindings
     else_ = self.else_.optimize(env, compiler)
+    else_bindings = env.bindings
     env.bindings = {}
     for var, value in then_bindings.items():
       if var in else_bindings:
@@ -933,12 +952,12 @@ class If(Element):
               env.bindings[var] = GroupAssignBox(var, value.item, else_value)
           else:
             if isinstance(else_value, ElseAssignBox) and else_value.if_exp is self:
-              env.bindings[var] = GroupAssignBox(var, value, else_value.item)
+              env.bindings[var] = GroupAssignBox(var, value, else_value.item.item)
             else:
               env.bindings[var] = GroupAssignBox(var, value, else_value)
         else:
           if isinstance(else_value, ElseAssignBox) and else_value.if_exp is self:
-            env.bindings[var] = GroupAssignBox(var, value, else_value.item)
+            env.bindings[var] = GroupAssignBox(var, value, else_value.item.item)
           else:
             env.bindings[var] = GroupAssignBox(var, value, else_value)
         del else_bindings[var]

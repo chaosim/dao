@@ -55,7 +55,7 @@ class TestParse:
     
   def test_parse2(self):
     eq_(eval(begin(set_text('a'), char('a'), eoi)), True)
-    #assert_raises(NoSolution, eval, begin(set_text('ab'), char('a'), eoi))
+    assert_raises(NoSolution, eval, begin(set_text('ab'), char('a'), eoi))
     
   def test_parse3(self):
     eq_(eval(begin(set_text('aaa'), any(char('a')), eoi)), True)
