@@ -95,19 +95,21 @@ class Testterminal:
     
   def testnullword3(self):
     rule = and_(char('a'), nullword, char('b'))
-    #eq_(eval(parse_text(rule, 'ab')), 'b') # passed
+    eq_(eval(parse_text(rule, 'ab')), 'b') # passed
     assert_raises(NoSolution, eval, parse_text(rule, 'a b'))
-    #assert_raises(NoSolution, eval, parse_text(rule, 'a'))
+    assert_raises(NoSolution, eval, parse_text(rule, 'a'))
     
   def test_word(self):
     x, y, z = LogicVar('y'), LogicVar('x'), LogicVar('z')
     eq_(eval(begin(parse_text(word(x), 'ab'), x)), 'ab')
     eq_(eval(begin(parse_text(word('ab'), 'ab'))), 'ab')
      
-  def test_identifier(self):
+  def test_identifier1(self):
+    eq_(eval(begin(parse_text(identifier('_a1b_23'), '_a1b_23'))), '_a1b_23')
+    
+  def test_identifier2(self):
     x = LogicVar('x')
     eq_(eval(begin(parse_text(identifier(x), '_a1b_23'), x)), '_a1b_23')
-    #eq_(eval(begin(parse_text(identifier('_a1b_23'), '_a1b_23'))), '_a1b_23')
      
   def test_number(self):
     x, y, z = LogicVar('y'), LogicVar('x'), LogicVar('z')
@@ -117,7 +119,9 @@ class Testterminal:
     
   def test_literal(self):
     eq_(eval(parse_text(literal('if'), 'if')), 'if')
-    #assert_raises(NoSolution, eval, parse_text(literal('if'), 'ssf'))
+    
+  def test_literal2(self):
+    assert_raises(NoSolution, eval, parse_text(literal('if'), 'ssf'))
 
   def xtest_string(self):
     x ,y  = Var('x'), Var('y')

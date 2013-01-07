@@ -70,54 +70,52 @@ def word(compiler, cont, arg):
       il.Assign(length, il.Len(text)),
       il.If(il.Ge(pos, length),
         il.failcont(FALSE),
-        il.Begin((
           il.If(il.And(il.Not(il.Cle(il.String('a'), il.GetItem(text, pos), il.String('z'))), 
                        il.Not(il.Cle(il.String('A'), il.GetItem(text, pos), il.String('Z')))), 
             il.failcont(FALSE),
-          il.Begin((
-            il.Assign(p, il.add(pos, il.Integer(1))),
-            il.while_(il.And(il.Lt(p, length), 
-                            il.Or(il.Cle(il.String('a'), il.GetItem(text, p), il.String('z')), 
-                                  il.Cle(il.String('A'),il.GetItem(text, p),il.String('Z')))), 
-                     il.AddAssign(p, il.Integer(1))),
-            il.Assign(x, il.Deref(arg)),
-            il.If(il.IsLogicVar(x),
-                  il.begin(il.SetParseState(il.Tuple(text, p)),
-                                 il.SetBinding(x, il.GetItem(text, il.Slice2(pos, p))),
-                                 il.append_failcont(compiler, 
-                                    il.SetParseState(il.Tuple(text, pos)),
-                                    il.DelBinding(x)),
-                                 cont(il.GetItem(text, pos))),
-                  il.If(il.Isinstance(x, il.String('str')),
-                        il.If(il.Eq(x, il.GetItem(text, il.Slice2(pos, p))),
-                              il.begin(il.append_failcont(compiler, 
-                                il.SetParseState(il.Tuple(text, pos))),
-                                il.SetParseState(il.Tuple(text, p)),
-                                cont(il.GetItem(text, pos))),
-                              il.failcont(NONE)),
-                        il.RaiseTypeError(x)))))))))))
+            il.Begin((
+              il.Assign(p, il.add(pos, il.Integer(1))),
+              il.while_(il.And(il.Lt(p, length), 
+                              il.Or(il.Cle(il.String('a'), il.GetItem(text, p), il.String('z')), 
+                                    il.Cle(il.String('A'),il.GetItem(text, p),il.String('Z')))), 
+                       il.AddAssign(p, il.Integer(1))),
+              il.Assign(x, il.Deref(arg)),
+              il.If(il.IsLogicVar(x),
+                    il.begin(il.SetParseState(il.Tuple(text, p)),
+                                   il.SetBinding(x, il.GetItem(text, il.Slice2(pos, p))),
+                                   il.append_failcont(compiler, 
+                                      il.SetParseState(il.Tuple(text, pos)),
+                                      il.DelBinding(x)),
+                                   cont(il.GetItem(text, pos))),
+                    il.If(il.Isinstance(x, il.String('str')),
+                          il.If(il.Eq(x, il.GetItem(text, il.Slice2(pos, p))),
+                                il.begin(il.append_failcont(compiler, 
+                                  il.SetParseState(il.Tuple(text, pos))),
+                                  il.SetParseState(il.Tuple(text, p)),
+                                  cont(il.GetItem(text, pos))),
+                                il.failcont(NONE)),
+                          il.RaiseTypeError(x)))))))))
   elif isinstance(arg, il.String):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
       il.If(il.Ge(pos, length), 
         il.failcont(FALSE),
+        il.If(il.And(il.Not(il.Cle(il.String('a'), il.GetItem(text, pos), il.String('z'))), 
+                     il.Not(il.Cle(il.String('A'), il.GetItem(text, pos), il.String('Z')))), 
+          il.failcont(FALSE),
         il.Begin((
-          il.If(il.And(il.Not(il.Cle(il.String('a'), il.GetItem(text, pos), il.String('z'))), 
-                       il.Not(il.Cle(il.String('A'), il.GetItem(text, pos), il.String('Z')))), 
-            il.failcont(FALSE),
-          il.Begin((
-            il.Assign(p, il.add(pos, il.Integer(1))),
-            il.while_(il.And(il.Lt(p, length), 
-                            il.Or(il.Cle(il.String('a'), il.GetItem(text, p), il.String('z')), 
-                                  il.Cle(il.String('A'),il.GetItem(text, p), il.String('Z')))), 
-                    il.AddAssign(p, il.Integer(1))),
-            il.If(il.Eq(arg, il.GetItem(text, il.Slice2(pos, p))),
-                  il.begin(il.append_failcont(compiler, 
-                    il.SetParseState(il.Tuple(text, pos))),
-                    il.SetParseState(il.Tuple(text, p)),
-                    cont(arg)),
-                  il.failcont(NONE))))))))))
+          il.Assign(p, il.add(pos, il.Integer(1))),
+          il.while_(il.And(il.Lt(p, length), 
+                          il.Or(il.Cle(il.String('a'), il.GetItem(text, p), il.String('z')), 
+                                il.Cle(il.String('A'),il.GetItem(text, p), il.String('Z')))), 
+                  il.AddAssign(p, il.Integer(1))),
+          il.If(il.Eq(arg, il.GetItem(text, il.Slice2(pos, p))),
+                il.begin(il.append_failcont(compiler, 
+                  il.SetParseState(il.Tuple(text, pos))),
+                  il.SetParseState(il.Tuple(text, p)),
+                  cont(arg)),
+                il.failcont(NONE))))))))
   else:
     raise CompileTypeError
   
@@ -136,7 +134,6 @@ def identifier(compiler, cont, arg):
       il.Assign(length, il.Len(text)),
       il.If(il.Ge(pos, length), 
         il.failcont(FALSE),
-        il.Begin((
           il.If(il.and_(il.Ne(il.GetItem(text, pos), il.String('_')),
                          il.Not(il.Cle(il.String('a'), il.GetItem(text, pos), il.String('z'))), 
                          il.Not(il.Cle(il.String('A'), il.GetItem(text, pos), il.String('Z')))), 
@@ -164,15 +161,14 @@ def identifier(compiler, cont, arg):
                                   il.SetParseState(il.Tuple(text, p)),
                                   cont(il.GetItem(text, pos))),
                                 il.failcont(NONE)),
-                          il.RaiseTypeError(x)))))))))))
+                          il.RaiseTypeError(x)))))))))
   elif isinstance(arg, il.String):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
       il.If(il.Ge(pos, length), 
-        il.failcont(FALSE)),
-        il.Begin((
-          il.If(il.and_(il.Ne(il.GetItem(text, pos), il.String('_')),
+        il.failcont(FALSE),
+        il.If(il.and_(il.Ne(il.GetItem(text, pos), il.String('_')),
                          il.Not(il.Cle(il.String('a'), il.GetItem(text, pos), il.String('z'))), 
                          il.Not(il.Cle(il.String('A'), il.GetItem(text, pos), il.String('Z')))), 
             il.failcont(FALSE),
@@ -189,7 +185,7 @@ def identifier(compiler, cont, arg):
                       il.SetParseState(il.Tuple(text, pos))),
                       il.SetParseState(il.Tuple(text, p)),
                       cont(arg)),
-                    il.failcont(NONE)))))))))
+                    il.failcont(NONE))))))))
   else:
     raise CompileTypeError(arg)
   
@@ -208,37 +204,35 @@ def integer(compiler, cont, arg):
       il.Assign(length, il.Len(text)),
       il.If(il.Ge(pos, length), 
         il.failcont(FALSE),
-        il.Begin((
           il.If(il.Not(il.Cle(il.String('0'), il.GetItem(text, pos), il.String('9'))),
             il.failcont(FALSE),
-      il.Begin((
-        il.Assign(p, il.add(pos, il.Integer(1))),
-        il.while_(il.And(il.Lt(p, length), 
-                        il.Cle(il.String('0'),il.GetItem(text, p),il.String('9'))), 
-                 il.AddAssign(p, il.Integer(1))),
-        il.Assign(x, il.Deref(arg)),
-        il.If(il.IsLogicVar(x),
-              il.begin(il.SetParseState(il.Tuple(text, p)),
-                             il.SetBinding(x, il.GetItem(text, il.Slice2(pos, p))),
-                             il.append_failcont(compiler, 
-                                il.SetParseState(il.Tuple(text, pos)),
-                                il.DelBinding(x)),
-                             cont(il.GetItem(text, pos))),
-              il.If(il.Isinstance(x, il.String('str')),
-                    il.If(il.Eq(x, il.GetItem(text, il.Slice2(pos, p))),
-                          il.begin(il.append_failcont(compiler, 
-                            il.SetParseState(il.Tuple(text, pos))),
-                            il.SetParseState(il.Tuple(text, p)),
-                            cont(il.GetItem(text, pos))),
-                          il.failcont(NONE)),
-                    il.RaiseTypeError(x)))))))))))
+            il.Begin((
+              il.Assign(p, il.add(pos, il.Integer(1))),
+              il.while_(il.And(il.Lt(p, length), 
+                              il.Cle(il.String('0'),il.GetItem(text, p),il.String('9'))), 
+                       il.AddAssign(p, il.Integer(1))),
+              il.Assign(x, il.Deref(arg)),
+              il.If(il.IsLogicVar(x),
+                    il.begin(il.SetParseState(il.Tuple(text, p)),
+                                   il.SetBinding(x, il.GetItem(text, il.Slice2(pos, p))),
+                                   il.append_failcont(compiler, 
+                                      il.SetParseState(il.Tuple(text, pos)),
+                                      il.DelBinding(x)),
+                                   cont(il.GetItem(text, pos))),
+                    il.If(il.Isinstance(x, il.String('str')),
+                          il.If(il.Eq(x, il.GetItem(text, il.Slice2(pos, p))),
+                                il.begin(il.append_failcont(compiler, 
+                                  il.SetParseState(il.Tuple(text, pos))),
+                                  il.SetParseState(il.Tuple(text, p)),
+                                  cont(il.GetItem(text, pos))),
+                                il.failcont(NONE)),
+                          il.RaiseTypeError(x)))))))))
   elif isinstance(arg, il.String):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
       il.If(il.Ge(pos, length), 
         il.failcont(FALSE),
-        il.Begin((
           il.If(il.Not(il.Cle(il.String('0'), il.GetItem(text, pos), il.String('9'))),
             il.failcont(FALSE),
             il.Begin((
@@ -251,7 +245,7 @@ def integer(compiler, cont, arg):
                       il.SetParseState(il.Tuple(text, pos))),
                       il.SetParseState(il.Tuple(text, p)),
                       cont(arg)),
-                    il.failcont(NONE))))))))))
+                    il.failcont(NONE))))))))
   else:
     raise CompileTypeError
   
@@ -261,16 +255,18 @@ def literal(compiler, cont, arg):
   text = compiler.new_var(il.LocalVar('text'))
   pos = compiler.new_var(il.LocalVar('pos'))
   p = compiler.new_var(il.LocalVar('p'))
+  i = compiler.new_var(il.LocalVar('i'))
   x = compiler.new_var(il.LocalVar('x'))
   char = compiler.new_var(il.LocalVar('char'))
   length = compiler.new_var(il.LocalVar('length'))  
+  length2 = compiler.new_var(il.LocalVar('length2'))  
   if isinstance(arg, Var):
     return il.Begin((
       il.Assign(x, il.Deref(arg)),
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
       il.Assign(length, il.Len(x)),
-      il.Assign(i, 0),
+      il.Assign(i, il.Integer(0)),
       il.Assign(p, pos),
       il.while_(il.and_(il.Lt(i, length2), il.Lt(p, length), il.Eq(il.GetItem(text, p), il.GetItem(x, i))), 
         il.AddAssign(p, il.Integer(1))),
@@ -284,11 +280,13 @@ def literal(compiler, cont, arg):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
-      il.Assign(length, il.Len(x)),
-      il.Assign(i, 0),
+      il.Assign(length2, il.Len(arg)),
+      il.Assign(i, il.Integer(0)),
       il.Assign(p, pos),
-      il.while_(il.and_(il.Lt(i, length2), il.Lt(p, length), il.Eq(il.GetItem(text, p), il.GetItem(x, i))), 
-        il.AddAssign(p, il.Integer(1))),
+      il.while_(il.and_(il.Lt(i, length2), il.Lt(p, length), il.Eq(il.GetItem(text, p), il.GetItem(arg, i))), 
+        il.AddAssign(p, il.Integer(1)),
+        il.AddAssign(i, il.Integer(1)),
+        ),
       il.If(il.Lt(i, length2), 
         il.failcont(NONE),
         il.begin(il.append_failcont(compiler, 

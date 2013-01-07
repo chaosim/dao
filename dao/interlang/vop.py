@@ -6,7 +6,7 @@ from dao.compilebase import MAX_EXTEND_CODE_SIZE
 from dao.compilebase import VariableNotBound, CompileTypeError
 from element import Element, Begin, begin, Return, Yield#, element
 from lamda import Apply, optimize_args, clamda, Lamda, MacroLamda, RulesDict
-from lamda import Var, LocalVar, SolverVar, LogicVar, Assign, ExpressionWithCode, ValueAssignBox
+from lamda import Var, LocalVar, SolverVar, LogicVar, Assign, ExpressionWithCode#, ValueAssignBox
 from element import pythonize_args, FALSE, NONE, Symbol, no_side_effects, unknown
 from element import Atom, element, Integer, Bool, MacroArgs, Tuple, List
 
@@ -15,9 +15,6 @@ class BinaryOperation(Element):
     self.name, self.operator = name, operator
     self.operator_function = operator_function
     self.has_side_effects = has_side_effects
-  
-  def alpha_convert(self, env, compiler):
-    return self
   
   def analyse(self, compiler):  
     return self
@@ -81,10 +78,6 @@ class BinaryOperationApply(Apply):
   def __init__(self, caller, args):
     self.caller, self.args = caller, args
 
-  def alpha_convert(self, env, compiler):
-    return self.__class__(self.caller.alpha_convert(env, compiler), 
-                 tuple(arg.alpha_convert(env, compiler) for arg in self.args))
-  
   def analyse(self, compiler):  
     compiler.called_count[self.caller] = compiler.called_count.setdefault(self.caller, 0)+1
     self.caller.analyse(compiler)
@@ -151,9 +144,6 @@ class VirtualOperation(Element):
   def __call__(self, *args):
     return Apply(self, args)
 
-  def alpha_convert(self, env, compiler):
-    return self.__class__(*tuple(arg.alpha_convert(env, compiler) for arg in self.args))
-  
   def find_assign_lefts(self):
     return set()
   
@@ -538,62 +528,6 @@ class ListAppend(Element):
   def __repr__(self):
     return 'il.ListAppend(%r, %r)'%(self.container, self.value)
 
-class AssignFromList(Element):
-  is_statement = True
-  
-  def __init__(self, *args):
-    self.vars = args[:-1]
-    self.value = args[-1]
-  
-  def side_effects(self):
-    return True
-    
-  def analyse(self, compiler):
-    for var in self.vars:
-      var.analyse(compiler)
-    self.value.analyse(compiler)
-    
-  def subst(self, bindings):  
-    return AssignFromList(*(tuple(var.subst(bindings) for var in self.vars)+(self.value.subst(bindings),)))
-  
-  def code_size(self):
-    return 1  
-  
-  def free_vars(self):
-    result = set(self.vars)
-    result |= self.value.free_vars()
-    return result
-  
-  def optimize(self, env, compiler):
-    value = self.value.optimize(env, compiler)
-    if isinstance(value, Tuple) or isinstance(value, List):
-      if len(value.value)!=len(self.vars):
-        raise DaoCompileError
-      for var, v in zip(self.vars, value.value):
-        env[var] = ValueAssignBox(v)
-      return
-    return AssignFromList(*(self.vars+(value,)))
-  
-  def pythonize(self, env, compiler):
-    value_exps, has_statement1 = self.value.pythonize(env, compiler)
-    return value_exps[:-1]+(AssignFromList(*(self.vars+(value_exps[-1],))),), True
-  
-  def insert_return_statement(self):
-    return Return(self)
-  
-  def replace_return_with_yield(self):
-    return self
-  
-  def bool(self):
-    return False
-  
-  def to_code(self, compiler):
-    return "%s = %s" % (', '.join([x.to_code(compiler) for x in self.vars]), 
-                      self.value.to_code(compiler))
-  
-  def __repr__(self):
-    return 'il.AssignFromList(%r, %r)'%(self.vars, self.value)
-
 catch_cont_map = SolverVar('catch_cont_map')
     
 class PushCatchCont(Element):
@@ -626,7 +560,7 @@ class PushCatchCont(Element):
     tag = self.tag.optimize(env, compiler)
     cont = self.cont.optimize(env, compiler)
     if isinstance(tag, Atom) and env[catch_cont_map] is not None:
-      env[catch_cont_map].right_value.value.setdefault(tag, []).append(cont)
+      env[catch_cont_map].right_value().value.setdefault(tag, []).append(cont)
       return 
     if env[catch_cont_map] is not None:
       result = Begin((Assign(catch_cont_map, env[catch_cont_map]), 
@@ -684,10 +618,10 @@ class FindCatchCont(Element):
     tag = self.tag.optimize(env, compiler)
     if isinstance(tag, Atom) and env[catch_cont_map] is not None:
       try:
-        cont_stack = env[catch_cont_map].right_value.value[tag]
+        cont_stack = env[catch_cont_map].right_value().value[tag]
         cont = cont_stack.pop()
         if not cont_stack:
-          del env[catch_cont_map].right_value.value[tag]
+          del env[catch_cont_map].right_value().value[tag]
         return cont
       except:
         return RaiseExcept(Symbol('DaoUncaughtError'))

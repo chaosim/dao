@@ -5,7 +5,7 @@ from dao.compilebase import VariableNotBound, CompileTypeError
 
 from element import pythonize_args, optimize_args
 from element import Element, element, begin, Return, Begin
-from element import NONE, unknown, make_tuple, Tuple, Atom
+from element import NONE, unknown, make_tuple, Tuple, Atom, Tuple, List
 
 def lamda(params, *body):
   body = tuple(element(x) for x in body)
@@ -584,15 +584,12 @@ class Var(Element):
     try: return bindings[self]
     except: return self
   
-  def xxxssa_convert(self, env, compiler):
-    return env[self]
-  
   def optimize(self, env, compiler):
     try: 
       assign = env[self]
     except: 
       return self
-    return assign.right_value
+    return assign.right_value()
       
   def replace_assign(self, compiler):
     try:
@@ -685,12 +682,156 @@ class LogicVar(Element):
   def __repr__(self):
     return "LogicVar(%s)"%self.name 
 
+class XValueAssignBox:
+  def __init__(self, value):
+    self._right_value = value
+    self._removed = True
+    self.items = set()
+    self.dependency = set()
+  
+  def right_value(self):
+    return self._right_value
+  
+class VarAssignBox:
+  def __init__(self, var):
+    self.var = var
+    self._removed = unknown
+    self.items = set([self])
+    self.dependency = set()
+  
+  def right_value(self):
+    return self.var
+  
+  def remove(self):
+    self._removed = True
+  
+  def dont_remove(self):
+    self._removed = False
+    
+  def removed(self): 
+    return self._removed
+    
+  def __repr__(self):
+    return 'VAB(%r)'%self.right_value()
+  
+class LoopAssignBox:
+  def __init__(self, assign, loop_exp):
+    self.loop_exp = loop_exp
+    self.assign = assign
+    self.var = assign.var
+    self._removed = unknown
+    self.items = set([self])
+    self.dependency = set()
+  
+  def free_vars(self):
+    return self.assign.right_value().free_vars()
+  
+  def pythonize(self, env, compiler):
+    if self._removed==False:
+      return self.var.pythonize(env, compiler) 
+    else:
+      return self.assign.right_value().pythonize(env, compiler)   
+  
+  def right_value(self):
+    return self
+  
+  def remove(self):
+    self._removed = True
+    self.assign.remove()
+  
+  def dont_remove(self):
+    self._removed = False
+    self.assign.dont_remove()
+    
+  def removed(self): 
+    return self._removed
+    
+  def __repr__(self):
+    return 'LAB(%r)'%self.assign
+  
+  
+class ThenAssignBox:
+  def __init__(self, item, if_exp):
+    self.item = item
+    self.var = item.var
+    self.then_removed = False
+    self.items = set([self])
+    self.dependency = set()
+    self.if_exp = if_exp
+  
+  def right_value(self):
+    return self.item.right_value()
+  
+  def remove(self):
+    self.then_removed = True
+    
+  def else_remove(self):
+    if self.then_removed:
+      self.item.remove()
+ 
+  def dont_remove(self):
+    self.item.dont_remove()
+    
+  def __repr__(self):
+    return 'TB(%s)'%self.item
+  
+class ElseAssignBox:
+  def __init__(self, item):
+    self.item = item
+    self.var = item.var
+    self.if_exp = self.item.if_exp
+    self.items = set([self])
+    self.dependency = set()
+
+  def right_value(self):
+    return self.item.right_value()
+  
+  def remove(self):
+    self.item.else_remove()  
+  
+  def dont_remove(self):
+    self.item.dont_remove()
+    
+  def __repr__(self):
+    return 'EB(%s)'%self.item
+
+class GroupAssignBox:
+  def __init__(self, var, *items):
+    self.var = var
+    items1 = []
+    for item in items:
+      if isinstance(item, GroupAssignBox):
+        items1 += item.items
+      else: 
+        items1.append(item)
+    self.items = items1
+    value = items1[0].right_value()
+    for item in items[1:]:
+      if item.right_value()!=value:
+        self._right_value = self.var
+        break
+    else:
+      self._right_value = value
+  
+  def right_value(self):
+    return self._right_value
+  
+  def remove(self):
+    for item in self.items:
+      item.remove() 
+      
+  def dont_remove(self):
+    for item in self.items:
+      item.dont_remove()
+      
+  def __repr__(self):
+    return 'GB(%s)'%self.items
+
 class Assign(Element):
   is_statement = True
   
   def __init__(self, var, exp):
     self.var, self.exp =  var, exp
-    self.right_value = self.exp
     self._removed = unknown
     self.items = set([self])
     self.dependency = set()
@@ -722,6 +863,9 @@ class Assign(Element):
   def free_vars(self):
     return self.exp.free_vars()|set([self.var])
   
+  def right_value(self):
+    return self.exp
+  
   def remove(self):
     self._removed = True
     
@@ -740,14 +884,22 @@ class Assign(Element):
     return True
     
   def optimize(self, env, compiler):
+    try:
+      assign_box = env[self.var]
+    except:
+      assign_box = None
+    if isinstance(assign_box, LoopAssignBox):
+      assign_box.dont_remove()
+      right_value = assign_box.assign.right_value()
+      env[self.var] = VarAssignBox(self.var)
     exp = self.exp.optimize(env, compiler)
     result = Assign(self.var, exp)
     try:
       env.bindings[self.var].remove()
       del env.bindings[self.var]
     except: pass    
-    if isinstance(exp, Atom) or isinstance(exp, Var) \
-      or isinstance(exp, ExpressionWithCode) or isinstance(exp, RulesDict):
+    if isinstance(exp, Atom)  \
+       or isinstance(exp, ExpressionWithCode) or isinstance(exp, RulesDict):
       env[self.var] = result
     elif isinstance(exp, Lamda):
       if not isinstance(self.var, RecursiveVar) and self.var not in exp.free_vars():
@@ -783,100 +935,63 @@ class Assign(Element):
   def __repr__(self):
     return 'il.Assign(%r, %r)'%(self.var, self.exp)
 
-class ValueAssignBox:
-  def __init__(self, value):
-    self.right_value = value
-    self._removed = True
-    self.items = set()
-    self.dependency = set()
-    
-class VarAssignBox:
-  def __init__(self, var):
-    self.right_value = var
-    self._removed = unknown
-    self.items = set([self])
-    self.dependency = set()
-    
-  def remove(self):
-    self._removed = True
+class AssignFromList(Element):
+  is_statement = True
   
-  def dont_remove(self):
-    self._removed = False
+  def __init__(self, *args):
+    self.vars = args[:-1]
+    self.value = args[-1]
+  
+  def side_effects(self):
+    return True
     
-  def removed(self): 
-    return self._removed
+  def analyse(self, compiler):
+    for var in self.vars:
+      var.analyse(compiler)
+    self.value.analyse(compiler)
     
+  def subst(self, bindings):  
+    return AssignFromList(*(tuple(var.subst(bindings) for var in self.vars)+(self.value.subst(bindings),)))
+  
+  def code_size(self):
+    return 1  
+  
+  def free_vars(self):
+    result = set(self.vars)
+    result |= self.value.free_vars()
+    return result
+  
+  def optimize(self, env, compiler):
+    value = self.value.optimize(env, compiler)
+    if isinstance(value, Tuple) or isinstance(value, List):
+      if len(value.value)!=len(self.vars):
+        raise DaoCompileError
+      else:
+        return begin(*tuple(Assign(var, v) 
+                     for var, v in zip(self.vars, value.value)
+                     )).optimize(env, compiler)
+    return AssignFromList(*(self.vars+(value,)))
+  
+  def pythonize(self, env, compiler):
+    value_exps, has_statement1 = self.value.pythonize(env, compiler)
+    return value_exps[:-1]+(AssignFromList(*(self.vars+(value_exps[-1],))),), True
+  
+  def insert_return_statement(self):
+    return Return(self)
+  
+  def replace_return_with_yield(self):
+    return self
+  
+  def bool(self):
+    return False
+  
+  def to_code(self, compiler):
+    return "%s = %s" % (', '.join([x.to_code(compiler) for x in self.vars]), 
+                      self.value.to_code(compiler))
+  
   def __repr__(self):
-    return 'VAB(%r)'%self.right_value
-  
-class ThenAssignBox:
-  def __init__(self, item, if_exp):
-    self.item = item
-    self.right_value = item.right_value
-    self.then_removed = False
-    self.items = set([self])
-    self.dependency = set()
-    self.if_exp = if_exp
-    
-  def remove(self):
-    self.then_removed = True
-    
-  def else_remove(self):
-    if self.then_removed:
-      self.item.remove()
- 
-  def dont_remove(self):
-    self.item.dont_remove()
-    
-  def __repr__(self):
-    return 'TB(%s)'%self.item
-  
-class ElseAssignBox:
-  def __init__(self, item):
-    self.item = item
-    self.right_value = item.right_value
-    self.if_exp = self.item.if_exp
-    self.items = set([self])
-    self.dependency = set()
-  
-  def remove(self):
-    self.item.else_remove()  
-  
-  def dont_remove(self):
-    self.item.dont_remove()
-    
-  def __repr__(self):
-    return 'EB(%s)'%self.item
+    return 'il.AssignFromList(%r, %r)'%(self.vars, self.value)
 
-class GroupAssignBox:
-  def __init__(self, var, *items):
-    self.var = var
-    items1 = []
-    for item in items:
-      if isinstance(item, GroupAssignBox):
-        items1 += item.items
-      else: 
-        items1.append(item)
-    self.items = items1
-    value = items1[0].right_value
-    for item in items[1:]:
-      if item.right_value!=value:
-        self.right_value = self.var
-        break
-    else:
-      self.right_value = value
-  
-  def remove(self):
-    for item in self.items:
-      item.remove() 
-      
-  def dont_remove(self):
-    for item in self.items:
-      item.dont_remove()
-      
-  def __repr__(self):
-    return 'GB(%s)'%self.items
-      
 def if_(test, then, else_):
   return If(element(test), element(then), element(else_))
 
@@ -1040,10 +1155,10 @@ class PseudoElse(Atom):
 
 pseudo_else = PseudoElse()
 
-def xwhile_(test, *exps):
+def while_(test, *exps):
   return While(element(test), begin(*[x for x in exps]))
   
-class XWhile(Element):
+class While(Element):
   def __init__(self, test, body):
     self.test, self.body = test, body
     
@@ -1070,14 +1185,22 @@ class XWhile(Element):
               self.body.subst(bindings))
     
   def optimize(self, env, compiler):
-    assigns = []
-    for var in self.recursive_vars:
-      value = env[var]
-      if value==var: continue
-      assigns.append(Assign(var, value))
-      del env[var]
-    result = begin(*(tuple(assigns) + (
-      While(self.test.optimize(env, compiler), self.body.optimize(env, compiler)),)))
+    free_vars = self.free_vars()
+    for var in free_vars:
+      try:
+        assign = env[var]
+      except: 
+        continue
+      env[var] = LoopAssignBox(assign, self)
+    test = self.test.optimize(env, compiler)
+    body = self.body.optimize(env, compiler)
+    for var in free_vars:
+      try:
+        assign = env[var]
+      except: continue
+      if isinstance(assign, LoopAssignBox) and assign.loop_exp is self:
+        env[var] = assign.assign
+    result = While(test,body)
     return result
 
   def insert_return_statement(self):
@@ -1108,10 +1231,10 @@ class XWhile(Element):
   def __repr__(self):
     return 'il.While(%r, %r)'%(self.test, self.body)
 
-def xfor_(var, range, *exps):
+def for_(var, range, *exps):
   return For(element(var), element(range), begin(*[x for x in exps]))
 
-class XFor(Element):
+class For(Element):
   def __init__(self, var, range, body):
     self.var, self.range, self.body = var, range, body
     
