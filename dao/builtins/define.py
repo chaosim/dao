@@ -3,14 +3,15 @@
 from dao.base import Element, classeq
 from dao.compilebase import CompileTypeError, VariableNotBound
 from dao.command import special, Command, CommandCall, SpecialCall, Apply, Var, LogicVar, Assign
+from dao.command import element
 from special import begin
 import dao.interlang as il
-from dao.interlang import TRUE, FALSE, NONE, element
+from dao.interlang import TRUE, FALSE, NONE
 
 v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
 def lamda(params, *body):
-  body = tuple(il.element(x) for x in body)
+  body = tuple(element(x) for x in body)
   return Lamda(params, begin(*body))
 
 class Lamda(Element):
@@ -28,7 +29,7 @@ class Lamda(Element):
     return self.__class__(params, body)
   
   def __call__(self, *args):
-    return Apply(self, tuple(il.element(arg) for arg in args))
+    return Apply(self, tuple(element(arg) for arg in args))
   
   def alpha_convert(self, env, compiler):
     try:
@@ -121,7 +122,7 @@ class RulesVar(Var):
     return 'RulesVar(%s)'%self.name
 
 def let(bindings, *body):
-  bindings = tuple((var, il.element(value)) for var, value in bindings)
+  bindings = tuple((var, element(value)) for var, value in bindings)
   return Let(bindings, begin(*body))
 
 class Let(il.Element):
@@ -276,7 +277,7 @@ class Rules(Lamda):
     self.rules = rules
 
   def __call__(self, *args):
-    return Apply(self, tuple(il.element(arg) for arg in args))
+    return Apply(self, tuple(element(arg) for arg in args))
   
   def alpha_convert(self, env, compiler):
     rules1 = {}
@@ -407,7 +408,7 @@ class MacroRules(Element):
     self.rules = rules
 
   def __call__(self, *args):
-    return Apply(self, tuple(il.element(arg) for arg in args))
+    return Apply(self, tuple(element(arg) for arg in args))
   
   def alpha_convert(self, env, compiler):
     rules1 = {}

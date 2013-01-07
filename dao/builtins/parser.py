@@ -18,16 +18,11 @@ def set_parse_state(compiler, cont, parse_state):
                   il.SetParseState(parse_state),
                   il.append_failcont(compiler, il.SetParseState(old_parse_state)),
                   cont(TRUE))
-@special
-def experiment_set_parse_state(compiler, cont, parse_state):
-  old_parse_state = compiler.new_var(il.LocalVar('old_parse_state'))
-  return il.let([(old_parse_state, il.parse_state)],
-                  il.SetParseState(parse_state),
-                  il.append_failcont(compiler, il.SetParseState(old_parse_state)),
-                  cont(TRUE))
+
 @special
 def set_sequence(compiler, cont, sequence):
   old_parse_state = compiler.new_var(il.LocalVar('old_parse_state'))
+  sequence = sequence.interlang()
   return il.begin(il.Assign(old_parse_state, il.parse_state),
                   il.SetParseState(il.Tuple(sequence, il.Integer(0))),
                   il.append_failcont(compiler, il.SetParseState(old_parse_state)),
@@ -46,23 +41,12 @@ def parse(compiler, cont, predicate, parse_state):
                       il.clamda(v, 
                                 il.Assign(il.parse_state, old_parse_state),
                                 cont(v))))
-@special
-def experiment_parse(compiler, cont, predicate, parse_state):
-  old_parse_state = compiler.new_var(il.LocalVar('old_parse_state'))
-  v = compiler.new_var(il.LocalVar('v'))
-  return il.let([(old_parse_state, il.parse_state)],
-                  il.SetParseState(parse_state),
-                  il.append_failcont(compiler, il.SetParseState(old_parse_state)),
-                  predicate.cps_convert(compiler, 
-                      il.clamda(v, 
-                                il.Assign(il.parse_state, old_parse_state),
-                                cont(v))))
-
 
 @special
 def parse_sequence(compiler, cont, predicate, sequence):
   old_parse_state = compiler.new_var(il.LocalVar('old_parse_state'))
   v = compiler.new_var(il.LocalVar('v'))
+  sequence = sequence.interlang()
   return il.begin(il.Assign(old_parse_state, il.parse_state),
                   il.SetParseState(il.Tuple(sequence, il.Integer(0))),
                   il.append_failcont(compiler, il.SetParseState(old_parse_state)),
@@ -152,6 +136,8 @@ def position(compiler, cont):
 def subsequence(compiler, cont, start, end): 
   text = compiler.new_var(il.LocalVar('text'))
   pos = compiler.new_var(il.LocalVar('pos'))
+  start = il.Integer(start.item)
+  end = il.Integer(end.item)
   return il.Begin((
     il.AssignFromList(text, pos, il.parse_state),
      cont(il.GetItem(text, il.Slice2(start, end)))))
@@ -162,6 +148,7 @@ subtext = subsequence
 def goto(compiler, cont, position): 
   text = compiler.new_var(il.LocalVar('text'))
   pos = compiler.new_var(il.LocalVar('pos'))
+  position = il.Integer(position.item)
   return il.Begin((
     il.AssignFromList(text, pos, il.parse_state),
     il.append_failcont(compiler, il.SetParseState(il.Tuple(text, pos))),
@@ -174,6 +161,7 @@ def unify_parse_sequence(compiler, cont, sequence):
   try:  
     sequence.cps_convert_unify
   except:
+    sequence = sequence.interlang()
     return il.If(il.Eq(sequence, il.GetItem(il.parse_state, il.Integer(0))),
           cont(TRUE),
           il.failcont(il.TRUE))          

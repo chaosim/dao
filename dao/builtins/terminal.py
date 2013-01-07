@@ -5,7 +5,7 @@
  Lineparse_state in line_parser.py is comatible with parse_state.'''
 
 from dao.compilebase import CompileTypeError
-from dao.command import special, Command, SpecialCall, Var
+from dao.command import special, Command, SpecialCall, Var, String
 import dao.interlang as il
 from dao.interlang import TRUE, FALSE, NONE
 
@@ -16,7 +16,8 @@ def char(compiler, cont, argument):
   #v = compiler.new_var(v0)
   text = compiler.new_var(il.LocalVar('text'))
   pos = compiler.new_var(il.LocalVar('pos'))
-  if isinstance(argument, il.String):
+  if isinstance(argument, String):
+    argument = argument.interlang()
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.If(il.Ge(pos, il.Len(text)), 
@@ -95,7 +96,8 @@ def word(compiler, cont, arg):
                                   cont(il.GetItem(text, pos))),
                                 il.failcont(NONE)),
                           il.RaiseTypeError(x)))))))))
-  elif isinstance(arg, il.String):
+  elif isinstance(arg, String):
+    arg = arg.interlang()
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
@@ -162,7 +164,8 @@ def identifier(compiler, cont, arg):
                                   cont(il.GetItem(text, pos))),
                                 il.failcont(NONE)),
                           il.RaiseTypeError(x)))))))))
-  elif isinstance(arg, il.String):
+  elif isinstance(arg, String):
+    arg = arg.interlang()
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
@@ -276,7 +279,8 @@ def literal(compiler, cont, arg):
           il.SetParseState(il.Tuple(text, pos))),
           il.SetParseState(il.Tuple(text, p)),
           cont(arg)))))
-  elif isinstance(arg, il.String):
+  elif isinstance(arg, String):
+    arg = arg.interlang()
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),

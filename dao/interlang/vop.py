@@ -4,11 +4,11 @@ from dao.base import classeq
 
 from dao.compilebase import MAX_EXTEND_CODE_SIZE
 from dao.compilebase import VariableNotBound, CompileTypeError
-from element import Element, Begin, begin, Return, Yield#, element
+from element import Element, Begin, begin, Return, Yield
+from element import Atom, Integer, Bool, MacroArgs, Tuple, Dict, List , element
+from element import pythonize_args, FALSE, NONE, Symbol, no_side_effects, unknown
 from lamda import Apply, optimize_args, clamda, Lamda, MacroLamda, RulesDict
 from lamda import Var, LocalVar, SolverVar, LogicVar, Assign, ExpressionWithCode#, ValueAssignBox
-from element import pythonize_args, FALSE, NONE, Symbol, no_side_effects, unknown
-from element import Atom, element, Integer, Bool, MacroArgs, Tuple, List
 
 class BinaryOperation(Element):
   def __init__(self, name, operator, operator_function, has_side_effects=True):
@@ -104,7 +104,7 @@ class BinaryOperationApply(Apply):
       if not isinstance(arg, Atom):
         break
     else:
-       return element(caller.operator_function(*tuple(arg.value for arg in args)))
+       return element(caller.operator_function(*tuple(arg.item for arg in args)))
     return self.__class__(caller, args)
 
   def insert_return_statement(self):
@@ -335,7 +335,7 @@ class Len(Element):
   def optimize(self, env, compiler):
     item = self.item.optimize(env, compiler)
     if isinstance(item, Atom) or isinstance(item, MacroArgs):
-      return Integer(len(item.value))
+      return Integer(len(item.item))
     return Len(item)
   
   def pythonize(self, env, compiler):
@@ -385,7 +385,7 @@ class In(Element):
       if isinstance(container, Atom):
         return Bool(item.value in container.value)
       elif isinstance(container, RulesDict):
-        return Bool(item.value in container.arity_body_map)
+        return Bool(item.item in container.arity_body_map)
     return In(item, container)
   
   def pythonize(self, env, compiler):
@@ -442,15 +442,15 @@ class GetItem(Element):
     container = self.container.optimize(env, compiler)
     if isinstance(index, Atom):
       if isinstance(container, Atom):
-        return element(container.value[index.value])
+        return element(container.item[index.item])
       elif isinstance(container, RulesDict):
-        return element(container.arity_body_map[index.value])
+        return element(container.arity_body_map[index.item])
         #try:
-          #return element(container.arity_body_map[index.value])
+          #return element(container.arity_body_map[index.item])
         #except: 
           #return GetItem(container, index)
       elif isinstance(container, MacroArgs):
-        return container.value[index.value]
+        return container.item[index.item]
     return GetItem(container, index)
   
   def pythonize(self, env, compiler):
@@ -560,7 +560,7 @@ class PushCatchCont(Element):
     tag = self.tag.optimize(env, compiler)
     cont = self.cont.optimize(env, compiler)
     if isinstance(tag, Atom) and env[catch_cont_map] is not None:
-      env[catch_cont_map].right_value().value.setdefault(tag, []).append(cont)
+      env[catch_cont_map].right_value().item.setdefault(tag, []).append(cont)
       return 
     if env[catch_cont_map] is not None:
       result = Begin((Assign(catch_cont_map, env[catch_cont_map]), 
@@ -618,10 +618,10 @@ class FindCatchCont(Element):
     tag = self.tag.optimize(env, compiler)
     if isinstance(tag, Atom) and env[catch_cont_map] is not None:
       try:
-        cont_stack = env[catch_cont_map].right_value().value[tag]
+        cont_stack = env[catch_cont_map].right_value().item[tag]
         cont = cont_stack.pop()
         if not cont_stack:
-          del env[catch_cont_map].right_value().value[tag]
+          del env[catch_cont_map].right_value().item[tag]
         return cont
       except:
         return RaiseExcept(Symbol('DaoUncaughtError'))
@@ -745,9 +745,9 @@ Not = vop('Not', 1, "not %s", False)
 
 Isinstance = vop('Isinstance', 2, "isinstance(%s, %s)", False)
 
-empty_list = element([])
+empty_list = List([])
 
-empty_dict = element({})
+empty_dict = Dict({})
 
 RaiseTypeError = vop2('RaiseTypeError', 1, 'raise %s', True)
 

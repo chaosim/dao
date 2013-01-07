@@ -1,23 +1,133 @@
 # -*- coding: utf-8 -*-
 
 from dao.base import classeq, Element
-
 from dao.compilebase import CompileTypeError, VariableNotBound
-from dao.interlang import TRUE, FALSE, NONE
 import dao.interlang as il
 
-v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
+def element(exp):
+  if isinstance(exp, Element):
+    return exp
+  else:
+    try: 
+      return type_map[type(exp)](exp)
+    except: 
+      raise CompileTypeError(exp)
 
-class Command(Element): pass
+class Atom(Element):
+  def __init__(self, item):
+    self.item = item
+    
+  def alpha_convert(self, env, compiler):
+    return self
+  
+  def cps_convert(self, compiler, cont):
+    return cont(self.interlang())
+    
+  def quasiquote(self, compiler, cont):
+    return cont(self.interlang())
+  
+  def subst(self, bindings):
+    return self
+  
+  def interlang(self):
+    return il.Atom(self.item)
+  
+  def __eq__(x, y):
+    return x.__class__==y.__class__ and x.item==y.item
+  
+  def to_code(self, compiler):
+    return '%s(%s)'%(self.__class__.__name__, repr(self.item))
+  
+  def __repr__(self):
+    return '%s'%self.item
+
+class Integer(Atom): 
+  def __eq__(x, y):
+    return Atom.__eq__(x, y) or (isinstance(y, int) and x.item==y)
+  
+  def interlang(self):
+    return il.Integer(self.item)
+  
+  
+class Float(Atom): 
+  def __eq__(x, y):
+    return Atom.__eq__(x, y) or (isinstance(y, float) and x.item==y)
+  
+  def interlang(self):
+    return il.Float(self.item)
+  
+class String(Atom): 
+  def __eq__(x, y):
+    return Atom.__eq__(x, y) or (isinstance(y, str) and x.item==y)
+  
+  def interlang(self):
+    return il.String(self.item)
+  
+class List(Atom): 
+  def __eq__(x, y):
+    return Atom.__eq__(x, y) or (isinstance(y, list) and x.item==y)
+  
+  def interlang(self):
+    return il.List(self.item)
+  
+class Dict(Atom): 
+  def __eq__(x, y):
+    return Atom.__eq__(x, y) or (isinstance(y, dict) and x.item==y)
+  
+  def interlang(self):
+    return il.Dict(self.item)
+  
+class Bool(Atom): 
+  def __eq__(x, y):
+    return Atom.__eq__(x, y) or (isinstance(y, bool) and x.item==y)
+  
+  def interlang(self):
+    return il.Bool(self.item)
+  
+
+class Symbol(Atom): 
+  def __eq__(x, y):
+    return classeq(x, y) and x.item==y.item
+  
+  def interlang(self):
+    return il.Symbol(self.item)
+
+class Klass(Atom):
+  def __repr__(self):
+    return 'il.Klass(%s)'%(self.item)
+  
+  def interlang(self):
+    return il.Klass(self.item)
+  
+TRUE = Bool(True)
+FALSE = Bool(False)
+NONE = Atom(None)
+
+def make_tuple(value):
+  return Tuple(*tuple(element(x) for x in value))
+
+class Tuple(Atom): 
+  def __init__(self, *items):
+    self.item = items
+  
+  def interlang(self):
+    return il.Tuple(*tuple(x.interlang() for x in self.item))
+  
+  def to_code(self, compiler):
+    return '%s(%s)'%(self.__class__.__name__,', '.join([repr(x) for x in self.item]))
+  
+  def __iter__(self):
+    return iter(self.item)
+  
+  def __repr__(self):
+    return '%s(%s)'%(self.__class__.__name__, self.item)
 
 class Var(Element):  
-  is_statement = False
-  
   def __init__(self, name):
     self.name = name
         
   def __call__(self, *args):
-    return Apply(self, tuple(il.element(arg) for arg in args))
+    return Apply(self, tuple(element(arg) for arg in args))
   
   def alpha_convert(self, env, compiler):
     return env[self]
@@ -42,7 +152,7 @@ class Var(Element):
            il.begin(il.SetBinding(x1, y),
                  il.append_failcont(compiler, il.DelBinding(x1)),
                  cont(il.TRUE)),
-                il.If(il.Eq(x1, y), cont(TRUE), il.failcont(TRUE))))
+                il.If(il.Eq(x1, y), cont(il.TRUE), il.failcont(il.TRUE))))
     x = x.interlang()
     y = y.interlang()      
     x1 = compiler.new_var(il.LocalVar(x.name))
@@ -77,21 +187,8 @@ class Var(Element):
                         il.Apply(function, (cont, macro_args)),
                         body)))
   
-  def analyse(self, compiler):
-    # unquote to interlang level
-    return
-  
-  def optimize(self, env, compiler):
-    return self, False
-  
-  def pythonize(self, env, compiler):
-    return (self,), False
-  
   def interlang(self):
     return il.Var(self.name)
-  
-  def vars(self):
-    return set([self])
   
   def free_vars(self):
     return set([self])
@@ -157,33 +254,9 @@ class Apply(Element):
   def __repr__(self):
     return '%r(%s)'%(self.caller, ', '.join([repr(x) for x in self.args]))
   
-class Special(Command):
-  def __init__(self, function):
-    self.function = function
-    
-  def __call__(self, *args):
-    args = tuple(il.element(arg) for arg in args)
-    return SpecialCall(self.function, args)
-  
-  def __repr__(self):
-    return self.function.__name__
+class Command(Element): pass
 
-special = Special
-
-def quasiquote_args(self, args):
-  if not args: yield ()
-  elif len(args)==1: 
-    for x in self.quasiquote(args[0]):
-      try: yield x.unquote_splice
-      except: yield (x,)
-  else:
-    for x in self.quasiquote(args[0]):
-      for y in self.quasiquote_args(args[1:]):
-        try: x = x.unquote_splice
-        except: x = (x,)
-        yield x+y
-          
-class CommandCall(il.Element): 
+class CommandCall(Element): 
   def __init__(self, function, args):
     self.function, self.args = function, args
     
@@ -211,6 +284,32 @@ class CommandCall(il.Element):
   def __repr__(self):
     return '%r(%s)'%(self.function, ', '.join([repr(x) for x in self.args]))
 
+class Special(Command):
+  def __init__(self, function):
+    self.function = function
+    
+  def __call__(self, *args):
+    args = tuple(element(arg) for arg in args)
+    return SpecialCall(self.function, args)
+  
+  def __repr__(self):
+    return self.function.__name__
+
+special = Special
+
+def quasiquote_args(self, args):
+  if not args: yield ()
+  elif len(args)==1: 
+    for x in self.quasiquote(args[0]):
+      try: yield x.unquote_splice
+      except: yield (x,)
+  else:
+    for x in self.quasiquote(args[0]):
+      for y in self.quasiquote_args(args[1:]):
+        try: x = x.unquote_splice
+        except: x = (x,)
+        yield x+y
+          
 class SpecialCall(CommandCall):
     
   def cps_convert(self, compiler, cont):
@@ -219,9 +318,6 @@ class SpecialCall(CommandCall):
   def alpha_convert(self, env, compiler):
     return self.__class__(self.function,
                  tuple(arg.alpha_convert(env, compiler) for arg in self.args))
-  
-  def side_effects(self):
-    return True
   
   def to_code(self, compiler):
     return '%s(%s)'%(self.function.__name__, ', '.join([x.to_code(compiler) for x in self.args]))
@@ -242,7 +338,7 @@ class BuiltinFunction(Command):
     self.name, self.function = name, function
     
   def __call__(self, *args):
-    args = tuple(il.element(arg) for arg in args)
+    args = tuple(element(arg) for arg in args)
     return BuiltinFunctionCall(self, args)
   
   def cps_convert(self, compiler, cont):
@@ -264,6 +360,7 @@ class BuiltinFunction(Command):
     return self.name
   
 class BuiltinFunctionCall(CommandCall):
+  is_statement = False
   def alpha_convert(self, env, compiler):
     return self.__class__(self.function,
                  tuple(arg.alpha_convert(env, compiler) for arg in self.args))
@@ -303,7 +400,7 @@ class BuiltinFunctionCall(CommandCall):
     return '%s(%s)'%(self.function.name, ', '.join([repr(x) for x in self.args]))
 
 def assign(var, exp):
-  return Assign(il.element(var), il.element(exp))
+  return Assign(var, element(exp))
 
 class Assign(CommandCall):
   def __init__(self, var, exp):
@@ -319,7 +416,7 @@ class Assign(CommandCall):
     return Assign(var, self.exp.alpha_convert(env, compiler))
   
   def cps_convert(self, compiler, cont):
-    v = compiler.new_var(v0)
+    v = compiler.new_var(il.LocalVar('v'))
     return self.exp.cps_convert(compiler, 
               il.clamda(v, il.Assign(self.var.interlang(), v), cont(v)))
   
@@ -337,3 +434,6 @@ def expression_with_code(compiler, cont, exp):
   v = compiler.new_var(il.LocalVar('v'))
   return cont(il.ExpressionWithCode(exp, il.Lamda((), exp.cps_convert(compiler, il.clamda(v, v)))))
 
+type_map = {int:Integer, float: Float, str:String, unicode: String, 
+            tuple: make_tuple, list:List, dict:Dict, 
+            bool:Bool, type(None): Atom}

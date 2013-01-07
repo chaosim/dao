@@ -1,5 +1,5 @@
 import os
-from dao.command import BuiltinFunction
+from dao.command import BuiltinFunction, NONE
 from dao.builtins.special import Begin
 from dao import interlang as il
 
@@ -24,10 +24,10 @@ _prin = BuiltinFunction('prin', il.Prin)
 _println = BuiltinFunction('println', il.PrintLn)
 
 def prin(*args):
-  return Begin(_prin(*args), il.NONE)
+  return Begin(_prin(*args), NONE)
 
 def println(*args):
-  return Begin(_println(*args), il.NONE)
+  return Begin(_println(*args), NONE)
 
 
 #@builtin.function()

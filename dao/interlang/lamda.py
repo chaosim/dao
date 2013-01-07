@@ -4,11 +4,11 @@ from dao.compilebase import MAX_EXTEND_CODE_SIZE
 from dao.compilebase import VariableNotBound, CompileTypeError
 
 from element import pythonize_args, optimize_args
-from element import Element, element, begin, Return, Begin
+from element import Element, begin, Return, Begin #, element
 from element import NONE, unknown, make_tuple, Tuple, Atom, Tuple, List
 
 def lamda(params, *body):
-  body = tuple(element(x) for x in body)
+  #body = tuple(element(x) for x in body)
   return Lamda(params, begin(*body))
 
 class Lamda(Element):
@@ -20,7 +20,7 @@ class Lamda(Element):
     return self.__class__(params, body)
   
   def __call__(self, *args):
-    return Apply(self, tuple(element(arg) for arg in args))
+    return Apply(self, args)
   
   def find_assign_lefts(self):
     return self.body.find_assign_lefts()
@@ -144,7 +144,7 @@ class Lamda(Element):
                               repr(self.body))
 
 def clamda(v, *body):
-  body = tuple(element(x) for x in body)
+  #body = tuple(element(x) for x in body)
   return Clamda(v, begin(*body))
 
 class Clamda(Lamda):
@@ -287,7 +287,7 @@ class Function(Lamda):
                                  repr(self.body))    
 
 def cfunction(name, v, *body):
-  body = tuple(element(x) for x in body)
+  #body = tuple(element(x) for x in body)
   return CFunction(name, v, begin(*body))
 
 class CFunction(Function):
@@ -541,7 +541,7 @@ class ExpressionWithCode(Element):
     return 1
 
   def free_vars(self):
-    return self.exp.free_vars()
+    return self.function.free_vars()
   
   def optimize(self, env, compiler):
     return ExpressionWithCode(self.exp, self.function.optimize(env, compiler))
@@ -613,7 +613,7 @@ class Var(Element):
     return classeq(x, y) and x.name==y.name
   
   def __call__(self, *args):
-    args = tuple(element(arg) for arg in args)
+    #args = tuple(element(arg) for arg in args)
     return Apply(self, args)
   
   def free_vars(self):
@@ -964,11 +964,11 @@ class AssignFromList(Element):
   def optimize(self, env, compiler):
     value = self.value.optimize(env, compiler)
     if isinstance(value, Tuple) or isinstance(value, List):
-      if len(value.value)!=len(self.vars):
+      if len(value.item)!=len(self.vars):
         raise DaoCompileError
       else:
         return begin(*tuple(Assign(var, v) 
-                     for var, v in zip(self.vars, value.value)
+                     for var, v in zip(self.vars, value.item)
                      )).optimize(env, compiler)
     return AssignFromList(*(self.vars+(value,)))
   
@@ -1156,7 +1156,7 @@ class PseudoElse(Atom):
 pseudo_else = PseudoElse()
 
 def while_(test, *exps):
-  return While(element(test), begin(*[x for x in exps]))
+  return While(test, begin(*[x for x in exps]))
   
 class While(Element):
   def __init__(self, test, body):

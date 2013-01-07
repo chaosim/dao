@@ -42,27 +42,9 @@ class Element(base.Element):
     return self.__class__.__name__
    
 class Atom(Element):
-  def __init__(self, value):
-    self.value = value
+  def __init__(self, item):
+    self.item = item
     
-  def alpha_convert(self, env, compiler):
-    return self
-  
-  def ssa_convert(self, env, compiler):
-    return self
-  
-  def cps_convert(self, compiler, cont):
-    return cont(self)
-    
-  def quasiquote(self, compiler, cont):
-    return cont(self)
-   
-  def vars(self):
-    return set()
-  
-  def interlang(self):
-    return self
-  
   def find_assign_lefts(self):
     return set()
   
@@ -97,149 +79,141 @@ class Atom(Element):
     return 1
   
   def to_code(self, compiler):
-    return repr(self.value) 
+    return repr(self.item) 
   
   def free_vars(self):
     return set()
   
   def bool(self):
-    if self.value: 
+    if self.item: 
       return True
     else: 
       return False
   
   def __eq__(x, y):
-    return classeq(x, y) and x.value==y.value
+    return classeq(x, y) and x.item==y.item
   
-  def __hash__(self): return hash(self.value)
+  def __hash__(self): return hash(self.item)
   
   def __repr__(self):
-    return '%s'%self.value
+    return '%s'%self.item
 
-class Expression(Atom):  
-  def cps_convert(self, compiler, cont):
-    return self.value.cps_convert(compiler, cont)
-  
-  def to_code(self, compiler):
-    #return 'Expression(%s)'%self.value.to_code(compiler)
-    return '%s'%self.value.to_code(compiler)
-  
 class Integer(Atom): 
   def __eq__(x, y):
-    return Atom.__eq__(x, y) or (isinstance(y, int) and x.value==y)
+    return Atom.__eq__(x, y) or (isinstance(y, int) and x.item==y)
   
 class Float(Atom): 
   def __eq__(x, y):
-    return Atom.__eq__(x, y) or (isinstance(y, float) and x.value==y)
+    return Atom.__eq__(x, y) or (isinstance(y, float) and x.item==y)
   
 class String(Atom): 
   def __eq__(x, y):
-    return Atom.__eq__(x, y) or (isinstance(y, str) and x.value==y)
+    return Atom.__eq__(x, y) or (isinstance(y, str) and x.item==y)
   
 class List(Atom): 
   def __eq__(x, y):
-    return Atom.__eq__(x, y) or (isinstance(y, list) and x.value==y)
+    return Atom.__eq__(x, y) or (isinstance(y, list) and x.item==y)
   
 class Dict(Atom): 
   def __eq__(x, y):
-    return Atom.__eq__(x, y) or (isinstance(y, dict) and x.value==y)
+    return Atom.__eq__(x, y) or (isinstance(y, dict) and x.item==y)
   
 class Bool(Atom): 
   def __eq__(x, y):
-    return Atom.__eq__(x, y) or (isinstance(y, bool) and x.value==y)
+    return Atom.__eq__(x, y) or (isinstance(y, bool) and x.item==y)
   
 
 class Symbol(Atom): 
   def to_code(self, compiler):
-    return self.value
+    return self.item
   
   def __eq__(x, y):
-    return classeq(x, y) and x.value==y.value
+    return classeq(x, y) and x.item==y.item
     
 
 class Klass(Atom):
   def to_code(self, compiler):
-    return self.value
+    return self.item
   
   def __repr__(self):
-    return 'il.Klass(%s)'%(self.value)
+    return 'il.Klass(%s)'%(self.item)
   
 TRUE = Bool(True)
 FALSE = Bool(False)
 NONE = Atom(None)
 
-def make_tuple(value):
-  return Tuple(*tuple(element(x) for x in value))
+def make_tuple(item):
+  return Tuple(*tuple(element(x) for x in item))
 
 class Tuple(Atom): 
-  def __init__(self, *value):
-    self.value = value
+  def __init__(self, *item):
+    self.item = item
     
   def find_assign_lefts(self):
     return set()
   
   def analyse(self, compiler):  
-    for x in self.value:
+    for x in self.item:
       x.analyse(compiler)
   
   def side_effects(self):
     return False
   
   def subst(self, bindings):
-    return Tuple(*tuple(x.subst(bindings) for x in self.value))
+    return Tuple(*tuple(x.subst(bindings) for x in self.item))
   
   def code_size(self):
-    return sum([x.code_size() for x in self.value])
+    return sum([x.code_size() for x in self.item])
   
   def optimize(self, env, compiler):
-    return Tuple(*tuple(x.optimize(env, compiler) for x in self.value))
+    return Tuple(*tuple(x.optimize(env, compiler) for x in self.item))
   
   def to_code(self, compiler):
-    if len(self.value)!=1:
-      return '(%s)'% ', '.join([x.to_code(compiler) for x in self.value])
+    if len(self.item)!=1:
+      return '(%s)'% ', '.join([x.to_code(compiler) for x in self.item])
     else: 
-      return '(%s, )'%self.value[0].to_code(compiler)
+      return '(%s, )'%self.item[0].to_code(compiler)
   
   def __eq__(x, y):
-    return classeq(x, y) and x.value==y.value
+    return classeq(x, y) and x.item==y.item
   
   def __repr__(self):
-    return 'il.%s(%s)'%(self.__class__.__name__, self.value)
+    return 'il.%s(%s)'%(self.__class__.__name__, self.item)
 
-def macro_args(value):
-  return MacroArgs(tuple(element(x) for x in value))
+def macro_args(item):
+  return MacroArgs(item)
 
 class MacroArgs(Element): 
-  def __init__(self, value):
-    self.value = value
+  def __init__(self, item):
+    self.item = item
     
   def find_assign_lefts(self):
     return set()
   
   def analyse(self, compiler):  
-    for x in self.value:
+    for x in self.item:
       x.analyse(compiler)
       
   def optimize(self, env, compiler):
-    return MacroArgs(optimize_args(self.value, env, compiler))
+    return MacroArgs(optimize_args(self.item, env, compiler))
   
   def side_effects(self):
     return False
   
   def free_vars(self):
     result = set()
-    for x in self.value:
+    for x in self.item:
       result |= x.free_vars()
     return result
   
   def subst(self, bindings):
-    return MacroArgs(tuple(x.subst(bindings) for x in self.value))
+    return MacroArgs(tuple(x.subst(bindings) for x in self.item))
   
   def pythonize(self, env, compiler):
     has_statement = False
     exps = []
     args = []
-    for arg in self.value:
+    for arg in self.item:
       exps1, has_statement1 = arg.pythonize(env, compiler)
       has_statement = has_statement or has_statement1
       exps += exps1[:-1]
@@ -248,19 +222,19 @@ class MacroArgs(Element):
     return tuple(exps), has_statement
   
   def code_size(self):
-    return sum([x.code_size() for x in self.value])
+    return sum([x.code_size() for x in self.item])
   
   def to_code(self, compiler):
-    if len(self.value)!=1:
-      return '(%s)'% ', '.join([x.to_code(compiler) for x in self.value])
+    if len(self.item)!=1:
+      return '(%s)'% ', '.join([x.to_code(compiler) for x in self.item])
     else: 
-      return '(%s, )'%self.value[0].to_code(compiler)
+      return '(%s, )'%self.item[0].to_code(compiler)
   
   def __eq__(x, y):
-    return classeq(x, y) and x.value==y.value
+    return classeq(x, y) and x.item==y.item
   
   def __repr__(self):
-    return 'il.%s(%s)'%(self.__class__.__name__, self.value)
+    return 'il.%s(%s)'%(self.__class__.__name__, self.item)
 
 class Return(Element):
   is_statement = True

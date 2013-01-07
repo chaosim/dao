@@ -1,4 +1,4 @@
-from dao.command import Var, LogicVar, assign
+from dao.command import Var, LogicVar, assign, Integer, Float, String, Tuple, List, Dict, Bool, TRUE, FALSE, Klass, Atom
 
 from special import callcc, callfc, eval_
 from special import quote, begin, if_, block, exit_block, continue_block, Begin

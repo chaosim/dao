@@ -2,9 +2,9 @@
 
 from dao.base import Element
 from dao.compilebase import CompileTypeError, VariableNotBound
-from dao.command import special, Command, CommandCall, SpecialCall, Apply, Var, LogicVar
+from dao.command import special, Command, CommandCall, SpecialCall, Apply, Var, LogicVar, element
 import dao.interlang as il
-from dao.interlang import TRUE, FALSE, NONE, element
+from dao.interlang import TRUE, FALSE, NONE
 
 v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
 
@@ -18,6 +18,7 @@ def eval_(compiler, cont, exp):
   return exp.cps_convert(compiler, il.clamda(v, cont(il.EvalExpressionWithCode(v))))
 
 def begin(*exps):
+  exps = tuple(element(e) for e in exps)
   if len(exps)==1: return exps[0]
   else:
     result = []
@@ -66,9 +67,9 @@ def callfc(compiler, cont, function):
   return function(il.failcont)
 
 def block(label, *exps):
-  return Block(label, begin(*tuple(il.element(x) for x in exps)))
+  return Block(label, begin(*tuple(element(x) for x in exps)))
                
-class Block(il.Element):
+class Block(Element):
   def __init__(self, label, body):
     self.label = label
     self.body = body
@@ -98,7 +99,7 @@ class Block(il.Element):
     return 'Block(%s, %s)'%(self.label, self.body)
     
 def exit_block(label=NONE, value=NONE):
-  return ExitBlock(il.element(label), il.element(value))
+  return ExitBlock(element(label), element(value))
 
 class ExitBlock(il.Element):
   def __init__(self, label=NONE, value=NONE):
@@ -113,14 +114,16 @@ class ExitBlock(il.Element):
     return ExitBlock(label, self.value.alpha_convert(env, compiler))
   
   def cps_convert(self, compiler, cont):
-    return il.begin(compiler.protect_cont(NONE), 
-                    compiler.exit_block_cont_map[self.label.name](self.value, ))
+    v = compiler.new_var(il.LocalVar('v'))
+    return self.value.cps_convert(compiler,
+            il.clamda(v, compiler.protect_cont(NONE), 
+                         compiler.exit_block_cont_map[self.label.name](v, )))
 
   def __repr__(self):
     return 'exit_block(%s, %s)'%(self.label, self.value)
 
 def continue_block(label=NONE):
-  return ContinueBlock(il.element(label))
+  return ContinueBlock(element(label))
 
 class ContinueBlock(il.Element):
   def __init__(self, label=NONE):

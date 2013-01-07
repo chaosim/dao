@@ -6,7 +6,8 @@ from dao.solve import eval
 
 from dao.command import Var, LogicVar
 
-from dao.builtins import quote, assign, begin, if_
+from dao.builtins import Integer, String
+from dao.builtins import quote, begin, if_, assign
 from dao.builtins import unify, not_p, fail, succeed, or_, cut, findall
 from dao.builtins import lamda, let, letrec, rules, macro
 from dao.builtins import set_text, char, eoi, any
@@ -22,10 +23,10 @@ from dao import interlang as il
 
 class TestSimple:
   def test_integer(self):
-    eq_(eval(il.Integer(1)), 1)
+    eq_(eval(Integer(1)), 1)
     
   def test_string(self):
-    eq_(eval(il.String("1")), "1")
+    eq_(eval(String("1")), "1")
     
   def test_arithmetic(self):
     eq_(eval(add(1, 2)), 3) 
@@ -167,7 +168,7 @@ class TestLispConstruct:
     eq_(eval(block(a, exit_block(a, 2), 3)), 2)
     
   def testblock3(self):
-    a = il.Var('a')
+    a = Var('a')
     eq_(eval(block(a, 1, if_(0, continue_block(a), 
                              begin(exit_block(a, 2), 3)))), 2)
 
@@ -211,6 +212,9 @@ class TestRules:
     eq_(eval(rules([[1], 1],[[x],x])(2)), 2) 
     eq_(eval(rules([[1], 1])(1)), 1) 
     eq_(eval(rules([[1], 1],[[2],2])(2)), 2) 
+    
+  def test2(self):
+    lx = LogicVar('x')
     eq_(eval(rules([[1], 1],[[2],2])(lx)), 1)
     
   def testdouble(self):

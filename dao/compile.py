@@ -8,6 +8,7 @@ alpha convert -> cps convert
 '''
 
 from dao.compilebase import Environment, Compiler
+from dao.command import element
 from dao.compilebase import CompileTypeError, VariableNotBound
 from dao import interlang as il
 
@@ -43,7 +44,7 @@ def compile_to_python(exp, env, done=None):
   compiler.continue_block_cont_map = {}
   compiler.protect_cont = done
   if env is None: env = Environment()
-  exp = il.element(exp)
+  exp = element(exp)
   exp = exp.alpha_convert(env, compiler)
   exp = exp.cps_convert(compiler, done)
   v = compiler.new_var(il.LocalVar('v'))
@@ -72,32 +73,10 @@ def compile_to_python(exp, env, done=None):
   compiler = Compiler()
   result = exp.to_code(compiler)
   return prelude + result
-
 '''
-il.begin(
-  il.Assign(old_parse_state, il.parse_state), 
-  il.Assign(il.parse_state, il.Tuple((_a1b_23, 0))), 
-  il.Assign(fc1, il.fail_cont), 
-  il.Assign(il.fail_cont, il.Clamda(v4, il.begin(
-    il.Assign(il.fail_cont, fc1), 
-    il.Assign(il.parse_state, old_parse_state), 
-    fc1(False)))), 
-  il.AssignFromList((text, pos), il.parse_state), 
-  il.Assign(length, il.Len(text)), 
-  il.If(il.Ge(pos, length), 
-        il.fail_cont(False), 
-        il.If(il.and(il.Ne(il.GetItem(text, pos), _), 
-                     il.and(il.Not(il.Cle(a, il.GetItem(text, pos), z)), 
-                            il.Not(il.Cle(A, il.GetItem(text, pos), Z)))), 
-              il.fail_cont(False), 
-              il.begin(
-                il.Assign(p, il.add(pos, 1)), 
-                il.While(il.and(il.Lt(p, length), 
-                                il.or(il.Eq(il.GetItem(text, pos), _), 
-                                      il.or(il.Cle(a, il.GetItem(text, p), z), 
-                                            il.or(il.Cle(A, il.GetItem(text, p), Z), 
-                                                  il.Cle(0, il.GetItem(text, p), 9))))), 
-                         il.Assign(p, il.add(p, 1))), 
-                il.Assign(x, il.Deref(LogicVar(x))), il.If(il.IsLogicVar(x), il.begin(il.Assign(il.parse_state, il.Tuple((text, p))), il.SetBinding(x, il.GetItem(text, il.Slice2(pos, p))), i
-l.Assign(fc11, il.fail_cont), il.Assign(il.fail_cont, il.Clamda(v5, il.begin(il.Assign(il.fail_cont, fc11), il.Assign(il.parse_state, il.Tuple((text, pos))), il.DelBinding(x), fc11(False)))), il.Assign(il.parse_state, old_parse_state), il.Deref(LogicVar(x))), il.If(il.Isinstance(x, str), il.If(il.Eq(x, il.GetItem(text, il.Slice2(pos, p))), il.begin(il.Assign(fc12, il.fail_cont), il.Assign(il.fail_cont, il.Clamda(v6, il.begin(il.Assign(il.fail_cont, fc12), il.Assign(il.parse_state, il.Tuple((text, pos))), fc12(False)))), il.Assign(il.parse_state, il.Tuple((text, p))), il.Assign(il.parse_state, old_parse_state), il.Deref(LogicVar(x))), il.fail_cont(None)), il.RaiseTypeError(x)))))))
+il.begin(il.Assign(a0, il.UnquoteSplice(ExpressionWithCode(Tuple((3, 4)), 
+il.Lamda((), il.Tuple((3, 4)))))), il.Assign(result, []), 
+il.If(il.Isinstance(a0, il.Klass(UnquoteSplice)), 
+il.Assign(result, il.add(result, il.Call(list, il.Attr(a0, item)))), 
+il.ListAppend(result, a0)), il.Call(il.Klass(BuiltinFunctionCall), il.QuoteItem(add), il.MakeTuple(result)))
 '''
