@@ -30,6 +30,16 @@ def cut(compiler, cont):
                   cont(NONE))
 cut = cut()
 
+def has_cut(exp):
+  if exp is cut: 
+    return True
+  if isinstance(exp, SpecialCall):
+    for arg in exp.args:
+      if has_cut(arg): 
+        return True
+    return False
+  return False       
+  
 @special
 def cut_or(compiler, cont):
   return il.begin(il.SetFailCont(il.cut_or_cont), 
@@ -44,34 +54,44 @@ def or_(*clauses):
   elif len(clauses)==2: return or2(*clauses)
   else:
     return or2(clauses[0], or_(*clauses[1:]))
-  
-@special
-def or2(compiler, cont, clause1, clause2):
+
+def has_cut_or(exp):
+  if exp is cut_or: 
+    return True
+  if isinstance(exp, SpecialCall):
+    if exp.command is or2:
+      return False
+    else:
+      for arg in exp.args:
+        if has_cut_or(arg): 
+          return True
+      return False
+  return False
+
+def or2_fun(compiler, cont, clause1, clause2):
   v = compiler.new_var(il.ConstLocalVar('v'))
   v1 = compiler.new_var(il.ConstLocalVar('v'))
   fc = compiler.new_var(il.ConstLocalVar('old_failcont'))
-  cut_or_cont = compiler.new_var(il.ConstLocalVar('cut_or_cont'))
-  or_cont = il.clamda(v, il.SetCutOrCont(cut_or_cont), cont(v))
-  return il.begin(
-    il.Assign(cut_or_cont, il.cut_or_cont),
-    il.SetCutOrCont(il.failcont),
-    il.Assign(fc, il.failcont),
-    il.SetFailCont(il.clamda(v1, 
-      il.SetFailCont(fc),
-      clause2.cps_convert(compiler, or_cont))),
-    clause1.cps_convert(compiler, or_cont))
+  if has_cut_or(clause1) or has_cut_or(clause2):
+    cut_or_cont = compiler.new_var(il.ConstLocalVar('cut_or_cont'))
+    or_cont = il.clamda(v, il.SetCutOrCont(cut_or_cont), cont(v))
+    return il.begin(
+      il.Assign(cut_or_cont, il.cut_or_cont),
+      il.SetCutOrCont(il.failcont),
+      il.Assign(fc, il.failcont),
+      il.SetFailCont(il.clamda(v1, 
+        il.SetFailCont(fc),
+        clause2.cps_convert(compiler, or_cont))),
+      clause1.cps_convert(compiler, or_cont))
+  else:
+    return il.begin(
+      il.Assign(fc, il.failcont),
+      il.SetFailCont(il.clamda(v1, 
+        il.SetFailCont(fc),
+        clause2.cps_convert(compiler, cont))),
+      clause1.cps_convert(compiler, cont))
 
-@special
-def xxxor2(compiler, cont, clause1, clause2):
-  v = compiler.new_var(il.ConstLocalVar('v'))
-  fc = compiler.new_var(il.ConstLocalVar('old_failcont'))
-  return il.begin(
-    il.Assign(fc, il.failcont),
-    il.SetFailCont(il.clamda(v, 
-      il.SetFailCont(fc),
-      clause2.cps_convert(compiler, cont))),
-    clause1.cps_convert(compiler, cont))
-
+or2 = special(or2_fun)
 
 @special
 def first_p(compiler, cont, clause1, clause2):

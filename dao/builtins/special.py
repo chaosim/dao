@@ -21,15 +21,16 @@ def begin(*exps):
   else:
     result = []
     for exp in exps:
-      if isinstance(exp, SpecialCall) and exp.function.func_name=='Begin':
+      if isinstance(exp, SpecialCall) and exp.command is Begin:
         result += list(exp.args)
       else:
         result.append(exp)
     return Begin(*result)        
   
-@special
-def Begin(compiler, cont, *exps):
+def Begin_fun(compiler, cont, *exps):
     return cps_convert_exps(compiler, exps, cont)
+
+Begin = special(Begin_fun)
 
 @special
 def if_(compiler, cont, test, then, else_):

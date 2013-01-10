@@ -13,6 +13,7 @@ def lamda(params, *body):
 class Lamda(Element):
   def __init__(self, params, body):
     self.params, self.body = params, body
+    self.has_pythonized = False
     self.local_vars = set()
     
   def new(self, params, body):
@@ -111,6 +112,8 @@ class Lamda(Element):
     return Return(self)
   
   def pythonize(self, env, compiler):
+    if self.has_pythonized:
+      return (self.name,), False
     body_exps, body_has_any_statement = self.body.pythonize(env, compiler)
     global_vars = self.find_assign_lefts()-set(self.params)
     global_vars = set([x for x in global_vars 
@@ -122,8 +125,10 @@ class Lamda(Element):
     if not body_has_any_statement:
       return (self.new(self.params, begin(*body_exps)),), False
     else:
+      self.has_pythonized = True
       name = compiler.new_var(LocalVar('function'))
       body = begin(*body_exps).insert_return_statement()
+      self.name = name
       return (Function(name, self.params, body), name), True 
     
   def to_code(self, compiler):
@@ -146,11 +151,31 @@ class Lamda(Element):
     return 'il.Lamda((%s), %s)'%(', '.join([repr(x) for x in self.params]),
                               repr(self.body))
 
+class RulesLamda(Lamda):
+  def __init__(self, params, body):
+    self.has_pythonized = False
+    self.params, self.body = params, body
+    self.local_vars = set()
+    
+  def __call__(self, *args):
+    return Apply(self, tuple(element(x) for x in args))
+  
+  def optimize_apply(self, env, compiler, args):
+    result = Lamda.optimize_apply(self, env, compiler, args)
+    return result
+  
+  def to_code(self, compiler):
+    head = "lamda %s, %s: " % (self.params[0].to_code(compiler), 
+                               self.params[1].to_code(compiler))
+    result =  head + self.body.to_code(compiler)
+    return result
+  
 def clamda(v, *body):
   return Clamda(v, begin(*body))
 
 class Clamda(Lamda):
   def __init__(self, v, body):
+    self.has_pythonized = False
     self.params = (v, )
     self.body = body
     self.name = None
@@ -215,6 +240,7 @@ equal_cont = EqualCont()
 
 class Done(Clamda):
   def __init__(self, param):
+    self.has_pythonized = False
     self.params = (param,)
     self.body = param
     self.local_vars = set()
@@ -263,6 +289,8 @@ class Function(Lamda):
     return result
   
   def pythonize(self, env, compiler):
+    if self.has_pythonized:
+      return (self.name,), False
     body_exps, has_any_statement = self.body.pythonize(env, compiler)
     global_vars = self.find_assign_lefts()-set(self.params)
     global_vars = set([x for x in global_vars 
@@ -275,6 +303,8 @@ class Function(Lamda):
       body_exps = body_exps[:-1] + (Return(body_exps[-1]),)
     else:
       body_exps = body_exps[:-1] + (body_exps[-1].insert_return_statement(),)
+    
+    self.has_pythonized = True
     return (self.new(self.params, begin(*body_exps)), self.name), True
     
   def to_code(self, compiler):
@@ -331,8 +361,9 @@ class CFunction(Function):
   def __repr__(self):
     return 'il.CFunction(%r, %r, %s)'%(self.name, self.params[0],repr(self.body))
   
-class RulesFunction(Function):
+class XRulesFunction(Function):
   def __init__(self, name, params, body):
+    self.has_pythonized = False
     self.name, self.params, self.body = name, params, body
     self.local_vars = set()
     
@@ -403,6 +434,11 @@ class RulesDict(Element):
     return 'RulesDict(%s)'%self.arity_body_map
 
 class MacroLamda(Lamda):
+  def optimize_apply(self, env, compiler, args):
+    #args = (args[0], Tuple(*args[1:]))
+    result = Lamda.optimize_apply(self, env, compiler, args)
+    return result
+  
   def pythonize(self, env, compiler):
     body_exps, body_has_any_statement = self.body.pythonize(env, compiler)
     global_vars = self.find_assign_lefts()-set(self.params)
@@ -495,7 +531,11 @@ class Apply(Element):
     elif isinstance(self.caller, Lamda):
       return self.caller.optimize_apply(env, compiler, args)
     else:
-      return self.__class__(self.caller.optimize(env, compiler), args)
+      caller = self.caller.optimize(env, compiler)
+      if isinstance(caller, Lamda):
+        return caller.optimize_apply(env, compiler, args)
+      else:
+        return self.__class__(caller, args)
 
   def insert_return_statement(self):
     return Return(self)
@@ -864,7 +904,7 @@ class Assign(Element):
     return Assign(self.var, self.exp.subst(bindings))
         
   def free_vars(self):
-    return self.exp.free_vars()|set([self.var])
+    return self.exp.free_vars()
   
   def right_value(self):
     return self.exp

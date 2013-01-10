@@ -20,8 +20,10 @@ from dao.tests.util import *
 
 class TestLowLevelPrimitive:
   def test_step(self):
-    eq_(eval(begin(set_text('ab'), step())), 'a') #, step()
-    #eq_(eval(begin(set_text('ab'), step(), left())), 'b')
+    eq_(eval(begin(set_text('ab'), step())), 'a') 
+    
+  def test_step2(self):
+    eq_(eval(begin(set_text('ab'), step(), left())), 'b')
     
   def test_next(self):
     eq_(eval(begin(set_text('ab'), next_char(), next_char())), 'a')

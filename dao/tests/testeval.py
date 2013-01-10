@@ -227,12 +227,14 @@ class TestLispConstruct:
                             prin(2), prin(3)))), 1)
 
 class TestRules:
+  def test1_0(self):
+    eq_(eval(rules([[1], 1])(1)), 1) 
+    
   def test1(self):
     x = Var('x')
     lx = LogicVar('x')
     eq_(eval(rules([[x],x])(2)), 2) 
     eq_(eval(rules([[1], 1],[[x],x])(2)), 2) 
-    eq_(eval(rules([[1], 1])(1)), 1) 
     
   def test1_2(self):
     eq_(eval(rules([[1], 1],[[2],2])(2)), 2) 
@@ -266,7 +268,6 @@ class TestRules:
     
   def test_embed_var1(self):
     e, f = LogicVar('e'), Var('f')
-    #eq_(eval(let([(f, rules([[1], 1]))], f(e), e)), 1)
     eq_(eval(letrec([(f, rules([[1], 1]))], f(e))), 1)
     
   def test_embed_var2(self):

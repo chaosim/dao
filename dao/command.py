@@ -296,7 +296,7 @@ class Special(Command):
     
   def __call__(self, *args):
     args = tuple(element(arg) for arg in args)
-    return SpecialCall(self.function, args)
+    return SpecialCall(self, args)
   
   def __repr__(self):
     return self.function.__name__
@@ -317,12 +317,16 @@ def quasiquote_args(self, args):
         yield x+y
           
 class SpecialCall(CommandCall):
+  def __init__(self, command, args):
+    self.command = command
+    self.function = command.function
+    self.args = args
     
   def cps_convert(self, compiler, cont):
     return self.function(compiler, cont, *self.args)
   
   def alpha_convert(self, env, compiler):
-    return self.__class__(self.function,
+    return self.__class__(self.command,
                  tuple(arg.alpha_convert(env, compiler) for arg in self.args))
   
   def to_code(self, compiler):
