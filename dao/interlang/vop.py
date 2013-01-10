@@ -561,7 +561,7 @@ class PushCatchCont(Element):
     cont = self.cont.optimize(env, compiler)
     if isinstance(tag, Atom) and env[catch_cont_map] is not None:
       env[catch_cont_map].right_value().item.setdefault(tag, []).append(cont)
-      return 
+      return NONE
     if env[catch_cont_map] is not None:
       result = Begin((Assign(catch_cont_map, env[catch_cont_map]), 
                     PushCatchCont(tag, cont)))
@@ -805,11 +805,6 @@ Optargs = vop('Optargs', 1, '*%s', False)
 Continue = vop('Continue', 0, "continue\n", False)
 continue_ = Continue()
 
-#def Prin_to_code(self, compiler):
-  #return 'print %s,'%', '.join([x.to_code(compiler) for x in self.args])
 Prin = vop2('Prin', 1, "print %s,", True)
-
-#def Print_to_code(self, compiler):
-  #return 'print %s'%', '.join([x.to_code(compiler) for x in self.args])
 PrintLn = vop2('PrintLn', 1, "print %s", True)
 

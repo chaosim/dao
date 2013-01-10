@@ -79,6 +79,27 @@ def compile_to_python(exp, env, done=None):
   result = exp.to_code(compiler)
   return prelude + result
 
+'''catch(1, 2) --->
+il.begin(
+  il.Assign(il.parse_state, None), 
+  il.Assign(il.fail_cont, il.Clamda(v3, 
+    il.RaiseException(il.Call(NoSolution, v3)))), 
+    il.Assign(il.cut_cont, il.fail_cont), 
+    il.Assign(il.cut_or_cont, il.fail_cont), 
+    il.Assign(il.catch_cont_map, {}), 
+    il.PushCatchCont(1, il.Clamda(v2, v2)), 
+    2)
+
+il.begin(
+  il.Assign(il.parse_state, None), 
+  il.Assign(il.fail_cont, il.Clamda(v3, il.RaiseException(il.Call(NoSolution, v3)))), 
+  il.Assign(il.cut_cont, il.Clamda(v3, il.RaiseException(il.Call(NoSolution, v3)))), 
+  il.Assign(il.cut_or_cont, il.Clamda(v3, il.RaiseException(il.Call(NoSolution, v3)))), 
+  il.Assign(il.catch_cont_map, {1: [il.Clamda(v2, v2)]}), 
+  None, 
+  2)
+'''
+
 '''
 let([(f, rules([[x], add(x, x)]))], f(f(1)))--->
 
@@ -101,9 +122,7 @@ il.begin(
             il.GetItem(arity_body_map, il.Len(params))(), 
             il.fail_cont(None))))), 
   f(il.Clamda(a0, f(il.Done(v, v), a0)), 1))
-'''
-
-'''
+body -->
 il.begin(
   il.Assign(arity_fun_1, il.Lamda((), 
     il.begin(

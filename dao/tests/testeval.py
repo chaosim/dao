@@ -244,19 +244,22 @@ class TestRules:
   def testdouble1(self):
     x = Var('x')
     eq_(eval(rules([[x], add(x, x)])(2)), 4)
-    eq_(eval(rules([[x], x])(add(2, 2))), 4)
     
   def testdouble2(self):
-    f = Var('f')
     x = Var('x')
-    eq_(eval(let([(f, rules([[x], add(x, x)]))], f(1))), 2) # passed
+    eq_(eval(rules([[x], x])(add(2, 2))), 4)
     
   def testdouble3(self):
     f = Var('f')
     x = Var('x')
-    eq_(eval(let([(f, rules([[x], add(x, x)]))], f(f(1)))), 4) 
+    eq_(eval(let([(f, rules([[x], add(x, x)]))], f(1))), 2) # passed
     
   def testdouble4(self):
+    f = Var('f')
+    x = Var('x')
+    eq_(eval(let([(f, rules([[x], add(x, x)]))], f(f(1)))), 4) 
+    
+  def testdouble5(self):
     f = Var('f')
     x = Var('x')
     assert_raises(NoSolution, eval, let([(f, rules([[x], add(x, x)]))], f(1, 2))) # passed
