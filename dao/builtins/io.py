@@ -1,6 +1,7 @@
 import os
-from dao.command import BuiltinFunction, NONE
-from dao.builtins.special import Begin
+#from dao.command import BuiltinFunction, NONE
+from dao.command import special
+from dao.builtins.special import begin
 from dao import interlang as il
 
 # intput and output
@@ -20,15 +21,26 @@ from dao import interlang as il
 #def readlines(file):
   #return file.readlines()
 
-_prin = BuiltinFunction('prin', il.Prin)
-_println = BuiltinFunction('println', il.PrintLn)
+#_prin = BuiltinFunction('prin', il.Prin)
+@special
+def _prin(compiler, cont, argument):
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  return argument.cps_convert(compiler, 
+           il.clamda(v, il.Prin(v), cont(il.NONE)))
 
 def prin(*args):
-  return Begin(_prin(*args), NONE)
+  return begin(*tuple(_prin(arg) for arg in args))
+
+#_println = BuiltinFunction('println', il.PrintLn)
+@special
+def _println(compiler, cont, argument):
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  return argument.cps_convert(compiler, 
+           il.Clamda(v, il.PrintLn(v), cont(il.NONE)))
+
 
 def println(*args):
-  return Begin(_println(*args), NONE)
-
+  return begin(*tuple(_println(arg) for arg in args))
 
 #@builtin.function()
 #def println(*args):

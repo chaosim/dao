@@ -805,11 +805,11 @@ Optargs = vop('Optargs', 1, '*%s', False)
 Continue = vop('Continue', 0, "continue\n", False)
 continue_ = Continue()
 
-def Prin_to_code(self, compiler):
-  return 'print %s,'%', '.join([x.to_code(compiler) for x in self.args])
-Prin = vop2('Prin', -1, Prin_to_code, True)
+#def Prin_to_code(self, compiler):
+  #return 'print %s,'%', '.join([x.to_code(compiler) for x in self.args])
+Prin = vop2('Prin', 1, "print %s,", True)
 
-def Print_to_code(self, compiler):
-  return 'print %s'%', '.join([x.to_code(compiler) for x in self.args])
-PrintLn = vop2('PrintLn', -1, Print_to_code, True)
+#def Print_to_code(self, compiler):
+  #return 'print %s'%', '.join([x.to_code(compiler) for x in self.args])
+PrintLn = vop2('PrintLn', 1, "print %s", True)
 
