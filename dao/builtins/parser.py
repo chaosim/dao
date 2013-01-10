@@ -3,8 +3,6 @@ from dao.command import special, Command, SpecialCall
 import dao.interlang as il
 from dao.interlang import TRUE, FALSE, NONE
 
-v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
-
 # set and manipulate parse_state for parsing 
 
 @special
@@ -13,7 +11,7 @@ def parse_state(compiler, cont):
 
 @special
 def set_parse_state(compiler, cont, parse_state):
-  old_parse_state = compiler.new_var(il.LocalVar('old_parse_state'))
+  old_parse_state = compiler.new_var(il.ConstLocalVar('old_parse_state'))
   return il.begin(il.Assign(old_parse_state, il.parse_state),
                   il.SetParseState(parse_state),
                   il.append_failcont(compiler, il.SetParseState(old_parse_state)),
@@ -21,7 +19,7 @@ def set_parse_state(compiler, cont, parse_state):
 
 @special
 def set_sequence(compiler, cont, sequence):
-  old_parse_state = compiler.new_var(il.LocalVar('old_parse_state'))
+  old_parse_state = compiler.new_var(il.ConstLocalVar('old_parse_state'))
   sequence = sequence.interlang()
   return il.begin(il.Assign(old_parse_state, il.parse_state),
                   il.SetParseState(il.Tuple(sequence, il.Integer(0))),
@@ -32,8 +30,8 @@ set_text = set_sequence
 
 @special
 def parse(compiler, cont, predicate, parse_state):
-  old_parse_state = compiler.new_var(il.LocalVar('old_parse_state'))
-  v = compiler.new_var(il.LocalVar('v'))
+  old_parse_state = compiler.new_var(il.ConstLocalVar('old_parse_state'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
   return il.begin(il.Assign(old_parse_state, il.parse_state),
                   il.SetParseState(parse_state),
                   il.append_failcont(compiler, il.SetParseState(old_parse_state)),
@@ -44,8 +42,8 @@ def parse(compiler, cont, predicate, parse_state):
 
 @special
 def parse_sequence(compiler, cont, predicate, sequence):
-  old_parse_state = compiler.new_var(il.LocalVar('old_parse_state'))
-  v = compiler.new_var(il.LocalVar('v'))
+  old_parse_state = compiler.new_var(il.ConstLocalVar('old_parse_state'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
   sequence = sequence.interlang()
   return il.begin(il.Assign(old_parse_state, il.parse_state),
                   il.SetParseState(il.Tuple(sequence, il.Integer(0))),
@@ -90,8 +88,8 @@ boi = Boi()
 @special
 def step(compiler, cont, n=il.Integer(1)): 
   # return current element before step
-  text = compiler.new_var(il.LocalVar('text'))
-  pos = compiler.new_var(il.LocalVar('pos'))
+  text = compiler.new_var(il.ConstLocalVar('text'))
+  pos = compiler.new_var(il.ConstLocalVar('pos'))
   return il.Begin((
     il.AssignFromList(text, pos, il.parse_state),
     il.append_failcont(compiler, il.SetParseState(il.Tuple(text, pos))),
@@ -101,8 +99,8 @@ def step(compiler, cont, n=il.Integer(1)):
 @special
 def skip(compiler, cont, n=il.Integer(1)): 
   # return element after skip
-  text = compiler.new_var(il.LocalVar('text'))
-  pos = compiler.new_var(il.LocalVar('pos'))
+  text = compiler.new_var(il.ConstLocalVar('text'))
+  pos = compiler.new_var(il.ConstLocalVar('pos'))
   return il.Begin((
     il.AssignFromList(text, pos, il.parse_state),
     il.append_failcont(compiler, il.SetParseState(il.Tuple(text, pos))),
@@ -111,8 +109,8 @@ def skip(compiler, cont, n=il.Integer(1)):
 
 @special
 def left(compiler, cont, length=NONE):
-  text = compiler.new_var(il.LocalVar('text'))
-  pos = compiler.new_var(il.LocalVar('pos'))
+  text = compiler.new_var(il.ConstLocalVar('text'))
+  pos = compiler.new_var(il.ConstLocalVar('pos'))
   return il.Begin((
     il.AssignFromList(text, pos, il.parse_state),
     cont(il.GetItem(text, il.If(il.IsNot(length, NONE),
@@ -121,8 +119,8 @@ def left(compiler, cont, length=NONE):
 
 @special
 def next_element(compiler, cont): 
-  text = compiler.new_var(il.LocalVar('text'))
-  pos = compiler.new_var(il.LocalVar('pos'))
+  text = compiler.new_var(il.ConstLocalVar('text'))
+  pos = compiler.new_var(il.ConstLocalVar('pos'))
   return il.Begin((
     il.AssignFromList(text, pos, il.parse_state),
     cont(il.GetItem(text, pos))))
@@ -134,8 +132,8 @@ def position(compiler, cont):
 
 @special
 def subsequence(compiler, cont, start, end): 
-  text = compiler.new_var(il.LocalVar('text'))
-  pos = compiler.new_var(il.LocalVar('pos'))
+  text = compiler.new_var(il.ConstLocalVar('text'))
+  pos = compiler.new_var(il.ConstLocalVar('pos'))
   start = il.Integer(start.item)
   end = il.Integer(end.item)
   return il.Begin((
@@ -146,8 +144,8 @@ subtext = subsequence
 
 @special
 def goto(compiler, cont, position): 
-  text = compiler.new_var(il.LocalVar('text'))
-  pos = compiler.new_var(il.LocalVar('pos'))
+  text = compiler.new_var(il.ConstLocalVar('text'))
+  pos = compiler.new_var(il.ConstLocalVar('pos'))
   position = il.Integer(position.item)
   return il.Begin((
     il.AssignFromList(text, pos, il.parse_state),
@@ -157,7 +155,7 @@ def goto(compiler, cont, position):
 
 @special
 def unify_parse_sequence(compiler, cont, sequence):
-  x = compiler.new_var(il.LocalVar('x'))
+  x = compiler.new_var(il.ConstLocalVar('x'))
   try:  
     sequence.cps_convert_unify
   except:

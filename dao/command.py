@@ -145,7 +145,7 @@ class Var(Element):
     except:
       x = x.interlang()
       y = y.interlang()      
-      x1 = compiler.new_var(il.LocalVar(x.name))
+      x1 = compiler.new_var(il.ConstLocalVar(x.name))
       return il.begin(
         il.Assign(x1, il.Deref(x)), #for LogicVar, could be optimized when generate code.
         il.If(il.IsLogicVar(x1),
@@ -155,8 +155,8 @@ class Var(Element):
                 il.If(il.Eq(x1, y), cont(il.TRUE), il.failcont(il.TRUE))))
     x = x.interlang()
     y = y.interlang()      
-    x1 = compiler.new_var(il.LocalVar(x.name))
-    y1 = compiler.new_var(il.LocalVar(y.name))
+    x1 = compiler.new_var(il.ConstLocalVar(x.name))
+    y1 = compiler.new_var(il.ConstLocalVar(y.name))
     return il.begin(
       il.Assign(x1, il.Deref(x)), #for LogicVar, could be optimized when generate code.
       il.Assign(y1, il.Deref(y)),
@@ -173,12 +173,12 @@ class Var(Element):
   
   def cps_convert_call(self, compiler, cont, args):
     # see The 90 minute Scheme to C compiler by Marc Feeley
-    function = compiler.new_var(il.LocalVar('function'))
-    vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
+    function = compiler.new_var(il.ConstLocalVar('function'))
+    vars = tuple(compiler.new_var(il.ConstLocalVar('a'+repr(i))) for i in range(len(args)))
     body = il.Apply(function, (cont,)+vars)
     for var, item in reversed(zip(vars, args)):
       body = item.cps_convert(compiler, il.clamda(var, body)) 
-    v = compiler.new_var(il.LocalVar('v'))
+    v = compiler.new_var(il.ConstLocalVar('v'))
     macro_args = il.macro_args([il.ExpressionWithCode(arg, 
                                       il.Lamda((), arg.cps_convert(compiler, il.clamda(v, v)))) 
                                 for arg in args])
@@ -205,6 +205,12 @@ class Var(Element):
   def __repr__(self):
     return "Var('%s')"%self.name 
 
+class Const(Var):
+  def interlang(self):
+    return il.ConstLocalVar(self.name)
+  
+  def __repr__(self):
+    return "Const('%s')"%self.name 
 
 class LogicVar(Var):  
   def alpha_convert(self, env, compiler):
@@ -266,7 +272,7 @@ class CommandCall(Element):
   
   def quasiquote(self, compiler, cont):
     result = compiler.new_var(il.LocalVar('result'))
-    vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(self.args)))
+    vars = tuple(compiler.new_var(il.ConstLocalVar('a'+repr(i))) for i in range(len(self.args)))
     body = (il.Assign(result, il.empty_list),)+tuple(
       il.If(il.Isinstance(var, il.Klass('UnquoteSplice')),
                   il.AddAssign(result, il.Call(il.Symbol('list'), il.Attr(var, il.Symbol('item')))),
@@ -368,7 +374,7 @@ class BuiltinFunctionCall(CommandCall):
   def cps_convert(self, compiler, cont):
     #see The 90 minute Scheme to C compiler by Marc Feeley
     args = self.args
-    vars = tuple(compiler.new_var(il.LocalVar('a'+repr(i))) for i in range(len(args)))
+    vars = tuple(compiler.new_var(il.ConstLocalVar('a'+repr(i))) for i in range(len(args)))
     fun = cont(self.function.function(*vars))
     for var, arg in reversed(zip(vars, args)):
       fun = arg.cps_convert(compiler, il.Clamda(var, fun))
@@ -402,6 +408,13 @@ class BuiltinFunctionCall(CommandCall):
 def assign(var, exp):
   return Assign(var, element(exp))
 
+class MultiAssignToConstError: 
+  def __init__(self, const):
+    self.const = const
+    
+  def __repr__(self):
+    return repr(self.const)
+
 class Assign(CommandCall):
   def __init__(self, var, exp):
     self.var, self.exp = var, exp
@@ -410,13 +423,19 @@ class Assign(CommandCall):
     return Assign(self.var, self.exp.subst(bindings))
     
   def alpha_convert(self, env, compiler):
-    try: var = env[self.var]
+    try: 
+      var = env[self.var]
     except VariableNotBound:
       env[self.var] = var = compiler.new_var(self.var)
+      if isinstance(var, Const):
+        var.assigned = True
+      return Assign(var, self.exp.alpha_convert(env, compiler))
+    if isinstance(var, Const) and var.assigned:
+      raise MultiAssignToConstError(var)
     return Assign(var, self.exp.alpha_convert(env, compiler))
   
   def cps_convert(self, compiler, cont):
-    v = compiler.new_var(il.LocalVar('v'))
+    v = compiler.new_var(il.ConstLocalVar('v'))
     return self.exp.cps_convert(compiler, 
               il.clamda(v, il.Assign(self.var.interlang(), v), cont(v)))
   
@@ -431,7 +450,7 @@ class Assign(CommandCall):
 
 @special
 def expression_with_code(compiler, cont, exp):
-  v = compiler.new_var(il.LocalVar('v'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
   return cont(il.ExpressionWithCode(exp, il.Lamda((), exp.cps_convert(compiler, il.clamda(v, v)))))
 
 type_map = {int:Integer, float: Float, str:String, unicode: String, 

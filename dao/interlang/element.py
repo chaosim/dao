@@ -3,6 +3,10 @@ from dao import base
 
 from dao.compilebase import CompileTypeError #VariableNotBound, CompileTypeError
 
+#True == 1
+#False==0
+unknown = -1
+
 def element(exp):
   if isinstance(exp, base.Element):
     return exp
@@ -18,10 +22,30 @@ def no_side_effects(exp):
   exp.side_effects = fun
   return exp
 
-#True == 1
-#False==0
-unknown = -1
-
+def optimize_args(args, env, compiler):
+  result = []
+  for arg in args:
+    arg = arg.optimize(env, compiler)
+    if arg is not None:
+      result.append(arg)
+  return tuple(result)
+    
+def pythonize_args(args, env, compiler):
+  # used in Apply, Return, Yield, VirtualOpteration
+  result = []
+  exps = ()
+  has_statement = False
+  for arg in args:
+    exps2, has_statement1 = arg.pythonize(env, compiler)
+    has_statement = has_statement or has_statement1
+    if exps2[-1].is_statement:
+      result.append(NONE)
+      exps += exps2
+    else:
+      result.append(exps2[-1])
+      exps += exps2[:-1]      
+  return exps, result, has_statement
+    
 class Element(base.Element):
   has_side_effects = True
   is_statement = False
@@ -413,8 +437,7 @@ class Begin(Element):
     result = []
     for arg in self.statements:
       arg1 = arg.optimize(env, compiler)
-      if arg1 is not None:
-        result.append(arg1)
+      result.append(arg1)
     if result:
       return begin(*([x for x in result[:-1] if not isinstance(x, Atom)]+[result[-1]]))
     else: return pass_statement
@@ -455,34 +478,6 @@ class Begin(Element):
   def __repr__(self):
     return 'il.begin(%s)'%', '.join([repr(x) for x in self.statements])
 
-type_map = {int:Integer, float: Float, str:String, unicode: String, 
-            tuple: make_tuple, list:List, dict:Dict, 
-            bool:Bool, type(None): Atom}
-
-def optimize_args(args, env, compiler):
-  result = []
-  for arg in args:
-    arg = arg.optimize(env, compiler)
-    if arg is not None:
-      result.append(arg)
-  return tuple(result)
-    
-def pythonize_args(args, env, compiler):
-  # used in Apply, Return, Yield, VirtualOpteration
-  result = []
-  exps = ()
-  has_statement = False
-  for arg in args:
-    exps2, has_statement1 = arg.pythonize(env, compiler)
-    has_statement = has_statement or has_statement1
-    if exps2[-1].is_statement:
-      result.append(NONE)
-      exps += exps2
-    else:
-      result.append(exps2[-1])
-      exps += exps2[:-1]      
-  return exps, result, has_statement
-    
 class PassStatement(Element):
   is_statement = True
   
@@ -494,6 +489,12 @@ class PassStatement(Element):
   
   def side_effects(self):
     return False
+  
+  def analyse(self, compiler):  
+    return
+  
+  def optimize(self, env, compiler):
+    return pass_statement
   
   def pythonize(self, env, compiler):
     return (self,), True
@@ -517,3 +518,8 @@ class PassStatement(Element):
     return 'il.pass_statement'
 
 pass_statement = PassStatement()
+
+type_map = {int:Integer, float: Float, str:String, unicode: String, 
+            tuple: make_tuple, list:List, dict:Dict, 
+            bool:Bool, type(None): Atom}
+

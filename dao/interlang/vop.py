@@ -8,7 +8,7 @@ from element import Element, Begin, begin, Return, Yield
 from element import Atom, Integer, Bool, MacroArgs, Tuple, Dict, List , element
 from element import pythonize_args, FALSE, NONE, Symbol, no_side_effects, unknown
 from lamda import Apply, optimize_args, clamda, Lamda, MacroLamda, RulesDict
-from lamda import Var, LocalVar, SolverVar, LogicVar, Assign, ExpressionWithCode#, ValueAssignBox
+from lamda import Var, LocalVar, ConstLocalVar, SolverVar, LogicVar, Assign, ExpressionWithCode#, ValueAssignBox
 
 class BinaryOperation(Element):
   def __init__(self, name, operator, operator_function, has_side_effects=True):
@@ -293,7 +293,7 @@ class EvalExpressionWithCode(Element):
     if isinstance(item, Var):
       return EvalExpressionWithCode(item)
     elif isinstance(item, ExpressionWithCode):
-      return item.function.body
+      return item.function.body.optimize(env, compiler)
     else:
       raise CompileTypeError(item)
   
@@ -770,16 +770,15 @@ failcont = SolverVar('fail_cont')
 def SetFailCont(cont): return Assign(failcont, cont)
 
 def append_failcont(compiler, *exps):
-  v, fc = LocalVar('v'), LocalVar('fc1')
-  v1 =  compiler.new_var(v)
-  fc1 = compiler.new_var(fc)
+  v =  compiler.new_var(ConstLocalVar('v'))
+  fc = compiler.new_var(ConstLocalVar('fc'))
   return Begin((
-    Assign(fc1, failcont),
+    Assign(fc, failcont),
     SetFailCont(
-      clamda(v1, 
-                SetFailCont(fc1),
+      clamda(v, 
+                SetFailCont(fc),
                 begin(*exps),
-                fc1(FALSE)))
+                fc(FALSE)))
     ))
 
 cut_cont = SolverVar('cut_cont')

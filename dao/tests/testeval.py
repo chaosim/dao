@@ -4,7 +4,7 @@ from nose.tools import eq_, ok_, assert_raises
 
 from dao.solve import eval
 
-from dao.command import Var, LogicVar
+from dao.command import Var, LogicVar, Const, MultiAssignToConstError
 
 from dao.builtins import Integer, String
 from dao.builtins import quote, begin, if_, assign
@@ -47,20 +47,25 @@ class TestSimple:
     #eq_(eval(assign(a,2)), 2)
     eq_(eval(begin(assign(a,2), a)), 2)
     
+  def testassign2(self):
+    a = Const('a')
+    assert_raises(MultiAssignToConstError, eval, begin(assign(a,2), assign(a, 3)))
+    
   def xtestdefine(self):
     eq_(eval(begin(define(x,1),define(x,2))), 2)
     
 class TestControl:
+  def test_let_assign_const(self):
+    a = Const('a')
+    assert_raises(MultiAssignToConstError, eval, 
+                  let([(a,2)], assign(a, 3)))
+    
   def test_begin(self):
     eq_(eval(begin(1, 2)), 2)
     
-  def test_eval(self):
+  def testeval5(self):
     eq_(eval(eval_(quote(begin(1, 2)))), 2)
     eq_(eval(eval_(quote(begin(1, add(1, 2))))), 3)
-    
-  def testeval1(self):
-    eq_(eval(eval_(quote(1))), (1))
-    eq_(eval(eval_(quote(add(1, 1)))), (2))
     
   def testeval2(self):
     x = Var('x')
@@ -73,6 +78,10 @@ class TestControl:
   def testeval4(self):
     x = Var('x')
     eq_(eval(let([(x, quote(add(1,1)))], eval_(x))), 2)
+    
+  def testeval1(self):
+    eq_(eval(eval_(quote(1))), (1))
+    eq_(eval(eval_(quote(add(1, 1)))), (2))
     
   def test_callcc(self):
     k = Var('k')
@@ -115,10 +124,13 @@ class TestLambdaLet:
     eq_(eval(lamda((x, y), add(x, y))(1, 3)), 4)
     
   def test_let(self):
-    x, y = Var('x'), Var('y')
+    x = Var('x')
     eq_(eval(let([(x, 1)], x)), 1)
     eq_(eval(let([(x, 1)], let([(x, 2)], x))), 2)
     eq_(eval(let([(x, 1)], let([(x, 2)], assign(x, 2)))), 2)
+    
+  def test_let2(self):
+    x, y = Var('x'), Var('y')
     eq_(eval(let([(x,1), (y,2)], add(x, y))), 3)
     
   def test_let_assign(self):
@@ -135,6 +147,16 @@ class TestLambdaLet:
   def xtest_letrec2(self):
     x, f = Var('x'), Var('f')
     eq_(eval(letrec([(f, lamda((x,), f(1)))], f(2))), 1)
+    
+  def test_letrec_assign(self):
+    x, f = Var('x'), Var('f')
+    assert_raises(MultiAssignToConstError, eval,
+                  letrec([(f, lamda((x,), f(1)))], f(2), assign(f, 1)))
+    
+  def test_letrec_assign2(self):
+    x, f = Var('x'), Var('f')
+    assert_raises(MultiAssignToConstError, eval,
+                  letrec([(f, lamda((x,), f(1), assign(f, 1)))], f(2)))
     
   def test_letrec3(self):
     x, f = Var('x'), Var('f')
@@ -211,28 +233,42 @@ class TestRules:
     eq_(eval(rules([[x],x])(2)), 2) 
     eq_(eval(rules([[1], 1],[[x],x])(2)), 2) 
     eq_(eval(rules([[1], 1])(1)), 1) 
+    
+  def test1_2(self):
     eq_(eval(rules([[1], 1],[[2],2])(2)), 2) 
     
   def test2(self):
     lx = LogicVar('x')
     eq_(eval(rules([[1], 1],[[2],2])(lx)), 1)
     
-  def testdouble(self):
+  def testdouble1(self):
     x = Var('x')
     eq_(eval(rules([[x], add(x, x)])(2)), 4)
     eq_(eval(rules([[x], x])(add(2, 2))), 4)
+    
+  def testdouble2(self):
+    f = Var('f')
+    x = Var('x')
+    eq_(eval(let([(f, rules([[x], add(x, x)]))], f(1))), 2) # passed
     
   def testdouble3(self):
     f = Var('f')
     x = Var('x')
     eq_(eval(let([(f, rules([[x], add(x, x)]))], f(f(1)))), 4) 
-    eq_(eval(let([(f, rules([[x], add(x, x)]))], f(1))), 2) # passed
+    
+  def testdouble4(self):
+    f = Var('f')
+    x = Var('x')
     assert_raises(NoSolution, eval, let([(f, rules([[x], add(x, x)]))], f(1, 2))) # passed
     
   def test_embed_var1(self):
     e, f = LogicVar('e'), Var('f')
     #eq_(eval(let([(f, rules([[1], 1]))], f(e), e)), 1)
     eq_(eval(letrec([(f, rules([[1], 1]))], f(e))), 1)
+    
+  def test_embed_var2(self):
+    e, f = LogicVar('e'), Var('f')
+    eq_(eval(let([(f, rules([[1], 1]))], f(e), e)), 1)
     
   def test_letrec_rules(self):
     f = Var('f')

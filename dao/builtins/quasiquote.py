@@ -63,7 +63,7 @@ class UnquoteSplice(CommandCall):
     raise DaoSyntaxError
 
   def quasiquote(self, compiler, cont):
-    v = compiler.new_var(il.LocalVar('v'))
+    v = compiler.new_var(il.ConstLocalVar('v'))
     return self.item.cps_convert(compiler, il.clamda(v, cont(il.UnquoteSplice(v))))
   
   def __repr__(self):

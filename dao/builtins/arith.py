@@ -3,8 +3,6 @@ from dao.command import special, Command, SpecialCall, BuiltinFunction
 import dao.interlang as il
 from dao.interlang import TRUE, FALSE, NONE
 
-v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
-
 add = BuiltinFunction('add', il.add)
 eq = BuiltinFunction('eq', il.Eq)
 sub = BuiltinFunction('sub', il.sub)

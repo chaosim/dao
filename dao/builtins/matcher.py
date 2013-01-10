@@ -12,8 +12,6 @@ import dao.interlang as il
 from dao.interlang import TRUE, FALSE, NONE
 
 
-v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
-
 # lazy: match at least, except matchers that followed fail. 尽量少吃进，除非别人逼我多吃一点
 # nongreedy, match at most, throw out if matchers followed fail.先尽量多吃，如果别人要再吐出来
 # greedy, match at most, don,t throw out even matchers followed fail. 吃进去了就不会吐出来。
@@ -27,17 +25,17 @@ def may(item, mode=greedy):
 
 @special
 def _may(compiler, cont, item):
-  v = compiler.new_var(v0)
+  v = compiler.new_var(il.ConstLocalVar('v'))
   return cps_convert(compiler, clause, cont, il.Clamda(v,  cont(v)))
 
 @special
 def _lazy_may(compiler, cont, item):
-  v = compiler.new_var(v0)
+  v = compiler.new_var(il.ConstLocalVar('v'))
   return il.Clamda(v, cont(v, cps_convert(compiler, item, cont)))
 
 @special
 def _greedy_may(compiler, cont, item):
-  v = compiler.new_var(v0)
+  v = compiler.new_var(il.ConstLocalVar('v'))
   return cps_convert(compiler, item, il.Clamda(v, cont(v)), 
                                       il.Clamda(v, cont(v)))
 
@@ -60,9 +58,9 @@ def any(item, mode=nongreedy):
   
 @special
 def _any(compiler, cont, item):
-  any_cont = compiler.new_var(il.LocalVar('any_cont'))
-  fc = compiler.new_var(il.LocalVar('old_fail_cont'))
-  v = compiler.new_var(il.LocalVar('v'))
+  any_cont = compiler.new_var(il.ConstLocalVar('any_cont'))
+  fc = compiler.new_var(il.ConstLocalVar('old_fail_cont'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
   return il.cfunction(any_cont, v,
                 il.Assign(fc, il.failcont),
                 il.SetFailCont(il.clamda(v, 
@@ -82,10 +80,10 @@ def _any2(compiler, cont, item, result, template):
 
 @special
 def _lazy_any(compiler, cont, item):
-  fcont = compiler.new_var(il.LocalVar('fcont'))
-  lazy_any_cont = compiler.new_var(il.LocalVar('lazy_any_cont'))
-  lazy_any_fcont = compiler.new_var(il.LocalVar('lazy_any_fcont'))
-  v = compiler.new_var(il.LocalVar('v'))
+  fcont = compiler.new_var(il.ConstLocalVar('fcont'))
+  lazy_any_cont = compiler.new_var(il.ConstLocalVar('lazy_any_cont'))
+  lazy_any_fcont = compiler.new_var(il.ConstLocalVar('lazy_any_fcont'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
   return  il.begin(
     il.Assign(fcont, il.failcont),
     il.cfunction(lazy_any_cont, v,
@@ -107,9 +105,9 @@ def _any2(compiler, cont, item, result, template):
 
 @special
 def _greedy_any(compiler, cont, item):
-  fcont = compiler.new_var(il.LocalVar('fcont'))
-  greedy_any_fcont = compiler.new_var(il.LocalVar('greedy_any_fcont'))
-  greedy_any_cont = compiler.new_var(il.LocalVar('greedy_any_cont'))
+  fcont = compiler.new_var(il.ConstLocalVar('fcont'))
+  greedy_any_fcont = compiler.new_var(il.ConstLocalVar('greedy_any_fcont'))
+  greedy_any_cont = compiler.new_var(il.ConstLocalVar('greedy_any_cont'))
   return il.begin(
     il.Assign(fcont, il.failcont),
     il.cfunction(greedy_any_fcont, v,

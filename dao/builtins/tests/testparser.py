@@ -50,15 +50,17 @@ class TestParse:
     eq_(eval(begin(set_text('abcde'), unify_parse_text(x), x)), 'abcde')
     eq_(eval(begin(set_text('abcde'), unify_parse_text('abcde'))), True)
     
-  def test_parse(self):
+  def test_char(self):
     eq_(eval(begin(set_text('abcde'), char('a'))), 'a')
     
-  def test_parse2(self):
+  def test_char_eoi(self):
     eq_(eval(begin(set_text('a'), char('a'), eoi)), True)
     assert_raises(NoSolution, eval, begin(set_text('ab'), char('a'), eoi))
     
-  def test_parse3(self):
+  def test_any1(self):
     eq_(eval(begin(set_text('aaa'), any(char('a')), eoi)), True)
+    
+  def test_any2(self):
     eq_(eval(begin(set_text('aaa'), any(char('a')))), True)
     
 

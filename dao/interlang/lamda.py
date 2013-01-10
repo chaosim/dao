@@ -8,7 +8,6 @@ from element import Element, begin, Return, Begin #, element
 from element import NONE, unknown, make_tuple, Tuple, Atom, Tuple, List
 
 def lamda(params, *body):
-  #body = tuple(element(x) for x in body)
   return Lamda(params, begin(*body))
 
 class Lamda(Element):
@@ -45,12 +44,16 @@ class Lamda(Element):
   def optimize(self, env, compiler):
     env = env.extend()
     for var in self.free_vars():
+      if isinstance(var, ConstLocalVar):
+        continue
       try:
         env[var]._removed = False
       except: pass
       env[var] = VarAssignBox(var)
     body = self.body.optimize(env, compiler)
     for var in self.free_vars():
+      if isinstance(var, ConstLocalVar):
+        continue
       try:
         env[var]._removed = False
       except: pass
@@ -144,7 +147,6 @@ class Lamda(Element):
                               repr(self.body))
 
 def clamda(v, *body):
-  #body = tuple(element(x) for x in body)
   return Clamda(v, begin(*body))
 
 class Clamda(Lamda):
@@ -174,7 +176,6 @@ class Clamda(Lamda):
       return begin(Assign(self.params[0], arg), self.body)
     else:
       result = self.body.subst({self.params[0]:arg})
-      #result.local_vars = self.local_vars
       return result
   
   def __repr__(self):
@@ -233,7 +234,6 @@ class Done(Clamda):
 class Function(Lamda):
   '''recursive Function'''
   is_statement = True
-  is_function = True
   
   def __init__(self, name, params, body):
     Lamda.__init__(self, params, body)
@@ -287,7 +287,6 @@ class Function(Lamda):
                                  repr(self.body))    
 
 def cfunction(name, v, *body):
-  #body = tuple(element(x) for x in body)
   return CFunction(name, v, begin(*body))
 
 class CFunction(Function):
@@ -302,18 +301,20 @@ class CFunction(Function):
     return self.__class__(self.name, params[0], body)
   
   def optimize_apply(self, env, compiler, args):
-    #compiler.recusive_vars_stack.append(set())
     new_env = env.extend()
     for var in self.free_vars():
+      if isinstance(var, ConstLocalVar):
+        continue      
       try:
         env[var]._removed = False
         new_env[var] = VarAssignBox(var)
-        #self.recursive_vars.add(var)
       except:
         pass
     body = self.body.subst({self.params[0]:args[0]}) 
     body = body.optimize(new_env, compiler)
     for var in self.free_vars():
+      if isinstance(var, ConstLocalVar):
+        continue      
       try:
         assign = new_env[var]
         #new_env[var] = VarAssignBox(var)
@@ -339,6 +340,7 @@ class RulesFunction(Function):
     return Apply(self, tuple(element(x) for x in args))
   
   def optimize_apply(self, env, compiler, args):
+    args = (args[0], Tuple(*args[1:]))
     result = Lamda.optimize_apply(self, env, compiler, args)
     return result
   
@@ -613,7 +615,6 @@ class Var(Element):
     return classeq(x, y) and x.name==y.name
   
   def __call__(self, *args):
-    #args = tuple(element(arg) for arg in args)
     return Apply(self, args)
   
   def free_vars(self):
@@ -625,11 +626,13 @@ class Var(Element):
   def __hash__(self): return hash(self.name)
 
   def __repr__(self):
-    return self.name #enough in tests
+    return self.name 
 
 class RecursiveVar(Var): pass
 
 class LocalVar(Var): pass
+
+class ConstLocalVar(LocalVar): pass
 
 class SolverVar(Var):
   def __init__(self, name):
@@ -902,9 +905,13 @@ class Assign(Element):
        or isinstance(exp, ExpressionWithCode) or isinstance(exp, RulesDict):
       env[self.var] = result
     elif isinstance(exp, Lamda):
-      if not isinstance(self.var, RecursiveVar) and self.var not in exp.free_vars():
+      if isinstance(self.var, RecursiveVar):
+        result._removed = False
+      #elif self.var in exp.free_vars():
+        #result._removed = False
+        #env[self.var] = result
+      else: 
         env[self.var] = result
-      else: result._removed = False
     else:
       result._removed = False
       assign_box = VarAssignBox(self.var)
@@ -1187,6 +1194,8 @@ class While(Element):
   def optimize(self, env, compiler):
     free_vars = self.free_vars()
     for var in free_vars:
+      if isinstance(var, ConstLocalVar):
+        continue
       try:
         assign = env[var]
       except: 

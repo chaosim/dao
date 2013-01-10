@@ -9,13 +9,10 @@ from dao.command import special, Command, SpecialCall, Var, String
 import dao.interlang as il
 from dao.interlang import TRUE, FALSE, NONE
 
-v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
-
 @special
 def char(compiler, cont, argument):
-  #v = compiler.new_var(v0)
-  text = compiler.new_var(il.LocalVar('text'))
-  pos = compiler.new_var(il.LocalVar('pos'))
+  text = compiler.new_var(il.ConstLocalVar('text'))
+  pos = compiler.new_var(il.ConstLocalVar('pos'))
   if isinstance(argument, String):
     argument = argument.interlang()
     return il.Begin((
@@ -59,13 +56,13 @@ def char(compiler, cont, argument):
 @special
 def word(compiler, cont, arg):
   'word of letters'
-  text = compiler.new_var(il.LocalVar('text'))
-  pos = compiler.new_var(il.LocalVar('pos'))
+  text = compiler.new_var(il.ConstLocalVar('text'))
+  pos = compiler.new_var(il.ConstLocalVar('pos'))
   p = compiler.new_var(il.LocalVar('p'))
-  length = compiler.new_var(il.LocalVar('length'))
+  length = compiler.new_var(il.ConstLocalVar('length'))
   if isinstance(arg, Var):
     arg = arg.interlang()
-    x = compiler.new_var(il.LocalVar('x'))
+    x = compiler.new_var(il.ConstLocalVar('x'))
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
@@ -124,13 +121,13 @@ def word(compiler, cont, arg):
 @special
 def identifier(compiler, cont, arg):
   '''underline or letter lead, follow underline, letter or digit'''
-  text = compiler.new_var(il.LocalVar('text'))
-  pos = compiler.new_var(il.LocalVar('pos'))
+  text = compiler.new_var(il.ConstLocalVar('text'))
+  pos = compiler.new_var(il.ConstLocalVar('pos'))
   p = compiler.new_var(il.LocalVar('p'))
-  length = compiler.new_var(il.LocalVar('length'))
+  length = compiler.new_var(il.ConstLocalVar('length'))
   if isinstance(arg, Var):
     arg = arg.interlang()
-    x = compiler.new_var(il.LocalVar('x'))
+    x = compiler.new_var(il.ConstLocalVar('x'))
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
@@ -195,13 +192,13 @@ def identifier(compiler, cont, arg):
 @special
 def integer(compiler, cont, arg):
   '''integer'''
-  text = compiler.new_var(il.LocalVar('text'))
-  pos = compiler.new_var(il.LocalVar('pos'))
+  text = compiler.new_var(il.ConstLocalVar('text'))
+  pos = compiler.new_var(il.ConstLocalVar('pos'))
   p = compiler.new_var(il.LocalVar('p'))
-  length = compiler.new_var(il.LocalVar('length'))
+  length = compiler.new_var(il.ConstLocalVar('length'))
   if isinstance(arg, Var):
     arg = arg.interlang()
-    x = compiler.new_var(il.LocalVar('x'))
+    x = compiler.new_var(il.ConstLocalVar('x'))
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
@@ -255,14 +252,14 @@ def integer(compiler, cont, arg):
 @special
 def literal(compiler, cont, arg):
   '''any given instance string'''
-  text = compiler.new_var(il.LocalVar('text'))
-  pos = compiler.new_var(il.LocalVar('pos'))
+  text = compiler.new_var(il.ConstLocalVar('text'))
+  pos = compiler.new_var(il.ConstLocalVar('pos'))
   p = compiler.new_var(il.LocalVar('p'))
   i = compiler.new_var(il.LocalVar('i'))
-  x = compiler.new_var(il.LocalVar('x'))
-  char = compiler.new_var(il.LocalVar('char'))
-  length = compiler.new_var(il.LocalVar('length'))  
-  length2 = compiler.new_var(il.LocalVar('length2'))  
+  x = compiler.new_var(il.ConstLocalVar('x'))
+  #char = compiler.new_var(il.ConstLocalVar('char'))
+  length = compiler.new_var(il.ConstLocalVar('length'))  
+  length2 = compiler.new_var(il.ConstLocalVar('length2'))  
   if isinstance(arg, Var):
     return il.Begin((
       il.Assign(x, il.Deref(arg)),

@@ -6,15 +6,13 @@ from dao.command import special, Command, CommandCall, SpecialCall, Apply, Var, 
 import dao.interlang as il
 from dao.interlang import TRUE, FALSE, NONE
 
-v0, fc0 = il.LocalVar('v'), il.LocalVar('fc')
-
 @special
 def quote(compiler, cont, exp):
   return cont(il.ExpressionWithCode(exp, il.Lamda((), exp.cps_convert(compiler, il.equal_cont))))
 
 @special
 def eval_(compiler, cont, exp):
-  v = compiler.new_var(v0)
+  v = compiler.new_var(il.ConstLocalVar('v'))
   return exp.cps_convert(compiler, il.clamda(v, cont(il.EvalExpressionWithCode(v))))
 
 def begin(*exps):
@@ -35,13 +33,13 @@ def Begin(compiler, cont, *exps):
 
 @special
 def if_(compiler, cont, test, then, else_):
-  v = compiler.new_var(v0)
+  v = compiler.new_var(il.ConstLocalVar('v'))
   return test.cps_convert(compiler, 
            il.Clamda(v, il.If(v, then.cps_convert(compiler, cont), 
                                  else_.cps_convert(compiler, cont))))
 
 def cps_convert_exps(compiler, exps, cont):
-  v = compiler.new_var(v0)
+  v = compiler.new_var(il.ConstLocalVar('v'))
   if not exps: return il.PassStatement()
   if len(exps)==1:
     return exps[0].cps_convert(compiler, cont)
@@ -54,11 +52,11 @@ from define import LamdaVar
 @special
 def callcc(compiler, cont, function):
   body = function.body.subst({function.params[0]: LamdaVar(function.params[0].name)})
-  k = compiler.new_var(il.LocalVar('cont'))
+  k = compiler.new_var(il.ConstLocalVar('cont'))
   params = tuple(x.interlang() for x in function.params)
   function1 = il.Lamda((k,)+params, body.cps_convert(compiler, k))
-  k1 = compiler.new_var(il.LocalVar('cont'))
-  v = compiler.new_var(v0)
+  k1 = compiler.new_var(il.ConstLocalVar('cont'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
   return function1(cont, il.Lamda((k1, v), cont(v)))
 
 @special
@@ -87,10 +85,10 @@ class Block(Element):
   def cps_convert(self, compiler, cont):
     # use cfunction, continue_block means recursive call.
     # tail recursive cfunction can be used to transform to while 1/break/continue.
-    v = compiler.new_var(v0)
-    v1 = compiler.new_var(v0)
-    v2 = compiler.new_var(v0)
-    block_fun = compiler.new_var(il.LocalVar('block_'+self.label.name))
+    v = compiler.new_var(il.ConstLocalVar('v'))
+    v1 = compiler.new_var(il.ConstLocalVar('v'))
+    v2 = compiler.new_var(il.ConstLocalVar('v'))
+    block_fun = compiler.new_var(il.ConstLocalVar('block_'+self.label.name))
     compiler.exit_block_cont_map[self.label.name] = il.clamda(v1, cont(v1))
     compiler.continue_block_cont_map[self.label.name] = il.clamda(v2, block_fun(v2))
     return il.cfunction(block_fun, v, self.body.cps_convert(compiler, cont))(NONE)
@@ -114,7 +112,7 @@ class ExitBlock(il.Element):
     return ExitBlock(label, self.value.alpha_convert(env, compiler))
   
   def cps_convert(self, compiler, cont):
-    v = compiler.new_var(il.LocalVar('v'))
+    v = compiler.new_var(il.ConstLocalVar('v'))
     return self.value.cps_convert(compiler,
             il.clamda(v, compiler.protect_cont(NONE), 
                          compiler.exit_block_cont_map[self.label.name](v, )))
@@ -145,8 +143,8 @@ class ContinueBlock(il.Element):
 
 @special
 def catch(compiler, cont, tag, *form):
-  v = compiler.new_var(il.LocalVar('v'))
-  v2 = compiler.new_var(il.LocalVar('v'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  v2 = compiler.new_var(il.ConstLocalVar('v'))
   return tag.cps_convert(compiler, il.clamda(v,
     il.PushCatchCont(v, il.clamda(v2,
       cont(v2))),
@@ -154,8 +152,8 @@ def catch(compiler, cont, tag, *form):
   
 @special
 def throw(compiler, cont, tag, form):
-  v = compiler.new_var(il.LocalVar('v'))
-  v2 = compiler.new_var(il.LocalVar('v'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  v2 = compiler.new_var(il.ConstLocalVar('v'))
   return tag.cps_convert(compiler, 
       il.clamda(v,
           form.cps_convert(compiler, 
@@ -165,9 +163,9 @@ def throw(compiler, cont, tag, form):
   
 @special
 def unwind_protect(compiler, cont, form, *cleanup):
-  v = compiler.new_var(il.LocalVar('v'))
-  v1 = compiler.new_var(il.LocalVar('v'))
-  v2 = compiler.new_var(il.LocalVar('v'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  v1 = compiler.new_var(il.ConstLocalVar('v'))
+  v2 = compiler.new_var(il.ConstLocalVar('v'))
   old_protect_cont = compiler.protect_cont
   compiler.protect_cont = il.clamda(v, NONE)
   cleanup_protect = begin(*cleanup).cps_convert(compiler, old_protect_cont)

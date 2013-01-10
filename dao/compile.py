@@ -39,7 +39,7 @@ def compile_to_python(exp, env, done=None):
   original_exp = exp
   compiler = Compiler()
   if done is None:
-    done = il.Done(compiler.new_var(il.LocalVar('v')))
+    done = il.Done(compiler.new_var(il.ConstLocalVar('v')))
   compiler.exit_block_cont_map = {}
   compiler.continue_block_cont_map = {}
   compiler.protect_cont = done
@@ -47,7 +47,7 @@ def compile_to_python(exp, env, done=None):
   exp = element(exp)
   exp = exp.alpha_convert(env, compiler)
   exp = exp.cps_convert(compiler, done)
-  v = compiler.new_var(il.LocalVar('v'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
   solver_prelude = il.begin(
     il.Assign(il.parse_state, il.NONE),
     il.Assign(il.failcont, 
@@ -63,8 +63,13 @@ def compile_to_python(exp, env, done=None):
   exp.analyse(compiler)
   env = Environment()
   exp = exp.optimize(env, compiler)
+  for x in env.bindings.values():
+    try:
+      if x._removed==il.unknown:
+        x.remove()
+    except: pass
   #exp = exp.tail_recursive_convert()
-  function = compiler.new_var(il.LocalVar('compiled_dao_function'))
+  function = compiler.new_var(il.ConstLocalVar('compiled_dao_function'))
   exp = il.Function(function, (), exp)
   exp = il.begin(*exp.pythonize(env, compiler)[0])
   if isinstance(exp, il.Begin):
@@ -73,10 +78,56 @@ def compile_to_python(exp, env, done=None):
   compiler = Compiler()
   result = exp.to_code(compiler)
   return prelude + result
+
 '''
-il.begin(il.Assign(a0, il.UnquoteSplice(ExpressionWithCode(Tuple((3, 4)), 
-il.Lamda((), il.Tuple((3, 4)))))), il.Assign(result, []), 
-il.If(il.Isinstance(a0, il.Klass(UnquoteSplice)), 
-il.Assign(result, il.add(result, il.Call(list, il.Attr(a0, item)))), 
-il.ListAppend(result, a0)), il.Call(il.Klass(BuiltinFunctionCall), il.QuoteItem(add), il.MakeTuple(result)))
+let([(f, rules([[x], add(x, x)]))], f(f(1)))--->
+
+il.begin(
+  il.Assign(il.parse_state, None), 
+  il.Assign(il.fail_cont, il.Clamda(v9, il.RaiseException(il.Call(NoSolution, v9)))), 
+  il.Assign(il.cut_cont, il.fail_cont), 
+  il.Assign(il.cut_or_cont, il.fail_cont), 
+  il.Assign(il.catch_cont_map, {}), 
+  il.Assign(f, il.Function(rules_function, (cont, params), 
+    il.begin(
+      il.Assign(arity_fun_1, il.Lamda((), il.begin(
+        il.Assign(cut_cont, il.cut_cont), 
+        il.Assign(il.cut_cont, il.fail_cont), 
+        il.Assign(x, il.GetItem(params, 0)), 
+        il.Assign(il.cut_cont, cut_cont), 
+        cont(il.add(x, x))))), 
+      il.Assign(arity_body_map, RulesDict({1: arity_fun_1})), 
+      il.If(il.In(il.Len(params), arity_body_map), 
+            il.GetItem(arity_body_map, il.Len(params))(), 
+            il.fail_cont(None))))), 
+  f(il.Clamda(a0, f(il.Done(v, v), a0)), 1))
 '''
+
+'''
+il.begin(
+  il.Assign(arity_fun_1, il.Lamda((), 
+    il.begin(
+      il.Assign(cut_cont, il.cut_cont), 
+      il.Assign(il.cut_cont, il.fail_cont), 
+      il.Assign(x, il.GetItem(il.Tuple((1,)), 0)), 
+      il.Assign(il.cut_cont, cut_cont), 
+      il.Clamda(a0, f(il.Done(v, v), a0))(il.add(x, x))))), 
+  il.Assign(arity_body_map, RulesDict({1: il.Lamda((), il.begin(
+    il.Assign(cut_cont, il.cut_cont), 
+    il.Assign(il.cut_cont, il.fail_cont), 
+    il.Assign(x, il.GetItem(il.Tuple((1,)), 0)), 
+    il.Assign(il.cut_cont, cut_cont), 
+    il.Clamda(a0, f(il.Done(v, v), a0))(il.add(x, x))))})), 
+  il.If(il.In(il.Len(il.Tuple((1,))), RulesDict({1: il.Lamda((), il.begin(
+    il.Assign(cut_cont, il.cut_cont), 
+    il.Assign(il.cut_cont, il.fail_cont), 
+    il.Assign(x, il.GetItem(il.Tuple((1,)), 0)), 
+    il.Assign(il.cut_cont, cut_cont), 
+    il.Clamda(a0, f(il.Done(v, v), a0))(il.add(x, x))))})), 
+        il.GetItem(RulesDict({1: il.Lamda((), il.begin(
+          il.Assign(cut_cont, il.cut_cont), 
+          il.Assign(il.cut_cont, il.fail_cont), 
+          il.Assign(x, il.GetItem(il.Tuple((1,)), 0)), 
+          il.Assign(il.cut_cont, cut_cont), 
+          il.Clamda(a0, f(il.Done(v, v), a0))(il.add(x, x))))}), il.Len(il.Tuple((1,))))(), 
+        il.fail_cont(None)))'''

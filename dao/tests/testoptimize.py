@@ -82,7 +82,7 @@ class TestSimple:
     x = LogicVar('x')
     result = compile_optimize(unify(x, 2))
     x1 = il.LogicVar('x')
-    x2 = il.LocalVar('x')
+    x2 = il.ConstLocalVar('x')
     expect = il.begin(il.Assign(x2, il.Deref(LogicVar(x1))), 
                       il.If(il.IsLogicVar(x2), 
                             il.begin(il.SetBinding(x2, il.Integer(2)), il.TRUE), 
