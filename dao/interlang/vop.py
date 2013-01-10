@@ -570,8 +570,9 @@ class PushCatchCont(Element):
     return PushCatchCont(tag, cont)
   
   def pythonize(self, env, compiler):
-    value_exps, has_statement1 = self.value.pythonize(env, compiler)
-    return value_exps[:-1]+(AssignFromList(*(self.vars+(value_exps[-1],))),), True
+    tag_exps, has_statement1 = self.tag.pythonize(env, compiler)
+    cont_exps, has_statement2 = self.cont.pythonize(env, compiler)
+    return tag_exps[:-1]+cont_exps[:-1]+(PushCatchCont(tag_exps[-1], cont_exps[-1]), ), True
   
   def insert_return_statement(self):
     return Return(self)

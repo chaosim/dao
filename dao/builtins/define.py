@@ -298,6 +298,19 @@ def rules(*rules):
     result.setdefault(len(head), []).append((head, body))
   return Rules(result)
 
+@special
+def wrap_cut(compiler, cont, exp):
+  cut_cont = il.ConstLocalVar('cut_cont')
+  v = il.ConstLocalVar('v')
+  return il.begin(
+    il.Assign(cut_cont, il.cut_cont),
+    il.append_failcont(compiler, 
+      il.Assign(il.cut_cont, cut_cont)),
+    il.Assign(il.cut_cont, il.failcont),
+    exp.cps_convert(compiler, il.clamda(v, 
+      il.Assign(il.cut_cont, cut_cont),                         
+      cont(v))))
+
 class Rules(Lamda):
   def __init__(self, rules):
     self.rules = rules
@@ -322,7 +335,8 @@ class Rules(Lamda):
       return il.failcont
     for head, body in self.rules[len(args)]:
       clauses.append(begin(unify_rule_head(args, head), body))
-    return or_(*clauses).cps_convert(compiler, cont)
+    cut_cont = compiler.new_var(Const('cut_cont'))
+    return wrap_cut(or_(*clauses)).cps_convert(compiler, cont)
   
   def cps_convert(self, compiler, cont):
     k = compiler.new_var(il.ConstLocalVar('cont'))
@@ -455,7 +469,7 @@ class MacroRules(Element):
       return il.failcont
     for head, body in self.rules[len(args)]:
       clauses.append(begin(unify_macro_head(args, head), body))
-    return or_(*clauses).cps_convert(compiler, cont)
+    return wrap_cut(or_(*clauses)).cps_convert(compiler, cont)
   
   def cps_convert(self, compiler, cont):
     k = compiler.new_var(il.ConstLocalVar('cont'))
