@@ -22,22 +22,22 @@ from dao import interlang as il
   #return file.readlines()
 
 @special
-def _prin(compiler, cont, argument):
+def prin_(compiler, cont, argument):
   v = compiler.new_var(il.ConstLocalVar('v'))
   return argument.cps_convert(compiler, 
            il.clamda(v, il.Prin(v), cont(il.NONE)))
 
 def prin(*args):
-  return begin(*tuple(_prin(arg) for arg in args))
+  return begin(*tuple(prin_(arg) for arg in args))
 
 @special
-def _println(compiler, cont, argument):
+def println_(compiler, cont, argument):
   v = compiler.new_var(il.ConstLocalVar('v'))
   return argument.cps_convert(compiler, 
            il.Clamda(v, il.PrintLn(v), cont(il.NONE)))
 
 def println(*args):
-  return begin(*tuple(_println(arg) for arg in args))
+  return begin(*tuple(println_(arg) for arg in args))
 
 #@builtin.function()
 #def println(*args):

@@ -266,11 +266,11 @@ class TestRules:
     x = Var('x')
     assert_raises(NoSolution, eval, let([(f, rules([[x], add(x, x)]))], f(1, 2))) # passed
     
-  def test_embed_var1(self):
+  def test_let_rec_embed_var1(self):
     e, f = LogicVar('e'), Var('f')
     eq_(eval(letrec([(f, rules([[1], 1]))], f(e))), 1)
     
-  def test_embed_var2(self):
+  def test_let_embed_var2(self):
     e, f = LogicVar('e'), Var('f')
     eq_(eval(let([(f, rules([[1], 1]))], f(e), e)), 1)
     

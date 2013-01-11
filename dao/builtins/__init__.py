@@ -9,7 +9,7 @@ from define import let, letrec, lamda, rules, macro
 
 from arith import add, sub, mul, div, eq
 
-from io import prin, println
+from io import prin_, println_, prin, println
 
 from control import succeed, fail, not_p, and_, or_, findall, first_p, cut, cut_or, repeat
 from control import succeed as nullword

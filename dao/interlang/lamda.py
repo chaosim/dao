@@ -165,7 +165,7 @@ class RulesLamda(Lamda):
     return result
   
   def to_code(self, compiler):
-    head = "lamda %s, %s: " % (self.params[0].to_code(compiler), 
+    head = "lambda %s, %s: " % (self.params[0].to_code(compiler), 
                                self.params[1].to_code(compiler))
     result =  head + self.body.to_code(compiler)
     return result
@@ -385,6 +385,7 @@ class XRulesFunction(Function):
 class RulesDict(Element):
   def __init__(self, arity_body_map):
     self.arity_body_map = arity_body_map
+    self.to_coded = False
     
   def analyse(self, compiler):
     try: self.seen
@@ -395,7 +396,9 @@ class RulesDict(Element):
         body.analyse(compiler)
   
   def subst(self, bindings):
-    return RulesDict({arity:body.subst(bindings) for arity, body in self.arity_body_map.items()})
+    self.arity_body_maparity_body_map = {arity:body.subst(bindings) for arity, body in self.arity_body_map.items()}
+    return self
+  
   
   def side_effects(self):
     return False
@@ -407,27 +410,22 @@ class RulesDict(Element):
     return result
   
   def optimize(self, env, compiler):
-    for arity, body in self.arity_body_map.items():
-      self.arity_body_map[arity] = body.optimize(env, compiler) 
+    for var in self.arity_body_map.values():
+      env[var].dont_remove()
     return self
   
   def pythonize(self, env, compiler):
-    exps = []
-    has_statement = False
-    arity_body_map = {}
-    for arity, function in self.arity_body_map.items():
-      exps1, has_statement1 = function.pythonize(env, compiler)
-      exps += exps1[:-1]
-      arity_body_map[arity] = exps1[-1]
-      has_statement = has_statement or has_statement1
-    exps.append(RulesDict(arity_body_map))
-    return tuple(exps), has_statement
+    return (self,), False
 
   def bool(self):
     return True
     
   def to_code(self, compiler):
-    return '{%s}'%', '.join('%s: %s'%(arity, funcname.to_code(compiler))
+    if self.to_coded:
+      return self.name.to_code(compiler)
+    else:
+      self.to_coded = True
+      return '{%s}'%', '.join('%s: %s'%(arity, funcname.to_code(compiler))
                             for arity, funcname in self.arity_body_map.items())
   
   def __repr__(self):
@@ -941,9 +939,12 @@ class Assign(Element):
       env.bindings[self.var].remove()
       del env.bindings[self.var]
     except: pass    
-    if isinstance(exp, Atom)  \
-       or isinstance(exp, ExpressionWithCode) or isinstance(exp, RulesDict):
+    if isinstance(exp, Atom) or isinstance(exp, ExpressionWithCode):
       env[self.var] = result
+    elif isinstance(exp, RulesDict):
+      env[self.var] = result
+      exp.name = self.var
+      result._removed = False
     elif isinstance(exp, Lamda):
       if isinstance(self.var, RecursiveVar):
         result._removed = False
@@ -967,6 +968,19 @@ class Assign(Element):
     return result
   
   def pythonize(self, env, compiler):
+    if not self.var.name.startswith('solver.'):
+      if isinstance(self.exp, Function):
+        self.exp.name = self.var
+        fun = self.exp
+      elif isinstance(self.exp, Lamda):
+        fun = Function(self.var, self.exp.params, self.exp.body)
+      else: 
+        fun = None
+      if fun is not None:
+        result = fun.pythonize(env, compiler)
+        if isinstance(result[0][-1], Var):
+          result = result[0][:-1], result[1]
+        return result
     exps, has_statement = self.exp.pythonize(env, compiler)
     if exps[-1].is_statement:
       return exps+(Assign(self.var, NONE),), True
@@ -974,6 +988,8 @@ class Assign(Element):
       return exps[:-1]+(Assign(self.var, exps[-1]),), True
     
   def to_code(self, compiler):
+    if isinstance(self.exp, RulesDict) and self.exp.to_coded:
+      return ''
     return  '%s = %s' % (self.var.to_code(compiler), self.exp.to_code(compiler))
     
   def __eq__(x, y):
