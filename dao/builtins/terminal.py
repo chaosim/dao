@@ -5,7 +5,7 @@
  Lineparse_state in line_parser.py is comatible with parse_state.'''
 
 from dao.compilebase import CompileTypeError
-from dao.command import special, Command, SpecialCall, Var, String
+from dao.command import special, Command, SpecialCall, Var, LogicVar, String
 import dao.interlang as il
 from dao.interlang import TRUE, FALSE, NONE
 
@@ -27,28 +27,35 @@ def char(compiler, cont, argument):
               il.failcont(NONE)))
     ))
   
-  elif isinstance(argument, il.Var):
+  elif isinstance(argument, Var):
+    v = compiler.new_var(il.ConstLocalVar('v'))
+    if isinstance(argument, LogicVar):
+      argument = il.LogicVar(argument.name)
+    else:
+      argument = il.LocalVar(argument.name)
+    argument1 = compiler.new_var(il.ConstLocalVar('argument'))
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.If(il.Ge(pos,il.Len(text)), 
-        il.failcont(v)),
+        il.failcont(v),
         il.Begin((
-          il.Assign(argument, il.Deref(argument)),
-          il.If(il.Isinstance(argument, 'str'),
-            il.If(il.Eq(argument, il.GetItem(text, pos)),
+          il.Assign(argument1, il.Deref(argument)),
+          il.Prin(text), il.Prin(pos), il.Prin(argument1),
+          il.If(il.Isinstance(argument1, il.Symbol('str')),
+            il.If(il.Eq(argument1, il.GetItem(text, pos)),
                   il.begin(il.append_failcont(compiler, 
                                   il.SetParseState(il.Tuple(text, pos))),
-                           il.SetParseState(il.Tuple(text, il.add(pos, 1))),
+                           il.SetParseState(il.Tuple(text, il.add(pos, il.Integer(1)))),
                            cont(il.GetItem(text, pos))),
                   il.failcont(NONE)),
-            il.If(il.Isinstance(argument, 'LogicVar'),
-                  il.begin(il.SetParseState(il.Tuple(text, il.add(pos,1))),
-                           il.SetBinding(argument, il.GetItem(text, pos)),
+            il.If(il.IsLogicVar(argument1),
+                  il.begin(il.SetParseState(il.Tuple(text, il.add(pos, il.Integer(1)))),
+                           il.SetBinding(argument1, il.GetItem(text, pos)),
                            il.append_failcont(compiler, 
                               il.SetParseState(il.Tuple(text, pos)),
-                              il.DelBinding(argument)),
+                              il.DelBinding(argument1)),
                            cont(il.GetItem(text, pos))),
-                  il.RaiseTypeError(argument)))))))
+                  il.RaiseTypeError(argument1))))))))
       
   # elif isinstance(argument, il.LogicVar) #how about this? It should be include above.
   else: raise CompileTypeError(argument)

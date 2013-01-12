@@ -19,6 +19,13 @@ def unify(compiler, cont, x, y):
   return x_cps_convert_unify(y, compiler, cont)
 
 
+@special
+def is_(compiler, cont, var, exp):
+  var = il.LogicVar(var.name)
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  return exp.cps_convert(compiler, il.clamda(v,
+      il.SetBinding(var, v), cont(v)))
+
 '''
 @builtin.macro()
 def getvalue(solver, item):
@@ -65,17 +72,6 @@ def setvalue(solver, var, value):
     solver.fcont = fcont
     return True
   solver.scont = solver.cont(value, setvalue_cont)
-  return True
-
-@builtin.macro('is', '<-')
-def is_(solver, var, func):
-  cont = solver.scont
-  @mycont(cont)
-  def is_cont(value, solver):
-    if term.unify(var, value, solver):
-      solver.scont = cont
-      return True
-  solver.scont = solver.cont(func, is_cont)
   return True
 
 @builtin.macro()

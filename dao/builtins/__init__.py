@@ -9,12 +9,15 @@ from define import let, letrec, lamda, rules, macro
 
 from arith import add, sub, mul, div, eq
 
-from io import prin_, println_, prin, println
+from io import concat, format
+from io import open_file, close_file
+from io import prin_, println_, prin, println, read, readline, readlines, write
 
-from control import succeed, fail, not_p, and_, or_, findall, first_p, cut, cut_or, repeat
+from control import succeed, fail, not_p, and_, or_, findall, cut, cut_or, repeat
+from control import once, first_, first_p
 from control import succeed as nullword
 
-from term import unify, LogicVar
+from term import unify, LogicVar, is_
 
 from quasiquote import quasiquote, unquote, unquote_splice
 

@@ -1,9 +1,11 @@
 # logic control predicates
 
 from dao.compilebase import CompileTypeError
-from dao.command import special, Command, SpecialCall
+from dao.command import special, Command, SpecialCall, Const, element, Var
 import dao.interlang as il
 from dao.interlang import TRUE, FALSE, NONE
+from special import begin
+from term import unify
 
 @special
 def succeed(compiler, cont):
@@ -94,14 +96,30 @@ def or2_fun(compiler, cont, clause1, clause2):
 or2 = special(or2_fun)
 
 @special
-def first_p(compiler, cont, clause1, clause2):
+def first_(compiler, cont, clause1, clause2):
   v = compiler.new_var(il.ConstLocalVar('v'))
-  fc = compiler.new_var(fc)
-  first_cont = il.Clamda(v, il.SetFailCont(fc), cont(v))
+  fc = compiler.new_var(il.ConstLocalVar('fc'))
+  first_cont = il.clamda(v, il.SetFailCont(fc), cont(v))
   return il.begin(
     il.Assign(fc, il.failcont),
-    il.AppendFailCont(clause2.cps_convert(compiler, first_cont)),
-    cps_convert(clause1.compiler, first_cont))
+    il.append_failcont(compiler, clause2.cps_convert(compiler, first_cont)),
+    clause1.cps_convert(compiler, first_cont))
+
+def first_p(*exps):
+  if not exps: raise
+  elif len(exps)==1: return once(exps[0])
+  elif len(exps)==2: return first_(*exps)
+  else:
+    return frist_(exps[0], first_p(*exps[1:]))
+  
+@special
+def once(compiler, cont, exp):
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  fc = compiler.new_var(il.ConstLocalVar('fc'))
+  return il.begin(
+    il.Assign(fc, il.failcont),
+    exp.cps_convert(compiler, 
+                        il.clamda(v, il.SetFailCont(fc), cont(v))))
 
 @special
 def if_p(compiler, cont, condition, action):
@@ -111,34 +129,45 @@ def if_p(compiler, cont, condition, action):
 
 # finding all solutions to a goal
 
-import term
 @special
-def findall(compiler, cont, goal, template=NONE, bag=None):
+def findall_1(compiler, cont, goal):
   v = compiler.new_var(il.ConstLocalVar('v'))
   v2 = compiler.new_var(il.ConstLocalVar('v'))
   fc = compiler.new_var(il.ConstLocalVar('old_failcont'))
-  if bag is None:
-    return il.begin(
-      il.Assign(fc, il.failcont), 
-      il.SetFailCont(il.clamda(v2, 
-            il.SetFailCont(fc),
-            cont(v2))),
-      goal.cps_convert(compiler, il.Clamda(v, il.failcont(v)))
-      )
-  else:
-    result = compiler.new_var(il.LocalVar('findall_result')) # variable capture
-    return il.begin(
-       il.Assign(result, il.empty_list),
-       il.Assign(fc, il.failcont), 
-       il.SetFailCont(il.clamda(v2,
+  return il.begin(
+    il.Assign(fc, il.failcont), 
+    il.SetFailCont(il.clamda(v2, 
           il.SetFailCont(fc),
-          term.unify(bag, result).cps_convert(compiler, cont))),
-        goal.cps_convert(compiler, 
-          il.clamda(v, 
-            il.ListAppend(result, il.GetValue(template)),
-            il.failcont(v)))
-        )
+          cont(v2))),
+    goal.cps_convert(compiler, il.Clamda(v, il.failcont(v)))
+    )
 
+@special
+def findall_2(compiler, cont, goal, template, bag):
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  v2 = compiler.new_var(il.ConstLocalVar('v'))
+  fc = compiler.new_var(il.ConstLocalVar('old_failcont'))
+  bag = bag.interlang()
+  template = template.interlang()
+  return il.begin(
+     il.Assign(bag, il.empty_list),
+     il.Assign(fc, il.failcont), 
+     il.SetFailCont(il.clamda(v2,
+        il.SetFailCont(fc),
+        cont(v2))),
+      goal.cps_convert(compiler, 
+        il.clamda(v, 
+          il.ListAppend(bag, il.GetValue(template)),
+          il.failcont(v))))
+
+@special
+def findall(compiler, cont, goal, template=None, bag=None):
+  if bag is None: 
+    return findall_1(goal).cps_convert(compiler, cont)
+  else:
+    _bag  = compiler.new_var(Var(bag.name))
+    return begin(findall_2(goal, element(template), _bag), 
+                 unify(bag, _bag)).cps_convert(compiler, cont)
 #findall:
   #findall goal: goal, fail
     
@@ -148,23 +177,9 @@ def findall(compiler, cont, goal, template=NONE, bag=None):
 def repeat(compiler, cont):
   v = compiler.new_var(il.ConstLocalVar('v'))
   function = compiler.new_var(il.ConstLocalVar('function'))
-  return il.begin(il.SetFailCont(function), 
-                  il.cfunction(function, v, cont(v)))
+  return il.begin(il.cfunction(function, v, cont(v)),
+                  il.SetFailCont(function), 
+                  function(NONE))
 
 repeat = repeat()
-  
-def xxxif_p(solver, if_clause, then_clause):
-  # This unusual semantics is part of the ISO and all de-facto Prolog standards.
-  # see SWI-Prolog help.
-  cont = solver.scont
-  if_clause = deref(if_clause, solver.env)
-  then_clause = deref(then_clause, solver.env)
-  @mycont(cont)
-  def if_p_cont(value, solver):
-    # if not value: return !!! It's is necessary to comment this line
-    # important! logic predicate if_p decide whether to continue 
-    # by the fail or succeed of the condition.
-    solver.scont = solver.cont(then_clause, cont)
-    return True
-  solver.scont = solver.cont(if_clause, if_p_cont)
-  return True
+ 

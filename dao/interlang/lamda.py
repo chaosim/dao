@@ -4,8 +4,8 @@ from dao.compilebase import MAX_EXTEND_CODE_SIZE
 from dao.compilebase import VariableNotBound, CompileTypeError
 
 from element import pythonize_args, optimize_args
-from element import Element, begin, Return, Begin #, element
-from element import NONE, unknown, make_tuple, Tuple, Atom, Tuple, List
+from element import Element, begin, Return, Begin
+from element import NONE, unknown, make_tuple, Tuple, ConstAtom, Tuple, List
 
 def lamda(params, *body):
   return Lamda(params, begin(*body))
@@ -939,7 +939,7 @@ class Assign(Element):
       env.bindings[self.var].remove()
       del env.bindings[self.var]
     except: pass    
-    if isinstance(exp, Atom) or isinstance(exp, ExpressionWithCode):
+    if isinstance(exp, ConstAtom) or isinstance(exp, ExpressionWithCode):
       env[self.var] = result
     elif isinstance(exp, RulesDict):
       env[self.var] = result
@@ -948,9 +948,6 @@ class Assign(Element):
     elif isinstance(exp, Lamda):
       if isinstance(self.var, RecursiveVar):
         result._removed = False
-      #elif self.var in exp.free_vars():
-        #result._removed = False
-        #env[self.var] = result
       else: 
         env[self.var] = result
     else:
@@ -998,6 +995,21 @@ class Assign(Element):
   def __repr__(self):
     return 'il.Assign(%r, %r)'%(self.var, self.exp)
 
+class UnoptimizabaleAssign(Assign):
+  def __init__(self, var, exp):
+    self.var, self.exp =  var, exp
+    self._removed = False
+    #self.items = set([self])
+    #self.dependency = set()
+    #self.local_vars = set()
+    
+  def subst(self, bindings):  
+    return UnoptimizabaleAssign(self.var, self.exp.subst(bindings))
+        
+  def optimize(self, env, compiler):
+    self.exp = self.exp.optimize(env, compiler)
+    return self
+     
 class AssignFromList(Element):
   is_statement = True
   
@@ -1194,7 +1206,7 @@ class If(Element):
 def if2(test, then):
   return If(test, then, pseudo_else)
 
-class PseudoElse(Atom):
+class PseudoElse(ConstAtom):
   def __init__(self):
     return
   

@@ -18,7 +18,7 @@ prelude = '''# -*- coding: utf-8 -*-
 from dao.builtins import *
 from dao.command import LogicVar as DaoLogicVar
 from dao.command import Var as DaoVar
-from dao.solvebase import Solver, deref, LogicVar, ExpressionWithCode
+from dao.solvebase import Solver, deref, getvalue, LogicVar, ExpressionWithCode
 from dao.solvebase import UnquoteSplice, MacroFunction, NoSolution
 from dao.solve import eval as eval_exp
 from dao.command import BuiltinFunctionCall
@@ -79,98 +79,3 @@ def compile_to_python(exp, env, done=None):
   result = exp.to_code(compiler)
   return prelude + result
 
-'''
-il.begin(
-  il.Assign(f, il.Function(rules_function, (cont, params), il.begin(
-    il.Assign(arity_fun_1, il.Lamda((), il.begin(
-      il.Assign(arg, il.Deref(il.GetItem(params, 0))), 
-      il.If(il.IsLogicVar(arg), 
-            il.begin(
-              il.SetBinding(arg, 1), 
-              il.Assign(fc, il.fail_cont), 
-              il.Assign(il.fail_cont, il.Clamda(v8, il.begin(il.Assign(il.fail_cont, fc), il.DelBinding(arg), fc(False)))), 
-              cont(1)), 
-            il.If(il.Eq(arg, 1), cont(1), il.fail_cont(True)))))), 
-    il.Assign(arity_body_map, RulesDict({1: arity_fun_1})), 
-    il.If(il.In(il.Len(params), arity_body_map), il.GetItem(arity_body_map, il.Len(params))(), il.fail_cont(None))))), 
-  f(il.Done(v, v), il.Tuple((il.Deref(LogicVar(e)),))))
-'''
-
-'''
-let([(f, rules([[x], add(x, x)]))], f(f(1)))--->
-
-il.begin(
-  il.Assign(il.parse_state, None), 
-  il.Assign(il.fail_cont, il.Clamda(v9, il.RaiseException(il.Call(NoSolution, v9)))), 
-  il.Assign(il.cut_cont, il.fail_cont), 
-  il.Assign(il.cut_or_cont, il.fail_cont), 
-  il.Assign(il.catch_cont_map, {}), 
-  il.Assign(f, il.Function(rules_function, (cont, params), 
-    il.begin(
-      il.Assign(arity_fun_1, il.Lamda((), il.begin(
-        il.Assign(cut_cont, il.cut_cont), 
-        il.Assign(il.cut_cont, il.fail_cont), 
-        il.Assign(x, il.GetItem(params, 0)), 
-        il.Assign(il.cut_cont, cut_cont), 
-        cont(il.add(x, x))))), 
-      il.Assign(arity_body_map, RulesDict({1: arity_fun_1})), 
-      il.If(il.In(il.Len(params), arity_body_map), 
-            il.GetItem(arity_body_map, il.Len(params))(), 
-            il.fail_cont(None))))), 
-  f(il.Clamda(a0, f(il.Done(v, v), a0)), 1))
-=============
-il.begin(
-  il.Assign(il.parse_state, None), 
-  il.Assign(il.fail_cont, il.Clamda(v9, il.RaiseException(il.Call(NoSolution, v9)))), 
-  il.Assign(il.cut_cont, il.Clamda(v9, il.RaiseException(il.Call(NoSolution, v9)))), 
-  il.Assign(il.cut_or_cont, il.Clamda(v9, il.RaiseException(il.Call(NoSolution, v9)))), 
-  il.Assign(il.catch_cont_map, {}), 
-  il.Assign(f, il.Function(rules_function, (cont, params), il.begin(
-    il.Assign(arity_fun_1, il.Lamda((), il.begin(
-      il.Assign(cut_cont, il.cut_cont),
-      il.Assign(il.cut_cont, il.fail_cont), 
-      il.Assign(x, il.GetItem(params, 0)), 
-      il.Assign(il.cut_cont, cut_cont), 
-      cont(il.add(x, x))))), 
-    il.Assign(arity_body_map, RulesDict({1: il.Lamda((), il.begin(
-      il.Assign(cut_cont, il.cut_cont), 
-      il.Assign(il.cut_cont, il.fail_cont), 
-      il.Assign(x, il.GetItem(params, 0)), 
-      il.Assign(il.cut_cont, cut_cont), 
-      cont(il.add(x, x))))})), 
-    il.If(il.In(il.Len(params), RulesDict({1: il.Lamda((), il.begin(
-      il.Assign(cut_cont, il.cut_cont), 
-      il.Assign(il.cut_cont, il.fail_cont), 
-      il.Assign(x, il.GetItem(params, 0)), 
-      il.Assign(il.cut_cont, cut_cont), 
-      cont(il.add(x, x))))})), 
-          il.GetItem(RulesDict({1: il.Lamda((), il.begin(
-            il.Assign(cut_cont, il.cut_cont), 
-            il.Assign(il.cut_cont, il.fail_cont), 
-            il.Assign(x, il.GetItem(params, 0)), 
-            il.Assign(il.cut_cont, cut_cont), 
-            cont(il.add(x, x))))}), 
-                     il.Len(params))(), 
-          il.fail_cont(None))))), 
-          
-          
-  il.Assign(arity_fun_1, il.Lamda((), il.begin(
-    il.Assign(cut_cont, il.cut_cont), 
-    il.Assign(il.cut_cont, il.fail_cont), 
-    il.Assign(x, 1), 
-    il.Assign(il.cut_cont, cut_cont), 
-    f(il.Done(v, v), 2)))), 
-  il.Assign(arity_body_map, RulesDict({1: il.Lamda((), il.begin(
-    il.Assign(cut_cont, il.cut_cont), 
-    il.Assign(il.cut_cont, il.fail_cont), 
-    il.Assign(x, 1), 
-    il.Assign(il.cut_cont, cut_cont), 
-    f(il.Done(v, v), 2)))})), 
-    
-  il.Lamda((), il.begin(
-    il.Assign(cut_cont, il.cut_cont), 
-    il.Assign(il.cut_cont, il.fail_cont), 
-    il.Assign(x, 1), 
-    il.Assign(il.cut_cont, cut_cont), 
-    f(il.Done(v, v), 2)))())
-'''

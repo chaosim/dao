@@ -12,3 +12,5 @@ dist
 /#readme#
 /dao/tests/compiled.py
 /dao/tests/compiled1.py
+/dao/builtins/tests/test.txt
+/dao/builtins/tests/test2.txt

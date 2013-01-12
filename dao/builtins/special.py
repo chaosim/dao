@@ -146,9 +146,10 @@ class ContinueBlock(il.Element):
 def catch(compiler, cont, tag, *form):
   v = compiler.new_var(il.ConstLocalVar('v'))
   v2 = compiler.new_var(il.ConstLocalVar('v'))
+  k = compiler.new_var(il.ConstLocalVar('cont'))
   return tag.cps_convert(compiler, il.clamda(v,
-    il.PushCatchCont(v, il.clamda(v2,
-      cont(v2))),
+    il.UnoptimizabaleAssign(k, il.clamda(v2, cont(v2))),
+    il.PushCatchCont(v, k),
     begin(*form).cps_convert(compiler, cont)))
   
 @special

@@ -47,7 +47,14 @@ def deref(exp, bindings):
   except:
     return exp
   return exp_deref(bindings)
-  
+
+def getvalue(exp, memo, bindings):
+  try:
+    exp_getvalue = exp.getvalue
+  except:
+    return exp
+  return exp_getvalue(memo, bindings)
+    
 class LogicVar(object):
   def __init__(self, name):
     self.name = name
@@ -63,6 +70,20 @@ class LogicVar(object):
       else: 
         self = next
   
+  def getvalue(self, memo, bindings):
+    try: return memo[self]
+    except:
+      result = self.deref(bindings)
+      if isinstance(result, LogicVar): 
+        memo[self] = result
+        return result
+      try: 
+        result_getvalue = result.getvalue
+      except: 
+        memo[self] = result
+        return result
+      return result_getvalue(memo)
+    
   def __eq__(x, y):
     return x.__class__==y.__class__ and x.name==y.name
   

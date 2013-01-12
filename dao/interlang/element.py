@@ -122,40 +122,30 @@ class Atom(Element):
   def __repr__(self):
     return '%s'%self.item
 
-class Integer(Atom): 
-  def __eq__(x, y):
-    return Atom.__eq__(x, y) or (isinstance(y, int) and x.item==y)
-  
-class Float(Atom): 
-  def __eq__(x, y):
-    return Atom.__eq__(x, y) or (isinstance(y, float) and x.item==y)
-  
-class String(Atom): 
-  def __eq__(x, y):
-    return Atom.__eq__(x, y) or (isinstance(y, str) and x.item==y)
-  
-class List(Atom): 
-  def __eq__(x, y):
-    return Atom.__eq__(x, y) or (isinstance(y, list) and x.item==y)
-  
-class Dict(Atom): 
-  def __eq__(x, y):
-    return Atom.__eq__(x, y) or (isinstance(y, dict) and x.item==y)
-  
-class Bool(Atom): 
-  def __eq__(x, y):
-    return Atom.__eq__(x, y) or (isinstance(y, bool) and x.item==y)
-  
+class ConstAtom(Atom):
+  pass
 
-class Symbol(Atom): 
+class Integer(ConstAtom): 
+  def __eq__(x, y):
+    return ConstAtom.__eq__(x, y) or (isinstance(y, int) and x.item==y)
+  
+class Float(ConstAtom): 
+  def __eq__(x, y):
+    return ConstAtom.__eq__(x, y) or (isinstance(y, float) and x.item==y)
+  
+class String(ConstAtom): 
+  def __eq__(x, y):
+    return ConstAtom.__eq__(x, y) or (isinstance(y, str) and x.item==y)
+  
+class Bool(ConstAtom): 
+  def __eq__(x, y):
+    return ConstAtom.__eq__(x, y) or (isinstance(y, bool) and x.item==y)
+  
+class Symbol(ConstAtom): 
   def to_code(self, compiler):
-    return self.item
-  
-  def __eq__(x, y):
-    return classeq(x, y) and x.item==y.item
-    
+    return self.item    
 
-class Klass(Atom):
+class Klass(ConstAtom):
   def to_code(self, compiler):
     return self.item
   
@@ -169,7 +159,7 @@ NONE = Atom(None)
 def make_tuple(item):
   return Tuple(*tuple(element(x) for x in item))
 
-class Tuple(Atom): 
+class Tuple(ConstAtom): 
   def __init__(self, *item):
     self.item = item
     
@@ -204,6 +194,19 @@ class Tuple(Atom):
   def __repr__(self):
     return 'il.%s(%s)'%(self.__class__.__name__, self.item)
 
+class MutableAtom(Atom):
+  pass
+
+class List(MutableAtom): 
+  def __eq__(x, y):
+    return (classeq(x, y) and x.item==y.item) or (
+      (isinstance(y, list) and x.item==y))
+
+  
+class Dict(MutableAtom): 
+  def __eq__(x, y):
+    return Atom.__eq__(x, y) or (isinstance(y, dict) and x.item==y)
+  
 def macro_args(item):
   return MacroArgs(item)
 

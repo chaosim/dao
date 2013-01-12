@@ -6,7 +6,7 @@ from dao.compilebase import MAX_EXTEND_CODE_SIZE
 from dao.compilebase import VariableNotBound, CompileTypeError
 from element import Element, Begin, begin, Return, Yield
 from element import Atom, Integer, Bool, MacroArgs, Tuple, Dict, List , element
-from element import pythonize_args, FALSE, NONE, Symbol, no_side_effects, unknown
+from element import pythonize_args, FALSE, NONE, Symbol, no_side_effects, unknown, ConstAtom
 from lamda import Apply, optimize_args, clamda, Lamda, MacroLamda, RulesDict
 from lamda import Var, LocalVar, ConstLocalVar, SolverVar, LogicVar, Assign, ExpressionWithCode#, ValueAssignBox
 
@@ -559,9 +559,9 @@ class PushCatchCont(Element):
   def optimize(self, env, compiler):
     tag = self.tag.optimize(env, compiler)
     cont = self.cont.optimize(env, compiler)
-    if isinstance(tag, Atom) and env[catch_cont_map] is not None:
-      env[catch_cont_map].right_value().item.setdefault(tag, []).append(cont)
-      return NONE
+    #if isinstance(tag, ConstAtom) and env[catch_cont_map] is not None:
+      #env[catch_cont_map].right_value().item.setdefault(tag, []).append(cont)
+      #return NONE
     if env[catch_cont_map] is not None:
       result = Begin((Assign(catch_cont_map, env[catch_cont_map]), 
                     PushCatchCont(tag, cont)))
@@ -634,8 +634,8 @@ class FindCatchCont(Element):
     return FindCatchCont(tag)
   
   def pythonize(self, env, compiler):
-    value_exps, has_statement1 = self.value.pythonize(env, compiler)
-    return value_exps[:-1]+(AssignFromList(*(self.vars+(value_exps[-1],))),), True
+    tag_exps, has_statement1 = self.tag.pythonize(env, compiler)
+    return tag_exps[:-1]+(FindCatchCont(tag_exps[-1]), ), True
   
   def insert_return_statement(self):
     return Return(self)
@@ -650,7 +650,7 @@ class FindCatchCont(Element):
     return "solver.find_catch_cont(%s)" % self.tag
   
   def __repr__(self):
-    return 'il.FindCatchCont(%r, %r)'%(self.tag, self.cont)
+    return 'il.FindCatchCont(%r)'%(self.tag)
 
 def AddAssign(var, value):
   return Assign(var, BinaryOperationApply(add, (var, value)))
@@ -796,7 +796,7 @@ SetBinding = vop2('SetBinding', 2, 'solver.bindings[%s] = %s', True)
 
 DelBinding = vop2('DelBinding', 1, 'del solver.bindings[%s]', True)
 
-GetValue = vop('GetValue', 1, 'getvalue(%s, solver.bindings', False)
+GetValue = vop('GetValue', 1, 'getvalue(%s, {}, solver.bindings)', False)
 
 parse_state = SolverVar('parse_state')
 def SetParseState(state): return Assign(parse_state, state)
@@ -809,3 +809,28 @@ continue_ = Continue()
 Prin = vop2('Prin', 1, "print %s,", True)
 PrintLn = vop2('PrintLn', 1, "print %s", True)
 
+
+def Format_to_code(self, compiler):
+  return '%s%%(%s)'%(self.args[0].to_code(compiler), 
+                     ', '.join([x.to_code(compiler) for x in self.args[1:]]))
+Format = vop('Format', -1,Format_to_code, False)
+
+def Concat_to_code(self, compiler):
+  return '%s'%''.join([arg.to_code(compiler) for arg in self.args])
+Concat = vop('Concat', -1, Concat_to_code, False)
+
+
+def Format_to_code(self, compiler):
+  return 'file(%s, %s)'%(self.args[0].to_code(compiler), 
+                     ', '.join([x.to_code(compiler) for x in self.args[1:]]))
+OpenFile = vop('OpenFile', -1, Format_to_code, True)
+CloseFile = vop('CloseFile', 1, "%s.close()", True)
+ReadFile = vop('ReadFile', 1, '%s.read()', True)
+Readline = vop('ReadLine', 1, '%s.readline()', True)
+Readlines = vop('Readlines', 1, '%s.readlines()', True)
+WriteFile = vop('WriteFile', 2, '%s.write(%s)', True)
+#Writeline = vop('ReadLine', 2, '%s.writeline(%s)', True) # python file has no writeline method
+#def Writelines_to_code(self, compiler):
+  #return '%s.writelines(%s)'%(self.args[0].to_code(compiler), 
+                              #', '.join([x.to_code(compiler) for x in self.args[1:]]))
+#Writelines = vop('Readlines', -1, Writelines_to_code, True)

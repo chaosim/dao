@@ -6,25 +6,28 @@ from dao.solvebase import NoSolution
 
 from dao.builtins import Var
 from dao.command import LogicVar
-from dao.builtins import begin, let, quote
+from dao.builtins import rules
+from dao.builtins import begin, let, quote, assign
 from dao.builtins import eq, sub, mul, add, div
-from dao.builtins import succeed, fail, or_, and_, not_p, cut_or#, repeat
-from dao.builtins import findall#, call, once
+from dao.builtins import succeed, fail, or_, and_, not_p, cut_or, repeat, first_p
+from dao.builtins import findall, once#, call, once
 from dao.builtins import set_text
 from dao.builtins import char
-from dao.builtins import unify#, notunify
-from dao.builtins import prin #write, 
+from dao.builtins import unify, is_#, notunify
+from dao.builtins import prin, format, open_file, read, readline, readlines, write, close_file
 #from dao.builtins.term import ground_p
 #from dao.builtins.term import isvar, nonvar, is_, define, nonvar_p, isvar_p
 
 from dao.tests.util import *
 
 class TestControl:
-  def xtest_fail(self):
-    eq_(eval(let([(f,function([[1], fail], [[x], succeed]))], f(x))), True)
+  def test_fail(self):
+    x = LogicVar('x')
+    eq_(eval(let([(f,rules([[1], fail], [[x], succeed]))], f(x))), True)
 
-  def xtest_succeed(self):
-    eq_(eval(let([(f,function([[1], succeed]))], f(x))), True)
+  def test_succeed(self):
+    x = LogicVar('x')
+    eq_(eval(let([(f,rules([[1], succeed]))], f(x))), True)
 
   def test_or(self):
     eq_(eval(or_(fail, succeed)), True)
@@ -48,17 +51,19 @@ class TestControl:
     eq_(eval(not_p(fail)), True)
     assert_raises(NoSolution, eval, not_p(succeed))
     
-  def xtest_repeat(self):
-    return
+  def test_repeat(self):
+    #return
     # the code below loops for ever, after modifie the behaviour of solver.parse_state and terminals.
-    eq_(eval(and_p(set_text('123'), repeat, char(x), unify(x, '3'))), True)
+    x = LogicVar('x')
+    eq_(eval(and_(set_text('123'), repeat, char(x), unify(x, '3'))), True)
     
-  def xtest_repeat2(self):
-    return
+  def test_repeat2(self):
+    #return
     # the code below loops for ever.
-    eq_(eval(and_p(set_text('123'), repeat, char(x), unify(x, '4'))), True) 
+    x = LogicVar('x')
+    eq_(eval(and_(set_text('123'), repeat, char(x), unify(x, '4'))), True) 
     
-  def xtest_if_p(self):
+  def test_if_p(self):
     from dao.builtins.control import if_p
     eq_(eval(if_p(succeed, succeed)), True)
     assert_raises(NoSolution, eval, if_p(succeed, fail))
@@ -67,6 +72,22 @@ class TestControl:
     assert_raises(NoSolution, eval, if_p(fail, succeed))
     assert_raises(NoSolution, eval, if_p(fail, fail))
 
+class TestIO:
+  def test_format(self):
+    eq_(eval(format('%s', 1)), '1')
+    eq_(eval(format('%s%s', 1, 2)), '12')
+    
+  def test_open_read(self):
+    eq_(eval(read(open_file('test.txt'))), 'hello\nhello')
+    
+  def test_open_read2(self):
+    file1 = Var('file')
+    x = Var('x')
+    eq_(eval(let([(file1, open_file('test.txt'))], readline(file1), assign(x, readlines(file1)), close_file(file1), x)), ['hello'])
+    
+  def test_write(self):
+    eq_(eval(write(open_file('test2.txt', 'w'), 'test')), None)
+    
 class XTestArithpred:
   def test_is(self):
     eq_(eval(is_(x, 1)), True)
@@ -111,10 +132,10 @@ class Testunify:
   def test2(self):
     x = Var('x')
     Lx = LogicVar('x')
-    #eq_(eval(unify(1, 1)), True)
-    #eq_(eval(begin(unify(1, 1), unify(2, 2))), True)
+    eq_(eval(unify(1, 1)), True)
+    eq_(eval(begin(unify(1, 1), unify(2, 2))), True)
     eq_(eval(begin(unify(Lx, 1), unify(Lx,1))), True)
-    #eq_(eval(let([(x,1)], unify(x,1))), True)
+    eq_(eval(let([(x,1)], unify(x,1))), True)
     
   def test3(self):
     assert_raises(NoSolution, eval, begin(unify(1, 1), unify(1, 2)))
@@ -145,12 +166,24 @@ class XTestMetacall:
     eq_(eval(findall(once(prin('1, ')|prin('2, ')))), True)
     
 class Testfindall:
-  def test_findall_1(self):
+  def test_findall_or(self):
     eq_(eval(findall(or_(prin(1), prin(2)))), None)
   
-  def xtest_findall2(self):
-    x, y, z = Var('x'), Var('y'), Var('z')
-    eq_(eval(let([(f, function(((), 2), ((), 3)))], 
+  def test_findall_or_once(self):
+    eq_(eval(findall(once(or_(prin(1), prin(2))))), None)
+  
+  def test_findall_first_p(self):
+    eq_(eval(findall(first_p(prin(1), prin(2)))), None)
+  
+  def test_findall_template_or(self):
+    x, y, z = LogicVar('x'), LogicVar('y'), LogicVar('z')
+    f = Var('f')
+    eq_(eval(begin(findall(or_(is_(x, 1), is_(x, 2)), x, y), y)), [1, 2])
+    
+  def test_findall_template_func(self):
+    x, y, z = LogicVar('x'), LogicVar('y'), LogicVar('z')
+    f = Var('f')
+    eq_(eval(let([(f, rules(((), 2), ((), 3)))], 
                findall(is_(x, f()), x, y), y)), [2, 3])
       
 class XTestRule:

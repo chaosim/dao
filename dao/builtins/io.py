@@ -1,25 +1,19 @@
 import os
 
-from dao.command import special
+from dao.command import special, BuiltinFunction
 from dao.builtins.special import begin
 from dao import interlang as il
 
 # intput and output
 
-#def format(format_string, *args):
-  #return format_string%args
+format = BuiltinFunction('format', il.Format)
+concat = BuiltinFunction('concat', il.Concat)
 
-#@builtin.function()
-#def read(file):
-  #return file.read()
-
-#@builtin.function()
-#def readline(file):
-  #return file.readline()
-
-#@builtin.function()
-#def readlines(file):
-  #return file.readlines()
+open_file = BuiltinFunction('open', il.OpenFile)
+close_file = BuiltinFunction('close', il.CloseFile)
+read = BuiltinFunction('read', il.ReadFile)
+readline = BuiltinFunction('readline', il.Readline)
+readlines = BuiltinFunction('readlines', il.Readlines)
 
 @special
 def prin_(compiler, cont, argument):
@@ -28,7 +22,7 @@ def prin_(compiler, cont, argument):
            il.clamda(v, il.Prin(v), cont(il.NONE)))
 
 def prin(*args):
-  return begin(*tuple(prin_(arg) for arg in args))
+  return prin_(concat(*args))
 
 @special
 def println_(compiler, cont, argument):
@@ -37,22 +31,15 @@ def println_(compiler, cont, argument):
            il.Clamda(v, il.PrintLn(v), cont(il.NONE)))
 
 def println(*args):
-  return begin(*tuple(println_(arg) for arg in args))
+  return println_(concat(*args))
 
-#@builtin.function()
-#def println(*args):
-  #for arg in args: print arg,
-  #print
+@special
+def write_(compiler, cont, file, argument):
+  v1 = compiler.new_var(il.ConstLocalVar('v'))
+  v2 = compiler.new_var(il.ConstLocalVar('v'))
+  return file.cps_convert(compiler, 
+    il.clamda(v1, argument.cps_convert(compiler, 
+           il.clamda(v2, il.WriteFile(v1, v2), cont(il.NONE)))))
 
-#@builtin.function()
-#def write(file, *args):
-  #if isinstance(file, str):
-    #file = open(file)
-  #for arg in args: file.write('%s'%arg)
-  
-#@builtin.function()
-#def writeln(file, *args):
-  #if isinstance(file, str):
-    #file = open(file)
-  #for arg in args: file.write('%s'%arg)
-  #file.write('\n')
+def write(file, *args):
+  return write_(file, concat(*args))
