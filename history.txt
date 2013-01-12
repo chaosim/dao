@@ -3,6 +3,8 @@ details of history:
 2013-1-12
 il.Atom -> ConstAtom + MutableAtom(include List, Dict)
 tests on catch broken, for not optimzation of List of catch_cont_map[tag], fixed.
+arith.py: eq, ne, le, ge, lt, gt, between.
+term.py: getvalue, deference, isinteger, isfloat, isnumber, isstr, istuple, islist, isdict
 
 2013-1-11
 more io builtins：concat, format, open_file, close_file, read, readline, readlines, write

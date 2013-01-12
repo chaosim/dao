@@ -589,6 +589,54 @@ class PushCatchCont(Element):
   def __repr__(self):
     return 'il.PushCatchCont(%r, %r)'%(self.tag, self.cont)
 
+class SetBinding(Element):
+  is_statement = True
+  
+  def __init__(self, var, value):
+    self.var = var
+    self.value = value
+  
+  def side_effects(self):
+    return True
+    
+  def analyse(self, compiler):
+    self.var.analyse(compiler)
+    self.value.analyse(compiler)
+    
+  def subst(self, bindings):  
+    return SetBinding(self.var.subst(bindings), self.value.subst(bindings))
+  
+  def code_size(self):
+    return 1  
+  
+  def free_vars(self):
+    return self.value.free_vars()
+  
+  def optimize(self, env, compiler):
+    value = self.value.optimize(env, compiler)
+    return SetBinding(self.var, value)
+  
+  def pythonize(self, env, compiler):
+    var = self.var.item if isinstance(self.var, Deref) else self.var
+    var_exps, has_statement1 = (var,), False
+    value_exps, has_statement2 = self.value.pythonize(env, compiler)
+    return var_exps[:-1]+value_exps[:-1]+(SetBinding(var_exps[-1], value_exps[-1]), ), True
+  
+  def insert_return_statement(self):
+    return Return(self)
+  
+  def replace_return_with_yield(self):
+    return self
+  
+  def bool(self):
+    return False
+  
+  def to_code(self, compiler):
+    return "solver.bindings[%s] = %s" % (self.var.to_code(compiler), self.value.to_code(compiler))
+  
+  def __repr__(self):
+    return 'il.SetBinding(%r, %r)'%(self.var, self.value)
+
 class FindCatchCont(Element):
   is_statement = False
   
@@ -792,7 +840,6 @@ def SetCutOrCont(cont): return Assign(cut_or_cont, cont)
 
 IsLogicVar = vop('IsLogicVar', 1, 'isinstance(%s, LogicVar)', False)
 
-SetBinding = vop2('SetBinding', 2, 'solver.bindings[%s] = %s', True)
 
 DelBinding = vop2('DelBinding', 1, 'del solver.bindings[%s]', True)
 
@@ -829,8 +876,3 @@ ReadFile = vop('ReadFile', 1, '%s.read()', True)
 Readline = vop('ReadLine', 1, '%s.readline()', True)
 Readlines = vop('Readlines', 1, '%s.readlines()', True)
 WriteFile = vop('WriteFile', 2, '%s.write(%s)', True)
-#Writeline = vop('ReadLine', 2, '%s.writeline(%s)', True) # python file has no writeline method
-#def Writelines_to_code(self, compiler):
-  #return '%s.writelines(%s)'%(self.args[0].to_code(compiler), 
-                              #', '.join([x.to_code(compiler) for x in self.args[1:]]))
-#Writelines = vop('Readlines', -1, Writelines_to_code, True)

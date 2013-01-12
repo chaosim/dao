@@ -178,6 +178,7 @@ def repeat(compiler, cont):
   v = compiler.new_var(il.ConstLocalVar('v'))
   function = compiler.new_var(il.ConstLocalVar('function'))
   return il.begin(il.cfunction(function, v, cont(v)),
+                  il.PrintLn(il.String('repeat')),
                   il.SetFailCont(function), 
                   function(NONE))
 

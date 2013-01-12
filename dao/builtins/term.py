@@ -1,8 +1,6 @@
 from dao.compilebase import CompileTypeError
-from dao.command import special, Command, SpecialCall
+from dao.command import special, Command, SpecialCall,NONE
 import dao.interlang as il
-from dao.interlang import TRUE, FALSE, NONE
-from dao.interlang import LogicVar
 
 # analysing and construction terms
 
@@ -13,8 +11,8 @@ def unify(compiler, cont, x, y):
   except:
     try: y_cps_convert_unify = y.cps_convert_unify
     except:
-      if x==y: return cont(TRUE)
-      else: return il.failcont(TRUE)
+      if x==y: return cont(il.TRUE)
+      else: return il.failcont(il.TRUE)
     return y_cps_convert_unify(x, compiler, cont)
   return x_cps_convert_unify(y, compiler, cont)
 
@@ -26,17 +24,55 @@ def is_(compiler, cont, var, exp):
   return exp.cps_convert(compiler, il.clamda(v,
       il.SetBinding(var, v), cont(v)))
 
+@special
+def derefence(compiler, cont, item):
+  return cont(il.Deref(item.interlang()))
+
+@special
+def getvalue(compiler, cont, item):
+  return cont(il.GetValue(item.interlang()))
+
+@special
+def getvalue_default(compiler, cont, item, default=None):
+  if default is None: default = NONE
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  return il.begin(
+    il.Assign(v, il.GetValue(item.interlang())),
+    il.If(il.IsLogicVar(v),
+          default.cps_convert(compiler,cont),
+          cont(v)))
+
+@special
+def isinteger(compiler, cont, item):
+ return cont(il.Isinstance(item.interlang(), il.Symbol('int')))
+
+@special
+def isfloat(compiler, cont, item):
+ return cont(il.Isinstance(item.interlang(), il.Symbol('float')))
+
+@special
+def isnumber(compiler, cont, item): 
+  return cont(il.or_(il.Isinstance(item.interlang(), il.Symbol('int')),
+                     il.Isinstance(item.interlang(), il.Symbol('float'))))
+  
+@special
+def isstr(compiler, cont, item):
+ return cont(il.Isinstance(item.interlang(), il.Symbol('str')))
+
+
+@special
+def istuple(compiler, cont, item):  
+  return cont(il.Isinstance(item.interlang(), il.Symbol('tuple')))
+
+@special
+def islist(compiler, cont, item): 
+  return cont(il.Isinstance(item.interlang(), il.Symbol('list')))
+  
+@special
+def isdict(compiler, cont, item): 
+  return cont(il.Isinstance(item.interlang(), il.Symbol('dict')))
+  
 '''
-@builtin.macro()
-def getvalue(solver, item):
-  return term.getvalue(item, solver.env, {})
-  
-@builtin.macro('getvalue_default', 'getvalue@')
-def getvalue_default(solver, item, default=None):
-  value = term.getvalue(item, solver.env, {})
-  if isinstance(value, Var): value = default
-  return value
-  
 def is_ground(term):
   if isinstance(term, Var): return False
   if isinstance(term, Cons): 
@@ -168,10 +204,6 @@ def copy_term(solver, item, copy):
  
 # comparison and unification of terms
 
-@builtin.macro('unify', '=:=')
-def unify(solver, v0, v1):
-  return term.unify(v0, v1, solver)
-
 @builtin.macro('unify_with_occurs_check')
 def unify_with_occurs_check(solver, v0, v1):
   return term.unify(v0, v1, solver.env, occurs_check=True)
@@ -254,24 +286,6 @@ def unbind(solver, var):
   solver.fcont = fcont
   return True
   
-@builtin.macro('isinteger', 'isinteger!')
-def isinteger(solver, arg):
- return isinstance(getvalue(arg, env, {}), int)
-
-@builtin.macro('isinteger_p', 'isinteger!')
-def isinteger_p(solver, arg):
-  if isinstance(getvalue(arg, env, {}), int): return True
-  else: solver.scont = solver.fcont
-
-@builtin.macro('isfloat', 'isfloat')
-def isfloat(solver, arg):
-  return isinstance(getvalue(arg, env, {}), float)
-
-@builtin.macro('isfloat_p', 'isfloat!')
-def isfloat_p(solver, arg):
-  if isinstance(getvalue(arg, env, {}), float): return True
-  else: solver.scont = solver.fcont
-
 @builtin.macro('isnumber', 'isnumber')
 def isnumber(solver, arg):
   return isinstance(getvalue(arg, env, {}), int) \
@@ -283,12 +297,6 @@ def isnumber_p(solver, arg):
      or isinstance(getvalue(arg, env, {}), float): 
     return True
   else: solver.scont = solver.fcont
-
-@builtin.function('istuple?')
-def istuple(x):  return isinstance(x, tuple)
-
-@builtin.function('islist?')
-def islist(x): return isinstance(x, list)
 
 @builtin.macro('iscons_p', 'iscons!')
 def iscons_p(solver, arg):

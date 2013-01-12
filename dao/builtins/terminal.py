@@ -7,7 +7,6 @@
 from dao.compilebase import CompileTypeError
 from dao.command import special, Command, SpecialCall, Var, LogicVar, String
 import dao.interlang as il
-from dao.interlang import TRUE, FALSE, NONE
 
 @special
 def char(compiler, cont, argument):
@@ -18,13 +17,13 @@ def char(compiler, cont, argument):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.If(il.Ge(pos, il.Len(text)), 
-        il.failcont(NONE),
+        il.failcont(il.NONE),
         il.If(il.Eq(argument, il.GetItem(text, pos)),
               il.begin(il.append_failcont(compiler, 
                               il.SetParseState(il.Tuple(text, pos))),
                        il.SetParseState(il.Tuple(text, il.add(pos, il.Integer(1)))),
                        cont(il.GetItem(text, pos))),
-              il.failcont(NONE)))
+              il.failcont(il.NONE)))
     ))
   
   elif isinstance(argument, Var):
@@ -40,14 +39,14 @@ def char(compiler, cont, argument):
         il.failcont(v),
         il.Begin((
           il.Assign(argument1, il.Deref(argument)),
-          il.Prin(text), il.Prin(pos), il.Prin(argument1),
+          il.Prin(text), il.Prin(pos), il.PrintLn(argument1),
           il.If(il.Isinstance(argument1, il.Symbol('str')),
             il.If(il.Eq(argument1, il.GetItem(text, pos)),
                   il.begin(il.append_failcont(compiler, 
                                   il.SetParseState(il.Tuple(text, pos))),
                            il.SetParseState(il.Tuple(text, il.add(pos, il.Integer(1)))),
                            cont(il.GetItem(text, pos))),
-                  il.failcont(NONE)),
+                  il.failcont(il.NONE)),
             il.If(il.IsLogicVar(argument1),
                   il.begin(il.SetParseState(il.Tuple(text, il.add(pos, il.Integer(1)))),
                            il.SetBinding(argument1, il.GetItem(text, pos)),
@@ -74,10 +73,10 @@ def word(compiler, cont, arg):
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
       il.If(il.Ge(pos, length),
-        il.failcont(FALSE),
+        il.failcont(il.FALSE),
           il.If(il.And(il.Not(il.Cle(il.String('a'), il.GetItem(text, pos), il.String('z'))), 
                        il.Not(il.Cle(il.String('A'), il.GetItem(text, pos), il.String('Z')))), 
-            il.failcont(FALSE),
+            il.failcont(il.FALSE),
             il.Begin((
               il.Assign(p, il.add(pos, il.Integer(1))),
               il.while_(il.And(il.Lt(p, length), 
@@ -98,7 +97,7 @@ def word(compiler, cont, arg):
                                   il.SetParseState(il.Tuple(text, pos))),
                                   il.SetParseState(il.Tuple(text, p)),
                                   cont(il.GetItem(text, pos))),
-                                il.failcont(NONE)),
+                                il.failcont(il.NONE)),
                           il.RaiseTypeError(x)))))))))
   elif isinstance(arg, String):
     arg = arg.interlang()
@@ -106,10 +105,10 @@ def word(compiler, cont, arg):
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
       il.If(il.Ge(pos, length), 
-        il.failcont(FALSE),
+        il.failcont(il.FALSE),
         il.If(il.And(il.Not(il.Cle(il.String('a'), il.GetItem(text, pos), il.String('z'))), 
                      il.Not(il.Cle(il.String('A'), il.GetItem(text, pos), il.String('Z')))), 
-          il.failcont(FALSE),
+          il.failcont(il.FALSE),
         il.Begin((
           il.Assign(p, il.add(pos, il.Integer(1))),
           il.while_(il.And(il.Lt(p, length), 
@@ -121,7 +120,7 @@ def word(compiler, cont, arg):
                   il.SetParseState(il.Tuple(text, pos))),
                   il.SetParseState(il.Tuple(text, p)),
                   cont(arg)),
-                il.failcont(NONE))))))))
+                il.failcont(il.NONE))))))))
   else:
     raise CompileTypeError
   
@@ -139,11 +138,11 @@ def identifier(compiler, cont, arg):
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
       il.If(il.Ge(pos, length), 
-        il.failcont(FALSE),
+        il.failcont(il.FALSE),
           il.If(il.and_(il.Ne(il.GetItem(text, pos), il.String('_')),
                          il.Not(il.Cle(il.String('a'), il.GetItem(text, pos), il.String('z'))), 
                          il.Not(il.Cle(il.String('A'), il.GetItem(text, pos), il.String('Z')))), 
-            il.failcont(FALSE),
+            il.failcont(il.FALSE),
             il.Begin((
               il.Assign(p, il.add(pos, il.Integer(1))),
               il.while_(il.And(il.Lt(p, length), 
@@ -166,7 +165,7 @@ def identifier(compiler, cont, arg):
                                   il.SetParseState(il.Tuple(text, pos))),
                                   il.SetParseState(il.Tuple(text, p)),
                                   cont(il.GetItem(text, pos))),
-                                il.failcont(NONE)),
+                                il.failcont(il.NONE)),
                           il.RaiseTypeError(x)))))))))
   elif isinstance(arg, String):
     arg = arg.interlang()
@@ -174,11 +173,11 @@ def identifier(compiler, cont, arg):
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
       il.If(il.Ge(pos, length), 
-        il.failcont(FALSE),
+        il.failcont(il.FALSE),
         il.If(il.and_(il.Ne(il.GetItem(text, pos), il.String('_')),
                          il.Not(il.Cle(il.String('a'), il.GetItem(text, pos), il.String('z'))), 
                          il.Not(il.Cle(il.String('A'), il.GetItem(text, pos), il.String('Z')))), 
-            il.failcont(FALSE),
+            il.failcont(il.FALSE),
             il.Begin((
               il.Assign(p, il.add(pos, il.Integer(1))),
               il.while_(il.And(il.Lt(p, length), 
@@ -192,7 +191,7 @@ def identifier(compiler, cont, arg):
                       il.SetParseState(il.Tuple(text, pos))),
                       il.SetParseState(il.Tuple(text, p)),
                       cont(arg)),
-                    il.failcont(NONE))))))))
+                    il.failcont(il.NONE))))))))
   else:
     raise CompileTypeError(arg)
   
@@ -210,9 +209,9 @@ def integer(compiler, cont, arg):
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
       il.If(il.Ge(pos, length), 
-        il.failcont(FALSE),
+        il.failcont(il.FALSE),
           il.If(il.Not(il.Cle(il.String('0'), il.GetItem(text, pos), il.String('9'))),
-            il.failcont(FALSE),
+            il.failcont(il.FALSE),
             il.Begin((
               il.Assign(p, il.add(pos, il.Integer(1))),
               il.while_(il.And(il.Lt(p, length), 
@@ -232,16 +231,16 @@ def integer(compiler, cont, arg):
                                   il.SetParseState(il.Tuple(text, pos))),
                                   il.SetParseState(il.Tuple(text, p)),
                                   cont(il.GetItem(text, pos))),
-                                il.failcont(NONE)),
+                                il.failcont(il.NONE)),
                           il.RaiseTypeError(x)))))))))
   elif isinstance(arg, il.String):
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.Assign(length, il.Len(text)),
       il.If(il.Ge(pos, length), 
-        il.failcont(FALSE),
+        il.failcont(il.FALSE),
           il.If(il.Not(il.Cle(il.String('0'), il.GetItem(text, pos), il.String('9'))),
-            il.failcont(FALSE),
+            il.failcont(il.FALSE),
             il.Begin((
               il.Assign(p, il.add(pos, il.Integer(1))),
               il.while_(il.And(il.Lt(p, length), 
@@ -252,7 +251,7 @@ def integer(compiler, cont, arg):
                       il.SetParseState(il.Tuple(text, pos))),
                       il.SetParseState(il.Tuple(text, p)),
                       cont(arg)),
-                    il.failcont(NONE))))))))
+                    il.failcont(il.NONE))))))))
   else:
     raise CompileTypeError
   
@@ -264,7 +263,6 @@ def literal(compiler, cont, arg):
   p = compiler.new_var(il.LocalVar('p'))
   i = compiler.new_var(il.LocalVar('i'))
   x = compiler.new_var(il.ConstLocalVar('x'))
-  #char = compiler.new_var(il.ConstLocalVar('char'))
   length = compiler.new_var(il.ConstLocalVar('length'))  
   length2 = compiler.new_var(il.ConstLocalVar('length2'))  
   if isinstance(arg, Var):
@@ -278,7 +276,7 @@ def literal(compiler, cont, arg):
       il.while_(il.and_(il.Lt(i, length2), il.Lt(p, length), il.Eq(il.GetItem(text, p), il.GetItem(x, i))), 
         il.AddAssign(p, il.Integer(1))),
       il.If(il.Lt(i, length2), 
-        il.failcont(NONE),
+        il.failcont(il.NONE),
         il.begin(il.append_failcont(compiler, 
           il.SetParseState(il.Tuple(text, pos))),
           il.SetParseState(il.Tuple(text, p)),
@@ -296,7 +294,7 @@ def literal(compiler, cont, arg):
         il.AddAssign(i, il.Integer(1)),
         ),
       il.If(il.Lt(i, length2), 
-        il.failcont(NONE),
+        il.failcont(il.NONE),
         il.begin(il.append_failcont(compiler, 
           il.SetParseState(il.Tuple(text, pos))),
           il.SetParseState(il.Tuple(text, p)),

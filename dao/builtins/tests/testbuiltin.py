@@ -78,33 +78,46 @@ class TestIO:
     eq_(eval(format('%s%s', 1, 2)), '12')
     
   def test_open_read(self):
-    eq_(eval(read(open_file('test.txt'))), 'hello\nhello')
+    file1 = Var('file1')
+    eq_(eval(let([(file1, open_file('test.txt'))], 
+                 assign(x, read(file1)), 
+                 close_file(file1),
+                 x)), 'hello\nhello')
     
   def test_open_read2(self):
-    file1 = Var('file')
+    file1 = Var('file1')
     x = Var('x')
-    eq_(eval(let([(file1, open_file('test.txt'))], readline(file1), assign(x, readlines(file1)), close_file(file1), x)), ['hello'])
+    eq_(eval(let([(file1, open_file('test.txt'))], 
+                 readline(file1), 
+                 assign(x, readlines(file1)), 
+                 close_file(file1), 
+                 x)), 
+        ['hello'])
     
   def test_write(self):
-    eq_(eval(write(open_file('test2.txt', 'w'), 'test')), None)
+    file1 = Var('file1')
+    eq_(eval(let([(file1, open_file('test2.txt', 'w'))], 
+                 write(file1, 'test'), close_file(file1))), None)
     
-class XTestArithpred:
-  def test_is(self):
-    eq_(eval(is_(x, 1)), True)
-    
-  def test_define_recursive(self):
-    eq_(eval(begin(define(f, function(((2,), 2), ((x,), f(x-1)))), f(4))), 2)
-    
+from dao.builtins import eq, le, ne, and_a, between 
+
+class TestArithpred:
   def test_eq_le_ne(self):
-    from dao.builtins.arith import eq, le, ne
-    eq_(eval(le(1, 1)&ne(1, 2)), True)
+    eq_(eval(and_a(le(1, 1), ne(1, 2))), True)
     eq_(eval(eq(1, 1)), True)
     eq_(eval(le(1, 1)), True)
     
   def test_between(self):
-    from dao.builtins.arith import between
     eq_(eval(between(1, 3, 2)), True)
+    
+  def test_between2(self):
+    x = LogicVar('x')
     eq_(eval(between(1, 3, x)), True)
+    
+  def test_between3(self):
+    x = LogicVar('x')
+    y = LogicVar('y')
+    eq_(eval(begin(findall(between(1, 3, x), x, y), y)), [1, 2, 3])
 
 class XTestTypePredicate:
   def test_ground(self):
@@ -162,8 +175,6 @@ class XTestMetacall:
   def testcall(self):
     eq_(eval(call(unify(x, 1))), True)
     eq_(eval(is_(x, quote(prin(1)))&call(x)), None)
-  def testonce(self):
-    eq_(eval(findall(once(prin('1, ')|prin('2, ')))), True)
     
 class Testfindall:
   def test_findall_or(self):
@@ -233,9 +244,36 @@ class XTestStringConstruct:
     eq_(eval(begin(findall(concat(x, y, "abc"), L(x, y), z), z)), 
              [L("a", "bc"), L("ab", "c")])    
 
-#from dao.builtins.term import copy_term
-class XTestTermConstruct:
-  def test_copy_term(self):
+from dao.builtins import getvalue, getvalue_default#, copy_term
+from dao.builtins import isinteger, isfloat, isnumber, isstr, istuple, islist, isdict
+from dao.solvebase import LogicVar as DaoLogicVar
+class TestTerm:
+  def test_getvalue(self):
+    x = LogicVar('x')
+    x1 = DaoLogicVar('x')
+    eq_(eval(getvalue(x)), x1)
+    eq_(eval(begin(unify(x, 1), getvalue(x))), 1)
+    
+  def test_getvalue_default(self):
+    x = LogicVar('x')
+    eq_(eval(getvalue_default(x)), None)
+    eq_(eval(getvalue_default(x, 1)), 1)
+    eq_(eval(begin(unify(x, 2), getvalue(x))), 2)
+  
+  def test_type(self):
+    x = LogicVar('x')
+    eq_(eval(isinteger(x)), False)
+    eq_(eval(isinteger(1)), True)
+    eq_(eval(isfloat(1)), False)
+    eq_(eval(isfloat(1.0)), True)
+    eq_(eval(isnumber(1.0)), True)
+    eq_(eval(isnumber(1)), True)
+    eq_(eval(istuple(())), True)
+    eq_(eval(islist([])), True)
+    eq_(eval(isdict({})), True)
+  
+    
+  def xtest_copy_term(self):
     eq_(eval(begin(copy_term(L("abc", 1), x), x)), L("abc", 1))
 
 from dao.builtins.quasiquote import DaoSyntaxError

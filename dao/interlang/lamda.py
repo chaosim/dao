@@ -948,6 +948,8 @@ class Assign(Element):
     elif isinstance(exp, Lamda):
       if isinstance(self.var, RecursiveVar):
         result._removed = False
+      elif self.var.name=='solver.fail_cont':
+        result._removed = False
       else: 
         env[self.var] = result
     else:

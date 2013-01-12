@@ -1,19 +1,22 @@
 
 todo: more optimization
-  done: Apply of clamda and cfunction can be subst by their body directly.
-    # notice the side effects of argument and reference count.
+  todo: macro like lamda
+  todo: cons like that in lisp
   todo: more ananlysis for optimization
     done: assign and reference analysys, 
     todo: io side effects
     todo: state change side effects
   todo: type inference
   half done: partial evaluation
+  done: Apply of clamda and cfunction can be subst by their body directly.
+    # notice the side effects of argument and reference count.
   done: block/exit/continue become while/break/coninute + block label
     done: remove bookkeeper works in code.
   fail: inline the cont arguments of lambda and remove it from arguments.
     # tried, but failed.
-  todo: reimplement the rules and macro.
+  fail: reimplement the rules and macro.
     # use the information of arity in compile time.
+    # tried, failed.
 
 todo: more builtin
   done: eval(done), callcc(done), callfc(coded, but not tested), 
@@ -37,7 +40,7 @@ todo: tail recursive
 todo: trampoline
   # maybe don't need any more.
 
-doing: compile to python 
+done: compile to python 
   done: use python var as t var
   done：logic var become LogicVar, 
         but other var is compiled to python var with other values.

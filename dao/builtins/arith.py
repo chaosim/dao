@@ -4,13 +4,51 @@ import dao.interlang as il
 from dao.interlang import TRUE, FALSE, NONE
 
 add = BuiltinFunction('add', il.add)
-eq = BuiltinFunction('eq', il.Eq)
 sub = BuiltinFunction('sub', il.sub)
 mul = BuiltinFunction('mul', il.mul)
 div = BuiltinFunction('div', il.div)
+isnot = BuiltinFunction('add', il.IsNot)
+and_a = BuiltinFunction('eq', il.And)
+or_a = BuiltinFunction('sub', il.Or)
+lt = BuiltinFunction('mul', il.Lt)
+le = BuiltinFunction('div', il.Le)
+eq = BuiltinFunction('eq', il.Eq)
+ne = BuiltinFunction('ne', il.Ne)
+ge = BuiltinFunction('ge', il.Ge)
+gt = BuiltinFunction('gt', il.Gt)
+
+@special
+def between(compiler, cont, lower, upper, mid):
+  lower1 = compiler.new_var(il.ConstLocalVar('lower'))
+  upper1 = compiler.new_var(il.ConstLocalVar('upper'))
+  mid1 = compiler.new_var(il.ConstLocalVar('mid'))
+  fc = compiler.new_var(il.ConstLocalVar('fc'))
+  i = compiler.new_var(il.Var('i'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  return lower.cps_convert(compiler, il.clamda(lower1,
+    upper.cps_convert(compiler, il.clamda(upper1,
+    mid.cps_convert(compiler, il.clamda(mid1,
+        il.If(il.IsLogicVar(mid1),
+          il.begin(
+            il.Assign(i, lower1),
+            il.Assign(fc, il.failcont),
+            il.SetFailCont(il.clamda(v, 
+              il.If(il.Eq(i, upper1),
+                il.Begin((
+                  il.Assign(il.failcont, fc),
+                  fc(il.FALSE))),
+                il.Begin((
+                  il.AddAssign(i, il.Integer(1)),
+                  il.SetBinding(mid1, i),
+                  cont(il.TRUE)))))),                
+            il.SetBinding(mid1, lower1),
+            cont(il.TRUE)),
+          il.If(il.Cle(lower1, mid1, upper1),
+            cont(il.TRUE),
+            il.failcont(il.FALSE)))))
+    ))))    
 
 '''
-
 _op_precedence = {'lt':10, 'le':10, 'eq':10, 'ne':10, 'ge':10,'gt':10,
            'add':60, 'sub':60,'mul':70, 'div':70,
            'floordiv':70, 'truediv':70,'mod':70,'pow':100,
@@ -128,32 +166,6 @@ def pos(x): return operator.pos(x)
 def abs(x): return operator.abs(x)  
 @binary('invert', '~')
 def invert(x): return operator.invert(x)
-
-@builtin.predicate()
-def between(solver, *exps):
-  lower, upper, mid = exps
-  lower = deref(lower, solver.env)
-  if isinstance(lower, Var): error.throw_instantiation_error()
-  upper = deref(upper, solver.env)
-  if isinstance(upper, Var): error.throw_instantiation_error()
-  mid = deref(mid, solver.env)
-  if not isinstance(mid, Var):
-    if lower<=mid<=upper: return True
-    else: solver.scont = solver.fcont
-  result = (x for x in range(lower, upper+1))
-  cont = solver.scont
-  old_fcont = solver.fcont
-  @mycont(old_fcont)
-  def fcont(value, self):
-    try: x = result.next()
-    except StopIteration:
-      solver.scont = old_fcont
-      return
-    if mid.unify(x, solver): 
-      solver.scont = cont
-      return True
-  solver.scont= solver.fcont = fcont
-    
 
 @builtin.predicate('equal', '=!')
 def equal(solver, left, right):
