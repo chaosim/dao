@@ -7,42 +7,42 @@
 
 from dao.base import classeq
 from dao.compilebase import CompileTypeError, VariableNotBound
-from dao.command import special
+from dao.command import special, element, Var
+from special import begin
+from term import unify
 import dao.interlang as il
-from dao.interlang import TRUE, FALSE, NONE
-
 
 # lazy: match at least, except matchers that followed fail. 尽量少吃进，除非别人逼我多吃一点
 # nongreedy, match at most, throw out if matchers followed fail.先尽量多吃，如果别人要再吐出来
 # greedy, match at most, don,t throw out even matchers followed fail. 吃进去了就不会吐出来。
 
-greedy, nongreedy, lazy = 0, 1, 2
-
-def may(item, mode=greedy):
-  if mode==greedy: return _greedy_may(item)
-  elif mode==nongreedy: return _may(item)
-  else: return _lazy_may(item)
-
 @special
-def _may(compiler, cont, item):
+def may(compiler, cont, item):
   v = compiler.new_var(il.ConstLocalVar('v'))
   return cps_convert(compiler, clause, cont, il.Clamda(v,  cont(v)))
 
 @special
-def _lazy_may(compiler, cont, item):
+def lazy_may(compiler, cont, item):
   v = compiler.new_var(il.ConstLocalVar('v'))
   return il.Clamda(v, cont(v, cps_convert(compiler, item, cont)))
 
 @special
-def _greedy_may(compiler, cont, item):
+def greedy_may(compiler, cont, item):
   v = compiler.new_var(il.ConstLocalVar('v'))
   return cps_convert(compiler, item, il.Clamda(v, cont(v)), 
                                       il.Clamda(v, cont(v)))
 
-def any(item, mode=nongreedy):
-  if mode==greedy: return _greedy_any(item)
-  elif mode==nongreedy: return _any(item)
-  else: return _lazy_any(item)
+def greedy_any(item, template=None, result=None):
+    if result is None:
+      return _greedy_any(item)
+    else:
+      return _greedy_any2(item, template, result)
+    
+def lazy_any(item, template=None, result=None):
+  if result is None:
+    return _lazy_any(item)
+  else:
+    return _lazy_any2(item, template, result)    
 
 #any
   #item: item, any(item)
@@ -57,7 +57,16 @@ def any(item, mode=nongreedy):
   #item: item, lazy_any(item)
   
 @special
-def _any(compiler, cont, item):
+def any(compiler, cont, item, template=None, result=None):
+  if result is None:
+    return _any1(item).cps_convert(compiler, cont)  
+  else:
+    _result  = compiler.new_var(Var('result'))
+    return begin(_any2(item, template, _result), 
+                     unify(result, _result)).cps_convert(compiler, cont)  
+  
+@special
+def _any1(compiler, cont, item):
   any_cont = compiler.new_var(il.ConstLocalVar('any_cont'))
   fc = compiler.new_var(il.ConstLocalVar('old_fail_cont'))
   v = compiler.new_var(il.ConstLocalVar('v'))
@@ -66,17 +75,29 @@ def _any(compiler, cont, item):
                 il.SetFailCont(il.clamda(v, 
                   il.SetFailCont(fc),
                   cont(v))),
-                item.cps_convert(compiler, any_cont))(TRUE)
+                item.cps_convert(compiler, any_cont))(il.TRUE)
 
 @special
-def _any2(compiler, cont, item, result, template):
-  todo_for_expriment_macro_expand
-  result2 = compiler.new_var(Var('result2'))
-  macro_expanded = begin(assign(result2, empty_list), 
-               _any(begin(item, 
-                          logic_list_append(result2, getvalue(template)), 
-                          unify(result, result2))))
-  return expanded.cps_convert(compiler, cont)
+def _any2(compiler, cont, item, template, result):
+  template = template.interlang()
+  result = result.interlang()
+  any_cont = compiler.new_var(il.ConstLocalVar('any_cont'))
+  fc = compiler.new_var(il.ConstLocalVar('old_fail_cont'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  v1 = compiler.new_var(il.ConstLocalVar('v'))
+  cont = il.clamda(v1,  
+                   il.if2(il.Ne(result, il.empty_list),
+                          il.DelItem(result, il.Integer(0))),
+                   cont(v1))
+  return il.Begin((
+    il.Assign(result, il.empty_list),
+    il.cfunction(any_cont, v,
+                il.Assign(fc, il.failcont),
+                il.SetFailCont(il.clamda(v, 
+                  il.SetFailCont(fc),
+                  cont(v))),
+                il.ListAppend(result, il.GetValue(template)),
+                item.cps_convert(compiler, any_cont))(il.NONE)))
 
 @special
 def _lazy_any(compiler, cont, item):
@@ -94,14 +115,14 @@ def _lazy_any(compiler, cont, item):
         cps_convert(compiler, item, lazy_any_cont)),    
     lazy_any_cont(TRUE))
                              
-@special
-def _any2(compiler, cont, item, result, template):
-  result2 = compiler.new_var(Var('result2'))
-  macro_expanded = begin(assign(result2, empty_list), 
-               _lazy_any(begin(item, 
-                          logic_list_append(result2, getvalue(template)), 
-                          unify(result, result2))))
-  return expanded.cps_convert(compiler, cont)
+#@special
+#def _any2(compiler, cont, item, result, template):
+  #result2 = compiler.new_var(Var('result2'))
+  #macro_expanded = begin(assign(result2, empty_list), 
+               #_lazy_any(begin(item, 
+                          #logic_list_append(result2, getvalue(template)), 
+                          #unify(result, result2))))
+  #return expanded.cps_convert(compiler, cont)
 
 @special
 def _greedy_any(compiler, cont, item):

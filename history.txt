@@ -1,5 +1,21 @@
 details of history:
 
+2012-1-13
+register_function in compilebase.py
+
+teminal.py:
+  char_on_predicate, string_on_predicate
+from terminal import char_on_predicate, digit, one_to_nine
+from terminal import lowcase, uppercase, letter, underline_letter, underline_letter_digit
+from terminal import tabspace, whitespace
+from terminal import string_on_predicate0, digits0, one_to_nines0
+from terminal import lowcases0, uppercases0, letters0, underline_letters0, underline_letter_digits0
+from terminal import tabspaces0, whitespaces0
+from terminal import string_on_predicate1, digits1, one_to_nines1
+from terminal import lowcases1, uppercases1, letters1, underline_letters1, underline_letter_digits1
+from terminal import tabspaces1, whitespaces1
+from terminal import string_on_predicate
+
 2013-1-12
 il.Atom -> ConstAtom + MutableAtom(include List, Dict)
 tests on catch broken, for not optimzation of List of catch_cont_map[tag], fixed.

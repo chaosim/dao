@@ -106,3 +106,24 @@ class Compiler:
     return '\n'.join(lines)    
   
 MAX_EXTEND_CODE_SIZE = 10
+
+import_names = []
+
+def register_function(name, function):
+  name = new_func_name(name)
+  function.func_name = name
+  globals()[name] = function
+  import_names.append(name)
+  return function
+  
+new_func_name_map = {}
+
+def new_func_name(name):
+  try: 
+    suffix = str(new_func_name_map[name])
+    new_func_name_map[name] += 1
+    return name+suffix
+  except:
+    new_func_name_map[name] = 1
+    return name
+  

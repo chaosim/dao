@@ -73,7 +73,7 @@ class LogicVar(object):
   def getvalue(self, memo, bindings):
     try: return memo[self]
     except:
-      result = self.deref(bindings)
+      result = LogicVar.deref(self, bindings)
       if isinstance(result, LogicVar): 
         memo[self] = result
         return result
@@ -92,6 +92,10 @@ class LogicVar(object):
   def __repr__(self):
     return "%s"%self.name 
 
+class DummyVar(LogicVar):
+  def deref(self, bindings):
+    return self
+  
 class UnquoteSplice:
   def __init__(self, item):
     self.item = item

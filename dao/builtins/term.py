@@ -16,6 +16,21 @@ def unify(compiler, cont, x, y):
     return y_cps_convert_unify(x, compiler, cont)
   return x_cps_convert_unify(y, compiler, cont)
 
+@special
+def eval_unify(compiler, cont, x, y):
+  x1 = compiler.new_var(il.ConstLocalVar('x'))
+  y1 = compiler.new_var(il.ConstLocalVar('y'))
+  return x.cps_convert(compiler, il.clamda(x1, 
+    y.cps_convert(compiler, il.clamda(y1,
+      il.If(il.IsLogicVar(x1),
+         il.begin(il.SetBinding(x1, y1),
+                  il.append_failcont(compiler, il.DelBinding(x1)),
+                  cont(il.TRUE)),
+        il.If(il.IsLogicVar(y1),
+              il.begin(il.SetBinding(y1, x1),
+                       il.append_failcont(compiler, il.DelBinding(y1)),
+                       cont(il.TRUE)),              
+              il.If(il.Eq(x1, y1), cont(il.TRUE), il.failcont(il.TRUE))))))))
 
 @special
 def is_(compiler, cont, var, exp):
@@ -286,18 +301,6 @@ def unbind(solver, var):
   solver.fcont = fcont
   return True
   
-@builtin.macro('isnumber', 'isnumber')
-def isnumber(solver, arg):
-  return isinstance(getvalue(arg, env, {}), int) \
-              or isinstance(getvalue(arg, env, {}), float)
-
-@builtin.macro('isnumber_p', 'isnumber!')
-def isnumber_p(solver, arg):
-  if isinstance(getvalue(arg, env, {}), int) \
-     or isinstance(getvalue(arg, env, {}), float): 
-    return True
-  else: solver.scont = solver.fcont
-
 @builtin.macro('iscons_p', 'iscons!')
 def iscons_p(solver, arg):
   if isinstance(getvalue(arg, env, {}), Cons): return True

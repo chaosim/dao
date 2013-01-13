@@ -151,7 +151,14 @@ class Klass(ConstAtom):
   
   def __repr__(self):
     return 'il.Klass(%s)'%(self.item)
+
+class PyFunction(ConstAtom):  
+  def to_code(self, compiler):
+    return self.item.func_name
   
+  def __repr__(self):
+    return 'il.PyFunction(%s)'%(self.item)
+
 TRUE = Bool(True)
 FALSE = Bool(False)
 NONE = Atom(None)
@@ -479,7 +486,7 @@ class Begin(Element):
       return classeq(x, y) and x.statements==y.statements
   
   def __repr__(self):
-    return 'il.begin(%s)'%', '.join([repr(x) for x in self.statements])
+    return 'il.begin(%s)'%'\n '.join([repr(x) for x in self.statements])
 
 class PassStatement(Element):
   is_statement = True

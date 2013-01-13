@@ -9,7 +9,7 @@ alpha convert -> cps convert
 
 from dao.compilebase import Environment, Compiler
 from dao.command import element
-from dao.compilebase import CompileTypeError, VariableNotBound
+from dao.compilebase import CompileTypeError, VariableNotBound, import_names
 from dao import interlang as il
 
 prelude = '''# -*- coding: utf-8 -*-
@@ -18,15 +18,16 @@ prelude = '''# -*- coding: utf-8 -*-
 from dao.builtins import *
 from dao.command import LogicVar as DaoLogicVar
 from dao.command import Var as DaoVar
-from dao.solvebase import Solver, deref, getvalue, LogicVar, ExpressionWithCode
-from dao.solvebase import UnquoteSplice, MacroFunction, NoSolution
+from dao.solvebase import Solver, NoSolution
+from dao.solvebase import deref, getvalue, LogicVar, DummyVar
+from dao.solvebase import UnquoteSplice, ExpressionWithCode, MacroFunction
 from dao.solve import eval as eval_exp
 from dao.command import BuiltinFunctionCall
 from dao import interlang as il
 
-solver = Solver()
-
 '''
+prelude += "from dao.compilebase import %s\n"%', '.join(import_names)
+prelude += '\nsolver = Solver()\n\n'
 
 def compile_to_pyfile(exp, env):
   code = compile_to_python(exp, env)
@@ -78,4 +79,3 @@ def compile_to_python(exp, env, done=None):
   compiler = Compiler()
   result = exp.to_code(compiler)
   return prelude + result
-

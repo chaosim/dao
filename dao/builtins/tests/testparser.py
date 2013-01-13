@@ -12,9 +12,10 @@ from dao.builtins import char, eoi, word, literal#, integer, eoi, literal, lette
 #from dao.builtins import dqstring, sqstring, unify_tabspaces, unify_whitespaces, uLetterdigitString
 from dao.builtins import may, nullword, identifier, integer#, optional, parallel
 from dao.builtins import any#, some, times, times_more, times_less, seplist
-from dao.builtins import lazy#, times_between
+#from dao.builtins import lazy#, times_between
 #from dao.builtins import contain
 from dao.builtins import println
+from dao.builtins import unify, is_
 
 from dao.tests.util import *
 
@@ -45,7 +46,9 @@ class TestLowLevelPrimitive:
     
   def test_goto(self):
     eq_(eval(begin(set_text('abcde'), goto(1))), 'b')
-    
+
+from dao.builtins import lazy_any
+
 class TestParse:
   def test_unify_parse_text(self):
     x = LogicVar('x')
@@ -65,31 +68,28 @@ class TestParse:
   def test_any2(self):
     eq_(eval(begin(set_text('aaa'), any(char('a')))), True)
     
+  def test_any3(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    eq_(eval(begin(set_text('aaa'), any(char(_), _, y), eoi, y)), ['a', 'a', 'a'])
+    
+  def test_lazy_any1(self):
+    eq_(eval(begin(set_text('aaa'), lazy_any(char('a')), eoi)), True)
+    
+  def test_lazy_any2(self):
+    eq_(eval(begin(set_text('aaa'), lazy_any(char('a')))), True)
+    
+from dao.builtins import digit, eval_unify
+from dao.builtins import lowcase, uppercase, letter, underline_letter, underline_letter_digit
+from dao.builtins import tabspace, whitespace
+from dao.builtins import string_on_predicate0, digits0, one_to_nines0
+from dao.builtins import lowcases0, uppercases0, letters0, underline_letters0, underline_letter_digits0
+from dao.builtins import tabspaces0, whitespaces0
+from dao.builtins import string_on_predicate1, digits1, one_to_nines1
+from dao.builtins import lowcases1, uppercases1, letters1, underline_letters1, underline_letter_digits1
+from dao.builtins import tabspaces1, whitespaces1
 
-class XTestParameterize:
-  def test_chars(self):
-    x, cs,chars = Var('x'), Var('cs'), Var('chars')
-    eq_(eval(let([(chars, function(((x, cs), and_p(char(x), contain(cs, x)))))],
-                            parse_text(chars(x, 'a'), 'a'))), True)
-  def test_kleene1(self):
-    f, item, kleene = Var('f'), Var('item'), Var('kleene')
-    fun = macro(((item,),  
-                         letr([(f,macro(((), eval_(item), f()),
-                                         ((), nullword)))], 
-                              f())))
-    eq_(eval(let([(kleene,fun)], set_text('aa'), kleene(char('a')))), True)
-  def test_kleene2(self):
-    f, pred, kleene = Var('f'), Var('pred'), Var('kleene')
-    fun = macro(((pred,),  
-                         letr([(f,macro( ((x,), pred(x), f(x)),
-                                          ((x,), nullword)))], 
-                              f(x))))
-    eq_(eval(let([(kleene,fun)], set_text('ab'), kleene(char))), True)
-    
 class Testterminal:
-  def test_char(self):
-    eq_(eval(parse_text(char('a'), 'a')), 'a')
-    
   def test_nullword1(self):
     eq_(eval(parse_text(begin(char('a'), nullword, char('b')), 'ab')), 'b')
     
@@ -102,6 +102,35 @@ class Testterminal:
     eq_(eval(parse_text(rule, 'ab')), 'b') # passed
     assert_raises(NoSolution, eval, parse_text(rule, 'a b'))
     assert_raises(NoSolution, eval, parse_text(rule, 'a'))
+    
+  def test_char(self):
+    eq_(eval(parse_text(char('a'), 'a')), 'a')
+    
+  def test_digit(self):
+    x = LogicVar('x')
+    eq_(eval(parse_text(digit, '1')), '1')
+    eq_(eval(parse_text(is_(x, digit), '1')), '1')
+    eq_(eval(begin(parse_text(eval_unify(x, digit), '1'), x)), '1')
+    
+  def test_digit_string0(self):
+    x = LogicVar('x')
+    eq_(eval(parse_text(digits0, '')), '')
+    eq_(eval(parse_text(digits0, 'a')), '')
+    eq_(eval(parse_text(digits0, '123')), '123')
+    eq_(eval(parse_text(is_(x, digits0), '123a')), '123')
+    eq_(eval(begin(parse_text(eval_unify(x, digits0), '123 '), x)), '123')
+    
+  def test_digit_string1(self):
+    x = LogicVar('x')
+    eq_(eval(parse_text(digits1, '123')), '123')
+    eq_(eval(parse_text(is_(x, digits1), '123a')), '123')
+    eq_(eval(begin(parse_text(eval_unify(x, digits1), '123 '), x)), '123')
+    
+  def test_underline_letter_digit(self):
+    x = LogicVar('x')
+    eq_(eval(parse_text(underline_letter_digit, '1')), '1')
+    eq_(eval(parse_text(is_(x, underline_letter_digit), 'a')), 'a')
+    eq_(eval(begin(parse_text(eval_unify(x, underline_letter_digit), '_'), x)), '_')
     
   def test_word(self):
     x, y, z = LogicVar('y'), LogicVar('x'), LogicVar('z')
@@ -329,6 +358,26 @@ class XTestAnySomeTimesSepList:
     eq_(eval(begin(parse_text(seplist(char(_), char(','), _, Y), '2,2,2'), Y)), ['2','2','2'])
     eq_(eval(begin(parse_text(seplist(char(_), char(','), _, Y), '2,3,4'), Y)), ['2', '3', '4'])
     eq_(eval(begin(parse_text(seplist(char(_), char(','), _, Y), '2'), Y)), ['2'])
+    
+class XTestParameterize:
+  def test_chars(self):
+    x, cs,chars = Var('x'), Var('cs'), Var('chars')
+    eq_(eval(let([(chars, function(((x, cs), and_p(char(x), contain(cs, x)))))],
+                            parse_text(chars(x, 'a'), 'a'))), True)
+  def test_kleene1(self):
+    f, item, kleene = Var('f'), Var('item'), Var('kleene')
+    fun = macro(((item,),  
+                         letr([(f,macro(((), eval_(item), f()),
+                                         ((), nullword)))], 
+                              f())))
+    eq_(eval(let([(kleene,fun)], set_text('aa'), kleene(char('a')))), True)
+  def test_kleene2(self):
+    f, pred, kleene = Var('f'), Var('pred'), Var('kleene')
+    fun = macro(((pred,),  
+                         letr([(f,macro( ((x,), pred(x), f(x)),
+                                          ((x,), nullword)))], 
+                              f(x))))
+    eq_(eval(let([(kleene,fun)], set_text('ab'), kleene(char))), True)
     
 class XTestKleeneByfunction:  
   def testKleene1(self): #occurs_check

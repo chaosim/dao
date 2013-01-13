@@ -165,9 +165,9 @@ def findall(compiler, cont, goal, template=None, bag=None):
   if bag is None: 
     return findall_1(goal).cps_convert(compiler, cont)
   else:
-    _bag  = compiler.new_var(Var(bag.name))
-    return begin(findall_2(goal, element(template), _bag), 
-                 unify(bag, _bag)).cps_convert(compiler, cont)
+    _bag  = compiler.new_var(Var('bag'))
+    return begin(findall_2(goal, template, _bag),unify(bag, _bag)
+                 ).cps_convert(compiler, cont)
 #findall:
   #findall goal: goal, fail
     

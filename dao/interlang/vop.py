@@ -842,6 +842,8 @@ IsLogicVar = vop('IsLogicVar', 1, 'isinstance(%s, LogicVar)', False)
 
 
 DelBinding = vop2('DelBinding', 1, 'del solver.bindings[%s]', True)
+DelItem = vop2('DelItem', 2, 'del %s[%s]', True)
+
 
 GetValue = vop('GetValue', 1, 'getvalue(%s, {}, solver.bindings)', False)
 

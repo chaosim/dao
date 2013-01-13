@@ -28,18 +28,15 @@ def char(compiler, cont, argument):
   
   elif isinstance(argument, Var):
     v = compiler.new_var(il.ConstLocalVar('v'))
-    if isinstance(argument, LogicVar):
-      argument = il.LogicVar(argument.name)
-    else:
-      argument = il.LocalVar(argument.name)
+    argument = argument.interlang()
     argument1 = compiler.new_var(il.ConstLocalVar('argument'))
     return il.Begin((
       il.AssignFromList(text, pos, il.parse_state),
       il.If(il.Ge(pos,il.Len(text)), 
-        il.failcont(v),
+        il.failcont(il.FALSE),
         il.Begin((
           il.Assign(argument1, il.Deref(argument)),
-          il.Prin(text), il.Prin(pos), il.PrintLn(argument1),
+          #il.Prin(text), il.Prin(pos), il.PrintLn(argument1),
           il.If(il.Isinstance(argument1, il.Symbol('str')),
             il.If(il.Eq(argument1, il.GetItem(text, pos)),
                   il.begin(il.append_failcont(compiler, 
@@ -58,6 +55,165 @@ def char(compiler, cont, argument):
       
   # elif isinstance(argument, il.LogicVar) #how about this? It should be include above.
   else: raise CompileTypeError(argument)
+  
+@special
+def char_on_predicate(compiler, cont, test):
+  '''return current char and step if @test succeed, where 
+  @test: a python function with one argument, which tests on one char and return True or False
+         @test must be registered with register_function'''
+  test = test.interlang()
+  text = compiler.new_var(il.ConstLocalVar('text'))
+  pos = compiler.new_var(il.ConstLocalVar('pos'))
+  if not isinstance(test, il.PyFunction):
+    raise DaoCompileTypeError(test)
+  return il.Begin((
+    il.AssignFromList(text, pos, il.parse_state),
+    il.If(il.Ge(pos,il.Len(text)), 
+      il.failcont(il.FALSE),
+      il.If(il.Call(test, il.GetItem(text, pos)),
+        il.begin(
+          il.SetParseState(il.Tuple(text, il.add(pos, il.Integer(1)))),
+          il.append_failcont(compiler, 
+                             il.SetParseState(il.Tuple(text, pos))),
+          cont(il.GetItem(text, pos))),
+        il.failcont(il.FALSE)))))
+
+from dao.compilebase import register_function
+
+def char_between(lower, upper, func_name): 
+  '''return current char and step if char is between lower and upper, where 
+   @test: a python function with one argument, which tests on one char and return True or False
+          @test must be registered with register_function'''
+  function = register_function(func_name, 
+                      lambda char: lower<=char<=upper)
+  return char_on_predicate(function)
+
+def char_in(string, func_name): 
+  '''return current char and step if char is in string, where 
+   @test: a python function with one argument, which tests on one char and return True or False
+          @test must be registered with register_function'''
+  function = register_function(func_name, 
+                      lambda char: char in string)
+  return char_on_predicate(function)
+
+is_digit = register_function('is_digit', lambda char: '0'<=char<='9')
+digit = char_on_predicate(is_digit)
+
+is_one_to_nine = register_function('is_one_to_nine', lambda char: '1'<=char<='9')
+one_to_nine = char_on_predicate(is_one_to_nine)
+
+is_lowcase = register_function('is_lowcase', lambda char: 'a'<=char<='z')
+lowcase = char_on_predicate(is_lowcase)
+
+is_uppercase = register_function('is_uppercase', lambda char: 'A'<=char<='Z')
+uppercase = char_on_predicate(is_uppercase)
+
+is_letter = register_function('is_letter', 
+                                lambda char: ('a'<=char<='z') or ('A'<=char<='Z'))
+letter = char_on_predicate(is_letter)
+
+is_underline_letter = register_function('is_underline_letter', 
+                                lambda char: char=='_' or ('a'<=char<='z') or ('A'<=char<='Z'))
+underline_letter = char_on_predicate(is_underline_letter)
+
+is_letter_digit_test = register_function('is_letter_digit_test',lambda char: char=='_' or 
+                    ('0'<=char<='9') or ('a'<=char<='z') or ('A'<=char<='Z'))
+underline_letter_digit = char_on_predicate(is_letter_digit_test)
+
+space_string = ' \t'
+is_tabspace  = register_function('is_tabspace', lambda char: char in space_string)
+tabspace = char_on_predicate(is_tabspace)
+
+whitespace_string = ' \t\r\n'
+is_whitespace  = register_function('is_whitespace', lambda char: char in whitespace_string)
+whitespace = char_on_predicate(is_whitespace)
+
+@special
+def string_on_predicate0(compiler, cont, test):
+  '''return current char and step if @test succeed, where 
+   @test: a python function with one argument, which tests on one char and return True or False
+          @test must be registered with register_function'''
+  test = test.interlang()
+  text = compiler.new_var(il.ConstLocalVar('text'))
+  pos = compiler.new_var(il.ConstLocalVar('pos'))
+  length = compiler.new_var(il.ConstLocalVar('length'))
+  p = compiler.new_var(il.LocalVar('p'))
+  if not isinstance(test, il.PyFunction):
+    raise DaoCompileTypeError(test)
+  return il.Begin((
+    il.AssignFromList(text, pos, il.parse_state),
+    il.Assign(length, il.Len(text)),
+    il.If(il.Ge(pos,il.Len(text)), 
+      cont(il.String('')),
+      il.begin(
+        il.Assign(p, pos),
+        il.While(il.And(il.Lt(p, length), il.Call(test, il.GetItem(text, p))),
+               il.AddAssign(p, il.Integer(1))),
+        il.SetParseState(il.Tuple(text, p)),
+        il.append_failcont(compiler, 
+                           il.SetParseState(il.Tuple(text, pos))),
+        cont(il.GetItem(text, il.Slice2(pos, p)))))))
+
+@special
+def string_on_predicate1(compiler, cont, test):
+  '''return current char and step if @test succeed, where 
+   @test: a python function with one argument, which tests on one char and return True or False
+          @test must be registered with register_function'''
+  test = test.interlang()
+  text = compiler.new_var(il.ConstLocalVar('text'))
+  pos = compiler.new_var(il.ConstLocalVar('pos'))
+  length = compiler.new_var(il.ConstLocalVar('length'))
+  p = compiler.new_var(il.LocalVar('p'))
+  if not isinstance(test, il.PyFunction):
+    raise DaoCompileTypeError(test)
+  return il.Begin((
+    il.AssignFromList(text, pos, il.parse_state),
+    il.Assign(length, il.Len(text)),
+    il.If(il.Ge(pos, length), 
+      il.failcont(il.FALSE),
+      il.If(il.Call(test, il.GetItem(text, pos)),
+        il.begin(
+          il.Assign(p, il.add(pos, il.Integer(1))),
+          il.While(il.And(il.Lt(p, length), il.Call(test, il.GetItem(text, p))),
+                 il.AddAssign(p, il.Integer(1))),
+          il.SetParseState(il.Tuple(text, p)),
+          il.append_failcont(compiler, 
+                             il.SetParseState(il.Tuple(text, pos))),
+          cont(il.GetItem(text, il.Slice2(pos, p)))),
+        il.failcont(il.FALSE)))))
+
+def string_on_predicate(test, once_more=True):
+  if once_more:
+    return string_on_predicate1(test)
+  else:
+    return string_on_predicate0(test)
+  
+digits0 = string_on_predicate(is_digit, once_more=False)
+digits1 = string_on_predicate(is_digit, once_more=True)
+
+one_to_nines0 = string_on_predicate(is_one_to_nine, once_more=False)
+one_to_nines1 = string_on_predicate(is_one_to_nine, once_more=True)
+
+lowcases0 = string_on_predicate(is_lowcase, once_more=False)
+lowcases1 = string_on_predicate(is_lowcase, once_more=True)
+
+uppercases0 = string_on_predicate(is_uppercase, once_more=False)
+uppercases1 = string_on_predicate(is_uppercase, once_more=True)
+
+letters0 = string_on_predicate(is_letter, once_more=False)
+letters1 = string_on_predicate(is_letter, once_more=True)
+
+underline_letters0 = string_on_predicate(is_underline_letter, once_more=False)
+underline_letters1 = string_on_predicate(is_underline_letter, once_more=True)
+
+underline_letter_digits0 = string_on_predicate(is_letter_digit_test, once_more=False)
+underline_letter_digits1 = string_on_predicate(is_letter_digit_test, once_more=True)
+
+tabspaces0 = string_on_predicate(is_tabspace, once_more=False)
+tabspaces1 = string_on_predicate(is_tabspace, once_more=True)
+
+whitespaces0 = string_on_predicate(is_whitespace, once_more=False)
+whitespaces1 = string_on_predicate(is_whitespace, once_more=True)
 
 @special
 def word(compiler, cont, arg):
@@ -301,31 +457,9 @@ def literal(compiler, cont, arg):
           cont(arg)))))
   else:
     raise CompileTypeError
-    
+
+  
 '''
-@matcher()
-def chs0(solver, char):
-  '0 or more char'
-  text, pos = solver.parse_state
-  p = pos
-  while text[p]==char: p += 1 
-  solver.parse_state = text, p
-  yield cont, text[pos:p]
-  solver.parse_state = text, pos
-
-@matcher()
-def chs(solver, char):
-  '1 or more char'
-  text, pos = solver.parse_state
-  if pos==len(text): return
-  if text[pos]!=char: return
-  p = pos+1
-  while text[p]==char: p += 1 
-  if text[pos]==char: 
-    solver.parse_state = text, p
-    yield cont, text[pos:p]
-    solver.parse_state = text, pos
-
 @matcher()
 def lead_chars(solver, chars):
   chars = deref(chars, solver.env)
@@ -393,37 +527,6 @@ def not_follow_string(solver, string):
   string = string.deref(solver.env)
   if left_(solver.parse_state).startswith(string.name): return
   solver.value = True  
-
-def char_on_predicate(test, name=''):
-  def func(solver, arg0):
-    #assert isinstance(arg0, Var) and arg0.free(solver.env)
-    text, pos = solver.parse_state
-    if pos>=len(text): return
-    c = text[pos]
-    if not test(c): return
-    for _ in unify(arg0, c, solver.env):
-      solver.parse_state = text, pos+1
-      yield cont,  True
-      solver.parse_state = text, pos
-  if name=='': name = test.__name
-  return matcher(name)(func)
-
-def char_between(lower, upper): return char_on_predicate(lambda char: lower<=char<=upper, "charbetween <%s-%s>"%(lower, upper))  
-def char_in(string, repr_string=''): return char_on_predicate(lambda char: char in string, repr_string or 'char_in '+string)      
-digit = char_between('0', '9')
-_1_9 = char_between('1', '9')
-lowcase = char_between('a', 'z')
-uppercase = char_between('A', 'Z')
-letter = char_on_predicate(lambda char: ('a'<=char<='z') or ('A'<=char<='Z'), 'letter')
-uletter = char_on_predicate(lambda char: char=='_' or ('a'<=char<='z') or ('A'<=char<='Z'), 
-      '_letter')
-_letter_digit_test = (lambda char: char=='_' or 
-                    ('0'<=char<='9') or ('a'<=char<='z') or ('A'<=char<='Z'))
-u_letter_digit = char_on_predicate(_letter_digit_test, '_letterdigitChar')
-space_string = ' \t' #\r\n
-whitespace_string = ' \t\r\n'
-unify_tabspace = char_in(space_string, repr_string='spacesChar')
-unify_whitespace = char_in(whitespace_string, repr_string='spacesChar')
 
 @matcher()
 def any_chars_except(solver, except_chars):
@@ -496,41 +599,6 @@ def newline(solver):
       yield cont,  text[pos:pos+1]
     solver.parse_state = text, pos
 nl = newline = newline()
-
-def string__on_predicate(test, name='', onceMore=True):
-  def func(solver,  arg):
-    #assert isinstance(arg, Var) and arg.free(solver.env)
-    text, pos = solver.parse_state
-    string = ''
-    i = 0
-    while pos+i<len(text):         
-      char = text[pos+i]
-      if not test(char): break
-      string += char
-      i += 1
-    if onceMore and string=='': return
-    for _ in unify(arg, string, solver.env):
-      solver.parse_state = text, pos+i
-      yield cont,  True
-      solver.parse_state = text, pos
-  if name=='': name = test.__name
-  return matcher(name)(func)
-def string_between(lower, upper, once_more=True):
-  if not once_more: name = "s<%s-%s>"%(lower, upper)
-  else: name = "s<%s-%s>+"%(lower, upper)
-  return string__on_predicate(lambda char: lower<=char<=upper, name, once_more)  
-def string_in(string, once_more=True, repr_string=''): 
-  return string__on_predicate(lambda char: char in string, repr_string or 's'+string, once_more)  
-digits = string_between('0', '9')
-digits0 = string_between('0', '9', once_more=False)
-lowcaseString = string_between('a', 'z')
-uppercaseString = string_between('A', 'Z')
-uLetterdigitString = string__on_predicate(_letter_digit_test, '_letterdigitString')
-uLetterdigitString0 = string__on_predicate(_letter_digit_test, '_letterdigitTestString0', False)
-unify_tabspaces0 = string_in(space_string, once_more=False, repr_string='spaces0')
-unify_tabspaces = string_in(space_string, repr_string='spaces')
-unify_whitespaces0 = string_in(whitespace_string, once_more=False, repr_string='whitespaces0')
-unify_whitespaces = string_in(whitespace_string, repr_string='whitespaces')
 
 @matcher()
 def spaces0(solver)

@@ -94,10 +94,17 @@ class Symbol(Atom):
 
 class Klass(Atom):
   def __repr__(self):
-    return 'il.Klass(%s)'%(self.item)
+    return 'Klass(%s)'%(self.item)
   
   def interlang(self):
     return il.Klass(self.item)
+
+class PyFunction(Atom):
+  def __repr__(self):
+    return 'PyFunction(%s)'%(self.item)
+  
+  def interlang(self):
+    return il.PyFunction(self.item)
   
 TRUE = Bool(True)
 FALSE = Bool(False)
@@ -231,7 +238,7 @@ class LogicVar(Var):
   def __repr__(self):
     return "DaoLogicVar('%s')"%self.name 
   
-class DummyVar(Var):
+class DummyVar(LogicVar):
   def interlang(self):
     return il.DummyVar(self.name)
   
@@ -459,4 +466,5 @@ def expression_with_code(compiler, cont, exp):
 
 type_map = {int:Integer, float: Float, str:String, unicode: String, 
             tuple: make_tuple, list:List, dict:Dict, 
-            bool:Bool, type(None): Atom}
+            bool:Bool, type(None): Atom,
+            type(lambda:1):PyFunction}

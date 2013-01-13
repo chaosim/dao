@@ -148,7 +148,7 @@ class Lamda(Element):
   def __hash__(self): return hash(id(self))
   
   def __repr__(self):
-    return 'il.Lamda((%s), %s)'%(', '.join([repr(x) for x in self.params]),
+    return 'il.Lamda((%s), \n%s)'%(', '.join([repr(x) for x in self.params]),
                               repr(self.body))
 
 class RulesLamda(Lamda):
@@ -204,7 +204,7 @@ class Clamda(Lamda):
       return result
   
   def __repr__(self):
-    return 'il.Clamda(%r, %s)'%(self.params[0], repr(self.body))
+    return 'il.Clamda(%r, \n%s)'%(self.params[0], repr(self.body))
 
 class EqualCont:
   is_statement = False
@@ -313,7 +313,7 @@ class Function(Lamda):
     return result
   
   def __repr__(self):
-    return 'il.Function(%s, (%s), %s)'%(self.name, ', '.join([repr(x) for x in self.params]),
+    return 'il.Function(%s, (%s), \n%s)'%(self.name, ', '.join([repr(x) for x in self.params]),
                                  repr(self.body))    
 
 def cfunction(name, v, *body):
@@ -359,7 +359,7 @@ class CFunction(Function):
     return result
   
   def __repr__(self):
-    return 'il.CFunction(%r, %r, %s)'%(self.name, self.params[0],repr(self.body))
+    return 'il.CFunction(%r, %r, \n%s)'%(self.name, self.params[0],repr(self.body))
   
 class XRulesFunction(Function):
   def __init__(self, name, params, body):
@@ -722,6 +722,10 @@ class LogicVar(Element):
   
   def __repr__(self):
     return "LogicVar(%s)"%self.name 
+
+class DummyVar(LogicVar):
+  def to_code(self, compiler):
+    return  "DummyVar('%s')"%self.name
 
 class XValueAssignBox:
   def __init__(self, value):
@@ -1201,9 +1205,9 @@ class If(Element):
   
   def __repr__(self):
     if self.else_!=pseudo_else:
-      return 'il.If(%r, %r, %r)'%(self.test, self.then, self.else_)
+      return 'il.If(%r, \n%r, \n%r)'%(self.test, self.then, self.else_)
     else:
-      return 'il.If(%r, %r)'%(self.test, self.then)
+      return 'il.If(%r, \n%r)'%(self.test, self.then)
 
 def if2(test, then):
   return If(test, then, pseudo_else)
@@ -1308,7 +1312,7 @@ class While(Element):
     return classeq(x, y) and x.test==y.test and x.body==y.body
   
   def __repr__(self):
-    return 'il.While(%r, %r)'%(self.test, self.body)
+    return 'il.While(%r, \n%r)'%(self.test, self.body)
 
 def for_(var, range, *exps):
   return For(element(var), element(range), begin(*[x for x in exps]))
