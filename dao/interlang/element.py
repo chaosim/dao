@@ -446,7 +446,8 @@ class Begin(Element):
     result = []
     for arg in self.statements:
       arg1 = arg.optimize(env, compiler)
-      result.append(arg1)
+      if arg1 is not None:
+        result.append(arg1)
     if result:
       return begin(*([x for x in result[:-1] if not isinstance(x, Atom)]+[result[-1]]))
     else: return pass_statement
@@ -468,10 +469,6 @@ class Begin(Element):
     result = ()
     has_any_statement = False
     for exp in self.statements:
-      try:
-        if exp.removed()==True: 
-          continue
-      except: pass
       exps2, any_statement = exp.pythonize(env, compiler)
       has_any_statement = has_any_statement or any_statement
       result += exps2

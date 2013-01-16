@@ -203,6 +203,9 @@ def some2(compiler, cont, item, template, result):
   v = compiler.new_var(il.ConstLocalVar('v'))
   v2 = compiler.new_var(il.ConstLocalVar('v'))
   v3 = compiler.new_var(il.ConstLocalVar('v'))
+  append_cont = il.clamda(v2, 
+                    il.ListAppend(result, il.GetValue(template)),
+                    some_cont(v2))
   return il.Begin((
     il.Assign(result, il.empty_list),
     il.cfunction(some_cont, v,
@@ -212,10 +215,8 @@ def some2(compiler, cont, item, template, result):
                     il.DelListItem(result, il.Integer(-1)),
                     fc(v3))),
                  cont(v))),
-                item.cps_convert(compiler, il.clamda(v2, 
-                    il.ListAppend(result, il.GetValue(template)),
-                    some_cont(v2)))),
-    item.cps_convert(compiler, some_cont)))
+                item.cps_convert(compiler, append_cont)),
+    item.cps_convert(compiler, append_cont)))
 
 @special
 def lazy_some(compiler, cont, item, template=None, result=None):
@@ -232,15 +233,16 @@ def lazy_some1(compiler, cont, item):
   lazy_some_cont = compiler.new_var(il.ConstLocalVar('lazy_some_cont'))
   lazy_some_fcont = compiler.new_var(il.ConstLocalVar('lazy_some_fcont'))
   v = compiler.new_var(il.ConstLocalVar('v'))
+  v2 = compiler.new_var(il.ConstLocalVar('v'))
   return  il.begin(
     il.Assign(fc, il.failcont),
     il.cfunction(lazy_some_fcont, v,
         il.SetFailCont(fc),
-        item.cps_convert(compiler, lazy_some_cont)),
+        lazy_some_cont(il.TRUE)),
     il.cfunction(lazy_some_cont, v,
-        il.SetFailCont(lazy_some_fcont),
-        cont(il.TRUE)),
-    item.cps_convert(compiler, lazy_some_cont))
+        item.cps_convert(compiler, il.clamda(v2,
+          il.SetFailCont(lazy_some_fcont),
+          cont(il.TRUE))))(il.TRUE))
                              
 @special
 def lazy_some2(compiler, cont, item, template, result):
@@ -257,14 +259,12 @@ def lazy_some2(compiler, cont, item, template, result):
     il.Assign(fc, il.failcont),
     il.cfunction(lazy_some_fcont, v,
         il.SetFailCont(fc),
-        item.cps_convert(compiler, 
-          il.clamda(v2, 
-                    il.ListAppend(result, il.GetValue(template)),
-                    lazy_some_cont(il.TRUE)))),
+        lazy_some_cont(il.TRUE)),
     il.cfunction(lazy_some_cont, v,
-        il.SetFailCont(lazy_some_fcont),
-        cont(il.TRUE)),
-    item.cps_convert(compiler, lazy_some_cont))
+        item.cps_convert(compiler, il.clamda(v2,
+           il.SetFailCont(lazy_some_fcont),
+           il.ListAppend(result, il.GetValue(template)),
+           cont(il.TRUE))))(il.TRUE))
                              
 @special
 def greedy_some(compiler, cont, item, template=None, result=None):

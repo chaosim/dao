@@ -130,6 +130,9 @@ def default_end_cont(v):
 class Solver:
   def __init__(self):
     self.bindings = Bindings() # for logic variable, unify
+    self.parse_state = None
+    self.catch_cont_map = {}
+    self.cut_cont = self.cut_or_cont = self.fail_cont = default_end_cont
     
   def find_catch_cont(self, tag):
     try:

@@ -372,7 +372,7 @@ class Rules(Lamda):
       else:
         arity_fun = il.lamda((), 
               or_(*clauses).cps_convert(compiler, k))
-      arity_fun_name = compiler.new_var(il.ConstLocalVar('arity_fun_%s'%arity))
+      arity_fun_name = compiler.new_var(il.LocalVar('arity_fun_%s'%arity))
       assigns.append(il.Assign(arity_fun_name, arity_fun))
       arity_body_pairs.append((arity, arity_fun_name))  
     
@@ -512,7 +512,7 @@ class MacroRules(Element):
       else:  
         arity_fun = il.lamda((), 
               or_(*clauses).cps_convert(compiler, k))
-      arity_fun_name = compiler.new_var(il.ConstLocalVar('arity_fun_%s'%arity))
+      arity_fun_name = compiler.new_var(il.LocalVar('arity_fun_%s'%arity))
       assigns.append(il.Assign(arity_fun_name, arity_fun))
       arity_body_pairs.append((arity, arity_fun_name))  
     

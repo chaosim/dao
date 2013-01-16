@@ -559,14 +559,6 @@ class PushCatchCont(Element):
   def optimize(self, env, compiler):
     tag = self.tag.optimize(env, compiler)
     cont = self.cont.optimize(env, compiler)
-    #if isinstance(tag, ConstAtom) and env[catch_cont_map] is not None:
-      #env[catch_cont_map].right_value().item.setdefault(tag, []).append(cont)
-      #return NONE
-    if env[catch_cont_map] is not None:
-      result = Begin((Assign(catch_cont_map, env[catch_cont_map]), 
-                    PushCatchCont(tag, cont)))
-      env[catch_cont_map] = None
-      return result
     return PushCatchCont(tag, cont)
   
   def pythonize(self, env, compiler):
@@ -665,20 +657,6 @@ class FindCatchCont(Element):
   
   def optimize(self, env, compiler):
     tag = self.tag.optimize(env, compiler)
-    if isinstance(tag, Atom) and env[catch_cont_map] is not None:
-      try:
-        cont_stack = env[catch_cont_map].right_value().item[tag]
-        cont = cont_stack.pop()
-        if not cont_stack:
-          del env[catch_cont_map].right_value().item[tag]
-        return cont
-      except:
-        return RaiseExcept(Symbol('DaoUncaughtError'))
-    if env[catch_cont_map] is not None:
-      result = Begin((Assign(catch_cont_map, env[catch_cont_map]), 
-                    FindCatchCont(tag)))
-      env[catch_cont_map] = None
-      return result
     return FindCatchCont(tag)
   
   def pythonize(self, env, compiler):

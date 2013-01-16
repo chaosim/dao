@@ -50,17 +50,17 @@ def compile_to_python(exp, env, done=None):
   exp = exp.alpha_convert(env, compiler)
   exp = exp.cps_convert(compiler, done)
   v = compiler.new_var(il.ConstLocalVar('v'))
-  solver_prelude = il.begin(
-    il.Assign(il.parse_state, il.NONE),
-    il.Assign(il.failcont, 
-        il.clamda(v, 
-              il.RaiseException(il.Call(il.Symbol("NoSolution"), v)))),
-    il.Assign(il.cut_cont,il.failcont),
-    il.Assign(il.cut_or_cont,il.failcont),
-    il.Assign(il.catch_cont_map, il.empty_dict),
-    )
-  exp = il.begin(solver_prelude, exp)
-  compiler.lamda_stack = [exp]
+  #solver_prelude = il.begin(
+    ##il.Assign(il.parse_state, il.NONE),
+    ##il.Assign(il.failcont, 
+        ##il.clamda(v, 
+              ##il.RaiseException(il.Call(il.Symbol("NoSolution"), v)))),
+    ##il.Assign(il.cut_cont,il.failcont),
+    ##il.Assign(il.cut_or_cont,il.failcont),
+    ##il.Assign(il.catch_cont_map, il.empty_dict),
+    #)
+  #exp = il.begin(solver_prelude, exp)
+  #compiler.lamda_stack = [exp]
   exp.analyse(compiler)
   env = Environment()
   exp = exp.optimize(env, compiler)

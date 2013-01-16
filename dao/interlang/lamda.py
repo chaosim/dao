@@ -265,17 +265,7 @@ class Function(Lamda):
   
   def optimize(self, env, compiler):
     env = env.extend()
-    for var in self.free_vars():
-      try:
-        env[var]._removed = False
-      except: pass
-      env[var] = VarAssignBox(var)
     body = self.body.optimize(env, compiler)
-    for var in self.free_vars():
-      try:
-        assign = env[var]
-      except: continue
-      assign.dont_remove()
     result = self.new(self.params, body)
     return result
     
@@ -384,8 +374,6 @@ class RulesDict(Element):
     return result
   
   def optimize(self, env, compiler):
-    for var in self.arity_body_map.values():
-      env[var].dont_remove()
     return self
   
   def pythonize(self, env, compiler):
@@ -600,10 +588,9 @@ class Var(Element):
   
   def optimize(self, env, compiler):
     try: 
-      assign = env[self]
+      return env[self]
     except: 
       return self
-    return assign.right_value()
       
   def replace_assign(self, compiler):
     try:
@@ -701,148 +688,11 @@ class DummyVar(LogicVar):
   def to_code(self, compiler):
     return  "DummyVar('%s')"%self.name
 
-class VarAssignBox:
-  def __init__(self, var):
-    self.var = var
-    self._removed = unknown
-    self.items = set([self])
-    self.dependency = set()
-  
-  def right_value(self):
-    return self.var
-  
-  def remove(self):
-    self._removed = True
-  
-  def dont_remove(self):
-    self._removed = False
-    
-  def removed(self): 
-    return self._removed
-    
-  def __repr__(self):
-    return 'VAB(%r)'%self.right_value()
-  
-class LoopAssignBox:
-  def __init__(self, assign, loop_exp):
-    self.loop_exp = loop_exp
-    self.assign = assign
-    self.var = assign.var
-    self._removed = unknown
-    self.items = set([self])
-    self.dependency = set()
-  
-  def free_vars(self):
-    return self.assign.right_value().free_vars()
-  
-  def pythonize(self, env, compiler):
-    if self._removed==False:
-      return self.var.pythonize(env, compiler) 
-    else:
-      return self.assign.right_value().pythonize(env, compiler)   
-  
-  def right_value(self):
-    return self
-  
-  def remove(self):
-    self._removed = True
-    self.assign.remove()
-  
-  def dont_remove(self):
-    self._removed = False
-    self.assign.dont_remove()
-    
-  def removed(self): 
-    return self._removed
-    
-  def __repr__(self):
-    return 'LAB(%r)'%self.assign
-    
-class ThenAssignBox:
-  def __init__(self, item, if_exp):
-    self.item = item
-    self.var = item.var
-    self.then_removed = False
-    self.items = set([self])
-    self.dependency = set()
-    self.if_exp = if_exp
-  
-  def right_value(self):
-    return self.item.right_value()
-  
-  def remove(self):
-    self.then_removed = True
-    
-  def else_remove(self):
-    if self.then_removed:
-      self.item.remove()
- 
-  def dont_remove(self):
-    self.item.dont_remove()
-    
-  def __repr__(self):
-    return 'TB(%s)'%self.item
-  
-class ElseAssignBox:
-  def __init__(self, item):
-    self.item = item
-    self.var = item.var
-    self.if_exp = self.item.if_exp
-    self.items = set([self])
-    self.dependency = set()
-
-  def right_value(self):
-    return self.item.right_value()
-  
-  def remove(self):
-    self.item.else_remove()  
-  
-  def dont_remove(self):
-    self.item.dont_remove()
-    
-  def __repr__(self):
-    return 'EB(%s)'%self.item
-
-class GroupAssignBox:
-  def __init__(self, var, *items):
-    self.var = var
-    items1 = []
-    for item in items:
-      if isinstance(item, GroupAssignBox):
-        items1 += item.items
-      else: 
-        items1.append(item)
-    self.items = items1
-    value = items1[0].right_value()
-    for item in items[1:]:
-      if item.right_value()!=value:
-        self._right_value = self.var
-        break
-    else:
-      self._right_value = value
-  
-  def right_value(self):
-    return self._right_value
-  
-  def remove(self):
-    for item in self.items:
-      item.remove() 
-      
-  def dont_remove(self):
-    for item in self.items:
-      item.dont_remove()
-      
-  def __repr__(self):
-    return 'GB(%s)'%self.items
-
 class Assign(Element):
   is_statement = True
   
   def __init__(self, var, exp):
     self.var, self.exp =  var, exp
-    self._removed = unknown
-    self.items = set([self])
-    self.dependency = set()
   
   def find_assign_lefts(self):
     return set([self.var])
@@ -868,63 +718,17 @@ class Assign(Element):
   def right_value(self):
     return self.exp
   
-  def remove(self):
-    self._removed = True
-    
-  def dont_remove(self):
-    self._removed = False
-      
-  def removed(self):
-    if self._removed==True:
-      return True
-    if self._removed==False:
-      return False
-    if self.dependency:
-      for item in self.dependency:
-        if item.removed()==False: 
-          return False
-    return True
-    
   def optimize(self, env, compiler):
-    try:
-      assign_box = env[self.var]
-    except:
-      assign_box = None
-    if isinstance(assign_box, LoopAssignBox):
-      assign_box.dont_remove()
-      right_value = assign_box.assign.right_value()
-      env[self.var] = VarAssignBox(self.var)
     exp = self.exp.optimize(env, compiler)
     result = Assign(self.var, exp)
-    try:
-      env.bindings[self.var].remove()
-      del env.bindings[self.var]
-    except: pass    
-    if isinstance(exp, ConstAtom) or isinstance(exp, ExpressionWithCode):
-      env[self.var] = result
-    elif isinstance(exp, RulesDict):
-      env[self.var] = result
-      exp.name = self.var
-      result._removed = False
-    elif isinstance(exp, Lamda):
-      if isinstance(self.var, RecursiveVar):
-        result._removed = False
-      elif self.var.name=='solver.fail_cont':
-        result._removed = False
-      else: 
-        env[self.var] = result
-    else:
-      result._removed = False
-      assign_box = VarAssignBox(self.var)
-      env[self.var] = assign_box
-      for var in exp.free_vars():
-        try:
-          assign = env[var]
-        except:
-          assign = None
-        if assign is not None:
-          for item in assign.items:
-            item.dependency.add(assign_box)
+    if isinstance(self.var, ConstLocalVar):
+      if isinstance(exp, ConstAtom) or isinstance(exp, ExpressionWithCode) or isinstance(exp, Lamda):
+        env[self.var] = exp
+        return None
+      elif isinstance(exp, RulesDict):
+        env[self.var] = exp
+        exp.name = self.var
+        return result
     return result
   
   def pythonize(self, env, compiler):
@@ -957,20 +761,6 @@ class Assign(Element):
   
   def __repr__(self):
     return 'il.Assign(%r, %r)'%(self.var, self.exp)
-
-class UnoptimizabaleAssign(Assign):
-  def __init__(self, var, exp):
-    self.var, self.exp =  var, exp
-    self._removed = False
-    #self.items = set([self])
-    #self.dependency = set()
-    
-  def subst(self, bindings):  
-    return UnoptimizabaleAssign(self.var, self.exp.subst(bindings))
-        
-  def optimize(self, env, compiler):
-    self.exp = self.exp.optimize(env, compiler)
-    return self
      
 class AssignFromList(Element):
   is_statement = True
@@ -988,7 +778,8 @@ class AssignFromList(Element):
     self.value.analyse(compiler)
     
   def subst(self, bindings):  
-    return AssignFromList(*(tuple(var.subst(bindings) for var in self.vars)+(self.value.subst(bindings),)))
+    return AssignFromList(*(tuple(var.subst(bindings) 
+            for var in self.vars)+(self.value.subst(bindings),)))
   
   def code_size(self):
     return 1  
@@ -1004,11 +795,14 @@ class AssignFromList(Element):
       if len(value.item)!=len(self.vars):
         raise DaoCompileError
       else:
-        return begin(*tuple(Assign(var, v) 
-                     for var, v in zip(self.vars, value.item)
-                     )).optimize(env, compiler)
-    elif isinstance(value, Var):
-      env[value].dont_remove()
+        for var, v in zip(self.vars, value.item):
+          if isinstance(var, ConstLocalVar):
+            env[var] = v
+          else:
+            assigns.append(Assign(var, v))
+        if assigns:
+          return begin(*tuple(Assign(var, v)))
+        else: return None
     return AssignFromList(*(self.vars+(value,)))
   
   def pythonize(self, env, compiler):
@@ -1082,43 +876,8 @@ class If(Element):
       if isinstance(else_, If) and else_.test==test: # (if a b (if a c d))
         else_ = else_.else_      
       return else_    
-    then_bindings = {}
-    else_bindings = {}
-    for var, item in env.bindings.items():
-      then_box = ThenAssignBox(item, self)
-      then_bindings[var] = then_box
-      else_bindings[var] = ElseAssignBox(then_box)
-    env.bindings = then_bindings
     then = self.then.optimize(env, compiler)
-    then_bindings = env.bindings
-    env.bindings = else_bindings
     else_ = self.else_.optimize(env, compiler)
-    else_bindings = env.bindings
-    env.bindings = {}
-    for var, value in then_bindings.items():
-      if var in else_bindings:
-        else_value = else_bindings[var]
-        if isinstance(value, ThenAssignBox):
-          if value.if_exp is self:
-            if isinstance(else_value, ElseAssignBox) and else_value.if_exp is self:
-              env.bindings[var] = value.item
-            else:
-              env.bindings[var] = GroupAssignBox(var, value.item, else_value)
-          else:
-            if isinstance(else_value, ElseAssignBox) and else_value.if_exp is self:
-              env.bindings[var] = GroupAssignBox(var, value, else_value.item.item)
-            else:
-              env.bindings[var] = GroupAssignBox(var, value, else_value)
-        else:
-          if isinstance(else_value, ElseAssignBox) and else_value.if_exp is self:
-            env.bindings[var] = GroupAssignBox(var, value, else_value.item.item)
-          else:
-            env.bindings[var] = GroupAssignBox(var, value, else_value)
-        del else_bindings[var]
-      else:
-        env.bindings[var] = value
-    for var, value in else_bindings.items():
-      env.bindings[var] = value
     if isinstance(then, If) and then.test==test: # (if a (if a b c) d)
       then = then.then      
     if isinstance(else_, If) and else_.test==test: # (if a b (if a c d))
@@ -1225,22 +984,8 @@ class While(Element):
     
   def optimize(self, env, compiler):
     free_vars = self.free_vars()
-    for var in free_vars:
-      if isinstance(var, ConstLocalVar):
-        continue
-      try:
-        assign = env[var]
-      except: 
-        continue
-      env[var] = LoopAssignBox(assign, self)
     test = self.test.optimize(env, compiler)
     body = self.body.optimize(env, compiler)
-    for var in free_vars:
-      try:
-        assign = env[var]
-      except: continue
-      if isinstance(assign, LoopAssignBox) and assign.loop_exp is self:
-        env[var] = assign.assign
     result = While(test,body)
     return result
 
