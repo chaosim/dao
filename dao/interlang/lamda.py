@@ -757,8 +757,7 @@ class LoopAssignBox:
     
   def __repr__(self):
     return 'LAB(%r)'%self.assign
-  
-  
+    
 class ThenAssignBox:
   def __init__(self, item, if_exp):
     self.item = item
