@@ -416,7 +416,6 @@ class Begin(Element):
   
   def __init__(self, statements):
     self.statements = statements  
-    self.local_vars = set()
     
   def find_assign_lefts(self):
     result = set()
@@ -477,7 +476,6 @@ class Begin(Element):
       has_any_statement = has_any_statement or any_statement
       result += exps2
     return result, has_any_statement or len(result)>1
-
   
   def to_code(self, compiler):
     return  '\n'.join([x.to_code(compiler) for x in self.statements])

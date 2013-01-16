@@ -93,12 +93,6 @@ class Compiler:
         return self.block_label_stack[-(i+1)][1]
     raise BlockError("Block %s is not found."%old_label)
   
-  def seen_vars(self):
-    result = []
-    for lamda in self.lamda_stack:
-      result += list(lamda.local_vars)
-    return set(result)
-    
   def indent(self, code, level=1):
     '''python's famous indent'''
     lines = code.split('\n')

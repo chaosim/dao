@@ -32,41 +32,17 @@ def greedy_may(compiler, cont, item):
   return cps_convert(compiler, item, il.Clamda(v, cont(v)), 
                                       il.Clamda(v, cont(v)))
 
-def greedy_any(item, template=None, result=None):
-    if result is None:
-      return _greedy_any(item)
-    else:
-      return _greedy_any2(item, template, result)
-    
-def lazy_any(item, template=None, result=None):
-  if result is None:
-    return _lazy_any(item)
-  else:
-    return _lazy_any2(item, template, result)    
-
-#any
-  #item: item, any(item)
-  #item: succeed
-  
-#greedy_any:
-  #item: item, cut, greedy_any(item)
-  #item: succeed
-
-#lazy_any:
-  #item: succeed
-  #item: item, lazy_any(item)
-  
 @special
 def any(compiler, cont, item, template=None, result=None):
   if result is None:
-    return _any1(item).cps_convert(compiler, cont)  
+    return any1(item).cps_convert(compiler, cont)  
   else:
     _result  = compiler.new_var(Var('result'))
-    return begin(_any2(item, template, _result), 
+    return begin(any2(item, template, _result), 
                      unify(result, _result)).cps_convert(compiler, cont)  
   
 @special
-def _any1(compiler, cont, item):
+def any1(compiler, cont, item):
   any_cont = compiler.new_var(il.ConstLocalVar('any_cont'))
   fc = compiler.new_var(il.ConstLocalVar('old_fail_cont'))
   v = compiler.new_var(il.ConstLocalVar('v'))
@@ -78,73 +54,265 @@ def _any1(compiler, cont, item):
                 item.cps_convert(compiler, any_cont))(il.TRUE)
 
 @special
-def _any2(compiler, cont, item, template, result):
+def any2(compiler, cont, item, template, result):
   template = template.interlang()
   result = result.interlang()
   any_cont = compiler.new_var(il.ConstLocalVar('any_cont'))
   fc = compiler.new_var(il.ConstLocalVar('old_fail_cont'))
   v = compiler.new_var(il.ConstLocalVar('v'))
-  v1 = compiler.new_var(il.ConstLocalVar('v'))
-  cont = il.clamda(v1,  
-                   il.if2(il.Ne(result, il.empty_list),
-                          il.DelItem(result, il.Integer(0))),
-                   cont(v1))
+  v2 = compiler.new_var(il.ConstLocalVar('v'))
+  v3 = compiler.new_var(il.ConstLocalVar('v'))
   return il.Begin((
     il.Assign(result, il.empty_list),
     il.cfunction(any_cont, v,
                 il.Assign(fc, il.failcont),
                 il.SetFailCont(il.clamda(v, 
-                  il.SetFailCont(fc),
+                  il.SetFailCont(il.clamda(v3, 
+                    il.DelListItem(result, il.Integer(-1)),
+                    fc(v3))),
                   cont(v))),
-                il.ListAppend(result, il.GetValue(template)),
-                item.cps_convert(compiler, any_cont))(il.NONE)))
+                item.cps_convert(compiler, il.clamda(v2, 
+                    il.ListAppend(result, il.GetValue(template)),
+                    any_cont(v2))))(il.NONE)))
 
 @special
-def _lazy_any(compiler, cont, item):
-  fcont = compiler.new_var(il.ConstLocalVar('fcont'))
+def lazy_any(compiler, cont, item, template=None, result=None):
+  if result is None:
+    return lazy_any1(item).cps_convert(compiler, cont)  
+  else:
+    _result  = compiler.new_var(Var('result'))
+    return begin(lazy_any2(item, template, _result), 
+                     unify(result, _result)).cps_convert(compiler, cont)  
+
+@special
+def lazy_any1(compiler, cont, item):
+  fc = compiler.new_var(il.ConstLocalVar('fc'))
   lazy_any_cont = compiler.new_var(il.ConstLocalVar('lazy_any_cont'))
   lazy_any_fcont = compiler.new_var(il.ConstLocalVar('lazy_any_fcont'))
   v = compiler.new_var(il.ConstLocalVar('v'))
   return  il.begin(
-    il.Assign(fcont, il.failcont),
+    il.Assign(fc, il.failcont),
+    il.cfunction(lazy_any_fcont, v,
+        il.SetFailCont(fc),
+        item.cps_convert(compiler, lazy_any_cont)),
     il.cfunction(lazy_any_cont, v,
         il.SetFailCont(lazy_any_fcont),
-        cont(v)),
-    il.cfunction(lazy_any_fcont, v,
-        il.SetFailCont(fcont),
-        cps_convert(compiler, item, lazy_any_cont)),    
-    lazy_any_cont(TRUE))
+        cont(il.TRUE))
+    (il.TRUE))
                              
-#@special
-#def _any2(compiler, cont, item, result, template):
-  #result2 = compiler.new_var(Var('result2'))
-  #macro_expanded = begin(assign(result2, empty_list), 
-               #_lazy_any(begin(item, 
-                          #logic_list_append(result2, getvalue(template)), 
-                          #unify(result, result2))))
-  #return expanded.cps_convert(compiler, cont)
-
 @special
-def _greedy_any(compiler, cont, item):
-  fcont = compiler.new_var(il.ConstLocalVar('fcont'))
+def lazy_any2(compiler, cont, item, template, result):
+  template = template.interlang()
+  result = result.interlang()
+  fc = compiler.new_var(il.ConstLocalVar('fc'))
+  lazy_any_cont = compiler.new_var(il.ConstLocalVar('lazy_any_cont'))
+  lazy_any_fcont = compiler.new_var(il.ConstLocalVar('lazy_any_fcont'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  v1 = compiler.new_var(il.ConstLocalVar('v'))
+  v2 = compiler.new_var(il.ConstLocalVar('v'))
+  return  il.begin(
+    il.Assign(result, il.empty_list),
+    il.Assign(fc, il.failcont),
+    il.cfunction(lazy_any_fcont, v,
+        il.SetFailCont(fc),
+        item.cps_convert(compiler, 
+          il.clamda(v2, 
+                    il.ListAppend(result, il.GetValue(template)),
+                    lazy_any_cont(il.TRUE)))),
+    il.cfunction(lazy_any_cont, v,
+        il.SetFailCont(lazy_any_fcont),
+        cont(il.TRUE))
+    (il.TRUE))
+                             
+@special
+def greedy_any(compiler, cont, item, template=None, result=None):
+  if result is None:
+    return greedy_any1(item).cps_convert(compiler, cont)  
+  else:
+    _result  = compiler.new_var(Var('result'))
+    return begin(greedy_any2(item, template, _result), 
+                     unify(result, _result)).cps_convert(compiler, cont)  
+    
+@special
+def greedy_any1(compiler, cont, item):
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  fc = compiler.new_var(il.ConstLocalVar('old_failcont'))
   greedy_any_fcont = compiler.new_var(il.ConstLocalVar('greedy_any_fcont'))
   greedy_any_cont = compiler.new_var(il.ConstLocalVar('greedy_any_cont'))
   return il.begin(
-    il.Assign(fcont, il.failcont),
+    il.Assign(fc, il.failcont),
     il.cfunction(greedy_any_fcont, v,
-        il.SetFailCont(fcont),
-        cont(v)),    
+        il.SetFailCont(fc),
+        cont(il.TRUE)),    
     il.cfunction(greedy_any_cont, v,
         il.SetFailCont(greedy_any_fcont),
-         cps_convert(compiler, item, greedy_any_cont)),
-    greedy_any_cont(TRUE))
+        item.cps_convert(compiler, greedy_any_cont))(il.TRUE))
 
 @special
-def _greedy_any2(compiler, cont, item, result, template):
-  result2 = compiler.new_var(Var('result2'))
-  macro_expanded = begin(assign(result2, empty_list), 
-               _greedy_any(begin(item, 
-                          logic_list_append(result2, getvalue(template)), 
-                          unify(result, result2))))
-  return expanded.cps_convert(compiler, cont)
+def greedy_any2(compiler, cont, item, template, result):
+  template = template.interlang()
+  result = result.interlang()
+  item_matched = compiler.new_var(il.Var('item_matched'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  v2 = compiler.new_var(il.ConstLocalVar('v'))
+  fc = compiler.new_var(il.ConstLocalVar('old_failcont'))
+  greedy_any_fcont = compiler.new_var(il.ConstLocalVar('greedy_any_fcont'))
+  greedy_any_cont = compiler.new_var(il.ConstLocalVar('greedy_any_cont'))
+  return il.begin(
+    il.Assign(result, il.empty_list),
+    il.Assign(fc, il.failcont),
+    il.cfunction(greedy_any_fcont, v,
+        il.SetFailCont(fc),
+        cont(il.TRUE)),    
+    il.cfunction(greedy_any_cont, v,
+        il.SetFailCont(greedy_any_fcont),
+        item.cps_convert(compiler, 
+                         il.clamda(v2, 
+                                   il.ListAppend(result, il.GetValue(template)), 
+                                   greedy_any_cont(il.TRUE))))(il.TRUE))
+
+
+@special
+def some(compiler, cont, item, template=None, result=None):
+  if result is None:
+    return some1(item).cps_convert(compiler, cont)  
+  else:
+    _result  = compiler.new_var(Var('result'))
+    return begin(some2(item, template, _result), 
+                     unify(result, _result)).cps_convert(compiler, cont)  
+  
+@special
+def some1(compiler, cont, item):
+  some_cont = compiler.new_var(il.ConstLocalVar('some_cont'))
+  fc = compiler.new_var(il.ConstLocalVar('old_fail_cont'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  some_cont = il.cfunction(some_cont, v,
+                il.Assign(fc, il.failcont),
+                il.SetFailCont(il.clamda(v, 
+                  il.SetFailCont(fc),
+                  cont(v))),
+                item.cps_convert(compiler, some_cont))
+  return item.cps_convert(compiler, some_cont)
+
+@special
+def some2(compiler, cont, item, template, result):
+  template = template.interlang()
+  result = result.interlang()
+  some_cont = compiler.new_var(il.ConstLocalVar('some_cont'))
+  fc = compiler.new_var(il.ConstLocalVar('old_failcont'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  v2 = compiler.new_var(il.ConstLocalVar('v'))
+  v3 = compiler.new_var(il.ConstLocalVar('v'))
+  return il.Begin((
+    il.Assign(result, il.empty_list),
+    il.cfunction(some_cont, v,
+                 il.Assign(fc, il.failcont),
+                il.SetFailCont(il.clamda(v, 
+                  il.SetFailCont(il.clamda(v3, 
+                    il.DelListItem(result, il.Integer(-1)),
+                    fc(v3))),
+                 cont(v))),
+                item.cps_convert(compiler, il.clamda(v2, 
+                    il.ListAppend(result, il.GetValue(template)),
+                    some_cont(v2)))),
+    item.cps_convert(compiler, some_cont)))
+
+@special
+def lazy_some(compiler, cont, item, template=None, result=None):
+  if result is None:
+    return lazy_some1(item).cps_convert(compiler, cont)  
+  else:
+    _result  = compiler.new_var(Var('result'))
+    return begin(lazy_some2(item, template, _result), 
+                     unify(result, _result)).cps_convert(compiler, cont)  
+
+@special
+def lazy_some1(compiler, cont, item):
+  fc = compiler.new_var(il.ConstLocalVar('fc'))
+  lazy_some_cont = compiler.new_var(il.ConstLocalVar('lazy_some_cont'))
+  lazy_some_fcont = compiler.new_var(il.ConstLocalVar('lazy_some_fcont'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  return  il.begin(
+    il.Assign(fc, il.failcont),
+    il.cfunction(lazy_some_fcont, v,
+        il.SetFailCont(fc),
+        item.cps_convert(compiler, lazy_some_cont)),
+    il.cfunction(lazy_some_cont, v,
+        il.SetFailCont(lazy_some_fcont),
+        cont(il.TRUE)),
+    item.cps_convert(compiler, lazy_some_cont))
+                             
+@special
+def lazy_some2(compiler, cont, item, template, result):
+  template = template.interlang()
+  result = result.interlang()
+  fc = compiler.new_var(il.ConstLocalVar('fc'))
+  lazy_some_cont = compiler.new_var(il.ConstLocalVar('lazy_some_cont'))
+  lazy_some_fcont = compiler.new_var(il.ConstLocalVar('lazy_some_fcont'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  v1 = compiler.new_var(il.ConstLocalVar('v'))
+  v2 = compiler.new_var(il.ConstLocalVar('v'))
+  return  il.begin(
+    il.Assign(result, il.empty_list),
+    il.Assign(fc, il.failcont),
+    il.cfunction(lazy_some_fcont, v,
+        il.SetFailCont(fc),
+        item.cps_convert(compiler, 
+          il.clamda(v2, 
+                    il.ListAppend(result, il.GetValue(template)),
+                    lazy_some_cont(il.TRUE)))),
+    il.cfunction(lazy_some_cont, v,
+        il.SetFailCont(lazy_some_fcont),
+        cont(il.TRUE)),
+    item.cps_convert(compiler, lazy_some_cont))
+                             
+@special
+def greedy_some(compiler, cont, item, template=None, result=None):
+  if result is None:
+    return greedy_some1(item).cps_convert(compiler, cont)  
+  else:
+    _result  = compiler.new_var(Var('result'))
+    return begin(greedy_some2(item, template, _result), 
+                     unify(result, _result)).cps_convert(compiler, cont)  
+    
+@special
+def greedy_some1(compiler, cont, item):
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  fc = compiler.new_var(il.ConstLocalVar('old_failcont'))
+  greedy_some_fcont = compiler.new_var(il.ConstLocalVar('greedy_some_fcont'))
+  greedy_some_cont = compiler.new_var(il.ConstLocalVar('greedy_some_cont'))
+  return il.begin(
+    il.Assign(fc, il.failcont),
+    il.cfunction(greedy_some_fcont, v,
+        il.SetFailCont(fc),
+        cont(il.TRUE)),    
+    il.cfunction(greedy_some_cont, v,
+        il.SetFailCont(greedy_some_fcont),
+        item.cps_convert(compiler, greedy_some_cont)),
+  item.cps_convert(compiler, greedy_some_cont))
+
+@special
+def greedy_some2(compiler, cont, item, template, result):
+  template = template.interlang()
+  result = result.interlang()
+  item_matched = compiler.new_var(il.Var('item_matched'))
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  v2 = compiler.new_var(il.ConstLocalVar('v'))
+  fc = compiler.new_var(il.ConstLocalVar('old_failcont'))
+  greedy_some_fcont = compiler.new_var(il.ConstLocalVar('greedy_some_fcont'))
+  greedy_some_cont = compiler.new_var(il.ConstLocalVar('greedy_some_cont'))
+  append_result_cont = il.clamda(v2, 
+                                   il.ListAppend(result, il.GetValue(template)), 
+                                   greedy_some_cont(il.TRUE))
+  return il.begin(
+    il.Assign(result, il.empty_list),
+    il.Assign(fc, il.failcont),
+    il.cfunction(greedy_some_fcont, v,
+        il.SetFailCont(fc),
+        cont(il.TRUE)),    
+    il.cfunction(greedy_some_cont, v,
+        il.SetFailCont(greedy_some_fcont),
+        item.cps_convert(compiler, 
+                         append_result_cont)),
+    item.cps_convert(compiler, append_result_cont))
 

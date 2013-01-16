@@ -14,7 +14,6 @@ class Lamda(Element):
   def __init__(self, params, body):
     self.params, self.body = params, body
     self.has_pythonized = False
-    self.local_vars = set()
     
   def new(self, params, body):
     return self.__class__(params, body)
@@ -27,7 +26,6 @@ class Lamda(Element):
   
   def analyse(self, compiler):
     compiler.lamda_stack.append(self)
-    self.local_vars = set(self.params)
     self.body.analyse(compiler)
     compiler.lamda_stack.pop()
         
@@ -39,27 +37,27 @@ class Lamda(Element):
     
   def subst(self, bindings):
     result = self.new(self.params, self.body.subst(bindings))
-    result.local_vars = self.local_vars
     return result
       
   def optimize(self, env, compiler):
     env = env.extend()
-    for var in self.free_vars():
+    for var in self.free_vars()|self.find_assign_lefts():
       if isinstance(var, ConstLocalVar):
         continue
       try:
-        env[var]._removed = False
-      except: pass
+        assign = env[var]
+      except: continue
       env[var] = VarAssignBox(var)
+      assign.dont_remove()
     body = self.body.optimize(env, compiler)
-    for var in self.free_vars():
-      if isinstance(var, ConstLocalVar):
+    for var in self.find_assign_lefts():
+      if isinstance(var, LocalVar):
         continue
       try:
-        env[var]._removed = False
-      except: pass
+        assign = env[var]
+      except: continue
+      assign.dont_remove()
     result = self.new(self.params, body)
-    result.local_vars = self.local_vars
     return result
   
   def optimize_apply(self, env, compiler, args):
@@ -115,7 +113,7 @@ class Lamda(Element):
     if self.has_pythonized:
       return (self.name,), False
     body_exps, body_has_any_statement = self.body.pythonize(env, compiler)
-    global_vars = self.find_assign_lefts()-set(self.params)
+    global_vars = begin(*body_exps).find_assign_lefts()-set(self.params)
     global_vars = set([x for x in global_vars 
                        if isinstance(x, Var) 
                        and not isinstance(x, LocalVar) 
@@ -155,7 +153,6 @@ class RulesLamda(Lamda):
   def __init__(self, params, body):
     self.has_pythonized = False
     self.params, self.body = params, body
-    self.local_vars = set()
     
   def __call__(self, *args):
     return Apply(self, tuple(element(x) for x in args))
@@ -179,7 +176,6 @@ class Clamda(Lamda):
     self.params = (v, )
     self.body = body
     self.name = None
-    self.local_vars = set()
     
   def new(self, params, body):
     return self.__class__(params[0], body)
@@ -243,7 +239,6 @@ class Done(Clamda):
     self.has_pythonized = False
     self.params = (param,)
     self.body = param
-    self.local_vars = set()
     
   def new(self, params, body):
     return self.__class__(self.params[0])
@@ -278,10 +273,10 @@ class Function(Lamda):
     body = self.body.optimize(env, compiler)
     for var in self.free_vars():
       try:
-        env[var]._removed = False
-      except: pass
+        assign = env[var]
+      except: continue
+      assign.dont_remove()
     result = self.new(self.params, body)
-    result.local_vars = self.local_vars
     return result
     
   def optimize_apply(self, env, compiler, args):
@@ -325,21 +320,21 @@ class CFunction(Function):
   
   def __init__(self, name, v, body):
     Function.__init__(self,  name, (v,), body)
-    self.local_vars = set()
     
   def new(self, params, body):
     return self.__class__(self.name, params[0], body)
   
   def optimize_apply(self, env, compiler, args):
     new_env = env.extend()
-    for var in self.free_vars():
+    for var in self.find_assign_lefts()|self.free_vars():
       if isinstance(var, ConstLocalVar):
         continue      
       try:
-        env[var]._removed = False
+        assign = env[var]
         new_env[var] = VarAssignBox(var)
       except:
-        pass
+        continue
+      assign.dont_remove()
     body = self.body.subst({self.params[0]:args[0]}) 
     body = body.optimize(new_env, compiler)
     for var in self.free_vars():
@@ -360,27 +355,6 @@ class CFunction(Function):
   
   def __repr__(self):
     return 'il.CFunction(%r, %r, \n%s)'%(self.name, self.params[0],repr(self.body))
-  
-class XRulesFunction(Function):
-  def __init__(self, name, params, body):
-    self.has_pythonized = False
-    self.name, self.params, self.body = name, params, body
-    self.local_vars = set()
-    
-  def __call__(self, *args):
-    return Apply(self, tuple(element(x) for x in args))
-  
-  def optimize_apply(self, env, compiler, args):
-    args = (args[0], Tuple(*args[1:]))
-    result = Lamda.optimize_apply(self, env, compiler, args)
-    return result
-  
-  def to_code(self, compiler):
-    head = "def %s(%s, %s):\n" % (self.name, 
-                                   self.params[0].to_code(compiler), 
-                                   self.params[1].to_code(compiler))
-    result =  head + compiler.indent(self.body.to_code(compiler))
-    return result
   
 class RulesDict(Element):
   def __init__(self, arity_body_map):
@@ -727,16 +701,6 @@ class DummyVar(LogicVar):
   def to_code(self, compiler):
     return  "DummyVar('%s')"%self.name
 
-class XValueAssignBox:
-  def __init__(self, value):
-    self._right_value = value
-    self._removed = True
-    self.items = set()
-    self.dependency = set()
-  
-  def right_value(self):
-    return self._right_value
-  
 class VarAssignBox:
   def __init__(self, var):
     self.var = var
@@ -880,17 +844,11 @@ class Assign(Element):
     self._removed = unknown
     self.items = set([self])
     self.dependency = set()
-    self.local_vars = set()
   
   def find_assign_lefts(self):
-    if self.removed():
-      return set()    
-    else:
-      return set([self.var])
+    return set([self.var])
   
   def analyse(self, compiler): 
-    if self.var not in compiler.seen_vars():
-      compiler.lamda_stack[-1].local_vars.add(self.var)
     self.exp.analyse(compiler)
   
   def insert_return_statement(self):
@@ -1007,7 +965,6 @@ class UnoptimizabaleAssign(Assign):
     self._removed = False
     #self.items = set([self])
     #self.dependency = set()
-    #self.local_vars = set()
     
   def subst(self, bindings):  
     return UnoptimizabaleAssign(self.var, self.exp.subst(bindings))
@@ -1051,6 +1008,8 @@ class AssignFromList(Element):
         return begin(*tuple(Assign(var, v) 
                      for var, v in zip(self.vars, value.item)
                      )).optimize(env, compiler)
+    elif isinstance(value, Var):
+      env[value].dont_remove()
     return AssignFromList(*(self.vars+(value,)))
   
   def pythonize(self, env, compiler):

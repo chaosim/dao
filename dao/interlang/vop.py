@@ -858,6 +858,7 @@ continue_ = Continue()
 Prin = vop2('Prin', 1, "print %s,", True)
 PrintLn = vop2('PrintLn', 1, "print %s", True)
 
+DelListItem = vop2('DelListItem', 2, 'del %s[%s]', True)
 
 def Format_to_code(self, compiler):
   return '%s%%(%s)'%(self.args[0].to_code(compiler), 

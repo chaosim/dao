@@ -23,8 +23,7 @@ def char(compiler, cont, argument):
                               il.SetParseState(il.Tuple(text, pos))),
                        il.SetParseState(il.Tuple(text, il.add(pos, il.Integer(1)))),
                        cont(il.GetItem(text, pos))),
-              il.failcont(il.NONE)))
-    ))
+              il.failcont(il.NONE)))))
   
   elif isinstance(argument, Var):
     v = compiler.new_var(il.ConstLocalVar('v'))

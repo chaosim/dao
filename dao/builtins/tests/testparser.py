@@ -47,7 +47,9 @@ class TestLowLevelPrimitive:
   def test_goto(self):
     eq_(eval(begin(set_text('abcde'), goto(1))), 'b')
 
-from dao.builtins import lazy_any
+from dao.builtins import lazy_any, greedy_any
+
+from dao.builtins import some
 
 class TestParse:
   def test_unify_parse_text(self):
@@ -62,23 +64,128 @@ class TestParse:
     eq_(eval(begin(set_text('a'), char('a'), eoi)), True)
     assert_raises(NoSolution, eval, begin(set_text('ab'), char('a'), eoi))
     
+class TestAny:
   def test_any1(self):
     eq_(eval(begin(set_text('aaa'), any(char('a')), eoi)), True)
     
   def test_any2(self):
-    eq_(eval(begin(set_text('aaa'), any(char('a')))), True)
+    eq_(eval(begin(set_text('aaa'), any(char('a')), char('a'), eoi)), True)
     
   def test_any3(self):
+    eq_(eval(begin(set_text('aaa'), any(char('a')))), True)
+    
+  def test_any4(self):
     _ = DummyVar('_')
     y = LogicVar('y')
     eq_(eval(begin(set_text('aaa'), any(char(_), _, y), eoi, y)), ['a', 'a', 'a'])
     
+  def test_any5(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    eq_(eval(begin(set_text('aaa'), any(char(_), _, y), char(_), eoi, y)), ['a', 'a'])
+    
   def test_lazy_any1(self):
-    eq_(eval(begin(set_text('aaa'), lazy_any(char('a')), eoi)), True)
-    
-  def test_lazy_any2(self):
     eq_(eval(begin(set_text('aaa'), lazy_any(char('a')))), True)
+
+  def test_lazy_any2(self):
+    eq_(eval(begin(set_text('aaa'), lazy_any(char('a')), eoi)), True)
+  
+  def test_lazy_any3(self):
+    eq_(eval(begin(set_text('aaa'), lazy_any(char('a')), char('a'), eoi)), True)
     
+  def test_lazy_any4(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    eq_(eval(begin(set_text('aaa'), lazy_any(char(_), _, y), eoi, y)), ['a', 'a', 'a'])
+    
+  def test_lazy_any5(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    eq_(eval(begin(set_text('aaa'), lazy_any(char(_), _, y), char(_), eoi, y)), ['a', 'a'])
+    
+  def test_greedy_any1(self):
+    eq_(eval(begin(set_text('aaa'), greedy_any(char('a')))), True)
+    
+  def test_greedy_any2(self):
+    eq_(eval(begin(set_text('aaa'), greedy_any(char('a')), eoi)), True)
+  
+  def test_greedy_any3(self):
+    assert_raises(NoSolution, eval, 
+                  begin(set_text('aaa'), greedy_any(char('a')), char('a'), eoi))
+    
+  def test_greedy_any4(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    eq_(eval(begin(set_text('aaa'), greedy_any(char(_), _, y), eoi, y)), ['a', 'a', 'a'])
+    
+  def test_greedy_any5(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    assert_raises(NoSolution, eval,
+                  begin(set_text('aaa'), greedy_any(char(_), _, y), char(_), eoi, y))
+
+from dao.builtins import some, lazy_some, greedy_some
+
+class TestSome:    
+  def test_some1(self):
+    eq_(eval(begin(set_text('aaa'), some(char('a')), eoi)), True)
+    
+  def test_some2(self):
+    eq_(eval(begin(set_text('aaa'), some(char('a')), char('a'), eoi)), True)
+    
+  def test_some3(self):
+    assert_raises(NoSolution, eval, begin(set_text(''), some(char('a'))))
+    
+  def test_some4(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    eq_(eval(begin(set_text('aaa'), some(char(_), _, y), eoi, y)), ['a', 'a', 'a'])
+    
+  def test_some5(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    eq_(eval(begin(set_text('abc'), some(char(_), _, y), char(_), eoi, y)), ['a', 'b'])
+    
+  def test_lazy_some1(self):
+    eq_(eval(begin(set_text('aaa'), lazy_some(char('a')))), True)
+
+  def test_lazy_some2(self):
+    eq_(eval(begin(set_text('aaa'), lazy_some(char('a')), eoi)), True)
+  
+  def test_lazy_some3(self):
+    eq_(eval(begin(set_text('aaa'), lazy_some(char('a')), char('a'), eoi)), True)
+    
+  def test_lazy_some4(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    eq_(eval(begin(set_text('aaa'), lazy_some(char(_), _, y), eoi, y)), ['a', 'a', 'a'])
+    
+  def test_lazy_some5(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    eq_(eval(begin(set_text('aaa'), lazy_some(char(_), _, y), char(_), eoi, y)), ['a', 'a'])
+    
+  def test_greedy_some1(self):
+    eq_(eval(begin(set_text('aaa'), greedy_some(char('a')))), True)
+    
+  def test_greedy_some2(self):
+    eq_(eval(begin(set_text('aaa'), greedy_some(char('a')), eoi)), True)
+  
+  def test_greedy_some3(self):
+    assert_raises(NoSolution, eval, 
+                  begin(set_text('aaa'), greedy_some(char('a')), char('a'), eoi))
+    
+  def test_greedy_some4(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    eq_(eval(begin(set_text('aaa'), greedy_some(char(_), _, y), eoi, y)), ['a', 'a', 'a'])
+    
+  def test_greedy_some5(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    assert_raises(NoSolution, eval,
+                  begin(set_text('aaa'), greedy_some(char(_), _, y), char(_), eoi, y))
+
 from dao.builtins import digit, eval_unify
 from dao.builtins import lowcase, uppercase, letter, underline_letter, underline_letter_digit
 from dao.builtins import tabspace, whitespace
@@ -498,6 +605,7 @@ class XTestLeftRecursive:
     eq_(eval(letr(ruleList, parse_text(E()+eoi,  'b'))), True)
     eq_(eval(letr(ruleList, parse_text(E()+eoi,  'ba'))), True)
     eq_(eval(letr(ruleList, parse_text(E()+eoi,  'baa'))), True)
+    
   def testDirectLeftRecursiveWithArguments(self):
     #assert 0, 'temporary mask'
     E, X = Var('E'), Var('X')
@@ -515,6 +623,7 @@ class XTestLeftRecursive:
     #eq_(eval(letr(ruleList, parse_text(E()+eoi,  'b'))), True)
     #eq_(eval(letr(ruleList, parse_text(E()+eoi,  'b1'))), True)
     eq_(eval(letr(ruleList, parse_text(E()+eoi,  'b123'))), True)
+    
   def testIndirectLeftRecursive(self):
     #assert 0, 'temporary mask'
     A, B, C = vars('A, B, C')
