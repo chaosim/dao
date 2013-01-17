@@ -68,7 +68,7 @@ def any2(compiler, cont, item, template, result):
                 il.Assign(fc, il.failcont),
                 il.SetFailCont(il.clamda(v, 
                   il.SetFailCont(il.clamda(v3, 
-                    il.DelListItem(result, il.Integer(-1)),
+                    il.if2(result, il.DelListItem(result, il.Integer(-1))),
                     fc(v3))),
                   cont(v))),
                 item.cps_convert(compiler, il.clamda(v2, 
@@ -316,3 +316,64 @@ def greedy_some2(compiler, cont, item, template, result):
                          append_result_cont)),
     item.cps_convert(compiler, append_result_cont))
 
+from term import getvalue, eval_unify
+from dao.command import assign, direct_interlang
+from arith import add
+
+@special
+def seplist(compiler, cont, item, separator, template=None, result=None):
+  if result is None:
+    return begin(item, any1(begin(separator, item))
+                 ).cps_convert(compiler, cont)  
+  else:
+    result1  = compiler.new_var(il.ConstLocalVar('result'))
+    result2  = compiler.new_var(Var('result'))
+    result2_2  = result2.interlang()
+    template1 = template.interlang()
+    return begin(item, 
+                 direct_interlang(il.Assign(result1, il.GetValue(template1))), 
+                 any2(begin(separator, item), template, result2),
+                 eval_unify(result, direct_interlang(il.add(il.MakeList(result1), result2_2)))
+                 ).cps_convert(compiler, cont)  
+  
+@special
+def lazy_seplist(compiler, cont, item, separator, template=None, result=None):
+  if result is None:
+    return begin(item, lazy_any1(begin(separator, item))
+                 ).cps_convert(compiler, cont)  
+  else:
+    result1  = compiler.new_var(il.ConstLocalVar('result'))
+    result2  = compiler.new_var(Var('result'))
+    result2_2  = result2.interlang()
+    template1 = template.interlang()
+    return begin(item, 
+                 direct_interlang(il.Assign(result1, il.GetValue(template1))), 
+                 lazy_any2(begin(separator, item), template, result2),
+                 eval_unify(result, direct_interlang(il.add(il.MakeList(result1), result2_2)))
+                 ).cps_convert(compiler, cont)  
+  
+@special
+def greedy_seplist(compiler, cont, item, separator, template=None, result=None):
+  if result is None:
+    return begin(item, greedy_any1(begin(separator, item))
+                 ).cps_convert(compiler, cont)  
+  else:
+    result1  = compiler.new_var(il.ConstLocalVar('result'))
+    result2  = compiler.new_var(Var('result'))
+    result2_2  = result2.interlang()
+    template1 = template.interlang()
+    return begin(item, 
+                 direct_interlang(il.Assign(result1, il.GetValue(template1))), 
+                 greedy_any2(begin(separator, item), template, result2),
+                 eval_unify(result, direct_interlang(il.add(il.MakeList(result1), result2_2)))
+                 ).cps_convert(compiler, cont)  
+  
+@special
+def follow(compiler, cont, item):
+  parse_state  = compiler.new_var(il.ConstLocalVar('parse_state'))
+  v  = compiler.new_var(il.ConstLocalVar('v'))
+  return il.begin(
+    il.Assign(parse_state, il.parse_state),
+    item.cps_convert(compiler, il.clamda(v,
+      il.SetParseState(parse_state), 
+      cont(v))))

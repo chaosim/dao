@@ -1,5 +1,15 @@
 details of history:
 
+
+2013-1-17
+fix a bug: should restore the parse_state and bindings after cut or cut_or
+save the parse_state and bindings, and restore them in the continuation of solver.cut_cont and solver.cut_or_cont
+bug: del bindings[_] # raise KeyError if _ is DummyVar
+fix: try-except in solvebase.py Bindings.__delitem__
+LogicVar.cps_convert: cont(il.LogicVar(x))
+  modifying the code in LogicVar.cps_convert to
+  cont(il.LogicVar(x)), use getvalue(x) in expression instead.
+
 2013-1-15
   matcher.py: any, lazy_any, greedy_any
 

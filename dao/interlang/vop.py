@@ -841,6 +841,9 @@ PrintLn = vop2('PrintLn', 1, "print %s", True)
 
 DelListItem = vop2('DelListItem', 2, 'del %s[%s]', True)
 
+MakeList = vop('MakeList', 1, '[%s]', False)
+
+
 Copy = vop('Copy', 1, '(%s).copy()', False)
   
 def Format_to_code(self, compiler):

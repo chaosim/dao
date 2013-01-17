@@ -42,7 +42,13 @@ class Bindings(dict):
     
   def __setitem__(self, var, value):
     dict.__setitem__(self, var, value)
-    
+  
+  def __delitem__(self, var):
+    try:
+      dict.__delitem__(self, var)
+    except KeyError: 
+      pass
+      
   def copy(self):
     return Bindings(dict.copy(self))
 

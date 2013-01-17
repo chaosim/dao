@@ -271,19 +271,8 @@ class Letrec(Element):
 from dao.builtins.control import or_
 from dao.builtins.term import unify
 
-def direct_interlang(*exps):
-  return DirectInterlang(il.begin(*exps))
+from dao.command import direct_interlang
 
-class DirectInterlang(Element):
-  def __init__(self, body):
-    self.body = body
-  
-  def alpha_convert(self, env, compiler):
-    return self
-  
-  def cps_convert(self, compiler, cont):
-    return cont(self.body)
-  
 def get_tuple_vars(exps):
   result = set()
   for x in exps:

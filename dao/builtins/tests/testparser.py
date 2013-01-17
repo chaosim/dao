@@ -15,7 +15,7 @@ from dao.builtins import any#, some, times, times_more, times_less, seplist
 #from dao.builtins import lazy#, times_between
 #from dao.builtins import contain
 from dao.builtins import println
-from dao.builtins import unify, is_
+from dao.builtins import unify, is_, getvalue
 
 from dao.tests.util import *
 
@@ -47,23 +47,28 @@ class TestLowLevelPrimitive:
   def test_goto(self):
     eq_(eval(begin(set_text('abcde'), goto(1))), 'b')
 
-from dao.builtins import lazy_any, greedy_any
-
-from dao.builtins import some
+from dao.builtins import follow
 
 class TestParse:
   def test_unify_parse_text(self):
     x = LogicVar('x')
-    eq_(eval(begin(set_text('abcde'), unify_parse_text(x), x)), 'abcde')
+    eq_(eval(begin(set_text('abcde'), unify_parse_text(x), getvalue(x))), 'abcde')
     eq_(eval(begin(set_text('abcde'), unify_parse_text('abcde'))), True)
     
   def test_char(self):
     eq_(eval(begin(set_text('abcde'), char('a'))), 'a')
     
+  def test_follew_char(self):
+    eq_(eval(begin(set_text('a'), follow(char('a')), char('a'))), 'a')
+    
   def test_char_eoi(self):
     eq_(eval(begin(set_text('a'), char('a'), eoi)), True)
     assert_raises(NoSolution, eval, begin(set_text('ab'), char('a'), eoi))
     
+from dao.builtins import lazy_any, greedy_any
+
+from dao.builtins import some
+
 class TestAny:
   def test_any1(self):
     eq_(eval(begin(set_text('aaa'), any(char('a')), eoi)), True)
@@ -77,12 +82,12 @@ class TestAny:
   def test_any4(self):
     _ = DummyVar('_')
     y = LogicVar('y')
-    eq_(eval(begin(set_text('aaa'), any(char(_), _, y), eoi, y)), ['a', 'a', 'a'])
+    eq_(eval(begin(set_text('aaa'), any(char(_), _, y), eoi, getvalue(y))), ['a', 'a', 'a'])
     
   def test_any5(self):
     _ = DummyVar('_')
     y = LogicVar('y')
-    eq_(eval(begin(set_text('aaa'), any(char(_), _, y), char(_), eoi, y)), ['a', 'a'])
+    eq_(eval(begin(set_text('aaa'), any(char(_), _, y), char(_), eoi, getvalue(y))), ['a', 'a'])
     
   def test_lazy_any1(self):
     eq_(eval(begin(set_text('aaa'), lazy_any(char('a')))), True)
@@ -96,12 +101,12 @@ class TestAny:
   def test_lazy_any4(self):
     _ = DummyVar('_')
     y = LogicVar('y')
-    eq_(eval(begin(set_text('aaa'), lazy_any(char(_), _, y), eoi, y)), ['a', 'a', 'a'])
+    eq_(eval(begin(set_text('aaa'), lazy_any(char(_), _, y), eoi, getvalue(y))), ['a', 'a', 'a'])
     
   def test_lazy_any5(self):
     _ = DummyVar('_')
     y = LogicVar('y')
-    eq_(eval(begin(set_text('aaa'), lazy_any(char(_), _, y), char(_), eoi, y)), ['a', 'a'])
+    eq_(eval(begin(set_text('aaa'), lazy_any(char(_), _, y), char(_), eoi, getvalue(y))), ['a', 'a'])
     
   def test_greedy_any1(self):
     eq_(eval(begin(set_text('aaa'), greedy_any(char('a')))), True)
@@ -116,13 +121,13 @@ class TestAny:
   def test_greedy_any4(self):
     _ = DummyVar('_')
     y = LogicVar('y')
-    eq_(eval(begin(set_text('aaa'), greedy_any(char(_), _, y), eoi, y)), ['a', 'a', 'a'])
+    eq_(eval(begin(set_text('aaa'), greedy_any(char(_), _, y), eoi, getvalue(y))), ['a', 'a', 'a'])
     
   def test_greedy_any5(self):
     _ = DummyVar('_')
     y = LogicVar('y')
     assert_raises(NoSolution, eval,
-                  begin(set_text('aaa'), greedy_any(char(_), _, y), char(_), eoi, y))
+                  begin(set_text('aaa'), greedy_any(char(_), _, y), char(_), eoi, getvalue(y)))
 
 from dao.builtins import some, lazy_some, greedy_some
 
@@ -139,12 +144,12 @@ class TestSome:
   def test_some4(self):
     _ = DummyVar('_')
     y = LogicVar('y')
-    eq_(eval(begin(set_text('aaa'), some(char(_), _, y), eoi, y)), ['a', 'a', 'a'])
+    eq_(eval(begin(set_text('aaa'), some(char(_), _, y), eoi, getvalue(y))), ['a', 'a', 'a'])
     
   def test_some5(self):
     _ = DummyVar('_')
     y = LogicVar('y')
-    eq_(eval(begin(set_text('abc'), some(char(_), _, y), char(_), eoi, y)), ['a', 'b'])
+    eq_(eval(begin(set_text('abc'), some(char(_), _, y), char(_), eoi, getvalue(y))), ['a', 'b'])
     
   def test_lazy_some1(self):
     eq_(eval(begin(set_text('aaa'), lazy_some(char('a')))), True)
@@ -158,12 +163,12 @@ class TestSome:
   def test_lazy_some4(self):
     _ = DummyVar('_')
     y = LogicVar('y')
-    eq_(eval(begin(set_text('aaa'), lazy_some(char(_), _, y), eoi, y)), ['a', 'a', 'a'])
+    eq_(eval(begin(set_text('aaa'), lazy_some(char(_), _, y), eoi, getvalue(y))), ['a', 'a', 'a'])
     
   def test_lazy_some5(self):
     _ = DummyVar('_')
     y = LogicVar('y')
-    eq_(eval(begin(set_text('aaa'), lazy_some(char(_), _, y), char(_), eoi, y)), ['a', 'a'])
+    eq_(eval(begin(set_text('aaa'), lazy_some(char(_), _, y), char(_), eoi, getvalue(y))), ['a', 'a'])
     
   def test_greedy_some1(self):
     eq_(eval(begin(set_text('aaa'), greedy_some(char('a')))), True)
@@ -178,13 +183,75 @@ class TestSome:
   def test_greedy_some4(self):
     _ = DummyVar('_')
     y = LogicVar('y')
-    eq_(eval(begin(set_text('aaa'), greedy_some(char(_), _, y), eoi, y)), ['a', 'a', 'a'])
+    eq_(eval(begin(set_text('aaa'), greedy_some(char(_), _, y), eoi, getvalue(y))), ['a', 'a', 'a'])
     
   def test_greedy_some5(self):
     _ = DummyVar('_')
     y = LogicVar('y')
     assert_raises(NoSolution, eval,
                   begin(set_text('aaa'), greedy_some(char(_), _, y), char(_), eoi, y))
+
+from dao.builtins import seplist, lazy_seplist, greedy_seplist
+
+class TestSeplist:    
+  def test_seplist1(self):
+    eq_(eval(begin(set_text('a,a,a'), seplist(char('a'), char(',')), eoi)), True)
+    
+  def test_seplist2(self):
+    eq_(eval(begin(set_text('a,a,aa'), seplist(char('a'), char(',')), char('a'), eoi)), True)
+    
+  def test_seplist3(self):
+    assert_raises(NoSolution, eval, begin(set_text(''), seplist(char('a'), char(','))))
+    
+  def test_seplist4(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    eq_(eval(begin(set_text('a,a,a'), seplist(char(_), char(','), _, y), eoi, getvalue(y))), ['a', 'a', 'a'])
+    
+  def test_seplist5(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    eq_(eval(begin(set_text('a,b,cd'), seplist(char(_), char(','), _, y), char(_), eoi, getvalue(y))), ['a', 'b', 'c'])
+    
+  def test_lazy_seplist1(self):
+    eq_(eval(begin(set_text('a,a,a'), lazy_seplist(char('a'), char(',')))), True)
+
+  def test_lazy_seplist2(self):
+    eq_(eval(begin(set_text('a,a,a'), lazy_seplist(char('a'), char(',')), eoi)), True)
+  
+  def test_lazy_seplist3(self):
+    eq_(eval(begin(set_text('a,a,aa'), lazy_seplist(char('a'), char(',')), char('a'), eoi)), True)
+    
+  def test_lazy_seplist4(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    eq_(eval(begin(set_text('a,a,a'), lazy_seplist(char(_), char(','), _, y), eoi, getvalue(y))), ['a', 'a', 'a'])
+    
+  def test_lazy_seplist5(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    eq_(eval(begin(set_text('a,a,aa'), lazy_seplist(char(_), char(','), _, y), char(_), eoi, getvalue(y))), ['a', 'a', 'a'])
+    
+  def test_greedy_seplist1(self):
+    eq_(eval(begin(set_text('a,a,a'), greedy_seplist(char('a'), char(',')))), True)
+    
+  def test_greedy_seplist2(self):
+    eq_(eval(begin(set_text('a,a,a'), greedy_seplist(char('a'), char(',')), eoi)), True)
+  
+  def test_greedy_seplist3(self):
+    assert_raises(NoSolution, eval, 
+                  begin(set_text('a,a,a'), greedy_seplist(char('a'), char(',')), char('a'), eoi))
+    
+  def test_greedy_seplist4(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    eq_(eval(begin(set_text('a,a,a'), greedy_seplist(char(_), char(','), _, y), eoi, getvalue(y))), ['a', 'a', 'a'])
+    
+  def test_greedy_seplist5(self):
+    _ = DummyVar('_')
+    y = LogicVar('y')
+    assert_raises(NoSolution, eval,
+                  begin(set_text('a,a,a'), greedy_seplist(char(_), char(','), _, y), char(_), eoi, getvalue(y)))
 
 from dao.builtins import digit, eval_unify
 from dao.builtins import lowcase, uppercase, letter, underline_letter, underline_letter_digit
@@ -217,7 +284,7 @@ class Testterminal:
     x = LogicVar('x')
     eq_(eval(parse_text(digit, '1')), '1')
     eq_(eval(parse_text(is_(x, digit), '1')), '1')
-    eq_(eval(begin(parse_text(eval_unify(x, digit), '1'), x)), '1')
+    eq_(eval(begin(parse_text(eval_unify(x, digit), '1'), getvalue(x))), '1')
     
   def test_digit_string0(self):
     x = LogicVar('x')
@@ -225,23 +292,23 @@ class Testterminal:
     eq_(eval(parse_text(digits0, 'a')), '')
     eq_(eval(parse_text(digits0, '123')), '123')
     eq_(eval(parse_text(is_(x, digits0), '123a')), '123')
-    eq_(eval(begin(parse_text(eval_unify(x, digits0), '123 '), x)), '123')
+    eq_(eval(begin(parse_text(eval_unify(x, digits0), '123 '), getvalue(x))), '123')
     
   def test_digit_string1(self):
     x = LogicVar('x')
     eq_(eval(parse_text(digits1, '123')), '123')
     eq_(eval(parse_text(is_(x, digits1), '123a')), '123')
-    eq_(eval(begin(parse_text(eval_unify(x, digits1), '123 '), x)), '123')
+    eq_(eval(begin(parse_text(eval_unify(x, digits1), '123 '), getvalue(x))), '123')
     
   def test_underline_letter_digit(self):
     x = LogicVar('x')
     eq_(eval(parse_text(underline_letter_digit, '1')), '1')
     eq_(eval(parse_text(is_(x, underline_letter_digit), 'a')), 'a')
-    eq_(eval(begin(parse_text(eval_unify(x, underline_letter_digit), '_'), x)), '_')
+    eq_(eval(begin(parse_text(eval_unify(x, underline_letter_digit), '_'), getvalue(x))), '_')
     
   def test_word(self):
-    x, y, z = LogicVar('y'), LogicVar('x'), LogicVar('z')
-    eq_(eval(begin(parse_text(word(x), 'ab'), x)), 'ab')
+    x = LogicVar('x')
+    eq_(eval(begin(parse_text(word(x), 'ab'), getvalue(x))), 'ab')
     eq_(eval(begin(parse_text(word('ab'), 'ab'))), 'ab')
      
   def test_identifier1(self):
@@ -249,13 +316,13 @@ class Testterminal:
     
   def test_identifier2(self):
     x = LogicVar('x')
-    eq_(eval(begin(parse_text(identifier(x), '_a1b_23'), x)), '_a1b_23')
+    eq_(eval(begin(parse_text(identifier(x), '_a1b_23'), getvalue(x))), '_a1b_23')
      
   def test_number(self):
-    x, y, z = LogicVar('y'), LogicVar('x'), LogicVar('z')
-    eq_(eval(begin(parse_text(integer(x), '2'), x)), '2')
-    eq_(eval(begin(parse_text(integer(y), '234'), y)), '234')
-    eq_(eval(begin(parse_text(integer(z), '0232'), z)), '0232') 
+    x = LogicVar('x')
+    eq_(eval(begin(parse_text(integer(x), '2'), getvalue(x))), '2')
+    eq_(eval(begin(parse_text(integer(x), '234'), getvalue(x))), '234')
+    eq_(eval(begin(parse_text(integer(x), '0232'), getvalue(x))), '0232') 
     
   def test_literal(self):
     eq_(eval(parse_text(literal('if'), 'if')), 'if')

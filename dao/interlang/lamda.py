@@ -658,10 +658,19 @@ class LogicVar(Element):
   def free_vars(self):
     return set()
   
+  def side_effects(self):
+    return False
+        
   def optimize(self, env, compiler):
     return self
     
   def replace_assign(self, compiler):
+    return self
+  
+  def insert_return_statement(self):
+    return Return(self)
+  
+  def replace_return_with_yield(self):
     return self
   
   def pythonize(self, env, compiler):

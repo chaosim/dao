@@ -34,7 +34,8 @@ class TestControl:
     
   def test_or2(self):
     x = LogicVar('x')
-    eq_(eval(or_(begin(unify(x, 1), unify(x, 2)), unify(x, 2))), True)
+    eq_(eval(or_(begin(unify(x, 1), unify(x, 2)), 
+                 unify(x, 2))), True)
     
   def test_cut_or(self):
     eq_(eval(or_(begin(prin(1), fail), prin(2))), None)
@@ -134,7 +135,7 @@ class TestArithpred:
   def test_between3(self):
     x = LogicVar('x')
     y = LogicVar('y')
-    eq_(eval(begin(findall(between(1, 3, x), x, y), y)), [1, 2, 3])
+    eq_(eval(begin(findall(between(1, 3, x), x, y), getvalue(y))), [1, 2, 3])
 
 class XTestTypePredicate:
   def test_ground(self):
@@ -206,13 +207,13 @@ class Testfindall:
   def test_findall_template_or(self):
     x, y, z = LogicVar('x'), LogicVar('y'), LogicVar('z')
     f = Var('f')
-    eq_(eval(begin(findall(or_(is_(x, 1), is_(x, 2)), x, y), y)), [1, 2])
+    eq_(eval(begin(findall(or_(is_(x, 1), is_(x, 2)), x, y), getvalue(y))), [1, 2])
     
   def test_findall_template_func(self):
     x, y, z = LogicVar('x'), LogicVar('y'), LogicVar('z')
     f = Var('f')
     eq_(eval(let([(f, rules(((), 2), ((), 3)))], 
-               findall(is_(x, f()), x, y), y)), [2, 3])
+               findall(is_(x, f()), x, y), getvalue(y))), [2, 3])
       
 class XTestRule:
   def test_abolish(self):

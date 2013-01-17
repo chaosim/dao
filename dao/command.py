@@ -227,7 +227,7 @@ class LogicVar(Var):
     return il.LogicVar(self.name)
   
   def cps_convert(self, compiler, cont):
-    return cont(il.Deref(il.LogicVar(self.name)))
+    return cont(il.LogicVar(self.name))
   
   def to_code(self, compiler):
     return "DaoLogicVar('%s')"%self.name
@@ -459,6 +459,19 @@ class Assign(CommandCall):
   def __repr__(self):
     return 'assign(%r, %r)'%(self.var, self.exp)
 
+def direct_interlang(*exps):
+  return DirectInterlang(il.begin(*exps))
+
+class DirectInterlang(Element):
+  def __init__(self, body):
+    self.body = body
+  
+  def alpha_convert(self, env, compiler):
+    return self
+  
+  def cps_convert(self, compiler, cont):
+    return cont(self.body)
+    
 @special
 def expression_with_code(compiler, cont, exp):
   v = compiler.new_var(il.ConstLocalVar('v'))
@@ -468,3 +481,4 @@ type_map = {int:Integer, float: Float, str:String, unicode: String,
             tuple: make_tuple, list:List, dict:Dict, 
             bool:Bool, type(None): Atom,
             type(lambda:1):PyFunction}
+

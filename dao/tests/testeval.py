@@ -8,7 +8,7 @@ from dao.command import Var, LogicVar, Const, MultiAssignToConstError
 
 from dao.builtins import Integer, String
 from dao.builtins import quote, begin, if_, assign
-from dao.builtins import unify, not_p, fail, succeed, or_, cut, findall
+from dao.builtins import unify, not_p, fail, succeed, or_, cut, findall, getvalue
 from dao.builtins import lamda, let, letrec, rules, macro
 from dao.builtins import set_text, char, eoi, any
 from dao.builtins import add, eq, sub, mul
@@ -272,7 +272,7 @@ class TestRules:
     
   def test_let_embed_var2(self):
     e, f = LogicVar('e'), Var('f')
-    eq_(eval(let([(f, rules([[1], 1]))], f(e), e)), 1)
+    eq_(eval(let([(f, rules([[1], 1]))], f(e), getvalue(e))), 1)
     
   def test_letrec_rules(self):
     f = Var('f')
@@ -313,7 +313,7 @@ class TestCut:
                                  [[2], True],
                                  [[3], True])),
                      (c, rules([[1], True]))],
-             a(Lx), Lx)), 1) 
+             a(Lx), getvalue(Lx))), 1) 
     
   def test_cut2(self):
     a, b, c, x = Var('a'), Var('b'), Var('c'), Var('x')
@@ -323,7 +323,7 @@ class TestCut:
                                     [[2], True],
                                     [[3], True])),
                      (c, rules([[2], True]))],
-             a(Lx), Lx))
+             a(Lx), getvalue(Lx)))
     
   def test_cut2_no_Cut_and_p(self):
     a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x'), 
@@ -334,7 +334,7 @@ class TestCut:
                                  [[4], 'b4'])),
                      (c, rules([[4], 'c4'])),
                      (d, rules([[3], 'd3']))],
-             a(Lx), Lx)), 4) 
+             a(Lx), getvalue(Lx))), 4) 
     
   def test_cut2_no_Cut2_and_(self):
     # test_cut2_no_Cut_and_p work correct.
@@ -349,7 +349,7 @@ class TestCut:
                                  [[4], True])),
                      (c, rules([[4], True])),
                      (d, rules([[3], True]))],
-             a(Lx), Lx)), 4) 
+             a(Lx), getvalue(Lx))), 4) 
     
   def test_cut2_no_Cut3_begin(self):
     a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x')
@@ -360,7 +360,7 @@ class TestCut:
                                  [[4], 'b4'])),
                      (c, rules([[4], 'c4'])),
                      (d, rules([[3], 'd3']))],
-             a(Lx), Lx)), 4) 
+             a(Lx), getvalue(Lx))), 4) 
     
   def testCut4(self):
     a, b, c, d, x = Var('a'), Var('b'), Var('c'), Var('d'), Var('x'), 
@@ -371,7 +371,7 @@ class TestCut:
                                  [[4], 'b4'])),
                      (c, rules([[4], 'c4'])),
                      (d, rules([[3], 'd3']))],
-             a(Lx), Lx))
+             a(Lx), getvalue(Lx)))
     
   def testCut5(self):
     start, a, b, c, d, x = Var('start'), Var('a'), Var('b'), Var('c'), Var('d'), Var('x'), 
@@ -385,7 +385,7 @@ class TestCut:
                 [[4], 'b4'])),
       (c, rules([[4], 'c4'])),
       (d, rules([[3], 'd3']))],
-      start(Lx), Lx)), 4)
+      start(Lx), getvalue(Lx))), 4)
     
   def testCut6(self):
     start, a, b, c, d, x = Var('start'), Var('a'), Var('b'), Var('c'), Var('d'), Var('x'), 
@@ -399,7 +399,7 @@ class TestCut:
                 [[4], 'b4'])),
       (c, rules([[4], 'c4'])),
       (d, rules([[3], 'd3']))],
-      start(Lx), Lx)), 3)
+      start(Lx), getvalue(Lx))), 3)
     
 class TestMacro:
   def test1(self):
