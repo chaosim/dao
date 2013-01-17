@@ -253,6 +253,23 @@ class TestSeplist:
     assert_raises(NoSolution, eval,
                   begin(set_text('a,a,a'), greedy_seplist(char(_), char(','), _, y), char(_), eoi, getvalue(y)))
 
+from dao.builtins import times
+
+class TestTimes:
+  def test_times1(self):
+    eq_(eval(begin(set_text('aaa'), times(char('a'), 3), eoi)), True)
+    
+  def test_times2(self):
+    eq_(eval(begin(set_text('aaaa'), times(char('a'), 3), char('a'), eoi)), True)
+    
+  def test_times3(self):
+    assert_raises(NoSolution, eval,begin(set_text('aa'), times(char('a'), 3)))
+    
+  def test_times4(self):
+    _ = DummyVar('_')
+    x = LogicVar('x')
+    eq_(eval(begin(set_text('aaa'), times(char(_), 3, _, x), eoi, getvalue(x))), ['a', 'a', 'a'])
+    
 from dao.builtins import digit, eval_unify
 from dao.builtins import lowcase, uppercase, letter, underline_letter, underline_letter_digit
 from dao.builtins import tabspace, whitespace

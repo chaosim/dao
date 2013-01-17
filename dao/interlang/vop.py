@@ -508,6 +508,11 @@ class ListAppend(Element):
     value = self.value.optimize(env, compiler)
     return ListAppend(self.container, value)
   
+  def find_assign_lefts(self):
+    if isinstance(self.container, Var):
+      return set([self.container])
+    else: return set()
+  
   def pythonize(self, env, compiler):
     container_exps, has_statement1 = self.container.pythonize(env, compiler)
     value_exps, has_statement2 = self.value.pythonize(env, compiler)
@@ -845,7 +850,10 @@ MakeList = vop('MakeList', 1, '[%s]', False)
 
 
 Copy = vop('Copy', 1, '(%s).copy()', False)
-  
+
+Assert = vop('Assert', 1, 'assert %s', False)
+Int = Symbol('int')
+
 def Format_to_code(self, compiler):
   return '%s%%(%s)'%(self.args[0].to_code(compiler), 
                      ', '.join([x.to_code(compiler) for x in self.args[1:]]))

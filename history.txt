@@ -10,6 +10,8 @@ LogicVar.cps_convert: cont(il.LogicVar(x))
   modifying the code in LogicVar.cps_convert to
   cont(il.LogicVar(x)), use getvalue(x) in expression instead.
 
+times(item, expect_times, template=None, result=None)
+
 2013-1-15
   matcher.py: any, lazy_any, greedy_any
 

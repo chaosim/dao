@@ -7,7 +7,7 @@
 
 from dao.base import classeq
 from dao.compilebase import CompileTypeError, VariableNotBound
-from dao.command import special, element, Var
+from dao.command import special, element, Var, Const
 from special import begin
 from term import unify
 import dao.interlang as il
@@ -320,6 +320,61 @@ from term import getvalue, eval_unify
 from dao.command import assign, direct_interlang
 from arith import add
 
+@special
+def times(compiler, cont, item, expect_times, template=None, result=None):
+  if result is None:
+    expect_times1 = compiler.new_var(Const('expect_times'))
+    return begin(assign(expect_times1, getvalue(expect_times)), 
+                    times1(item, expect_times1)).cps_convert(compiler, cont)
+  else:
+    expect_times1 = compiler.new_var(Const('expect_times'))
+    result1  = compiler.new_var(il.ConstLocalVar('result'))
+    result2  = compiler.new_var(Var('result'))
+    result2_2  = result2.interlang()
+    template1 = template.interlang()
+    return begin(assign(expect_times1, getvalue(expect_times)), 
+                 times2(item, expect_times1, template, result2),
+                 unify(result, result2)
+                 ).cps_convert(compiler, cont)  
+
+@special
+def times1(compiler, cont, item, expect_times):
+    expect_times = expect_times.interlang()
+    i = compiler.new_var(il.Var('i'))
+    times_cont = compiler.new_var(il.ConstLocalVar('times_cont'))
+    v = compiler.new_var(il.ConstLocalVar('v'))
+    return il.begin(
+      il.Assert(il.And(il.Isinstance(expect_times, il.Int), il.Gt(expect_times, il.Integer(0)))),
+      il.Assign(i, il.Integer(0)),
+      il.cfunction(times_cont, v, 
+        item.cps_convert(compiler, il.clamda(v,
+        il.AddAssign(i, il.Integer(1)),
+        il.If(il.Eq(i, expect_times),
+              cont(v),
+            times_cont(il.TRUE)))))
+      (il.TRUE))
+  
+@special
+def times2(compiler, cont, item, expect_times, template, result):
+    expect_times = expect_times.interlang()
+    template = template.interlang()
+    result = result.interlang()
+    i = compiler.new_var(il.Var('i'))
+    times_cont = compiler.new_var(il.ConstLocalVar('times_cont'))
+    v = compiler.new_var(il.ConstLocalVar('v'))
+    return il.begin(
+      il.Assert(il.And(il.Isinstance(expect_times, il.Int), il.Gt(expect_times, il.Integer(0)))),
+      il.Assign(result, il.empty_list),
+      il.Assign(i, il.Integer(0)),
+      il.cfunction(times_cont, v, 
+        item.cps_convert(compiler, il.clamda(v,
+        il.AddAssign(i, il.Integer(1)),
+        il.ListAppend(result, il.GetValue(template)),
+        il.If(il.Eq(i, expect_times),
+              cont(v),
+            times_cont(il.TRUE)))))
+      (il.TRUE))
+          
 @special
 def seplist(compiler, cont, item, separator, template=None, result=None):
   if result is None:

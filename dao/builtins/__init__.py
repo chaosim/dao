@@ -26,7 +26,7 @@ from matcher import may, greedy_may, lazy_may
 from matcher import any, any1, any2, greedy_any, greedy_any1, greedy_any2, lazy_any, lazy_any1, lazy_any2
 from matcher import some, some1, some2, lazy_some, lazy_some1, lazy_some2, greedy_some, greedy_some1, greedy_some2
 from matcher import seplist, lazy_seplist, greedy_seplist
-from matcher import follow
+from matcher import follow, times
 
 from parser import set_parse_state, parse_state, set_sequence, set_text, parse_sequence, parse_text
 from parser import eoi, left, step, next_char, position, goto, skip, subtext

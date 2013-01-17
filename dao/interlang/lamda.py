@@ -814,6 +814,9 @@ class AssignFromList(Element):
         else: return None
     return AssignFromList(*(self.vars+(value,)))
   
+  def find_assign_lefts(self):
+    return set(self.vars)
+  
   def pythonize(self, env, compiler):
     value_exps, has_statement1 = self.value.pythonize(env, compiler)
     return value_exps[:-1]+(AssignFromList(*(self.vars+(value_exps[-1],))),), True
