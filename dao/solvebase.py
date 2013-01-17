@@ -39,8 +39,12 @@ class Bindings(dict):
   def __getitem__(self, var): 
     try: return dict.__getitem__(self, var)
     except: return var
+    
   def __setitem__(self, var, value):
     dict.__setitem__(self, var, value)
+    
+  def copy(self):
+    return Bindings(dict.copy(self))
 
 def deref(exp, bindings):
   try: exp_deref = exp.deref

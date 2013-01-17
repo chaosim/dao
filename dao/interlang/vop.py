@@ -828,6 +828,9 @@ GetValue = vop('GetValue', 1, 'getvalue(%s, {}, solver.bindings)', False)
 parse_state = SolverVar('parse_state')
 def SetParseState(state): return Assign(parse_state, state)
 
+bindings = SolverVar('bindings')
+def SetBindings(bindings1): return Assign(bindings, bindings1)
+
 Optargs = vop('Optargs', 1, '*%s', False)
 
 Continue = vop('Continue', 0, "continue\n", False)
@@ -838,6 +841,8 @@ PrintLn = vop2('PrintLn', 1, "print %s", True)
 
 DelListItem = vop2('DelListItem', 2, 'del %s[%s]', True)
 
+Copy = vop('Copy', 1, '(%s).copy()', False)
+  
 def Format_to_code(self, compiler):
   return '%s%%(%s)'%(self.args[0].to_code(compiler), 
                      ', '.join([x.to_code(compiler) for x in self.args[1:]]))

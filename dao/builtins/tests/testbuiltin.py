@@ -32,11 +32,28 @@ class TestControl:
   def test_or(self):
     eq_(eval(or_(fail, succeed)), True)
     
+  def test_or2(self):
+    x = LogicVar('x')
+    eq_(eval(or_(begin(unify(x, 1), unify(x, 2)), unify(x, 2))), True)
+    
   def test_cut_or(self):
     eq_(eval(or_(begin(prin(1), fail), prin(2))), None)
     
   def test_cut_or2(self):
-    assert_raises(NoSolution, eval, or_(begin(prin(1), cut_or, fail), prin(2)))
+    assert_raises(NoSolution, eval, or_(begin(prin(1), cut_or, fail), 
+                                        prin(2)))
+    
+  def test_cut_or3(self):
+    x = LogicVar('x')
+    assert_raises(NoSolution, eval, 
+                  or_(begin(unify(x, 1), cut_or, unify(x, 2)), 
+                      unify(x, 2)))
+    
+  def test_cut_or4(self):
+    x = LogicVar('x')
+    eq_(eval(or_(or_(begin(unify(x, 1), cut_or, unify(x, 2)), 
+                      unify(x, 2)),
+                 unify(x, 2))), True)
     
   def test_and(self):
     eq_(eval(and_(succeed, succeed)), True)

@@ -33,7 +33,7 @@ def cut(compiler, cont):
 cut = cut()
 
 def has_cut(exp):
-  if exp is cut: 
+  if exp == cut: 
     return True
   if isinstance(exp, SpecialCall):
     for arg in exp.args:
@@ -58,7 +58,7 @@ def or_(*clauses):
     return or2(clauses[0], or_(*clauses[1:]))
 
 def has_cut_or(exp):
-  if exp is cut_or: 
+  if exp == cut_or: 
     return True
   if isinstance(exp, SpecialCall):
     if exp.command is or2:
@@ -73,14 +73,22 @@ def has_cut_or(exp):
 def or2_fun(compiler, cont, clause1, clause2):
   v = compiler.new_var(il.ConstLocalVar('v'))
   v1 = compiler.new_var(il.ConstLocalVar('v'))
+  v2 = compiler.new_var(il.ConstLocalVar('v'))
+  parse_state = compiler.new_var(il.ConstLocalVar('parse_state'))
+  bindings = compiler.new_var(il.LocalVar('bindings'))
   fc = compiler.new_var(il.ConstLocalVar('old_failcont'))
   if has_cut_or(clause1) or has_cut_or(clause2):
     cut_or_cont = compiler.new_var(il.ConstLocalVar('cut_or_cont'))
     or_cont = il.clamda(v, il.SetCutOrCont(cut_or_cont), cont(v))
     return il.begin(
       il.Assign(cut_or_cont, il.cut_or_cont),
-      il.SetCutOrCont(il.failcont),
+      il.Assign(parse_state, il.parse_state),
+      il.Assign(bindings, il.Copy(il.bindings)),
       il.Assign(fc, il.failcont),
+      il.SetCutOrCont(il.clamda(v2, 
+        il.Assign(il.parse_state, parse_state),
+        il.SetBindings(bindings),
+        fc(il.FALSE))),
       il.SetFailCont(il.clamda(v1, 
         il.SetFailCont(fc),
         clause2.cps_convert(compiler, or_cont))),

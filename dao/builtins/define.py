@@ -302,11 +302,24 @@ def rules(*rules):
 def wrap_cut(compiler, cont, exp):
   cut_cont = il.ConstLocalVar('cut_cont')
   v = il.ConstLocalVar('v')
+  v1 = compiler.new_var(il.ConstLocalVar('v'))
+  v2 = compiler.new_var(il.ConstLocalVar('v'))
+  parse_state = compiler.new_var(il.ConstLocalVar('parse_state'))
+  bindings = compiler.new_var(il.LocalVar('bindings'))
+  fc = compiler.new_var(il.ConstLocalVar('old_failcont'))
   return il.begin(
     il.Assign(cut_cont, il.cut_cont),
-    il.append_failcont(compiler, 
-      il.Assign(il.cut_cont, cut_cont)),
-    il.Assign(il.cut_cont, il.failcont),
+    il.Assign(parse_state, il.parse_state),
+    il.Assign(bindings, il.Copy(il.bindings)),
+    il.Assign(fc, il.failcont),
+    il.SetCutCont(il.clamda(v2, 
+        il.Assign(il.parse_state, parse_state),
+        il.SetBindings(bindings),
+        fc(il.FALSE))),
+    il.SetFailCont(il.clamda(v1,
+      il.SetFailCont(fc),
+      il.Assign(il.cut_cont, cut_cont),
+      fc(il.FALSE))),
     exp.cps_convert(compiler, il.clamda(v, 
       il.Assign(il.cut_cont, cut_cont),                         
       cont(v))))
