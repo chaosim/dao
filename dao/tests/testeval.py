@@ -336,7 +336,7 @@ class TestRules:
   def testdouble5(self):
     f = Var('f')
     x = Var('x')
-    assert_raises(NoSolution, eval, let([(f, rules([[x], add(x, x)]))], f(1, 2))) # passed
+    assert_raises(TypeError, eval, let([(f, rules([[x], add(x, x)]))], f(1, 2))) # passed
     
   def test_let_rec_embed_var1(self):
     e, f = LogicVar('e'), Var('f')
@@ -509,19 +509,19 @@ class TestMacroRules:
                    [[x, y], y])(prin(1), prin(2)))), None) 
     
   def test_closure1(self):
-    x, f = Var('x'), Var('f')
+    x, f = Const('x'), Const('f')
     eq_(eval(let([(f, macrorules([[x], prin(x)])),
                   (x, 1)],
              f(add(x,x)))), None) 
     
   def test_closure2(self):
-    x, f = Var('x'), Var('f')
+    x, f = Const('x'), Const('f')
     eq_(eval(let([(f, macrorules([[x], x])),
                   (x, 1)],
              f(add(x,x)))), 2)
     
   def test_closure3(self):
-    x, y, f = Var('x'), Var('y'), Var('f')
+    x, y, f = Const('x'), Const('y'), Const('f')
     eq_(eval(let([(f, macrorules([[x, y], begin(x, y)])),
                   (x, 1)],
              f(prin(x), prin(add(x,x))))), None) 

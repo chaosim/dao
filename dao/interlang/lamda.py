@@ -41,22 +41,7 @@ class Lamda(Element):
       
   def optimize(self, env, compiler):
     env = env.extend()
-    for var in self.free_vars()|self.find_assign_lefts():
-      if isinstance(var, ConstLocalVar):
-        continue
-      try:
-        assign = env[var]
-      except: continue
-      env[var] = VarAssignBox(var)
-      assign.dont_remove()
     body = self.body.optimize(env, compiler)
-    for var in self.find_assign_lefts():
-      if isinstance(var, LocalVar):
-        continue
-      try:
-        assign = env[var]
-      except: continue
-      assign.dont_remove()
     result = self.new(self.params, body)
     return result
   

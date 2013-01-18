@@ -1,6 +1,9 @@
 
-todo: rules with only one arity
-todo: Var know his type(lamda, macro, RecursiveVar)
+done: rules with only one arity
+  done: rules with only one arity
+  done: macrorules with only one arity
+
+todo: Var know its type(lamda, macro, RecursiveVar)
 todo: let and letrec always produce const.
 todo: more optimization
   done: macro like lamda

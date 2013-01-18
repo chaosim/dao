@@ -64,34 +64,3 @@ def compile_to_python(exp, env, done=None):
   result = exp.to_code(compiler)
   return prelude + result
 
-'''
-il.begin(
-  il.Assign(f, il.MacroLamda((cont, x, y), 
-    il.begin(
-      il.Assign(v9, il.EvalExpressionWithCode(y))
-      il.Assign(v10, il.EvalExpressionWithCode(x))
-      cont(1))))
-  il.If(il.IsMacro(f), 
-        il.If(il.IsMacroRules(f), 
-              f(il.Done(v, v), il.MacroArgs((ExpressionWithCode(println_(concat(1)), il.Lamda((), 
-                il.begin(il.Assign(v6, il.Concat(1))
-                         il.PrintLn(v6)
-                         None))), 
-                                             ExpressionWithCode(prin_(concat(2)), il.Lamda((), 
-                il.begin(il.Assign(v7, il.Concat(2))
-                         il.Prin(v7)
-                         None)))))), 
-              f(il.Done(v, v), ExpressionWithCode(println_(concat(1)), il.Lamda((), 
-                 il.begin(il.Assign(v6, il.Concat(1))
-                          il.PrintLn(v6)
-                          None))), 
-                ExpressionWithCode(prin_(concat(2)), il.Lamda((), 
-                  il.begin(il.Assign(v7, il.Concat(2))
-                           il.Prin(v7)
-                           None))))), 
-        il.begin(il.Assign(v4, il.Concat(1))
-                 il.PrintLn(v4)
-                 il.Assign(v3, il.Concat(2))
-                 il.Prin(v3)
-                 f(il.Done(v, v), None, None))))
-'''
