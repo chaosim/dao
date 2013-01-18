@@ -1,6 +1,9 @@
 
+todo: rules with only one arity
+todo: Var know his type(lamda, macro, RecursiveVar)
+todo: let and letrec always produce const.
 todo: more optimization
-  todo: macro like lamda
+  done: macro like lamda
   todo: cons like that in lisp
   todo: more ananlysis for optimization
     done: assign and reference analysys, 

@@ -28,7 +28,7 @@ def prin(*args):
 def println_(compiler, cont, argument):
   v = compiler.new_var(il.ConstLocalVar('v'))
   return argument.cps_convert(compiler, 
-           il.Clamda(v, il.PrintLn(v), cont(il.NONE)))
+           il.clamda(v, il.PrintLn(v), cont(il.NONE)))
 
 def println(*args):
   return println_(concat(*args))

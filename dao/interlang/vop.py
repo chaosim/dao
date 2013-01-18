@@ -7,7 +7,7 @@ from dao.compilebase import VariableNotBound, CompileTypeError
 from element import Element, Begin, begin, Return, Yield
 from element import Atom, Integer, Bool, MacroArgs, Tuple, Dict, List , element
 from element import pythonize_args, FALSE, NONE, Symbol, no_side_effects, unknown, ConstAtom
-from lamda import Apply, optimize_args, clamda, Lamda, MacroLamda, RulesDict
+from lamda import Apply, optimize_args, clamda, Lamda, Macro, MacroRules, RulesDict
 from lamda import Var, LocalVar, ConstLocalVar, SolverVar, LogicVar, Assign, ExpressionWithCode#, ValueAssignBox
 
 class BinaryOperation(Element):
@@ -274,7 +274,7 @@ class EvalExpressionWithCode(Element):
     self.item = item
   
   def side_effects(self):
-    return False
+    return True
     
   def analyse(self, compiler):
     self.item.analyse(compiler)
@@ -295,7 +295,7 @@ class EvalExpressionWithCode(Element):
     elif isinstance(item, ExpressionWithCode):
       return item.function.body.optimize(env, compiler)
     else:
-      raise CompileTypeError(item)
+     return item
   
   def pythonize(self, env, compiler):
     exps, has_statement = self.item.pythonize(env, compiler)
@@ -686,24 +686,27 @@ class FindCatchCont(Element):
 def AddAssign(var, value):
   return Assign(var, BinaryOperationApply(add, (var, value)))
 
-class IsMacroFunction(Element):
+class IsMacro(Element):
   def __init__(self, item):
     self.item = item
   
   def side_effects(self):
     return False
     
+  def free_vars(self):
+    return self.item.free_vars()
+  
   def analyse(self, compiler):
     self.item.analyse(compiler)
     
   def subst(self, bindings):  
-    return IsMacroFunction(self.item.subst(bindings))
+    return self.__class__(self.item.subst(bindings))
   
   def code_size(self):
     return 1  
   
   def optimize(self, env, compiler):
-    return IsMacroFunction(self.item.optimize(env, compiler))
+    return self.__class__(self.item.optimize(env, compiler))
   
   def pythonize(self, env, compiler):
     exps, has_statement = self.item.pythonize(env, compiler)
@@ -715,19 +718,34 @@ class IsMacroFunction(Element):
   def replace_return_with_yield(self):
     return self
   
-  def to_code(self, compiler):
-    return  'isinstance(%s, MacroFunction)'%self.item.to_code(compiler)
-  
   def bool(self):
-    if isinstance(self.item, Lamda): 
-      return False
-    elif isinstance(self.item, MacroLamda):
+    if isinstance(self.item, Macro):
       return True
+    elif isinstance(self.item, Lamda): 
+      return False
     else: 
       return unknown
   
+  def to_code(self, compiler):
+    return  'isinstance(%s, Macro)'%self.item.to_code(compiler)
+  
   def __repr__(self):
-    return 'il.IsMacroFunction(%s)'%self.item
+    return 'il.IsMacro(%s)'%self.item
+
+class IsMacroRules(IsMacro):
+  def bool(self):
+    if isinstance(self.item, MacroRules):
+      return True
+    elif isinstance(self.item, Lamda): 
+      return False
+    else: 
+      return unknown
+  
+  def to_code(self, compiler):
+    return  'isinstance(%s, MacroRules)'%self.item.to_code(compiler)
+  
+  def __repr__(self):
+    return 'il.IsMacroRules(%s)'%self.item
 
 def vop(name, arity, code_format, has_side_effects):
   class Vop(VirtualOperation): pass

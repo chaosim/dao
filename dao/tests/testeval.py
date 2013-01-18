@@ -9,13 +9,13 @@ from dao.command import Var, LogicVar, Const, MultiAssignToConstError
 from dao.builtins import Integer, String
 from dao.builtins import quote, begin, if_, assign
 from dao.builtins import unify, not_p, fail, succeed, or_, cut, findall, getvalue
-from dao.builtins import lamda, let, letrec, rules, macro
+from dao.builtins import lamda, let, letrec, rules, macro, macrorules
 from dao.builtins import set_text, char, eoi, any
-from dao.builtins import add, eq, sub, mul
+from dao.builtins import add, eq, sub, mul, div
 from dao.builtins import eval_, callcc
 from dao.builtins import block, exit_block, continue_block
 from dao.builtins import catch, throw, unwind_protect
-from dao.builtins import prin
+from dao.builtins import prin, println
 
 from dao.solvebase import NoSolution
 
@@ -30,9 +30,9 @@ class TestSimple:
     
   def test_arithmetic(self):
     eq_(eval(add(1, 2)), 3) 
-    #eq_(eval(sub(1, 1)), 0)
-    #eq_(eval(mul(2, 2)), 4)
-    #eq_(eval(div(2, 2)), 1)
+    eq_(eval(sub(1, 1)), 0)
+    eq_(eval(mul(2, 2)), 4)
+    eq_(eval(div(2, 2)), 1)
     
   def test_quote(self):
     lo_x = LogicVar('x')
@@ -42,9 +42,12 @@ class TestSimple:
     x = LogicVar('x')
     eq_(eval(quote(x)), LogicVar('x'))
     
-  def testassign(self):
-    a = Var('a')
-    #eq_(eval(assign(a,2)), 2)
+  def testassign0(self):
+    a = Const('a')
+    eq_(eval(assign(a,2)), 2)
+    
+  def testassign1(self):
+    a = Const('a')
     eq_(eval(begin(assign(a,2), a)), 2)
     
   def testassign2(self):
@@ -68,19 +71,21 @@ class TestControl:
     eq_(eval(eval_(quote(begin(1, add(1, 2))))), 3)
     
   def testeval2(self):
-    x = Var('x')
+    x = Const('x')
     eq_(eval(let([(x,1)], eval_(quote(x)))), 1)
     
   def testeval3(self):
-    x = Var('x')
+    x = Const('x')
     eq_(eval(let([(x, quote(1))], eval_(x))), 1)
     
   def testeval4(self):
-    x = Var('x')
+    x = Const('x')
     eq_(eval(let([(x, quote(add(1,1)))], eval_(x))), 2)
     
-  def testeval1(self):
+  def testeval0(self):
     eq_(eval(eval_(quote(1))), (1))
+    
+  def testeval1(self):
     eq_(eval(eval_(quote(add(1, 1)))), (2))
     
   def test_callcc(self):
@@ -114,23 +119,26 @@ class TestControl:
 
 class TestLambdaLet:
   def test_lamda(self):
-    x, y = Var('x'), Var('y')
+    x = Const('x')
     eq_(eval(lamda((x,), 1)(1)), 1)
     eq_(eval(lamda((x,), 1)(2)), 1)
     eq_(eval(lamda((x,), x)(2)), 2)
     
   def test_lamda2(self):
-    x, y = Var('x'), Var('y')
+    x, y = Const('x'), Const('y')
     eq_(eval(lamda((x, y), add(x, y))(1, 3)), 4)
     
   def test_let(self):
-    x = Var('x')
+    x = Const('x')
     eq_(eval(let([(x, 1)], x)), 1)
     eq_(eval(let([(x, 1)], let([(x, 2)], x))), 2)
-    eq_(eval(let([(x, 1)], let([(x, 2)], assign(x, 2)))), 2)
     
   def test_let2(self):
-    x, y = Var('x'), Var('y')
+    x = Const('x')
+    assert_raises(MultiAssignToConstError, eval, let([(x, 1)], let([(x, 2)], assign(x, 2))))
+    
+  def test_let3(self):
+    x, y = Const('x'), Const('y')
     eq_(eval(let([(x,1), (y,2)], add(x, y))), 3)
     
   def test_let_assign(self):
@@ -140,7 +148,7 @@ class TestLambdaLet:
                   let([(b,1)], assign(a,2), a))), 2)
     
   def test_letrec(self):
-    x, y = Var('x'), Var('y')
+    x, y = Const('x'), Const('y')
     eq_(eval(letrec([(x, 1), (y, x)], y)), 1)
     eq_(eval(letrec([(x, 1), (y, add(x, 1))], y)), 2)
     
@@ -149,12 +157,12 @@ class TestLambdaLet:
     eq_(eval(letrec([(f, lamda((x,), f(1)))], f(2))), 1)
     
   def test_letrec_assign(self):
-    x, f = Var('x'), Var('f')
+    x, f = Const('x'), Const('f')
     assert_raises(MultiAssignToConstError, eval,
                   letrec([(f, lamda((x,), f(1)))], f(2), assign(f, 1)))
     
   def test_letrec_assign2(self):
-    x, f = Var('x'), Var('f')
+    x, f = Const('x'), Const('f')
     assert_raises(MultiAssignToConstError, eval,
                   letrec([(f, lamda((x,), f(1), assign(f, 1)))], f(2)))
     
@@ -163,7 +171,7 @@ class TestLambdaLet:
     eq_(eval(letrec([(f, lamda((x,), if_(eq(x,1), 1, f(sub(x,1)))))], f(2))), 1)
     
   def testletdouble(self):
-    x, f = Var('x'), Var('f')
+    x, f = Const('x'), Const('f')
     eq_(eval(let([(f, lamda([x], add(x, x)))], f(1))), 2)
     
   def test_letrec_fac(self):
@@ -175,6 +183,70 @@ class TestLambdaLet:
     from util import n, odd, even  
     eq_(eval(letrec([(odd, lamda([n], if_(eq(n,0), 0, even(sub(n,1))))),
                     (even, lamda([n], if_(eq(n,0), 1, odd(sub(n, 1)))))],
+                  odd(3))), 1)
+
+class TestMacro:
+  def test_macro(self):
+    x, y = Var('x'), Var('y')
+    eq_(eval(macro((x,), 1)(1)), 1)
+    eq_(eval(macro((x,), 1)(2)), 1)
+    eq_(eval(macro((x,), x)(2)), 2)
+    
+  def test_macro2(self):
+    x, y = Var('x'), Var('y')
+    eq_(eval(macro((x, y), add(x, y))(1, 3)), 4)
+    
+  def test_macro3(self):
+    x, y = Const('x'), Const('y')
+    eq_(eval(macro((x, y), y, x, 1)(println(1), prin(2))), 1)
+    
+  def test_macro4(self):
+    x, y, f = Var('x'), Var('y'), Var('f')
+    eq_(eval(let([(f, macro((x, y), y, x, 1))], f(println(1), prin(2)))), 1)
+    
+  def test_macro5(self):
+    x, y, f = Const('x'), Const('y'), Const('f')
+    eq_(eval(let([(f, macro((x, y), y, x, 1))], f(println(1), prin(2)))), 1)
+    
+  def test_macro6(self):
+    n, act, ntimes = Var('n'), Var('act'), Var('ntimes')
+    eq_(eval(letrec([(ntimes, macro((n, act), if_(eq(n, 0), 1, begin(act, ntimes(sub(n, 1), act)))))], ntimes(3, println(1)))), 1)
+    
+  def xtest_letrec2(self):
+    x, f = Var('x'), Var('f')
+    eq_(eval(letrec([(f, macro((x,), f(1)))], f(2))), 1)
+    
+  def test_letrec_assign(self):
+    x, f = Const('x'), Const('f')
+    assert_raises(MultiAssignToConstError, eval,
+                  letrec([(f, macro((x,), f(1)))], f(2), assign(f, 1)))
+    
+  def test_letrec_assign2(self):
+    x, f = Const('x'), Const('f')
+    assert_raises(MultiAssignToConstError, eval,
+                  letrec([(f, macro((x,), f(1), assign(f, 1)))], f(2)))
+    
+  def test_letrec3(self):
+    x, f = Var('x'), Var('f')
+    eq_(eval(letrec([(f, macro((x,), if_(eq(x,1), 1, f(sub(x,1)))))], f(2))), 1)
+    
+  def testletdouble1(self):
+    x, f = Var('x'), Var('f')
+    eq_(eval(let([(f, macro([x], add(x, x)))], f(1))), 2)
+    
+  def testletdouble2(self):
+    x, f = Const('x'), Const('f')
+    eq_(eval(let([(f, macro([x], add(x, x)))], f(1))), 2)
+    
+  def test_letrec_fac(self):
+    from util import m, n, fac
+    eq_(eval(letrec([(fac, macro([n], if_(eq(n,1), 1, mul(n, fac(sub(n, 1))))))],
+                  fac(3))), 6)
+    
+  def test_letrec_odd_even(self):
+    from util import n, odd, even  
+    eq_(eval(letrec([(odd, macro([n], if_(eq(n,0), 0, even(sub(n,1))))),
+                    (even, macro([n], if_(eq(n,0), 1, odd(sub(n, 1)))))],
                   odd(3))), 1)
 
 class TestLispConstruct:    
@@ -401,48 +473,56 @@ class TestCut:
       (d, rules([[3], 'd3']))],
       start(Lx), getvalue(Lx))), 3)
     
-class TestMacro:
+class TestMacroRules:
   def test1(self):
-    eq_(eval(macro([[], prin(1)])()), None) 
+    eq_(eval(macrorules([[], prin(1)])()), None) 
     
   def test2(self):
     x = Var('x')
-    eq_(eval(macro([[x], x])(prin(1))), None) 
+    eq_(eval(macrorules([[x], x])(prin(1))), None) 
     
   def test3(self):
     x = Var('x')
-    eq_(eval(macro([[x], prin(x)])(add(1, 1))), None) 
+    eq_(eval(macrorules([[x], add(x, x)])(1)), 2) 
     
   def test4(self):
     x = Var('x')
+    eq_(eval(macrorules([[x], prin(x)])(add(1, 1))), None) 
+    
+  def test5(self):
+    x = Var('x')
     y = Var('y')
-    eq_(eval(let([(y, 1)], macro([[x], prin(x)])(add(y, 1)))), None) 
+    eq_(eval(let([(y, 1)], macrorules([[x], prin(x)])(add(y, 1)))), None) 
     
   def test_or_p(self):
     x, y = Var('x'), Var('y')
-    eq_(eval(macro([[x, y], x],
+    eq_(eval(macrorules([[x, y], x],
                    [[x, y], y])(prin(1), prin(2))), None) 
+    
+  def test_reverse(self):
+    x, y = Var('x'), Var('y')
+    eq_(eval(macrorules([[x, y], y, x])(prin(1), prin(2))), None) 
     
   def test_findall_or_p(self):
     x, y = Var('x'), Var('y')
-    eq_(eval(findall(macro([[x, y], x],
+    eq_(eval(findall(macrorules([[x, y], x],
                    [[x, y], y])(prin(1), prin(2)))), None) 
     
   def test_closure1(self):
     x, f = Var('x'), Var('f')
-    eq_(eval(let([(f, macro([[x], prin(x)])),
+    eq_(eval(let([(f, macrorules([[x], prin(x)])),
                   (x, 1)],
              f(add(x,x)))), None) 
     
   def test_closure2(self):
     x, f = Var('x'), Var('f')
-    eq_(eval(let([(f, macro([[x], x])),
+    eq_(eval(let([(f, macrorules([[x], x])),
                   (x, 1)],
              f(add(x,x)))), 2)
     
   def test_closure3(self):
     x, y, f = Var('x'), Var('y'), Var('f')
-    eq_(eval(let([(f, macro([[x, y], begin(x, y)])),
+    eq_(eval(let([(f, macrorules([[x, y], begin(x, y)])),
                   (x, 1)],
              f(prin(x), prin(add(x,x))))), None) 
     

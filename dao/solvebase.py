@@ -127,12 +127,22 @@ class ExpressionWithCode:
   def __repr__(self):
     return repr(self.exp)
 
-class MacroFunction: 
+class Macro: pass 
+
+class MacroFunction(Macro): 
   def __init__(self, function):
     self.function = function
     
   def __call__(self, *args):
     return self.function(*args)
+  
+class MacroRules(Macro): 
+  def __init__(self, function):
+    self.function = function
+    
+  def __call__(self, *args):
+    return self.function(*args)
+
 
 def default_end_cont(v):
   raise NoSolution(v)

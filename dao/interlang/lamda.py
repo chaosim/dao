@@ -316,31 +316,9 @@ class CFunction(Function):
   
   def optimize_apply(self, env, compiler, args):
     new_env = env.extend()
-    for var in self.find_assign_lefts()|self.free_vars():
-      if isinstance(var, ConstLocalVar):
-        continue      
-      try:
-        assign = env[var]
-        new_env[var] = VarAssignBox(var)
-      except:
-        continue
-      assign.dont_remove()
     body = self.body.subst({self.params[0]:args[0]}) 
     body = body.optimize(new_env, compiler)
-    for var in self.free_vars():
-      if isinstance(var, ConstLocalVar):
-        continue      
-      try:
-        assign = new_env[var]
-        #new_env[var] = VarAssignBox(var)
-        #self.recursive_vars.add(var)
-      except:
-        continue
-      assign.dont_remove()
     result = CFunction(self.name, self.params[0], body)(NONE)
-    #for var in new_env.bindings:
-      #env[var]._removed = False
-    #compiler.recusive_vars_stack.pop()
     return result
   
   def __repr__(self):
@@ -393,7 +371,9 @@ class RulesDict(Element):
   def __repr__(self):
     return 'RulesDict(%s)'%self.arity_body_map
 
-class MacroLamda(Lamda):
+class Macro: pass
+
+class MacroLamda(Lamda, Macro):
   def optimize_apply(self, env, compiler, args):
     #args = (args[0], Tuple(*args[1:]))
     result = Lamda.optimize_apply(self, env, compiler, args)
@@ -409,21 +389,56 @@ class MacroLamda(Lamda):
     if global_vars:
       body_exps = (GlobalDecl(global_vars),)+body_exps
     if not body_has_any_statement:
-      return (MacroFunction(self.new(self.params, begin(*body_exps))),), False
+      return (MacroFunction(Lamda(self.params, begin(*body_exps))),), False
     else:
       name = compiler.new_var(LocalVar('function'))
       body = begin(*body_exps).insert_return_statement()
       return (Function(name, self.params, body), MacroFunction(name)), True 
+  
+  def __repr__(self):
+    return 'il.MacroLamda((%s), \n%s)'%(', '.join([repr(x) for x in self.params]),
+                              repr(self.body))
+
+class MacroRules(Lamda, Macro):
+  def optimize_apply(self, env, compiler, args):
+    result = Lamda.optimize_apply(self, env, compiler, args)
+    return result
+  
+  def pythonize(self, env, compiler):
+    body_exps, body_has_any_statement = self.body.pythonize(env, compiler)
+    global_vars = self.find_assign_lefts()-set(self.params)
+    global_vars = set([x for x in global_vars 
+                       if isinstance(x, Var) 
+                       and not isinstance(x, LocalVar)
+                       and not isinstance(x, SolverVar)])
+    if global_vars:
+      body_exps = (GlobalDecl(global_vars),)+body_exps
+    if not body_has_any_statement:
+      return (MacroRulesFunction(self.new(self.params, begin(*body_exps))),), False
+    else:
+      name = compiler.new_var(LocalVar('function'))
+      body = begin(*body_exps).insert_return_statement()
+      return (Function(name, self.params, body), MacroRulesFunction(name)), True 
   
 class MacroFunction(Element):
   def __init__(self, function):
     self.function = function
     
   def to_code(self, compiler):
-    return 'MacroFunction(%s)'%self.function
+    return 'MacroFunction(%s)'%self.function.to_code(compiler)
   
   def __repr__(self):
     return 'MacroFunction(%s)'%self.function
+  
+class MacroRulesFunction(Element):
+  def __init__(self, function):
+    self.function = function
+    
+  def to_code(self, compiler):
+    return 'MacroRules(%s)'%self.function
+  
+  def __repr__(self):
+    return 'MacroRulesFunction(%s)'%self.function
   
 class GlobalDecl(Element):
   def __init__(self, args):
@@ -745,7 +760,7 @@ class Assign(Element):
       if isinstance(self.exp, Function):
         self.exp.name = self.var
         fun = self.exp
-      elif isinstance(self.exp, Lamda):
+      elif isinstance(self.exp, Lamda) and not isinstance(self.exp, MacroLamda):
         fun = Function(self.var, self.exp.params, self.exp.body)
       else: 
         fun = None
@@ -926,7 +941,7 @@ class If(Element):
         result += 'else:\n%s\n'% compiler.indent(self.else_.to_code(compiler)) 
       return result
     else:
-      return '%s if %s else %s' % (self.then.to_code(compiler), 
+      return '(%s if %s \nelse %s)' % (self.then.to_code(compiler), 
                                    self.test.to_code(compiler), 
                                    self.else_.to_code(compiler))        
   def __eq__(x, y):

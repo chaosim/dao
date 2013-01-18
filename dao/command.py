@@ -144,7 +144,7 @@ class Var(Element):
     except: return self
       
   def cps_convert(self, compiler, cont):
-    return cont(il.Var(self.name))
+    return cont(self.interlang())
   
   def cps_convert_unify(x, y, compiler, cont):
     try: 
@@ -186,12 +186,15 @@ class Var(Element):
     for var, item in reversed(zip(vars, args)):
       body = item.cps_convert(compiler, il.clamda(var, body)) 
     v = compiler.new_var(il.ConstLocalVar('v'))
-    macro_args = il.macro_args([il.ExpressionWithCode(arg, 
+    macro_args1 = tuple(il.ExpressionWithCode(arg, 
                                       il.Lamda((), arg.cps_convert(compiler, il.clamda(v, v)))) 
-                                for arg in args])
+                                for arg in args)
+    macro_args2 = il.macro_args(macro_args1)
     return self.cps_convert(compiler, il.clamda(function,
-                  il.If(il.IsMacroFunction(function),
-                        il.Apply(function, (cont, macro_args)),
+                  il.If(il.IsMacro(function),
+                        il.If(il.IsMacroRules(function),
+                              il.Apply(function, (cont, macro_args2)),
+                              il.Apply(function, (cont,)+macro_args1)),
                         body)))
   
   def interlang(self):
