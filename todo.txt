@@ -7,7 +7,13 @@ todo: Var know its type(lamda, macro, RecursiveVar)
 todo: let and letrec always produce const.
 todo: more optimization
   done: macro like lamda
-  todo: cons like that in lisp
+  todo: unify the rules and lamda.
+    # use the information of arity in compile time.
+    # tried, failed.
+
+todo: more builtin
+  done: eval(done), callcc(done), callfc(coded, but not tested), 
+  done: blocks like that in lisp
   todo: more ananlysis for optimization
     done: assign and reference analysys, 
     todo: io side effects
@@ -20,13 +26,7 @@ todo: more optimization
     done: remove bookkeeper works in code.
   fail: inline the cont arguments of lambda and remove it from arguments.
     # tried, but failed.
-  fail: reimplement the rules and macro.
-    # use the information of arity in compile time.
-    # tried, failed.
-
-todo: more builtin
-  done: eval(done), callcc(done), callfc(coded, but not tested), 
-  done: block(done), catch/throw(done), unwind-protect(done)
+  fail: reim(done), catch/throw(done), unwind-protect(done)
   done: findall
   done: rules(done mostly)
     done: cut

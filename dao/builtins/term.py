@@ -1,20 +1,22 @@
 from dao.compilebase import CompileTypeError
-from dao.command import special, Command, SpecialCall,NONE
+from dao.command import special, Command, SpecialCall,NONE, Var, Cons
+from dao.command import cps_convert_unify
 import dao.interlang as il
 
 # analysing and construction terms
 
 @special
 def unify(compiler, cont, x, y):
-  try: 
-    x_cps_convert_unify = x.cps_convert_unify
-  except:
-    try: y_cps_convert_unify = y.cps_convert_unify
-    except:
-      if x==y: return cont(il.TRUE)
-      else: return il.failcont(il.TRUE)
-    return y_cps_convert_unify(x, compiler, cont)
-  return x_cps_convert_unify(y, compiler, cont)
+  return cps_convert_unify(x, y, compiler, cont)
+
+@special
+def notunify(compiler, cont, x, y):
+  v = compiler.new_var(il.ConstLocalVar('v'))
+  cont1 = il.clamda(v, il.failcont(il.FALSE))
+  cont2 = il.clamda(v, cont(il.TRUE))
+  return il.begin(il.SetFailCont(cont2),
+                  cps_convert_unify(x, y, compiler, cont1))
+
 
 @special
 def eval_unify(compiler, cont, x, y):
@@ -45,8 +47,11 @@ def derefence(compiler, cont, item):
 
 @special
 def getvalue(compiler, cont, item):
-  return cont(il.GetValue(item.interlang()))
-
+  if isinstance(item, Var) or isinstance(item, Cons):
+    return cont(il.GetValue(item.interlang()))
+  else:
+    return cont(item.interlang())
+ 
 @special
 def getvalue_default(compiler, cont, item, default=None):
   if default is None: default = NONE
@@ -80,7 +85,7 @@ def istuple(compiler, cont, item):
   return cont(il.Isinstance(item.interlang(), il.Symbol('tuple')))
 
 @special
-def islist(compiler, cont, item): 
+def islist(compiler, cont, item):
   return cont(il.Isinstance(item.interlang(), il.Symbol('list')))
   
 @special
@@ -213,10 +218,6 @@ def define_global(solver, var, value):
   solver.scont = solver.cont(value, define_cont)
   return True
 
-@builtin.macro()
-def copy_term(solver, item, copy):
-  return term.unify(copy, term.copy(item, {}), solver)
- 
 # comparison and unification of terms
 
 @builtin.macro('unify_with_occurs_check')

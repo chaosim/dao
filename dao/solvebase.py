@@ -58,7 +58,7 @@ def deref(exp, bindings):
     return exp
   return exp_deref(bindings)
 
-def getvalue(exp, memo, bindings):
+def get_value(exp, memo, bindings):
   try:
     exp_getvalue = exp.getvalue
   except:
@@ -93,7 +93,11 @@ class LogicVar(object):
         memo[self] = result
         return result
       return result_getvalue(memo)
-    
+  
+  def unify(x, y, solver):
+    solver.bindings[x] = y
+    return True
+  
   def __eq__(x, y):
     return x.__class__==y.__class__ and x.name==y.name
   
@@ -106,6 +110,99 @@ class DummyVar(LogicVar):
   def deref(self, bindings):
     return self
   
+class Cons: 
+  def __init__(self, head, tail):
+    self.head, self.tail = head, tail
+    
+  def unify(self, other, solver):
+    if self.__class__!=other.__class__: 
+      return solver.fail_cont(False)
+    if solver.unify(self.head, other.head):
+      if solver.unify(self.tail, other.tail):
+        return True
+    return solver.fail_cont(False)
+
+  def match(self, other):
+    if self.__class__!=other.__class__: return False
+    return match(self.head, other.head) and match(self.tail, other.tail)
+
+  def unify_rule_head(self, other, env, subst):
+    if self.__class__!=other.__class__: return
+    for _ in unify_rule_head(self.head, other.head, env, subst):
+      for _ in unify_rule_head(self.tail, other.tail, env, subst):
+        yield True
+          
+  def copy_rule_head(self, env):
+    head = copy_rule_head(self.head, env)
+    tail = copy_rule_head(self.tail, env)
+    if head==self.head and tail==self.tail: return self
+    return Cons(head, tail)
+
+  def getvalue(self, memo, env):
+    head = get_value(self.head, memo, env)
+    tail = get_value(self.tail, memo, env)
+    return Cons(head, tail)
+  
+  def take_value(self, env):
+    head = take_value(self.head, env)
+    tail = take_value(self.tail, env)
+    if head==self.head and tail==self.tail:
+      return self
+    return Cons(head, tail)
+
+  def copy(self, memo): 
+    return Cons(copy(self.head, memo), copy(self.tail, memo))
+  
+  def closure(self, env): 
+    head = closure(self.head, env)
+    tail = closure(self.tail, env)
+    if head==self.head and tail==self.tail:
+      return self
+    return Cons(head, tail)
+  
+  def __eq__(self, other): 
+    return self.__class__==other.__class__ and self.head==other.head and self.tail==other.tail
+     
+  def __iter__(self):
+    tail = self 
+    while 1:
+      yield tail.head
+      if tail.tail is nil: return
+      elif isinstance(tail.tail, Cons): 
+        tail = tail.tail
+      else: 
+        yield tail.tail
+        return
+  def __len__(self): return len([e for e in self])
+  def __repr__(self): return 'L(%s)'%' '.join([repr(e) for e in self])
+
+cons = Cons
+
+class Nil: 
+  def alpha_convert(self, env, compiler):
+    return il.Nil()
+  
+  def __len__(self): 
+    return 0
+  
+  def __iter__(self): 
+    if 0: yield
+    
+  def __repr__(self): return 'nil'
+  
+nil = Nil()
+
+def conslist(*elements):
+  result = nil
+  for term in reversed(elements): result = Cons(term, result)
+  return result
+
+def cons2tuple(item):
+  if not isinstance(item, Cons) and not isinstance(item, list) \
+     and not isinstance(item, tuple): 
+    return item
+  return tuple(cons2tuple(x) for x in item)
+
 class UnquoteSplice:
   def __init__(self, item):
     self.item = item
@@ -153,7 +250,22 @@ class Solver:
     self.parse_state = None
     self.catch_cont_map = {}
     self.cut_cont = self.cut_or_cont = self.fail_cont = default_end_cont
-    
+  
+  def unify(self, x, y):
+    x = deref(x, self.bindings)
+    y = deref(y, self.bindings)
+    try:
+      x_unify = x.unify
+    except:
+      try:
+        y_unify = y.unify
+      except:
+        if x==y: return True
+        else: 
+          return self.fail_cont(False)
+      return y_unify(x, self)
+    return x_unify(y, self)
+  
   def find_catch_cont(self, tag):
     try:
       cont_stack = self.catch_cont_map[tag]

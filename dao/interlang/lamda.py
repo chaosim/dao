@@ -731,7 +731,8 @@ class Assign(Element):
     exp = self.exp.optimize(env, compiler)
     result = Assign(self.var, exp)
     if isinstance(self.var, ConstLocalVar):
-      if isinstance(exp, ConstAtom) or isinstance(exp, ExpressionWithCode) or isinstance(exp, Lamda):
+      if isinstance(exp, ConstAtom) or isinstance(exp, Cons) \
+         or isinstance(exp, ExpressionWithCode) or isinstance(exp, Lamda):
         env[self.var] = exp
         return None
       elif isinstance(exp, RulesDict):
@@ -964,6 +965,28 @@ class PseudoElse(ConstAtom):
     return 'il.pseudo_else'
 
 pseudo_else = PseudoElse()
+
+class Cons(ConstAtom):
+  def __init__(self, head, tail):
+    self.head, self.tail = head, tail
+  
+  def code_size(self):
+    return 1
+  
+  def insert_return_statement(self):
+    return self
+  
+  def replace_return_with_yield(self):
+    return self
+  
+  def to_code(self, compiler):
+    return 'Cons(%s, %s)'%(self.head.to_code(compiler), self.tail.to_code(compiler))
+  
+  def __eq__(x, y):
+    return classeq(x, y) and x.head==y.head and x.tail==y.tail
+  
+  def __repr__(self):
+    return 'il.Cons(%s, %s)'%(self.head, self.tail)
 
 def while_(test, *exps):
   return While(test, begin(*[x for x in exps]))

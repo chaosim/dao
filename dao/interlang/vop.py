@@ -828,7 +828,7 @@ def append_failcont(compiler, *exps):
       clamda(v, 
                 SetFailCont(fc),
                 begin(*exps),
-                fc(FALSE)))
+                fc(v)))
     ))
 
 cut_cont = SolverVar('cut_cont')
@@ -846,10 +846,15 @@ DelBinding = vop2('DelBinding', 1, 'del solver.bindings[%s]', True)
 DelItem = vop2('DelItem', 2, 'del %s[%s]', True)
 
 
-GetValue = vop('GetValue', 1, 'getvalue(%s, {}, solver.bindings)', False)
+GetValue = vop('GetValue', 1, 'get_value(%s, {}, solver.bindings)', False)
 
 parse_state = SolverVar('parse_state')
 def SetParseState(state): return Assign(parse_state, state)
+
+Unify = vop('Unify', 2, 'solver.unify(%s, %s)', False)
+Nil = vop('Nil', 0, 'nil', False)
+nil = Nil()
+
 
 bindings = SolverVar('bindings')
 def SetBindings(bindings1): return Assign(bindings, bindings1)
@@ -891,3 +896,5 @@ ReadFile = vop('ReadFile', 1, '%s.read()', True)
 Readline = vop('ReadLine', 1, '%s.readline()', True)
 Readlines = vop('Readlines', 1, '%s.readlines()', True)
 WriteFile = vop('WriteFile', 2, '%s.write(%s)', True)
+
+

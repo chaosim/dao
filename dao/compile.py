@@ -19,7 +19,8 @@ from dao.builtins import *
 from dao.command import LogicVar as DaoLogicVar
 from dao.command import Var as DaoVar
 from dao.solvebase import Solver, NoSolution
-from dao.solvebase import deref, getvalue, LogicVar, DummyVar
+from dao.solvebase import deref, get_value, LogicVar, DummyVar
+from dao.solvebase import Cons, nil
 from dao.solvebase import UnquoteSplice, ExpressionWithCode
 from dao.solvebase import Macro, MacroFunction, MacroRules
 from dao.solve import eval as eval_exp

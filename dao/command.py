@@ -251,6 +251,136 @@ class DummyVar(LogicVar):
   def to_code(self, compiler):
     return "DaoDummyVar('%s')"%self.name
   
+  
+class Cons(Element): 
+  def __init__(self, head, tail):
+    self.head, self.tail = head, tail
+    
+  def alpha_convert(self, env, compiler):
+    return Cons(self.head.alpha_convert(env, compiler),
+                self.tail.alpha_convert(env, compiler))
+  
+  def cps_convert(self, compiler, cont): 
+    return cont(self.interlang())
+  
+  def interlang(self):
+    return il.Cons(self.head.interlang(), self.tail.interlang())
+  
+  def cps_convert_unify(x, y, compiler, cont):
+    return cps_convert_unify(x, y, compiler, cont)
+  
+  def unify_rule_head(self, other, env, subst):
+    if self.__class__!=other.__class__: return
+    for _ in unify_rule_head(self.head, other.head, env, subst):
+      for _ in unify_rule_head(self.tail, other.tail, env, subst):
+        yield True
+          
+  def copy_rule_head(self, env):
+    head = copy_rule_head(self.head, env)
+    tail = copy_rule_head(self.tail, env)
+    if head==self.head and tail==self.tail: return self
+    return Cons(head, tail)
+
+  def getvalue(self, env):
+    head = getvalue(self.head, env)
+    tail = getvalue(self.tail, env)
+    if head==self.head and tail==self.tail:
+      return self
+    return Cons(head, tail)
+  
+  def copy(self, memo): 
+    return Cons(copy(self.head, memo), copy(self.tail, memo))
+  
+  def __eq__(self, other): 
+    return self.__class__==other.__class__ and self.head==other.head and self.tail==other.tail
+     
+  def __len__(self): 
+    return len([e for e in self])
+  
+  def __repr__(self): 
+    return 'L(%s)'%' '.join([repr(e) for e in self])
+
+cons = Cons
+
+class Nil(Element): 
+  def alpha_convert(self, env, compiler):
+    return self
+  
+  def interlang(self):
+    return il.nil
+  
+  def __len__(self): 
+    return 0
+  
+  def __iter__(self): 
+    if 0: yield
+    
+  def __repr__(self): return 'nil'
+  
+nil = Nil()
+
+def conslist(*elements):
+  result = nil
+  for term in reversed(elements): result = Cons(element(term), result)
+  return result
+
+def cons2tuple(item):
+  if not isinstance(item, Cons) and not isinstance(item, list) \
+     and not isinstance(item, tuple): 
+    return item
+  return tuple(cons2tuple(x) for x in item)
+
+def cps_convert_unify_two_var(x, y, compiler, cont):
+  x = x.interlang()
+  y = y.interlang()      
+  x1 = compiler.new_var(il.ConstLocalVar(x.name))
+  y1 = compiler.new_var(il.ConstLocalVar(y.name))
+  return il.begin(
+    il.Assign(x1, il.Deref(x)), #for LogicVar, could be optimized when generate code.
+    il.Assign(y1, il.Deref(y)),
+    il.If(il.IsLogicVar(x1),
+       il.begin(il.SetBinding(x1, y1),
+             il.append_failcont(compiler, il.DelBinding(x1)),
+             cont(il.TRUE)),
+       il.begin(
+         il.If(il.IsLogicVar(y1),
+            il.begin(il.SetBinding(y1, x1),
+                  il.append_failcont(compiler, il.DelBinding(y1)),
+                  cont(il.TRUE)),
+            il.If(il.Unify(x1, y1), cont(il.TRUE), il.failcont(il.TRUE))))))
+
+def cps_convert_unify_one_var(x, y, compiler, cont):
+  x = x.interlang()
+  y = y.interlang()      
+  x1 = compiler.new_var(il.ConstLocalVar(x.name))
+  return il.begin(
+    il.Assign(x1, il.Deref(x)), #for LogicVar, could be optimized when generate code.
+    il.If(il.IsLogicVar(x1),
+       il.begin(il.SetBinding(x1, y),
+             il.append_failcont(compiler, il.DelBinding(x1)),
+             cont(il.TRUE)),
+            il.If(il.Unify(x1, y), cont(il.TRUE), il.failcont(il.TRUE))))
+
+def cps_convert_unify(x, y, compiler, cont):
+  if isinstance(x, Var):
+    if isinstance(y, Var):
+      return cps_convert_unify_two_var(x, y, compiler, cont)
+    else:
+      return cps_convert_unify_one_var(x, y, compiler, cont)
+  else:
+    if isinstance(y, Var):
+      return cps_convert_unify_two_var(y, x, compiler, cont)
+    else:
+      if isinstance(x, Cons) and isinstance(y, Cons):
+        v = compiler.new_var(il.ConstLocalVar('v'))
+        return cps_convert_unify(x.head, y.head, compiler, il.clamda(v, 
+                    cps_convert_unify(x.tail, y.tail, compiler, cont)))
+      else:
+        if x==y:
+          return cont(il.TRUE)
+        else:
+          return il.failcont(il.FALSE)
+
 class Apply(Element):
   def __init__(self, caller, args):
     self.caller, self.args = caller, args
@@ -332,12 +462,12 @@ class SpecialCall(CommandCall):
     self.function = command.function
     self.args = args
     
-  def cps_convert(self, compiler, cont):
-    return self.function(compiler, cont, *self.args)
-  
   def alpha_convert(self, env, compiler):
     return self.__class__(self.command,
                  tuple(arg.alpha_convert(env, compiler) for arg in self.args))
+  
+  def cps_convert(self, compiler, cont):
+    return self.function(compiler, cont, *self.args)
   
   def to_code(self, compiler):
     return '%s(%s)'%(self.function.__name__, ', '.join([x.to_code(compiler) for x in self.args]))

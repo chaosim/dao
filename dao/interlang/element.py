@@ -524,6 +524,47 @@ class PassStatement(Element):
 
 pass_statement = PassStatement()
 
+class Nil(Element):
+  is_statement = False
+  
+  def __init__(self):
+    return
+  
+  def code_size(self):
+    return 0
+  
+  def side_effects(self):
+    return False
+  
+  def analyse(self, compiler):  
+    return
+  
+  def optimize(self, env, compiler):
+    return nil
+  
+  def pythonize(self, env, compiler):
+    return (self,), True
+  
+  def insert_return_statement(self):
+    return self
+  
+  def replace_return_with_yield(self):
+    return self
+  
+  def subst(self, bindings):
+    return self
+  
+  def __eq__(x, y):
+    return classeq(x, y)
+  
+  def to_code(self, compiler):
+    return 'nil'
+  
+  def __repr__(self):
+    return 'il.nil'
+
+nil = Nil()
+
 type_map = {int:Integer, float: Float, str:String, unicode: String, 
             tuple: make_tuple, list:List, dict:Dict, 
             bool:Bool, type(None): Atom}

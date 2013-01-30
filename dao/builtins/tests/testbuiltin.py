@@ -5,7 +5,7 @@ from dao.solve import eval
 from dao.solvebase import NoSolution
 
 from dao.builtins import Var
-from dao.command import LogicVar
+from dao.command import LogicVar, Const
 from dao.builtins import rules
 from dao.builtins import begin, let, quote, assign
 from dao.builtins import eq, sub, mul, add, div
@@ -17,6 +17,8 @@ from dao.builtins import unify, is_#, notunify
 from dao.builtins import prin, format, open_file, read, readline, readlines, write, close_file
 #from dao.builtins.term import ground_p
 #from dao.builtins.term import isvar, nonvar, is_, define, nonvar_p, isvar_p
+
+from dao.command import Cons, conslist as L
 
 from dao.tests.util import *
 
@@ -154,7 +156,9 @@ class XTestTypePredicate:
     assert_raises(NoSolution, eval, isvar_p(1))
     assert_raises(NoSolution, eval, isvar_p(L(1)))
     assert_raises(NoSolution, eval, nonvar_p(x))
-    
+
+from dao.builtins import notunify
+
 class Testunify:
   def test1(self):
     x = LogicVar('x')
@@ -183,10 +187,34 @@ class Testunify:
     Lx = LogicVar('x')
     assert_raises(NoSolution, eval, begin(unify(Lx, 1), unify(Lx,2)))
     
-  def xtest6(self):
+  def test6(self):
     eq_(eval(unify(L(1), L(1))), True)
     
-  def xtest7(self):
+  def test7(self):
+    x = LogicVar('x')
+    eq_(eval(unify(L(x), L(1))), True)
+    
+  def test8(self):
+    x = LogicVar('x')
+    eq_(eval(unify(L(L(1, x)), L(L(1, x)))), True)
+    
+  def test9(self):
+    x = LogicVar('x')
+    x1 = Var('x')
+    y1 = Var('y')
+    eq_(eval(begin(assign(x1, L(L(1, x))),
+                   assign(y1, L(L(1, x))),
+                   unify(x1, y1))), True)
+    
+  def test10(self):
+    x = LogicVar('x')
+    x1 = Const('x')
+    y1 = Const('y')
+    eq_(eval(begin(assign(x1, L(L(1, x))),
+                   assign(y1, L(L(1, x))),
+                   unify(x1, y1))), True)
+    
+  def test20(self):
     eq_(eval(notunify(2, L(1))), True)
     
 class XTestMetacall:
@@ -262,9 +290,10 @@ class XTestStringConstruct:
     eq_(eval(begin(findall(concat(x, y, "abc"), L(x, y), z), z)), 
              [L("a", "bc"), L("ab", "c")])    
 
-from dao.builtins import getvalue, getvalue_default#, copy_term
+from dao.builtins import getvalue, getvalue_default
 from dao.builtins import isinteger, isfloat, isnumber, isstr, istuple, islist, isdict
 from dao.solvebase import LogicVar as DaoLogicVar
+
 class TestTerm:
   def test_getvalue(self):
     x = LogicVar('x')
@@ -288,11 +317,11 @@ class TestTerm:
     eq_(eval(isnumber(1)), True)
     eq_(eval(istuple(())), True)
     eq_(eval(islist([])), True)
-    eq_(eval(isdict({})), True)
-  
+    eq_(eval(isdict({})), True)  
     
-  def xtest_copy_term(self):
-    eq_(eval(begin(copy_term(L("abc", 1), x), x)), L("abc", 1))
+  def test_getvalue(self):
+    from dao.solvebase import conslist
+    eq_(eval(begin(getvalue(L("abc", 1)))), conslist("abc", 1))
 
 from dao.builtins.quasiquote import DaoSyntaxError
 from dao.builtins import quasiquote as qq, unquote as uq, unquote_splice as uqs
