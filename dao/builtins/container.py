@@ -1,25 +1,31 @@
-from dao.term import Var, deref, unify, getvalue
-from dao import builtin
-from dao.solve import mycont
-
 # analysing and construction sequences
 
-@builtin.macro()
-def contain(solver, container, member): 
-  container = getvalue(container, solver.env, {})
-  member = getvalue(member, solver.env, {})
-  if isinstance(member, Var):
-    for x in container:
-      return unify(member, x, solver)
-  elif member in container: 
-    return True
+from dao.compilebase import CompileTypeError
+from dao.command import special, Command, SpecialCall, BuiltinFunction
+import dao.interlang as il
+from dao.interlang import TRUE, FALSE, NONE
 
-@builtin.macro()
-def length(solver, sequence, leng):
-  sequence = getvalue(sequence, solver.env, {})
-  if isinstance(sequence, Var): error.throw_instantiation_error()
-  leng = getvalue(leng, solver.env, {})
-  return unify(len(sequence), leng, solver)
+#@special
+#def contain(compiler, cont, container, member): 
+  #return container.cps_convert(compiler, il.clamda(container1,
+    #il.Assign(container2, il.GetValue(container1)), 
+    #member.cps_convert(compiler, il.clamda(member1, 
+      #il.Assign(member2, mil.GetValue(container2)),
+      #il.If(isLogicVar(member2),
+            #il.begin(
+              #il.Assign(iter1, il.Iter(container1)),
+              #il.Next(iter1)),
+            
+  #if isinstance(member, Var):
+    #for x in container:
+      #return unify(member, x, solver)
+  #elif member in container: 
+    #return True
+
+@special
+def length(compiler, cont, sequence):
+  return sequence.cps_convert(compiler, il.clamda(sequence1, 
+    cont(il.Len(il.GetValue(sequence1)))))
 
 def starstwith(x, y):
   try: x_startswith = x.startswith
@@ -31,8 +37,8 @@ def endswith(x, y):
   except: return x[len(x)-len(y):]== y
   return x_endswith(y)
 
-@builtin.macro()
-def concat(solver, sequence1, sequence2, result):
+@special
+def concat(compiler, cont, sequence1, sequence2, result):
   sequence1 = getvalue(sequence1, solver.env, {})
   sequence2 = getvalue(sequence2, solver.env, {})
   result = getvalue(result, solver.env, {})
@@ -64,8 +70,8 @@ def concat(solver, sequence1, sequence2, result):
     else:
       return unify(result, sequence1+sequence2, solver)
 
-@builtin.macro()
-def subsequence(solver, sequence, before, length, after, sub):
+@special
+def subsequence(compiler, cont, sequence, before, length, after, sub):
   # sequence should be grounded.
   assert not isinstance(sequence, Var)
   sequence = deref(sequence, solver.env)
@@ -195,64 +201,65 @@ def subsequence(solver, sequence, before, length, after, sub):
           solver.scont = old_fcont
       solver.scont = solver.fcont = cont1
 
-@builtin.function('conslist')
-def conslist(*arguments): return conslist(arguments)
+@special
+def conslist(*arguments): 
+  return conslist(arguments)
 
-@builtin.function('pylist')
+@special
 def pylist(*arguments): return list(arguments)
 
-@builtin.function('pytuple')
+@special
 def pytuple(*arguments): 
   return tuple(arguments)
 
-@builtin.function('head_list')
+@special
 def head_list(head, tail): 
   if isinstance(tail, list): return [head]+tail
   else: return (head,)+tuple(tail)
 
-@builtin.function('list_tail')
+@special
 def list_tail(head, tail):
   if isinstance(head, list): return head+[tail]
   else: return head+(tail,)
 
-@builtin.function('index')
+@special
 def index(sequence, index): 
   return sequence[index]
 
-@builtin.function('first')
+@special
 def first(sequence): 
   return sequence[0]
 
-@builtin.function('left')
+@special
 def left(sequence): 
   return sequence[1:]
 
-@builtin.function('second')
+@special
 def second(sequence): 
   return sequence[1]
 
 from dao.solve import DaoStopIteration
 
-@builtin.function('iter_next')
+@special
 def iter_next(iterator): 
   try: return iterator.next()
   except StopIteration:
 ##    iterator.close()
     raise DaoStopIteration
 
-@builtin.function('make_iter')
+@special
 def make_iter(iterator): 
   try: 
     iterator.next
     return iterator
   except: return iter(iterator)
   
-@builtin.function('to_list')
+@special
 def to_list(item): 
   if isinstance(item, list) or isinstance(item, tuple): 
     return item
   return [item]
 
-@builtin.function('items')
+@special
 def items(dict):
   return dict.items()

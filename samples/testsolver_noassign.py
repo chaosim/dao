@@ -35,6 +35,12 @@ class TestParse:
   def test_parse6(self):
     solve(parse('ab', begin(char('a'), integer(1), char('b'))))
   
+class TestLisp:
+  def test_if(self):
+    solve(if_(integer(1), integer(2), integer(3)))
+  def test_if2(self):
+    solve(if_(integer(0), integer(2), integer(3)))
+    
 class TestLogic:
   def test_succeed(self):
     solve(succeed)

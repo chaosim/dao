@@ -92,6 +92,19 @@ def integer(x):
     return integer_fun2
   return integer_fun
 
+def if_(test, then, else_):
+  def if_fun(cont):
+    def if_cont(v, fc, bindings, parse_state):
+      if v:
+        return then(cont)(v, fc, bindings, parse_state)
+      else:
+        return else_(cont)(v, fc, bindings, parse_state)
+    test_if_cont = test(if_cont)
+    def if_fun2(v, fc, bindings, parse_state):
+      return test_if_cont(v, fc, bindings, parse_state)
+    return if_fun2
+  return if_fun
+      
 def succeed(cont):
   def succeed_fun2(v, fc, bindings, parse_state):
     print 'succeed'
@@ -122,13 +135,15 @@ def prin(x):
 
 def and_2(a, b):
   def and_fun(cont):
+    b_cont = b(cont)
+    def and_cont(v, fc1, bindings1, parse_state1):
+      print 'and_cont'
+      return b_cont(v, fc1, bindings1, parse_state1)
+    a_and_cont = a(and_cont)
+    
     def and_fun2(v, fc, bindings, parse_state):
       print 'and'
-      def and_cont(v, fc1, bindings1, parse_state1):
-        print 'and_cont'
-        fc
-        return b(cont)(v, fc1, bindings1, parse_state1)
-      return a(and_cont)(v, fc, bindings, parse_state)
+      return a_and_cont(v, fc, bindings, parse_state)
     return and_fun2
   return and_fun
 
@@ -145,12 +160,13 @@ and_ = begin
 
 def or_2(a, b):
   def or_fun(cont):
+    a_cont = a(cont)
+    b_cont = b(cont)
+    def or_fcont(v, fc1, bindings1, parse_state1):
+      return b_cont(v, fc1, bindings1, parse_state1)    
     def or_fun2(v, fc, bindings, parse_state):
-      print 'or'
-      def or_fcont(v, fc1, bindings1, parse_state1):
-        fc
-        return b(cont)(v, fc1, bindings, parse_state)
-      return a(cont)(v, or_fcont, bindings, parse_state)
+        print 'or'
+        return a_cont(v, or_fcont, bindings, parse_state)
     return or_fun2
   return or_fun
 

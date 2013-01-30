@@ -8,12 +8,8 @@ from dao.builtins import fail, or_, and_, not_p, cut
 from dao.builtins import add
 from dao.builtins import set_text, parse_text, unify_parse_text
 from dao.builtins import step, next_char, position, goto, skip, left, subtext
-from dao.builtins import char, eoi, word, literal#, integer, eoi, literal, letter, digit 
-#from dao.builtins import dqstring, sqstring, unify_tabspaces, unify_whitespaces, uLetterdigitString
-from dao.builtins import may, nullword, identifier, integer#, optional, parallel
-from dao.builtins import any#, some, times, times_more, times_less, seplist
-#from dao.builtins import lazy#, times_between
-#from dao.builtins import contain
+from dao.builtins import char, eoi, word, literal
+from dao.builtins import may, nullword, identifier, integer
 from dao.builtins import println
 from dao.builtins import unify, is_, getvalue
 
@@ -65,7 +61,7 @@ class TestParse:
     eq_(eval(begin(set_text('a'), char('a'), eoi)), True)
     assert_raises(NoSolution, eval, begin(set_text('ab'), char('a'), eoi))
     
-from dao.builtins import lazy_any, greedy_any
+from dao.builtins import any, lazy_any, greedy_any
 
 from dao.builtins import some
 
