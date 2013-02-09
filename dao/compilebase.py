@@ -1,20 +1,24 @@
 # -*- coding: utf-8 -*-
 
-class CompileTypeError: 
+class CompileError(Exception): pass
+
+class CompileTypeError(CompileError): 
   def __init__(self, exp):
     self.exp = exp
     
   def __repr__(self):
     return '%s'%repr(self.exp)
 
-class VariableNotBound: 
+class ArityError(CompileError): pass
+
+class VariableNotBound(CompileError): 
   def __init__(self, var):
     self.var = var
     
   def __repr__(self):
     return '%s'%repr(self.var)
 
-class DaoNotImplemented(Exception):
+class DaoNotImplemented(CompileError):
   def __init__(self, message):
     self.message = message
     
@@ -34,10 +38,10 @@ class Environment:
     try:
       return self.bindings[var]
     except:
-      outer = self.outer
-      while outer is not None:
-        try: return self.outer.bindings[var]
-        except: outer = outer.outer
+      self = self.outer
+      while self is not None:
+        try: return self.bindings[var]
+        except: self = self.outer
     raise VariableNotBound(var)
   
   def __setitem__(self, var, value):

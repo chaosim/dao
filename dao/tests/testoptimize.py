@@ -23,8 +23,8 @@ def done():
 
 def compile_optimize(exp):
   compiler = Compiler()
-  exp = il.element(exp).alpha_convert(Environment(), compiler)
-  exp = exp.cps_convert(compiler, done())
+  exp = il.element(exp).alpha(Environment(), compiler)
+  exp = exp.cps(compiler, done())
   env = Environment()
   compiler.lamda_stack = [exp]
   exp.analyse(compiler)

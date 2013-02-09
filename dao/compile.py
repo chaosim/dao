@@ -49,8 +49,8 @@ def compile_to_python(exp, env, done=None):
   compiler.protect_cont = done
   if env is None: env = Environment()
   exp = element(exp)
-  exp = exp.alpha_convert(env, compiler)
-  exp = exp.cps_convert(compiler, done)
+  exp = exp.alpha(env, compiler)
+  exp = exp.cps(compiler, done)
   exp.analyse(compiler)
   env = Environment()
   exp = exp.optimize(env, compiler)

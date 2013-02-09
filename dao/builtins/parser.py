@@ -35,7 +35,7 @@ def parse(compiler, cont, predicate, parse_state):
   return il.begin(il.Assign(old_parse_state, il.parse_state),
                   il.SetParseState(parse_state),
                   il.append_failcont(compiler, il.SetParseState(old_parse_state)),
-                  predicate.cps_convert(compiler, 
+                  predicate.cps(compiler, 
                       il.clamda(v, 
                                 il.Assign(il.parse_state, old_parse_state),
                                 cont(v))))
@@ -48,7 +48,7 @@ def parse_sequence(compiler, cont, predicate, sequence):
   return il.begin(il.Assign(old_parse_state, il.parse_state),
                   il.SetParseState(il.Tuple(sequence, il.Integer(0))),
                   il.append_failcont(compiler, il.SetParseState(old_parse_state)),
-                  predicate.cps_convert(compiler, 
+                  predicate.cps(compiler, 
                       il.clamda(v, 
                                 il.SetParseState(old_parse_state),
                                 cont(v))))

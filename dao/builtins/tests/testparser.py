@@ -1,6 +1,6 @@
 from nose.tools import eq_, assert_raises
 
-from dao.command import Var, DummyVar, LogicVar
+from dao.command import Var, DummyVar, LogicVar, MacroVar
 from dao.solve import eval
 from dao.solvebase import NoSolution
 from dao.builtins import rules, let, letrec, begin, eval_
@@ -545,38 +545,56 @@ class XTestAnySomeTimesSepList:
     eq_(eval(begin(parse_text(seplist(char(_), char(','), _, Y), '2,2,2'), Y)), ['2','2','2'])
     eq_(eval(begin(parse_text(seplist(char(_), char(','), _, Y), '2,3,4'), Y)), ['2', '3', '4'])
     eq_(eval(begin(parse_text(seplist(char(_), char(','), _, Y), '2'), Y)), ['2'])
-    
-class XTestParameterize:
+
+from dao.builtins import lamda, macro, macrorules
+from dao.builtins import contain
+
+class TestParameterize:
   def test_chars(self):
-    x, cs,chars = Var('x'), Var('cs'), Var('chars')
-    eq_(eval(let([(chars, function(((x, cs), and_p(char(x), contain(cs, x)))))],
-                            parse_text(chars(x, 'a'), 'a'))), True)
-  def test_kleene1(self):
-    f, item, kleene = Var('f'), Var('item'), Var('kleene')
-    fun = macro(((item,),  
-                         letr([(f,macro(((), eval_(item), f()),
-                                         ((), nullword)))], 
-                              f())))
-    eq_(eval(let([(kleene,fun)], set_text('aa'), kleene(char('a')))), True)
-  def test_kleene2(self):
-    f, pred, kleene = Var('f'), Var('pred'), Var('kleene')
-    fun = macro(((pred,),  
-                         letr([(f,macro( ((x,), pred(x), f(x)),
-                                          ((x,), nullword)))], 
-                              f(x))))
-    eq_(eval(let([(kleene,fun)], set_text('ab'), kleene(char))), True)
+    x, cs, chars = LogicVar('x'), Var('cs'), MacroVar('chars')
+    x1 = Var('x')
+    eq_(eval(let([(chars, lamda((x1, cs), begin(char(x1), contain(cs, x1))))],
+                            parse_text(chars(x, 'a'), 'a'), getvalue(x))), 'a')
     
-class XTestKleeneByfunction:  
+  def test_kleene1(self):
+    f, kleene = MacroVar('f'), MacroVar('kleene')
+    item = Var('item')
+    fun = macro((item,),  
+            letrec([(f, macrorules(
+              ((), item, f()),
+              ((), nullword)))], 
+                 f()))
+    eq_(eval(let([(kleene, fun)], set_text('aa'), kleene(char('a')))), True)
+    
+  def test_kleene2(self):
+    f, kleene = MacroVar('f'), MacroVar('kleene')
+    _ = DummyVar('_')
+    item = Var('item')
+    fun = macro((item,),  
+            letrec([(f, macrorules(
+              ((), item, f()),
+              ((), nullword)))], 
+                 f()))
+    eq_(eval(let([(kleene, fun)], set_text('ab'), kleene(char(_)))), True)
+
+from dao.command import cons, nil, conslist as L
+
+class TestKleeneByfunction:  
   def testKleene1(self): #occurs_check
-    x, s, kleene = Var('x'), Var('s'), Var('kleene')
-    ruleList = [(s,function( ((x,), kleene(x)))),
-                (kleene,function( 
-                  ((Cons('a', x),), and_p(char('a'), kleene(x))),
+    x, s, kleene = LogicVar('x'), Var('s'), Var('kleene')
+    x1 = Var('x')
+    result = LogicVar('result')
+    ruleList = [(kleene, rules( 
+                  ((cons('a', x),), begin(char('a'), kleene(x))),
                   ((nil,), nullword)))]
-    eq_(eval(letr(ruleList, parse_text(s(x), 'aa'), x)), L('a', 'a'))
-    eq_(eval(letr(ruleList, parse_text(s(x), ''), x)), nil)
-    assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(s(x), eoi), '6'), x))
-    assert_raises(NoSolution, eval, letr(ruleList, parse_text(and_p(s(x), eoi), '41'), x))
+    eq_(eval(letrec(ruleList, 
+                    parse_text(kleene(result), 'aa'), getvalue(result))), L('a', 'a'))
+    #eq_(eval(letrec(ruleList, 
+                    #parse_text(s(result), ''), getvalue(result))), nil)
+    #assert_raises(NoSolution, eval, letrec(ruleList, 
+                  #parse_text(begin(s(result), eoi), '6'), getvalue(result)))
+    #assert_raises(NoSolution, eval, letrec(ruleList, 
+                  #parse_text(begin(s(result), eoi), '41'), getvalue(result)))
 
   def testKleene2(self):
     x, c, s, kleene = Var('x'), Var('c'), Var('s'), Var('kleene')

@@ -92,7 +92,7 @@ class LogicVar(object):
       except: 
         memo[self] = result
         return result
-      return result_getvalue(memo)
+      return result_getvalue(memo, bindings)
   
   def unify(x, y, solver):
     solver.bindings[x] = y
@@ -179,7 +179,7 @@ class Cons:
 cons = Cons
 
 class Nil: 
-  def alpha_convert(self, env, compiler):
+  def alpha(self, env, compiler):
     return il.Nil()
   
   def __len__(self): 

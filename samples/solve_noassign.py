@@ -94,11 +94,13 @@ def integer(x):
 
 def if_(test, then, else_):
   def if_fun(cont):
+    then_cont = then(cont)
+    else_cont = else_(cont)
     def if_cont(v, fc, bindings, parse_state):
       if v:
-        return then(cont)(v, fc, bindings, parse_state)
+        return then_cont(v, fc, bindings, parse_state)
       else:
-        return else_(cont)(v, fc, bindings, parse_state)
+        return else_cont(v, fc, bindings, parse_state)
     test_if_cont = test(if_cont)
     def if_fun2(v, fc, bindings, parse_state):
       return test_if_cont(v, fc, bindings, parse_state)

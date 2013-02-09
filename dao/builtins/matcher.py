@@ -19,27 +19,27 @@ import dao.interlang as il
 @special
 def may(compiler, cont, item):
   v = compiler.new_var(il.ConstLocalVar('v'))
-  return cps_convert(compiler, clause, cont, il.Clamda(v,  cont(v)))
+  return cps(compiler, clause, cont, il.Clamda(v,  cont(v)))
 
 @special
 def lazy_may(compiler, cont, item):
   v = compiler.new_var(il.ConstLocalVar('v'))
-  return il.Clamda(v, cont(v, cps_convert(compiler, item, cont)))
+  return il.Clamda(v, cont(v, cps(compiler, item, cont)))
 
 @special
 def greedy_may(compiler, cont, item):
   v = compiler.new_var(il.ConstLocalVar('v'))
-  return cps_convert(compiler, item, il.Clamda(v, cont(v)), 
+  return cps(compiler, item, il.Clamda(v, cont(v)), 
                                       il.Clamda(v, cont(v)))
 
 @special
 def any(compiler, cont, item, template=None, result=None):
   if result is None:
-    return any1(item).cps_convert(compiler, cont)  
+    return any1(item).cps(compiler, cont)  
   else:
     _result  = compiler.new_var(Var('result'))
     return begin(any2(item, template, _result), 
-                     unify(result, _result)).cps_convert(compiler, cont)  
+                     unify(result, _result)).cps(compiler, cont)  
   
 @special
 def any1(compiler, cont, item):
@@ -51,7 +51,7 @@ def any1(compiler, cont, item):
                 il.SetFailCont(il.clamda(v, 
                   il.SetFailCont(fc),
                   cont(v))),
-                item.cps_convert(compiler, any_cont))(il.TRUE)
+                item.cps(compiler, any_cont))(il.TRUE)
 
 @special
 def any2(compiler, cont, item, template, result):
@@ -71,18 +71,18 @@ def any2(compiler, cont, item, template, result):
                     il.if2(result, il.DelListItem(result, il.Integer(-1))),
                     fc(v3))),
                   cont(v))),
-                item.cps_convert(compiler, il.clamda(v2, 
+                item.cps(compiler, il.clamda(v2, 
                     il.ListAppend(result, il.GetValue(template)),
                     any_cont(v2))))(il.NONE)))
 
 @special
 def lazy_any(compiler, cont, item, template=None, result=None):
   if result is None:
-    return lazy_any1(item).cps_convert(compiler, cont)  
+    return lazy_any1(item).cps(compiler, cont)  
   else:
     _result  = compiler.new_var(Var('result'))
     return begin(lazy_any2(item, template, _result), 
-                     unify(result, _result)).cps_convert(compiler, cont)  
+                     unify(result, _result)).cps(compiler, cont)  
 
 @special
 def lazy_any1(compiler, cont, item):
@@ -94,7 +94,7 @@ def lazy_any1(compiler, cont, item):
     il.Assign(fc, il.failcont),
     il.cfunction(lazy_any_fcont, v,
         il.SetFailCont(fc),
-        item.cps_convert(compiler, lazy_any_cont)),
+        item.cps(compiler, lazy_any_cont)),
     il.cfunction(lazy_any_cont, v,
         il.SetFailCont(lazy_any_fcont),
         cont(il.TRUE))
@@ -115,7 +115,7 @@ def lazy_any2(compiler, cont, item, template, result):
     il.Assign(fc, il.failcont),
     il.cfunction(lazy_any_fcont, v,
         il.SetFailCont(fc),
-        item.cps_convert(compiler, 
+        item.cps(compiler, 
           il.clamda(v2, 
                     il.ListAppend(result, il.GetValue(template)),
                     lazy_any_cont(il.TRUE)))),
@@ -127,11 +127,11 @@ def lazy_any2(compiler, cont, item, template, result):
 @special
 def greedy_any(compiler, cont, item, template=None, result=None):
   if result is None:
-    return greedy_any1(item).cps_convert(compiler, cont)  
+    return greedy_any1(item).cps(compiler, cont)  
   else:
     _result  = compiler.new_var(Var('result'))
     return begin(greedy_any2(item, template, _result), 
-                     unify(result, _result)).cps_convert(compiler, cont)  
+                     unify(result, _result)).cps(compiler, cont)  
     
 @special
 def greedy_any1(compiler, cont, item):
@@ -146,7 +146,7 @@ def greedy_any1(compiler, cont, item):
         cont(il.TRUE)),    
     il.cfunction(greedy_any_cont, v,
         il.SetFailCont(greedy_any_fcont),
-        item.cps_convert(compiler, greedy_any_cont))(il.TRUE))
+        item.cps(compiler, greedy_any_cont))(il.TRUE))
 
 @special
 def greedy_any2(compiler, cont, item, template, result):
@@ -166,7 +166,7 @@ def greedy_any2(compiler, cont, item, template, result):
         cont(il.TRUE)),    
     il.cfunction(greedy_any_cont, v,
         il.SetFailCont(greedy_any_fcont),
-        item.cps_convert(compiler, 
+        item.cps(compiler, 
                          il.clamda(v2, 
                                    il.ListAppend(result, il.GetValue(template)), 
                                    greedy_any_cont(il.TRUE))))(il.TRUE))
@@ -175,11 +175,11 @@ def greedy_any2(compiler, cont, item, template, result):
 @special
 def some(compiler, cont, item, template=None, result=None):
   if result is None:
-    return some1(item).cps_convert(compiler, cont)  
+    return some1(item).cps(compiler, cont)  
   else:
     _result  = compiler.new_var(Var('result'))
     return begin(some2(item, template, _result), 
-                     unify(result, _result)).cps_convert(compiler, cont)  
+                     unify(result, _result)).cps(compiler, cont)  
   
 @special
 def some1(compiler, cont, item):
@@ -191,8 +191,8 @@ def some1(compiler, cont, item):
                 il.SetFailCont(il.clamda(v, 
                   il.SetFailCont(fc),
                   cont(v))),
-                item.cps_convert(compiler, some_cont))
-  return item.cps_convert(compiler, some_cont)
+                item.cps(compiler, some_cont))
+  return item.cps(compiler, some_cont)
 
 @special
 def some2(compiler, cont, item, template, result):
@@ -215,17 +215,17 @@ def some2(compiler, cont, item, template, result):
                     il.DelListItem(result, il.Integer(-1)),
                     fc(v3))),
                  cont(v))),
-                item.cps_convert(compiler, append_cont)),
-    item.cps_convert(compiler, append_cont)))
+                item.cps(compiler, append_cont)),
+    item.cps(compiler, append_cont)))
 
 @special
 def lazy_some(compiler, cont, item, template=None, result=None):
   if result is None:
-    return lazy_some1(item).cps_convert(compiler, cont)  
+    return lazy_some1(item).cps(compiler, cont)  
   else:
     _result  = compiler.new_var(Var('result'))
     return begin(lazy_some2(item, template, _result), 
-                     unify(result, _result)).cps_convert(compiler, cont)  
+                     unify(result, _result)).cps(compiler, cont)  
 
 @special
 def lazy_some1(compiler, cont, item):
@@ -240,7 +240,7 @@ def lazy_some1(compiler, cont, item):
         il.SetFailCont(fc),
         lazy_some_cont(il.TRUE)),
     il.cfunction(lazy_some_cont, v,
-        item.cps_convert(compiler, il.clamda(v2,
+        item.cps(compiler, il.clamda(v2,
           il.SetFailCont(lazy_some_fcont),
           cont(il.TRUE))))(il.TRUE))
                              
@@ -261,7 +261,7 @@ def lazy_some2(compiler, cont, item, template, result):
         il.SetFailCont(fc),
         lazy_some_cont(il.TRUE)),
     il.cfunction(lazy_some_cont, v,
-        item.cps_convert(compiler, il.clamda(v2,
+        item.cps(compiler, il.clamda(v2,
            il.SetFailCont(lazy_some_fcont),
            il.ListAppend(result, il.GetValue(template)),
            cont(il.TRUE))))(il.TRUE))
@@ -269,11 +269,11 @@ def lazy_some2(compiler, cont, item, template, result):
 @special
 def greedy_some(compiler, cont, item, template=None, result=None):
   if result is None:
-    return greedy_some1(item).cps_convert(compiler, cont)  
+    return greedy_some1(item).cps(compiler, cont)  
   else:
     _result  = compiler.new_var(Var('result'))
     return begin(greedy_some2(item, template, _result), 
-                     unify(result, _result)).cps_convert(compiler, cont)  
+                     unify(result, _result)).cps(compiler, cont)  
     
 @special
 def greedy_some1(compiler, cont, item):
@@ -288,8 +288,8 @@ def greedy_some1(compiler, cont, item):
         cont(il.TRUE)),    
     il.cfunction(greedy_some_cont, v,
         il.SetFailCont(greedy_some_fcont),
-        item.cps_convert(compiler, greedy_some_cont)),
-  item.cps_convert(compiler, greedy_some_cont))
+        item.cps(compiler, greedy_some_cont)),
+  item.cps(compiler, greedy_some_cont))
 
 @special
 def greedy_some2(compiler, cont, item, template, result):
@@ -312,9 +312,9 @@ def greedy_some2(compiler, cont, item, template, result):
         cont(il.TRUE)),    
     il.cfunction(greedy_some_cont, v,
         il.SetFailCont(greedy_some_fcont),
-        item.cps_convert(compiler, 
+        item.cps(compiler, 
                          append_result_cont)),
-    item.cps_convert(compiler, append_result_cont))
+    item.cps(compiler, append_result_cont))
 
 from term import getvalue, eval_unify
 from dao.command import assign, direct_interlang
@@ -325,7 +325,7 @@ def times(compiler, cont, item, expect_times, template=None, result=None):
   if result is None:
     expect_times1 = compiler.new_var(Const('expect_times'))
     return begin(assign(expect_times1, getvalue(expect_times)), 
-                    times1(item, expect_times1)).cps_convert(compiler, cont)
+                    times1(item, expect_times1)).cps(compiler, cont)
   else:
     expect_times1 = compiler.new_var(Const('expect_times'))
     result1  = compiler.new_var(il.ConstLocalVar('result'))
@@ -335,7 +335,7 @@ def times(compiler, cont, item, expect_times, template=None, result=None):
     return begin(assign(expect_times1, getvalue(expect_times)), 
                  times2(item, expect_times1, template, result2),
                  unify(result, result2)
-                 ).cps_convert(compiler, cont)  
+                 ).cps(compiler, cont)  
 
 @special
 def times1(compiler, cont, item, expect_times):
@@ -347,7 +347,7 @@ def times1(compiler, cont, item, expect_times):
       il.Assert(il.And(il.Isinstance(expect_times, il.Int), il.Gt(expect_times, il.Integer(0)))),
       il.Assign(i, il.Integer(0)),
       il.cfunction(times_cont, v, 
-        item.cps_convert(compiler, il.clamda(v,
+        item.cps(compiler, il.clamda(v,
         il.AddAssign(i, il.Integer(1)),
         il.If(il.Eq(i, expect_times),
               cont(v),
@@ -367,7 +367,7 @@ def times2(compiler, cont, item, expect_times, template, result):
       il.Assign(result, il.empty_list),
       il.Assign(i, il.Integer(0)),
       il.cfunction(times_cont, v, 
-        item.cps_convert(compiler, il.clamda(v,
+        item.cps(compiler, il.clamda(v,
         il.AddAssign(i, il.Integer(1)),
         il.ListAppend(result, il.GetValue(template)),
         il.If(il.Eq(i, expect_times),
@@ -379,7 +379,7 @@ def times2(compiler, cont, item, expect_times, template, result):
 def seplist(compiler, cont, item, separator, template=None, result=None):
   if result is None:
     return begin(item, any1(begin(separator, item))
-                 ).cps_convert(compiler, cont)  
+                 ).cps(compiler, cont)  
   else:
     result1  = compiler.new_var(il.ConstLocalVar('result'))
     result2  = compiler.new_var(Var('result'))
@@ -389,13 +389,13 @@ def seplist(compiler, cont, item, separator, template=None, result=None):
                  direct_interlang(il.Assign(result1, il.GetValue(template1))), 
                  any2(begin(separator, item), template, result2),
                  eval_unify(result, direct_interlang(il.add(il.MakeList(result1), result2_2)))
-                 ).cps_convert(compiler, cont)  
+                 ).cps(compiler, cont)  
   
 @special
 def lazy_seplist(compiler, cont, item, separator, template=None, result=None):
   if result is None:
     return begin(item, lazy_any1(begin(separator, item))
-                 ).cps_convert(compiler, cont)  
+                 ).cps(compiler, cont)  
   else:
     result1  = compiler.new_var(il.ConstLocalVar('result'))
     result2  = compiler.new_var(Var('result'))
@@ -405,13 +405,13 @@ def lazy_seplist(compiler, cont, item, separator, template=None, result=None):
                  direct_interlang(il.Assign(result1, il.GetValue(template1))), 
                  lazy_any2(begin(separator, item), template, result2),
                  eval_unify(result, direct_interlang(il.add(il.MakeList(result1), result2_2)))
-                 ).cps_convert(compiler, cont)  
+                 ).cps(compiler, cont)  
   
 @special
 def greedy_seplist(compiler, cont, item, separator, template=None, result=None):
   if result is None:
     return begin(item, greedy_any1(begin(separator, item))
-                 ).cps_convert(compiler, cont)  
+                 ).cps(compiler, cont)  
   else:
     result1  = compiler.new_var(il.ConstLocalVar('result'))
     result2  = compiler.new_var(Var('result'))
@@ -421,7 +421,7 @@ def greedy_seplist(compiler, cont, item, separator, template=None, result=None):
                  direct_interlang(il.Assign(result1, il.GetValue(template1))), 
                  greedy_any2(begin(separator, item), template, result2),
                  eval_unify(result, direct_interlang(il.add(il.MakeList(result1), result2_2)))
-                 ).cps_convert(compiler, cont)  
+                 ).cps(compiler, cont)  
   
 @special
 def follow(compiler, cont, item):
@@ -429,6 +429,6 @@ def follow(compiler, cont, item):
   v  = compiler.new_var(il.ConstLocalVar('v'))
   return il.begin(
     il.Assign(parse_state, il.parse_state),
-    item.cps_convert(compiler, il.clamda(v,
+    item.cps(compiler, il.clamda(v,
       il.SetParseState(parse_state), 
       cont(v))))

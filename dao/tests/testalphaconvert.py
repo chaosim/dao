@@ -12,7 +12,7 @@ from dao import interlang as il
 def alpha(exp):
   env = Environment()
   compiler = Compiler()
-  return exp.alpha_convert(env, compiler)
+  return exp.alpha(env, compiler)
 
 class TestAlphaConvert:
   def test_var(self):

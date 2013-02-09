@@ -22,8 +22,8 @@ def notunify(compiler, cont, x, y):
 def eval_unify(compiler, cont, x, y):
   x1 = compiler.new_var(il.ConstLocalVar('x'))
   y1 = compiler.new_var(il.ConstLocalVar('y'))
-  return x.cps_convert(compiler, il.clamda(x1, 
-    y.cps_convert(compiler, il.clamda(y1,
+  return x.cps(compiler, il.clamda(x1, 
+    y.cps(compiler, il.clamda(y1,
       il.If(il.IsLogicVar(x1),
          il.begin(il.SetBinding(x1, y1),
                   il.append_failcont(compiler, il.DelBinding(x1)),
@@ -38,7 +38,7 @@ def eval_unify(compiler, cont, x, y):
 def is_(compiler, cont, var, exp):
   var = il.LogicVar(var.name)
   v = compiler.new_var(il.ConstLocalVar('v'))
-  return exp.cps_convert(compiler, il.clamda(v,
+  return exp.cps(compiler, il.clamda(v,
       il.SetBinding(var, v), cont(v)))
 
 @special
@@ -59,7 +59,7 @@ def getvalue_default(compiler, cont, item, default=None):
   return il.begin(
     il.Assign(v, il.GetValue(item.interlang())),
     il.If(il.IsLogicVar(v),
-          default.cps_convert(compiler,cont),
+          default.cps(compiler,cont),
           cont(v)))
 
 @special

@@ -17,6 +17,8 @@ from control import succeed, fail, not_p, and_, or_, cut, cut_or, repeat
 from control import once, first_, first_p, findall_1, findall_2, findall
 from control import succeed as nullword
 
+from container import contain
+
 from term import unify, notunify, eval_unify, is_, derefence, getvalue, getvalue_default
 from term import isinteger, isfloat, isnumber, istuple, isstr, islist, isdict
 

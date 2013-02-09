@@ -4,7 +4,7 @@ from nose.tools import eq_, ok_, assert_raises
 
 from dao.solve import eval
 
-from dao.command import Var, LogicVar, Const, MultiAssignToConstError
+from dao.command import Var, LogicVar, Const, MacroVar, ConstMacroVar, MultiAssignToConstError
 
 from dao.builtins import Integer, String
 from dao.builtins import quote, begin, if_, assign
@@ -201,19 +201,22 @@ class TestMacro:
     eq_(eval(macro((x, y), y, x, 1)(println(1), prin(2))), 1)
     
   def test_macro4(self):
-    x, y, f = Var('x'), Var('y'), Var('f')
+    x, y, f = Var('x'), Var('y'), MacroVar('f')
     eq_(eval(let([(f, macro((x, y), y, x, 1))], f(println(1), prin(2)))), 1)
     
   def test_macro5(self):
-    x, y, f = Const('x'), Const('y'), Const('f')
+    x, y, f = Const('x'), Const('y'), MacroVar('f')
     eq_(eval(let([(f, macro((x, y), y, x, 1))], f(println(1), prin(2)))), 1)
     
   def test_macro6(self):
-    n, act, ntimes = Var('n'), Var('act'), Var('ntimes')
-    eq_(eval(letrec([(ntimes, macro((n, act), if_(eq(n, 0), 1, begin(act, ntimes(sub(n, 1), act)))))], ntimes(3, println(1)))), 1)
+    n, act, ntimes = Var('n'), Var('act'), MacroVar('ntimes')
+    eq_(eval(letrec([(ntimes, macro((n, act), 
+                    if_(eq(n, 0), 1, 
+                        begin(act, ntimes(sub(n, 1), act)))))], 
+                    ntimes(3, println(1)))), 1)
     
   def xtest_letrec2(self):
-    x, f = Var('x'), Var('f')
+    x, f = Var('x'), MacroVar('f')
     eq_(eval(letrec([(f, macro((x,), f(1)))], f(2))), 1)
     
   def test_letrec_assign(self):
@@ -227,24 +230,30 @@ class TestMacro:
                   letrec([(f, macro((x,), f(1), assign(f, 1)))], f(2)))
     
   def test_letrec3(self):
-    x, f = Var('x'), Var('f')
+    x, f = Var('x'), MacroVar('f')
     eq_(eval(letrec([(f, macro((x,), if_(eq(x,1), 1, f(sub(x,1)))))], f(2))), 1)
     
   def testletdouble1(self):
-    x, f = Var('x'), Var('f')
+    x, f = Var('x'), MacroVar('f')
+    eq_(eval(let([(f, macro([x], add(x, x)))], f(1))), 2)
+    
+  def testletdouble1_2(self):
+    x, f = Var('x'), ConstMacroVar('f')
     eq_(eval(let([(f, macro([x], add(x, x)))], f(1))), 2)
     
   def testletdouble2(self):
-    x, f = Const('x'), Const('f')
+    x, f = Const('x'), ConstMacroVar('f')
     eq_(eval(let([(f, macro([x], add(x, x)))], f(1))), 2)
     
   def test_letrec_fac(self):
-    from util import m, n, fac
+    from util import m, n
+    fac = MacroVar('fac')
     eq_(eval(letrec([(fac, macro([n], if_(eq(n,1), 1, mul(n, fac(sub(n, 1))))))],
                   fac(3))), 6)
     
   def test_letrec_odd_even(self):
-    from util import n, odd, even  
+    from util import n
+    odd, even  = MacroVar('odd'), MacroVar('even')  
     eq_(eval(letrec([(odd, macro([n], if_(eq(n,0), 0, even(sub(n,1))))),
                     (even, macro([n], if_(eq(n,0), 1, odd(sub(n, 1)))))],
                   odd(3))), 1)

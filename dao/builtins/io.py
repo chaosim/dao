@@ -18,7 +18,7 @@ readlines = BuiltinFunction('readlines', il.Readlines)
 @special
 def prin_(compiler, cont, argument):
   v = compiler.new_var(il.ConstLocalVar('v'))
-  return argument.cps_convert(compiler, 
+  return argument.cps(compiler, 
            il.clamda(v, il.Prin(v), cont(il.NONE)))
 
 def prin(*args):
@@ -27,7 +27,7 @@ def prin(*args):
 @special
 def println_(compiler, cont, argument):
   v = compiler.new_var(il.ConstLocalVar('v'))
-  return argument.cps_convert(compiler, 
+  return argument.cps(compiler, 
            il.clamda(v, il.PrintLn(v), cont(il.NONE)))
 
 def println(*args):
@@ -37,8 +37,8 @@ def println(*args):
 def write_(compiler, cont, file, argument):
   v1 = compiler.new_var(il.ConstLocalVar('v'))
   v2 = compiler.new_var(il.ConstLocalVar('v'))
-  return file.cps_convert(compiler, 
-    il.clamda(v1, argument.cps_convert(compiler, 
+  return file.cps(compiler, 
+    il.clamda(v1, argument.cps(compiler, 
            il.clamda(v2, il.WriteFile(v1, v2), cont(il.NONE)))))
 
 def write(file, *args):

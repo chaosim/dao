@@ -777,7 +777,7 @@ class BinaryLogicOperation(VirtualOperation): pass
 class UnaryLogicOperation(VirtualOperation): pass
 
 def Call_to_code(self, compiler):
-  return '%s(%s)'%(self.args[0].to_code(compiler), ', '.join([x.to_code(compiler) for x in self.args[1:]]))  
+  return '(%s)(%s)'%(self.args[0].to_code(compiler), ', '.join([x.to_code(compiler) for x in self.args[1:]]))  
 Call = vop('Call', -1, Call_to_code, True)
 
 Attr = vop('Attr', 2, '%s.%s', False)

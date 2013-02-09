@@ -5,26 +5,23 @@ from dao.command import special, Command, SpecialCall, BuiltinFunction
 import dao.interlang as il
 from dao.interlang import TRUE, FALSE, NONE
 
-#@special
-#def contain(compiler, cont, container, member): 
-  #return container.cps_convert(compiler, il.clamda(container1,
-    #il.Assign(container2, il.GetValue(container1)), 
-    #member.cps_convert(compiler, il.clamda(member1, 
-      #il.Assign(member2, mil.GetValue(container2)),
-      #il.If(isLogicVar(member2),
-            #il.begin(
-              #il.Assign(iter1, il.Iter(container1)),
-              #il.Next(iter1)),
-            
-  #if isinstance(member, Var):
-    #for x in container:
-      #return unify(member, x, solver)
-  #elif member in container: 
-    #return True
-
+@special
+def contain(compiler, cont, container, member):
+  container1 = compiler.new_var(il.ConstLocalVar('container'))
+  container2 = compiler.new_var(il.ConstLocalVar('container'))
+  member1 = compiler.new_var(il.ConstLocalVar('member'))
+  member2 = compiler.new_var(il.ConstLocalVar('member'))
+  return container.cps(compiler, il.clamda(container1,
+    il.Assign(container2, il.GetValue(container1)), 
+    member.cps(compiler, il.clamda(member1, 
+      il.Assign(member2, il.GetValue(member1)),
+      il.If(il.In(member2, container2),
+            cont(il.TRUE),
+          il.failcont(il.FALSE))))))
+    
 @special
 def length(compiler, cont, sequence):
-  return sequence.cps_convert(compiler, il.clamda(sequence1, 
+  return sequence.cps(compiler, il.clamda(sequence1, 
     cont(il.Len(il.GetValue(sequence1)))))
 
 def starstwith(x, y):
@@ -238,8 +235,6 @@ def left(sequence):
 def second(sequence): 
   return sequence[1]
 
-from dao.solve import DaoStopIteration
-
 @special
 def iter_next(iterator): 
   try: return iterator.next()
@@ -252,7 +247,8 @@ def make_iter(iterator):
   try: 
     iterator.next
     return iterator
-  except: return iter(iterator)
+  except AttributeError: 
+    return iter(iterator)
   
 @special
 def to_list(item): 
@@ -260,6 +256,4 @@ def to_list(item):
     return item
   return [item]
 
-@special
-def items(dict):
-  return dict.items()
+#items = BuiltinFunction('items', il.Items) #dict.items

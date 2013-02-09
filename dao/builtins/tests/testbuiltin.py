@@ -24,8 +24,9 @@ from dao.tests.util import *
 
 class TestControl:
   def test_fail(self):
-    x = LogicVar('x')
-    eq_(eval(let([(f,rules([[1], fail], [[x], succeed]))], f(x))), True)
+    x = Var('x')
+    x1 = LogicVar('x')
+    eq_(eval(let([(f,rules([[1], fail], [[x], succeed]))], f(x1))), True)
 
   def test_succeed(self):
     x = LogicVar('x')

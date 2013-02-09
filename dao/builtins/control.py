@@ -24,7 +24,7 @@ def not_p(compiler, cont, clause):
   fc = compiler.new_var(il.ConstLocalVar('old_fail_cont'))
   return il.begin(il.Assign(fc, il.failcont), 
                   il.SetFailCont(cont),
-                  clause.cps_convert(compiler, fc))
+                  clause.cps(compiler, fc))
   
 @special
 def cut(compiler, cont):
@@ -91,15 +91,15 @@ def or2_fun(compiler, cont, clause1, clause2):
         fc(il.FALSE))),
       il.SetFailCont(il.clamda(v1, 
         il.SetFailCont(fc),
-        clause2.cps_convert(compiler, or_cont))),
-      clause1.cps_convert(compiler, or_cont))
+        clause2.cps(compiler, or_cont))),
+      clause1.cps(compiler, or_cont))
   else:
     return il.begin(
       il.Assign(fc, il.failcont),
       il.SetFailCont(il.clamda(v1, 
         il.SetFailCont(fc),
-        clause2.cps_convert(compiler, cont))),
-      clause1.cps_convert(compiler, cont))
+        clause2.cps(compiler, cont))),
+      clause1.cps(compiler, cont))
 
 or2 = special(or2_fun)
 
@@ -110,8 +110,8 @@ def first_(compiler, cont, clause1, clause2):
   first_cont = il.clamda(v, il.SetFailCont(fc), cont(v))
   return il.begin(
     il.Assign(fc, il.failcont),
-    il.append_failcont(compiler, clause2.cps_convert(compiler, first_cont)),
-    clause1.cps_convert(compiler, first_cont))
+    il.append_failcont(compiler, clause2.cps(compiler, first_cont)),
+    clause1.cps(compiler, first_cont))
 
 def first_p(*exps):
   if not exps: raise
@@ -126,14 +126,14 @@ def once(compiler, cont, exp):
   fc = compiler.new_var(il.ConstLocalVar('fc'))
   return il.begin(
     il.Assign(fc, il.failcont),
-    exp.cps_convert(compiler, 
+    exp.cps(compiler, 
                         il.clamda(v, il.SetFailCont(fc), cont(v))))
 
 @special
 def if_p(compiler, cont, condition, action):
   v = compiler.new_var(il.ConstLocalVar('v'))
-  return condition.cps_convert(compiler, 
-                    il.Clamda(v, action.cps_convert(compiler, cont)))
+  return condition.cps(compiler, 
+                    il.Clamda(v, action.cps(compiler, cont)))
 
 # finding all solutions to a goal
 
@@ -147,7 +147,7 @@ def findall_1(compiler, cont, goal):
     il.SetFailCont(il.clamda(v2, 
           il.SetFailCont(fc),
           cont(v2))),
-    goal.cps_convert(compiler, il.Clamda(v, il.failcont(v)))
+    goal.cps(compiler, il.Clamda(v, il.failcont(v)))
     )
 
 @special
@@ -163,7 +163,7 @@ def findall_2(compiler, cont, goal, template, bag):
      il.SetFailCont(il.clamda(v2,
         il.SetFailCont(fc),
         cont(v2))),
-      goal.cps_convert(compiler, 
+      goal.cps(compiler, 
         il.clamda(v, 
           il.ListAppend(bag, il.GetValue(template)),
           il.failcont(v))))
@@ -171,11 +171,11 @@ def findall_2(compiler, cont, goal, template, bag):
 @special
 def findall(compiler, cont, goal, template=None, bag=None):
   if bag is None: 
-    return findall_1(goal).cps_convert(compiler, cont)
+    return findall_1(goal).cps(compiler, cont)
   else:
     _bag  = compiler.new_var(Var('bag'))
     return begin(findall_2(goal, template, _bag),unify(bag, _bag)
-                 ).cps_convert(compiler, cont)
+                 ).cps(compiler, cont)
 #findall:
   #findall goal: goal, fail
     

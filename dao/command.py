@@ -17,10 +17,10 @@ class Atom(Element):
   def __init__(self, item):
     self.item = item
     
-  def alpha_convert(self, env, compiler):
+  def alpha(self, env, compiler):
     return self
   
-  def cps_convert(self, compiler, cont):
+  def cps(self, compiler, cont):
     return cont(self.interlang())
     
   def quasiquote(self, compiler, cont):
@@ -136,14 +136,14 @@ class Var(Element):
   def __call__(self, *args):
     return Apply(self, tuple(element(arg) for arg in args))
   
-  def alpha_convert(self, env, compiler):
+  def alpha(self, env, compiler):
     return env[self]
     
   def subst(self, bindings):  
     try: return bindings[self]
     except: return self
       
-  def cps_convert(self, compiler, cont):
+  def cps(self, compiler, cont):
     return cont(self.interlang())
   
   def cps_convert_unify(x, y, compiler, cont):
@@ -178,19 +178,21 @@ class Var(Element):
                     cont(il.TRUE)),
               il.If(il.Eq(x1, y1), cont(il.TRUE), il.failcont(il.TRUE))))))
   
-  def cps_convert_call(self, compiler, cont, args):
+  def cps_call(self, compiler, cont, args):
     # see The 90 minute Scheme to C compiler by Marc Feeley
+    raise CompileTypeError(self)
+  
     function = compiler.new_var(il.ConstLocalVar('function'))
     vars = tuple(compiler.new_var(il.ConstLocalVar('a'+repr(i))) for i in range(len(args)))
     body = il.Apply(function, (cont,)+vars)
     for var, item in reversed(zip(vars, args)):
-      body = item.cps_convert(compiler, il.clamda(var, body)) 
+      body = item.cps(compiler, il.clamda(var, body)) 
     v = compiler.new_var(il.ConstLocalVar('v'))
     macro_args1 = tuple(il.ExpressionWithCode(arg, 
-                                      il.Lamda((), arg.cps_convert(compiler, il.clamda(v, v)))) 
+                                      il.Lamda((), arg.cps(compiler, il.clamda(v, v)))) 
                                 for arg in args)
     macro_args2 = il.macro_args(macro_args1)
-    return self.cps_convert(compiler, il.clamda(function,
+    return self.cps(compiler, il.clamda(function,
                   il.If(il.IsMacro(function),
                         il.If(il.IsMacroRules(function),
                               il.Apply(function, (cont, macro_args2)),
@@ -213,23 +215,59 @@ class Var(Element):
     return hash(self.name)
   
   def __repr__(self):
-    return "Var('%s')"%self.name 
+    return "%s('%s')"%(self.__class__.__name__, self.name)
 
 class Const(Var):
   def interlang(self):
     return il.ConstLocalVar(self.name)
   
-  def __repr__(self):
-    return "Const('%s')"%self.name 
+class LamdaVar(Var):
+  def cps_call(self, compiler, cont, args):
+    #function = compiler.new_var(il.ConstLocalVar('function'))
+    function = self.interlang()
+    vars = tuple(compiler.new_var(il.ConstLocalVar('a'+repr(i))) 
+                 for i in range(len(args)))
+    body = il.Apply(function, (cont,)+vars)
+    for var, item in reversed(zip(vars, args)):
+      body = item.cps(compiler, il.clamda(var, body)) 
+    v = compiler.new_var(il.ConstLocalVar('v'))
+    return self.cps(compiler, il.clamda(function,body))
+    
+class MacroVar(Var): 
+  def cps_call(self, compiler, cont, args):
+    function = self.interlang()
+    k = compiler.new_var(il.ConstLocalVar('cont'))
+    v = compiler.new_var(il.ConstLocalVar('v'))
+    #macro_args = tuple(il.Lamda((), arg.cps(compiler, il.clamda(v, v))) 
+                                #for arg in args)
+    macro_args = tuple(il.Lamda((k,), arg.cps(compiler, k)) for arg in args)
+    return self.cps(compiler, 
+                            il.clamda(function, il.Apply(function, (cont,)+macro_args)))
+  
+class ConstLamdaVar(LamdaVar, Const): 
+  def interlang(self):
+    return il.ConstLocalVar(self.name)  
 
+class ConstMacroVar(MacroVar, Const): 
+  def interlang(self):
+    return il.ConstLocalVar(self.name)
+
+class RecursiveFunctionVar(ConstLamdaVar):
+  def interlang(self):
+    return il.RecursiveVar(self.name)
+
+class RecursiveMacroVar(ConstMacroVar): 
+  def interlang(self):
+    return il.RecursiveVar(self.name)
+  
 class LogicVar(Var):  
-  def alpha_convert(self, env, compiler):
+  def alpha(self, env, compiler):
     return self
   
   def interlang(self):
     return il.LogicVar(self.name)
   
-  def cps_convert(self, compiler, cont):
+  def cps(self, compiler, cont):
     return cont(il.LogicVar(self.name))
   
   def to_code(self, compiler):
@@ -245,22 +283,24 @@ class DummyVar(LogicVar):
   def interlang(self):
     return il.DummyVar(self.name)
   
-  def cps_convert(self, compiler, cont):
+  def cps(self, compiler, cont):
     return cont(il.Deref(il.DummyVar(self.name)))
 
   def to_code(self, compiler):
     return "DaoDummyVar('%s')"%self.name
   
-  
+def cons(head, tail):
+  return Cons(element(head), element(tail))
+
 class Cons(Element): 
   def __init__(self, head, tail):
     self.head, self.tail = head, tail
     
-  def alpha_convert(self, env, compiler):
-    return Cons(self.head.alpha_convert(env, compiler),
-                self.tail.alpha_convert(env, compiler))
+  def alpha(self, env, compiler):
+    return Cons(self.head.alpha(env, compiler),
+                self.tail.alpha(env, compiler))
   
-  def cps_convert(self, compiler, cont): 
+  def cps(self, compiler, cont): 
     return cont(self.interlang())
   
   def interlang(self):
@@ -292,18 +332,28 @@ class Cons(Element):
     return Cons(copy(self.head, memo), copy(self.tail, memo))
   
   def __eq__(self, other): 
-    return self.__class__==other.__class__ and self.head==other.head and self.tail==other.tail
+    return self.__class__==other.__class__ \
+           and self.head==other.head and self.tail==other.tail
      
+  def __iter__(self):
+    tail = self 
+    while 1:
+      yield tail.head
+      if tail.tail is nil: return
+      elif isinstance(tail.tail, Cons): 
+        tail = tail.tail
+      else: 
+        yield tail.tail
+        return
+      
   def __len__(self): 
     return len([e for e in self])
   
   def __repr__(self): 
     return 'L(%s)'%' '.join([repr(e) for e in self])
 
-cons = Cons
-
 class Nil(Element): 
-  def alpha_convert(self, env, compiler):
+  def alpha(self, env, compiler):
     return self
   
   def interlang(self):
@@ -385,13 +435,13 @@ class Apply(Element):
   def __init__(self, caller, args):
     self.caller, self.args = caller, args
 
-  def alpha_convert(self, env, compiler):
-    return self.__class__(self.caller.alpha_convert(env, compiler), 
-                 tuple(arg.alpha_convert(env, compiler) for arg in self.args))
+  def alpha(self, env, compiler):
+    return self.__class__(self.caller.alpha(env, compiler), 
+                 tuple(arg.alpha(env, compiler) for arg in self.args))
   
-  def cps_convert(self, compiler, cont):
+  def cps(self, compiler, cont):
     # see The 90 minute Scheme to C compiler by Marc Feeley
-    return self.caller.cps_convert_call(compiler, cont, self.args)
+    return self.caller.cps_call(compiler, cont, self.args)
 
   def subst(self, bindings):  
     return self.__class__(self.caller.subst(bindings), 
@@ -462,11 +512,11 @@ class SpecialCall(CommandCall):
     self.function = command.function
     self.args = args
     
-  def alpha_convert(self, env, compiler):
+  def alpha(self, env, compiler):
     return self.__class__(self.command,
-                 tuple(arg.alpha_convert(env, compiler) for arg in self.args))
+                 tuple(arg.alpha(env, compiler) for arg in self.args))
   
-  def cps_convert(self, compiler, cont):
+  def cps(self, compiler, cont):
     return self.function(compiler, cont, *self.args)
   
   def to_code(self, compiler):
@@ -491,7 +541,7 @@ class BuiltinFunction(Command):
     args = tuple(element(arg) for arg in args)
     return BuiltinFunctionCall(self, args)
   
-  def cps_convert(self, compiler, cont):
+  def cps(self, compiler, cont):
     return il.Lamda((params), self.function.function(*params))
   
   def analyse(self, compiler):  
@@ -511,17 +561,17 @@ class BuiltinFunction(Command):
   
 class BuiltinFunctionCall(CommandCall):
   is_statement = False
-  def alpha_convert(self, env, compiler):
+  def alpha(self, env, compiler):
     return self.__class__(self.function,
-                 tuple(arg.alpha_convert(env, compiler) for arg in self.args))
+                 tuple(arg.alpha(env, compiler) for arg in self.args))
   
-  def cps_convert(self, compiler, cont):
+  def cps(self, compiler, cont):
     #see The 90 minute Scheme to C compiler by Marc Feeley
     args = self.args
     vars = tuple(compiler.new_var(il.ConstLocalVar('a'+repr(i))) for i in range(len(args)))
     fun = cont(self.function.function(*vars))
     for var, arg in reversed(zip(vars, args)):
-      fun = arg.cps_convert(compiler, il.Clamda(var, fun))
+      fun = arg.cps(compiler, il.Clamda(var, fun))
     return fun
 
   def analyse(self, compiler):
@@ -566,21 +616,21 @@ class Assign(CommandCall):
   def subst(self, bindings):
     return Assign(self.var, self.exp.subst(bindings))
     
-  def alpha_convert(self, env, compiler):
+  def alpha(self, env, compiler):
     try: 
       var = env[self.var]
     except VariableNotBound:
       env[self.var] = var = compiler.new_var(self.var)
       if isinstance(var, Const):
         var.assigned = True
-      return Assign(var, self.exp.alpha_convert(env, compiler))
+      return Assign(var, self.exp.alpha(env, compiler))
     if isinstance(var, Const) and var.assigned:
       raise MultiAssignToConstError(var)
-    return Assign(var, self.exp.alpha_convert(env, compiler))
+    return Assign(var, self.exp.alpha(env, compiler))
   
-  def cps_convert(self, compiler, cont):
+  def cps(self, compiler, cont):
     v = compiler.new_var(il.ConstLocalVar('v'))
-    return self.exp.cps_convert(compiler, 
+    return self.exp.cps(compiler, 
               il.clamda(v, il.Assign(self.var.interlang(), v), cont(v)))
   
   def __eq__(x, y):
@@ -599,16 +649,16 @@ class DirectInterlang(Element):
   def __init__(self, body):
     self.body = body
   
-  def alpha_convert(self, env, compiler):
+  def alpha(self, env, compiler):
     return self
   
-  def cps_convert(self, compiler, cont):
+  def cps(self, compiler, cont):
     return cont(self.body)
     
 @special
 def expression_with_code(compiler, cont, exp):
   v = compiler.new_var(il.ConstLocalVar('v'))
-  return cont(il.ExpressionWithCode(exp, il.Lamda((), exp.cps_convert(compiler, il.clamda(v, v)))))
+  return cont(il.ExpressionWithCode(exp, il.Lamda((), exp.cps(compiler, il.clamda(v, v)))))
 
 type_map = {int:Integer, float: Float, str:String, unicode: String, 
             tuple: make_tuple, list:List, dict:Dict, 

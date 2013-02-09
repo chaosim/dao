@@ -10,10 +10,10 @@ class Quasiquote(CommandCall):
   def __init__(self, item):
     self.item = item
     
-  def alpha_convert(self, env, compiler):
-    return Quasiquote(self.item.alpha_convert(env, compiler))
+  def alpha(self, env, compiler):
+    return Quasiquote(self.item.alpha(env, compiler))
   
-  def cps_convert(self, compiler, cont):
+  def cps(self, compiler, cont):
     return self.item.quasiquote(compiler, cont)
       
   def quasiquote(self, compiler, cont):
@@ -31,14 +31,14 @@ class Unquote(CommandCall):
   def __init__(self, item):
     self.item = item
     
-  def alpha_convert(self, env, compiler):
-    return Unquote(self.item.alpha_convert(env, compiler))
+  def alpha(self, env, compiler):
+    return Unquote(self.item.alpha(env, compiler))
   
-  def cps_convert(compiler, cont, arg):
+  def cps(compiler, cont, arg):
     raise DaoSyntaxError
 
   def quasiquote(self, compiler, cont):
-    return self.item.cps_convert(compiler, cont)
+    return self.item.cps(compiler, cont)
   
   def analyse(self, compiler):  
     return  
@@ -56,15 +56,15 @@ class UnquoteSplice(CommandCall):
   def __init__(self, item):
     self.item = item
     
-  def alpha_convert(self, env, compiler):
-    return UnquoteSplice(self.item.alpha_convert(env, compiler))
+  def alpha(self, env, compiler):
+    return UnquoteSplice(self.item.alpha(env, compiler))
   
-  def cps_convert(compiler, cont, arg):
+  def cps(compiler, cont, arg):
     raise DaoSyntaxError
 
   def quasiquote(self, compiler, cont):
     v = compiler.new_var(il.ConstLocalVar('v'))
-    return self.item.cps_convert(compiler, il.clamda(v, cont(il.UnquoteSplice(v))))
+    return self.item.cps(compiler, il.clamda(v, cont(il.UnquoteSplice(v))))
   
   def __repr__(self):
     return ',@%s'%repr(self.item)

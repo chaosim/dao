@@ -25,9 +25,9 @@ def between(compiler, cont, lower, upper, mid):
   fc = compiler.new_var(il.ConstLocalVar('fc'))
   i = compiler.new_var(il.Var('i'))
   v = compiler.new_var(il.ConstLocalVar('v'))
-  return lower.cps_convert(compiler, il.clamda(lower1,
-    upper.cps_convert(compiler, il.clamda(upper1,
-    mid.cps_convert(compiler, il.clamda(mid1,
+  return lower.cps(compiler, il.clamda(lower1,
+    upper.cps(compiler, il.clamda(upper1,
+    mid.cps(compiler, il.clamda(mid1,
         il.If(il.IsLogicVar(mid1),
           il.begin(
             il.Assign(i, lower1),
