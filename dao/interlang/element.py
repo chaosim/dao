@@ -59,6 +59,9 @@ class Element(base.Element):
   def replace_return_with_yield(self):
     return self
   
+  def interlang(self):
+    return self
+  
   def __eq__(x, y):
     return classeq(x, y)
   

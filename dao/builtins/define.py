@@ -345,14 +345,14 @@ def unify_head_item1(arg, head_item):
     else:
       return unify(arg, head_item)
 
-@special
-def unify_head_item2(compiler, cont, arg, head_item):
-  # for call with rules variable.
+def do_unify_head_item2(arg, head_item, compiler, cont):
   if not isinstance(head_item, Var):
-    # arg should be Var
+    # arg should be Var or il.ConsHead
     if isinstance(head_item, Cons):
-      return do_unify_head_item2(head_item.head, il.ConsHead(arg), compiler, 
-                            do_unify_head_item2(head_item.tail, il.ConsTail(arg), compiler, cont))
+      arg1 = compiler.new_var(il.ConstLocalVar('arg'))
+      return il.begin(il.Assign(arg1, il.Deref(arg)),
+                      do_unify_head_item2(il.ConsHead(arg1), head_item.head, compiler, 
+                            do_unify_head_item2(il.ConsTail(arg), head_item.tail, compiler, cont)))
     else:
       head_item = head_item.interlang()
       arg = arg.interlang()
@@ -372,22 +372,36 @@ def unify_head_item2(compiler, cont, arg, head_item):
         cont(il.TRUE))
     else:
       raise CompileTypeError
-      #head_item = head_item.interlang()
-      #arg1 = compiler.new_var(il.ConstLocalVar('arg'))
-      #head1 = compiler.new_var(il.ConstLocalVar('head'))
-      #return il.begin(
-        #il.Assign(arg1, il.Deref(arg)), #for LogicVar could be optimized when generate code.
-        #il.Assign(head1, il.Deref(head_item)),
-        #il.If(il.IsLogicVar(arg1),
-           #il.begin(il.SetBinding(arg1, head1),
-              #il.append_failcont(compiler, il.DelBinding(arg1)),
-              #cont(il.TRUE)),
-           #il.begin(
-             #il.If(il.IsLogicVar(head1),
-                #il.begin(il.SetBinding(head1, arg1),
-                  #il.append_failcont(compiler, il.DelBinding(head1)),
-                  #cont(il.TRUE)),
-                #il.If(il.Eq(arg1, head1), cont(il.TRUE), il.failcont(il.FALSE))))))
+  
+@special
+def unify_head_item2(compiler, cont, arg, head_item):
+  # for call with rules variable.
+  arg = arg.interlang()
+  if not isinstance(head_item, Var):
+    # arg should be Var
+    if isinstance(head_item, Cons):
+      v = compiler.new_var(il.ConstLocalVar('v'))
+      return do_unify_head_item2(il.ConsHead(arg), head_item.head, compiler, 
+                            il.clamda(v, 
+                            do_unify_head_item2(il.ConsTail(arg), head_item.tail, 
+                                                compiler, cont)))
+    else:
+      head_item = head_item.interlang()
+      arg1 = compiler.new_var(il.ConstLocalVar('arg'))
+      return il.begin(
+        il.Assign(arg1, il.Deref(arg)),
+        il.If(il.IsLogicVar(arg1),
+           il.begin(il.SetBinding(arg1, head_item),
+                 il.append_failcont(compiler, il.DelBinding(arg1)),
+                 cont(il.TRUE)),
+                il.If(il.Eq(arg1, head_item), cont(TRUE), il.failcont(TRUE))))
+  else:
+    if not isinstance(head_item, LogicVar):
+      return il.begin(
+        il.Assign(head_item.interlang(), arg),
+        cont(il.TRUE))
+    else:
+      raise CompileTypeError
   
 from dao.command import expression_with_code
 

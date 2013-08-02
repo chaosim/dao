@@ -28,7 +28,18 @@ def statics(exts):
         pass
   return file_count, line_count, char_count
 
+
 print 'python files: %d, lines: %d, characters: %d'% statics(['.py'])
 print 'text files: %d, lines: %d, characters: %d'% statics(['.txt'])
 print 'rest files: %d, lines: %d, characters: %d'% statics(['.rst'])
+
+line_count = 0
+char_count = 0
+for name in ["command", "compile", "compilebase", "solve", "solvebase",
+             "interlang\\element", "interlang\\lamda", "interlang\\vop", 
+             "builtins\\define", "builtins\\special"]:
+  line_count += len(tuple(open(r"F:\dao_all\dao\dao\\" + name+".py").xreadlines()))
+  char_count += len(tuple(open(r"F:\dao_all\dao\dao\\" + name+".py").read()))
+  
+print "lines: %d, characters: %d"%(line_count, char_count)
   

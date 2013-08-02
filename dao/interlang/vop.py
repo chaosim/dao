@@ -859,6 +859,9 @@ nil = Nil()
 bindings = SolverVar('bindings')
 def SetBindings(bindings1): return Assign(bindings, bindings1)
 
+ConsHead = vop('ConsHead', 1, '(%s).head', False)
+ConsTail = vop('ConsTail', 1, '(%s).tail', False)
+
 Optargs = vop('Optargs', 1, '*%s', False)
 
 Continue = vop('Continue', 0, "continue\n", False)

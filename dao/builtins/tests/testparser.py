@@ -581,7 +581,7 @@ from dao.command import cons, nil, conslist as L
 
 class TestKleeneByfunction:  
   def testKleene1(self): #occurs_check
-    x, s, kleene = LogicVar('x'), Var('s'), Var('kleene')
+    x, s, kleene = Var('x'), Var('s'), Var('kleene')
     x1 = Var('x')
     result = LogicVar('result')
     ruleList = [(kleene, rules( 
